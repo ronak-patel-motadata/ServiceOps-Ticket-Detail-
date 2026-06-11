@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { LogIn, ClipboardList, FileCheck, Wrench, ScanSearch, CheckCheck, Check, ChevronDown } from 'lucide-react';
+import { LogIn, ClipboardList, FileCheck, Wrench, ScanSearch, CheckCheck, Check } from 'lucide-react';
 
 interface ChangeStagesBarProps {
   /** The full change status string, e.g. "Planning: In Progress" */
@@ -94,29 +93,14 @@ function resolveStatus(status?: string): { index: number; sub: string } {
   if (s.startsWith('submitted')) return { index: 0, sub: sub || 'Requested' };
   if (s.startsWith('planning')) return { index: 1, sub: sub || 'In Progress' };
   if (s.startsWith('approval')) return { index: 2, sub: sub || 'Pending' };
-  if (s.startsWith('deployment') || s.startsWith('build')) return { index: 3, sub: sub || 'In Progress' };
-  if (s.startsWith('testing') || s.startsWith('review')) return { index: 4, sub: sub || 'In Progress' };
+  if (s.startsWith('implementation') || s.startsWith('deployment') || s.startsWith('build')) return { index: 3, sub: sub || 'In Progress' };
+  if (s.startsWith('in review') || s.startsWith('review') || s.startsWith('testing')) return { index: 4, sub: sub || 'In Progress' };
   if (s.startsWith('completed') || s.startsWith('closed')) return { index: 5, sub: sub || 'Closed' };
   return { index: 1, sub: 'In Progress' };
 }
 
 export function ChangeStagesBar({ status, drawerWidth = 1546 }: ChangeStagesBarProps) {
-  const { index: activeIndex, sub } = resolveStatus(status);
-  const [subStatus, setSubStatus] = useState(sub);
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setSubStatus(sub); }, [sub]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) {
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }
-  }, [open]);
+  const { index: activeIndex, sub: subStatus } = resolveStatus(status);
 
   const compact = drawerWidth <= 1080;
   const H = compact ? 30 : 38;          // chevron height
@@ -169,36 +153,6 @@ export function ChangeStagesBar({ status, drawerWidth = 1546 }: ChangeStagesBarP
                 <span className={`${labelCls} font-semibold leading-none truncate`}>{stage.label}</span>
               </div>
 
-              {/* Sub-status under the chevron */}
-              {isActive ? (
-                <div className="relative mt-1.5" ref={dropdownRef}>
-                  <button
-                    onClick={() => setOpen(!open)}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#DFE5ED] bg-white hover:border-[#3D8BD0] transition-colors ${subCls} font-medium text-[#364658]`}
-                  >
-                    <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: activeColor }} />
-                    <span className="truncate max-w-[72px]">{subStatus}</span>
-                    <ChevronDown size={11} className="text-[#7B8FA5] flex-shrink-0" />
-                  </button>
-                  {open && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-[150px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
-                      {activeStage.options.map(opt => (
-                        <button
-                          key={opt.label}
-                          onClick={() => { setSubStatus(opt.label); setOpen(false); }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left hover:bg-[#F9FAFB] text-[#364658]"
-                        >
-                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }} />
-                          <span className="flex-1">{opt.label}</span>
-                          {opt.label === subStatus && <Check size={13} className="text-[#3D8BD0]" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : isCompleted ? (
-                <span className={`mt-1.5 ${subCls} font-medium text-[#22A06B] truncate max-w-full`}>{stage.completedLabel}</span>
-              ) : null}
             </div>
           );
         })}

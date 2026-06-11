@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 interface TicketFieldsAccordionProps {
   fieldsTitle?: string;
   showProblemFields?: boolean;
+  statusGroupLabel?: string;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -178,6 +179,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
   const {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
+    statusGroupLabel,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -412,6 +414,19 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
 
       {(ticketFieldsExpanded || propertiesSearchQuery) && (
         <div className="px-4 pb-4 space-y-2">
+          {/* Current Stage (shown above Status when a stage is provided) */}
+          {getFilteredTicketFields().includes('Status') && statusGroupLabel && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">Current Stage</div>
+            <div className="flex-1 min-w-0">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EAF3FB] border border-[#D6E6F5] text-[#2F7AB8] text-[11px] font-semibold leading-none">
+                <span className="size-1.5 rounded-full bg-[#3D8BD0] flex-shrink-0" />
+                {statusGroupLabel}
+              </span>
+            </div>
+          </div>
+          )}
+
           {/* Status */}
           {getFilteredTicketFields().includes('Status') && (
           <div className="flex items-center justify-between gap-3">
@@ -435,19 +450,18 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               </Tooltip>
             </div>
             <div className="group relative flex-1" ref={statusDropdownRef}>
-              <div 
+              <div
                 className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10"
-                style={{ backgroundColor: getCurrentStatusColor() }}
+                style={{ backgroundColor: statusOptions.find((o: any) => o.label === selectedStatus)?.color || getCurrentStatusColor() }}
               ></div>
               <button
-                className="w-full pl-6 pr-8 py-2 text-[13px] text-[#364658] bg-transparent border-none rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left"
+                title={selectedStatus}
+                className="w-full pl-6 pr-8 py-2 text-[13px] text-[#364658] bg-transparent border-none rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left truncate"
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
               >
-                {selectedStatus}
+                {statusGroupLabel && selectedStatus.includes(':') ? selectedStatus.split(':').slice(1).join(':').trim() : selectedStatus}
               </button>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
-              
-              {/* Status Dropdown Menu */}
               {showStatusDropdown && (
                 <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                   {statusOptions.map((option) => (
@@ -459,11 +473,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                         setShowStatusDropdown(false);
                       }}
                     >
-                      <div 
-                        className="size-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: option.color }}
-                      />
-                      <span className="text-[13px] text-[#364658] truncate">{option.label}</span>
+                      <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: option.color }} />
+                      <span className="text-[13px] text-[#364658] truncate">{option.display ?? option.label}</span>
                     </button>
                   ))}
                 </div>

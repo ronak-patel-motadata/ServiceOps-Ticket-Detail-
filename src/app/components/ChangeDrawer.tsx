@@ -414,6 +414,34 @@ export function ChangeDrawer({
   
   // Selected Values
   const [selectedStatus, setSelectedStatus] = useState('Open');
+
+  // The Status dropdown is scoped to the CURRENT lifecycle stage: it shows the stage
+  // name as a header and only that stage's sub-status options. Selecting one sets
+  // "<Stage>: <Sub>", which keeps the stage bar in sync.
+  const changeStageStatus = (() => {
+    const stages = [
+      { label: 'Submitted',      opts: [['Requested', '#3D8BD0'], ['Accepted', '#22A06B'], ['Rejected', '#E5484D']] },
+      { label: 'Planning',       opts: [['In Progress', '#F59E0B'], ['Pre Approved', '#9CA3AF'], ['Cancelled', '#E5484D'], ['Completed', '#22A06B']] },
+      { label: 'Approval',       opts: [['Pending', '#F59E0B'], ['Approved', '#22A06B'], ['Rejected', '#E5484D']] },
+      { label: 'Implementation', opts: [['In Progress', '#F97316'], ['Build', '#8B5CF6'], ['Deployment', '#F59E0B'], ['Completed', '#22A06B']] },
+      { label: 'In Review',      opts: [['In Progress', '#F59E0B'], ['Testing', '#22A06B'], ['Failed', '#E5484D'], ['Passed', '#22A06B']] },
+      { label: 'Closed',         opts: [['Closed', '#6B7280'], ['Cancelled', '#E5484D']] },
+    ];
+    const s = (selectedStatus || '').toLowerCase();
+    let idx = stages.findIndex((st) => s.startsWith(st.label.toLowerCase()));
+    if (idx === -1) {
+      if (s.startsWith('deployment') || s.startsWith('build')) idx = 3;
+      else if (s.startsWith('testing') || s.startsWith('review')) idx = 4;
+      else if (s.startsWith('completed')) idx = 5;
+      else idx = 1; // default to Planning
+    }
+    const stage = stages[idx];
+    return {
+      label: stage.label,
+      options: stage.opts.map(([sub, color]) => ({ label: `${stage.label}: ${sub}`, display: sub, color })),
+    };
+  })();
+
   const [selectedPriority, setSelectedPriority] = useState('Medium');
   const [selectedAssignee, setSelectedAssignee] = useState('Sarah Johnson');
   const [selectedTechGroup, setSelectedTechGroup] = useState('IT Support Team');
@@ -2493,8 +2521,14 @@ export function ChangeDrawer({
                       
                       {/* Status Dropdown */}
                       {showBadgeStatusDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
-                          {statusOptions.map((option) => (
+                        <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
+                          <div className="px-3 pt-1.5 pb-2 border-b border-[#F0F2F5] mb-1">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EAF3FB] border border-[#D6E6F5] text-[#2F7AB8] text-[11px] font-semibold">
+                              <span className="size-1.5 rounded-full bg-[#3D8BD0] flex-shrink-0" />
+                              {changeStageStatus.label}
+                            </span>
+                          </div>
+                          {changeStageStatus.options.map((option) => (
                             <button
                               key={option.label}
                               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
@@ -2507,7 +2541,7 @@ export function ChangeDrawer({
                                 className="size-2 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: option.color }}
                               ></div>
-                              <span className="text-[13px] text-[#364658]">{option.label}</span>
+                              <span className="text-[13px] text-[#364658]">{option.display}</span>
                               {selectedStatus === option.label && (
                                 <Check size={14} className="ml-auto text-[#3D8BD0]" />
                               )}
@@ -5489,7 +5523,8 @@ export function ChangeDrawer({
             handleDeleteAttachment={handleDeleteAttachment}
             handleLinkTicket={handleLinkTicket}
             openManualWorkLog={openManualWorkLog}
-            statusOptions={statusOptions}
+            statusOptions={changeStageStatus.options}
+            statusGroupLabel={changeStageStatus.label}
             priorityOptions={priorityOptions}
             assigneeOptions={assigneeOptions}
             techGroupOptions={techGroupOptions}

@@ -12,6 +12,8 @@ interface TicketPropertiesPanelProps {
   fieldsTitle?: string;
   // Render the Problem-specific fields (Business Service, Nature of Problem, Known Error)
   showProblemFields?: boolean;
+  // Optional header shown above the Status dropdown options (e.g. the current lifecycle stage)
+  statusGroupLabel?: string;
   // State
   activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot';
   setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot') => void;
@@ -264,6 +266,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
+    statusGroupLabel,
     activeGroup,
     setActiveGroup,
     showPropertiesSearch,
@@ -1286,6 +1289,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           key="ticket-fields"
           fieldsTitle={fieldsTitle}
           showProblemFields={showProblemFields}
+          statusGroupLabel={statusGroupLabel}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
           showMoreFields={showMoreFields}

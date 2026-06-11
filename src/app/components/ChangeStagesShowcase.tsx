@@ -1,4 +1,4 @@
-import { LogIn, ClipboardList, FileCheck, Wrench, ScanSearch, CheckCheck, Check, ChevronDown } from 'lucide-react';
+import { LogIn, ClipboardList, FileCheck, Wrench, ScanSearch, CheckCheck, Check, Info } from 'lucide-react';
 
 /**
  * Review-only showcase: renders multiple stage-bar styles stacked with captions
@@ -40,8 +40,8 @@ function resolveStatus(status?: string): { index: number; sub: string } {
   if (s.startsWith('submitted')) return { index: 0, sub: sub || 'Requested' };
   if (s.startsWith('planning')) return { index: 1, sub: sub || 'In Progress' };
   if (s.startsWith('approval')) return { index: 2, sub: sub || 'Pending' };
-  if (s.startsWith('deployment') || s.startsWith('build')) return { index: 3, sub: sub || 'In Progress' };
-  if (s.startsWith('testing') || s.startsWith('review')) return { index: 4, sub: sub || 'In Progress' };
+  if (s.startsWith('implementation') || s.startsWith('deployment') || s.startsWith('build')) return { index: 3, sub: sub || 'In Progress' };
+  if (s.startsWith('in review') || s.startsWith('review') || s.startsWith('testing')) return { index: 4, sub: sub || 'In Progress' };
   if (s.startsWith('completed') || s.startsWith('closed')) return { index: 5, sub: sub || 'Closed' };
   return { index: 1, sub: 'In Progress' };
 }
@@ -49,11 +49,11 @@ function resolveStatus(status?: string): { index: number; sub: string } {
 const colorFor = (stage: Stage, sub: string) => stage.options.find(o => o.label === sub)?.color || '#F59E0B';
 
 function SubPill({ color, label, compact }: { color: string; label: string; compact: boolean }) {
+  // Display-only status badge — the status is changed from the Status field in Properties.
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[#DFE5ED] bg-white ${compact ? 'text-[10px]' : 'text-[11px]'} font-medium text-[#364658]`}>
       <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-      <span className="truncate max-w-[80px]">{label}</span>
-      <ChevronDown size={11} className="text-[#7B8FA5] flex-shrink-0" />
+      <span className="truncate max-w-[90px]">{label}</span>
     </span>
   );
 }
@@ -75,8 +75,6 @@ function IconStepper({ activeIndex, sub, compact }: VariantProps) {
               {done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}
             </div>
             <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-            {active ? <div className="mt-1"><SubPill color={colorFor(stage, sub)} label={sub} compact={compact} /></div>
-              : done ? <span className={`mt-1 ${compact ? 'text-[10px]' : 'text-[11px]'} font-medium text-[#22A06B] truncate max-w-full`}>{stage.completedLabel}</span> : null}
           </div>
         );
       })}
@@ -104,8 +102,6 @@ function ChevronFlow({ activeIndex, sub, compact }: VariantProps) {
               <span className="flex-shrink-0 flex items-center">{done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}</span>
               <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-none truncate`}>{stage.label}</span>
             </div>
-            {active ? <div className="mt-1.5"><SubPill color={colorFor(stage, sub)} label={sub} compact={compact} /></div>
-              : done ? <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[11px]'} font-medium text-[#22A06B] truncate max-w-full`}>{stage.completedLabel}</span> : null}
           </div>
         );
       })}
@@ -128,8 +124,6 @@ function NumberedStepper({ activeIndex, sub, compact }: VariantProps) {
               {done ? <Check style={{ width: compact ? 13 : 15, height: compact ? 13 : 15 }} /> : i + 1}
             </div>
             <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-            {active ? <div className="mt-1"><SubPill color={colorFor(stage, sub)} label={sub} compact={compact} /></div>
-              : done ? <span className={`mt-1 ${compact ? 'text-[10px]' : 'text-[11px]'} font-medium text-[#22A06B] truncate max-w-full`}>{stage.completedLabel}</span> : null}
           </div>
         );
       })}
@@ -154,8 +148,6 @@ function SegmentedBar({ activeIndex, sub, compact }: VariantProps) {
           return (
             <div key={stage.key} className="flex-1 flex flex-col items-center min-w-0 px-0.5">
               <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-              {active ? <div className="mt-1"><SubPill color={colorFor(stage, sub)} label={sub} compact={compact} /></div>
-                : done ? <span className={`mt-0.5 ${compact ? 'text-[10px]' : 'text-[11px]'} font-medium text-[#22A06B] truncate max-w-full`}>{stage.completedLabel}</span> : null}
             </div>
           );
         })}
@@ -176,10 +168,6 @@ function PillRow({ activeIndex, sub, compact }: VariantProps) {
             <span key={stage.key} className={`inline-flex items-center gap-1.5 rounded-full bg-[#3D8BD0] text-white ${compact ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-[12px]'} font-semibold`}>
               {stage.icon(iconPx)}
               <span>{stage.label}</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-medium">
-                <span className="size-1.5 rounded-full" style={{ backgroundColor: colorFor(stage, sub) === '#F59E0B' ? '#FFD27A' : '#FFFFFF' }} />
-                {sub}
-              </span>
             </span>
           );
         }
@@ -207,6 +195,19 @@ export function ChangeStagesShowcase({ status, drawerWidth = 1546 }: ShowcasePro
   const compact = drawerWidth <= 1080;
   const vp = { activeIndex: index, sub, compact };
 
+  // Toggle to `true` to bring back the full design-options review (Options A–E).
+  // Kept here intentionally so the other stage-bar styles can be shown again in the future.
+  const SHOW_ALL_OPTIONS: boolean = false;
+
+  if (!SHOW_ALL_OPTIONS) {
+    // Live stage bar — Chevron Process Flow (Option B).
+    return (
+      <div className="bg-white border-b border-[#e5e7eb] px-4 py-3">
+        <ChevronFlow {...vp} />
+      </div>
+    );
+  }
+
   const variants: { label: string; node: React.ReactNode }[] = [
     { label: 'Option A · Icon Stepper (current product style)', node: <IconStepper {...vp} /> },
     { label: 'Option B · Chevron Process Flow', node: <ChevronFlow {...vp} /> },
@@ -219,6 +220,10 @@ export function ChangeStagesShowcase({ status, drawerWidth = 1546 }: ShowcasePro
     <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 space-y-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
         Change Lifecycle Stages — Design Options (for review)
+      </div>
+      <div className="flex items-center gap-1.5 text-[12px] text-[#5A6A7D] bg-[#F0F6FC] border border-[#D6E6F5] rounded-md px-3 py-2">
+        <Info size={14} className="text-[#3D8BD0] flex-shrink-0" />
+        <span>The stages are read-only. To move this change forward, change the <span className="font-semibold text-[#364658]">Status</span> field in the Properties panel on the right.</span>
       </div>
       {variants.map((v) => (
         <div key={v.label} className="rounded-lg border border-[#EEF1F5] overflow-hidden">
