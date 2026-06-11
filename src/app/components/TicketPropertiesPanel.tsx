@@ -1,0 +1,3122 @@
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { SystemFieldsRenderer } from './SystemFieldsRenderer';
+import { TicketFieldsAccordion } from './TicketFieldsAccordion';
+import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
+import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
+import { useState, useEffect, useRef } from 'react';
+import { Minus, X as XIcon, Send, Image, Smile } from 'lucide-react';
+
+interface TicketPropertiesPanelProps {
+  // Display label for the fields accordion (defaults to "Ticket Fields")
+  fieldsTitle?: string;
+  // Render the Problem-specific fields (Business Service, Nature of Problem, Known Error)
+  showProblemFields?: boolean;
+  // State
+  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot';
+  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot') => void;
+  pinnedFields: string[];
+  setPinnedFields: (fields: string[]) => void;
+  showPropertiesSearch: boolean;
+  setShowPropertiesSearch: (show: boolean) => void;
+  propertiesSearchQuery: string;
+  setPropertiesSearchQuery: (query: string) => void;
+  showPropertiesFilter: boolean;
+  setShowPropertiesFilter: (show: boolean) => void;
+  selectedFilter: 'all' | 'empty' | 'filled' | 'required';
+  setSelectedFilter: (filter: 'all' | 'empty' | 'filled' | 'required') => void;
+  
+  // Accordion States
+  pinnedFieldsExpanded: boolean;
+  setPinnedFieldsExpanded: (expanded: boolean) => void;
+  slaStatusExpanded: boolean;
+  setSlaStatusExpanded: (expanded: boolean) => void;
+  ticketFieldsExpanded: boolean;
+  setTicketFieldsExpanded: (expanded: boolean) => void;
+  requesterInfoExpanded: boolean;
+  setRequesterInfoExpanded: (expanded: boolean) => void;
+  additionalFieldsExpanded: boolean;
+  setAdditionalFieldsExpanded: (expanded: boolean) => void;
+  workTrackerExpanded: boolean;
+  setWorkTrackerExpanded: (expanded: boolean) => void;
+  attachmentsExpanded: boolean;
+  setAttachmentsExpanded: (expanded: boolean) => void;
+  similarTicketExpanded: boolean;
+  setSimilarTicketExpanded: (expanded: boolean) => void;
+  suggestedKnowledgeExpanded: boolean;
+  setSuggestedKnowledgeExpanded: (expanded: boolean) => void;
+  
+  // Additional Fields Tab
+  additionalFieldsTab: 'form' | 'system';
+  setAdditionalFieldsTab: (tab: 'form' | 'system') => void;
+  showMoreFields: boolean;
+  setShowMoreFields: (show: boolean) => void;
+  showMoreSystemFields: boolean;
+  setShowMoreSystemFields: (show: boolean) => void;
+  
+  // Dropdown States
+  showStatusDropdown: boolean;
+  setShowStatusDropdown: (show: boolean) => void;
+  showPriorityDropdown: boolean;
+  setShowPriorityDropdown: (show: boolean) => void;
+  showAssigneeDropdown: boolean;
+  setShowAssigneeDropdown: (show: boolean) => void;
+  showTechGroupDropdown: boolean;
+  setShowTechGroupDropdown: (show: boolean) => void;
+  showUrgencyDropdown: boolean;
+  setShowUrgencyDropdown: (show: boolean) => void;
+  showImpactDropdown: boolean;
+  setShowImpactDropdown: (show: boolean) => void;
+  showCategoryDropdown: boolean;
+  setShowCategoryDropdown: (show: boolean) => void;
+  showDepartmentDropdown: boolean;
+  setShowDepartmentDropdown: (show: boolean) => void;
+  showSourceDropdown: boolean;
+  setShowSourceDropdown: (show: boolean) => void;
+  showLocationDropdown: boolean;
+  setShowLocationDropdown: (show: boolean) => void;
+  showVendorDropdown: boolean;
+  setShowVendorDropdown: (show: boolean) => void;
+  showSupportLevelDropdown: boolean;
+  setShowSupportLevelDropdown: (show: boolean) => void;
+  showProjectNameDropdown: boolean;
+  setShowProjectNameDropdown: (show: boolean) => void;
+  showCostCenterDropdown: boolean;
+  setShowCostCenterDropdown: (show: boolean) => void;
+  showBuildingDropdown: boolean;
+  setShowBuildingDropdown: (show: boolean) => void;
+  showRequestChannelDropdown: boolean;
+  setShowRequestChannelDropdown: (show: boolean) => void;
+  
+  // Selected Values
+  selectedStatus: string;
+  setSelectedStatus: (status: string) => void;
+  selectedPriority: string;
+  setSelectedPriority: (priority: string) => void;
+  selectedAssignee: string;
+  setSelectedAssignee: (assignee: string) => void;
+  selectedTechGroup: string;
+  setSelectedTechGroup: (group: string) => void;
+  selectedUrgency: string;
+  setSelectedUrgency: (urgency: string) => void;
+  selectedImpact: string;
+  setSelectedImpact: (impact: string) => void;
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
+  selectedDepartment: string;
+  setSelectedDepartment: (department: string) => void;
+  selectedSource: string;
+  setSelectedSource: (source: string) => void;
+  selectedLocation: string;
+  setSelectedLocation: (location: string) => void;
+  selectedVendor: string;
+  setSelectedVendor: (vendor: string) => void;
+  selectedSupportLevel: string;
+  setSelectedSupportLevel: (level: string) => void;
+  assigneeSearchQuery: string;
+  setAssigneeSearchQuery: (query: string) => void;
+  companyValue: string;
+  setCompanyValue: (value: string) => void;
+  selectedProjectName: string;
+  setSelectedProjectName: (name: string) => void;
+  selectedCostCenter: string;
+  setSelectedCostCenter: (center: string) => void;
+  selectedBuilding: string;
+  setSelectedBuilding: (building: string) => void;
+  selectedRequestChannel: string;
+  setSelectedRequestChannel: (channel: string) => void;
+  
+  // Tags
+  tags: string[];
+  setTags: (tags: string[]) => void;
+  showTagInput: boolean;
+  setShowTagInput: (show: boolean) => void;
+  tagInputValue: string;
+  setTagInputValue: (value: string) => void;
+  
+  // Work Tracker
+  isTimerRunning: boolean;
+  elapsedTime: number;
+  timerStartTime: Date | null;
+  showTimerPopup: boolean;
+  setShowTimerPopup: (show: boolean) => void;
+  workDescription: string;
+  setWorkDescription: (description: string) => void;
+  setShowWorkHistory: (show: boolean) => void;
+  setShowSLAHistory: (show: boolean) => void;
+  
+  // Attachments
+  attachments: any[];
+  showAllAttachments: boolean;
+  setShowAllAttachments: (show: boolean) => void;
+  hoveredAttachmentId: string | null;
+  setHoveredAttachmentId: (id: string | null) => void;
+  highlightAttachments: boolean;
+  
+  // Similar Tickets
+  similarTicketsTab: 'similar' | 'linked';
+  setSimilarTicketsTab: (tab: 'similar' | 'linked') => void;
+  hoveredTicketId: string | null;
+  setHoveredTicketId: (id: string | null) => void;
+  newlyLinkedTickets: any[];
+  
+  // Callback to expose quick action handler
+  onQuickActionReady?: (handler: (actionType: string) => void) => void;
+
+  // Helper Functions
+  togglePinField: (field: string) => void;
+  getFilteredPinnedFields: () => string[];
+  getGroupTitle: () => string;
+  getCurrentStatusColor: () => string;
+  getCurrentPriorityColor: () => string;
+  getCurrentAssigneeColor: () => string;
+  getCurrentUrgencyColor: () => string;
+  getCurrentImpactColor: () => string;
+  getCurrentProjectNameColor: () => string;
+  getCurrentCostCenterColor: () => string;
+  getCurrentRequestChannelColor: () => string;
+  filteredAssigneeOptions: any[];
+  getFilteredTicketFields: () => string[];
+  getFilteredAdditionalFormFields: () => string[];
+  getFilteredAdditionalFields: () => string[];
+  hasSLAMatch: () => boolean;
+  hasTicketFieldsMatch: () => boolean;
+  hasRequesterInfoMatch: () => boolean;
+  hasAdditionalFieldsMatch: () => boolean;
+  hasWorkTrackerMatch: () => boolean;
+  hasSimilarTickets: () => boolean;
+  hasSuggestedKnowledgeMatch: () => boolean;
+  formatTime: (seconds: number) => string;
+  formatStartTime: (date: Date) => string;
+  handleStartTimer: () => void;
+  handlePauseTimer: () => void;
+  handleStopTimer: () => void;
+  handleDeleteAttachment: (id: string) => void;
+  handleLinkTicket: (id: string) => void;
+  openManualWorkLog: () => void;
+  
+  // Options
+  statusOptions: any[];
+  priorityOptions: any[];
+  assigneeOptions: any[];
+  techGroupOptions: any[];
+  urgencyOptions: any[];
+  impactOptions: any[];
+  categoryOptions: any[];
+  departmentOptions: any[];
+  sourceOptions: any[];
+  locationOptions: any[];
+  vendorOptions: any[];
+  supportLevelOptions: any[];
+  projectNameOptions: any[];
+  costCenterOptions: any[];
+  buildingOptions: any[];
+  requestChannelOptions: any[];
+  staticLinkedTickets: any[];
+  availableSimilarTickets: any[];
+  
+  // Refs
+  propertiesFilterRef: React.RefObject<HTMLDivElement>;
+  slaStatusRef: React.RefObject<HTMLDivElement>;
+  ticketFieldsRef: React.RefObject<HTMLDivElement>;
+  requesterInfoRef: React.RefObject<HTMLDivElement>;
+  statusDropdownRef: React.RefObject<HTMLDivElement>;
+  priorityDropdownRef: React.RefObject<HTMLDivElement>;
+  assigneeDropdownRef: React.RefObject<HTMLDivElement>;
+  techGroupDropdownRef: React.RefObject<HTMLDivElement>;
+  urgencyDropdownRef: React.RefObject<HTMLDivElement>;
+  impactDropdownRef: React.RefObject<HTMLDivElement>;
+  categoryDropdownRef: React.RefObject<HTMLDivElement>;
+  departmentDropdownRef: React.RefObject<HTMLDivElement>;
+  sourceDropdownRef: React.RefObject<HTMLDivElement>;
+  locationDropdownRef: React.RefObject<HTMLDivElement>;
+  vendorDropdownRef: React.RefObject<HTMLDivElement>;
+  supportLevelDropdownRef: React.RefObject<HTMLDivElement>;
+  additionalFieldsRef: React.RefObject<HTMLDivElement>;
+  projectNameDropdownRef: React.RefObject<HTMLDivElement>;
+  costCenterDropdownRef: React.RefObject<HTMLDivElement>;
+  buildingDropdownRef: React.RefObject<HTMLDivElement>;
+  requestChannelDropdownRef: React.RefObject<HTMLDivElement>;
+  
+  // Accordion Collapse State
+  isAccordionCollapsed: boolean;
+  expandAccordion: () => void;
+  
+  // Accordion Width
+  accordionWidth: number;
+  setAccordionWidth: (width: number) => void;
+  setIsAccordionResizing: (isResizing: boolean) => void;
+  
+  // AI Chatbot Actions
+  onChatbotAddAsNote?: (content: string) => void;
+  onChatbotAddAsCollaborate?: (content: string) => void;
+  onChatbotReply?: (content: string) => void;
+  onChatbotForward?: (content: string) => void;
+  
+  // Ticket ID
+  ticketId?: string;
+  
+  // Onboarding
+  onboardingStep?: number;
+}
+
+export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
+  const {
+    fieldsTitle = 'Ticket Fields',
+    showProblemFields = false,
+    activeGroup,
+    setActiveGroup,
+    showPropertiesSearch,
+    setShowPropertiesSearch,
+    propertiesSearchQuery,
+    setPropertiesSearchQuery,
+    showPropertiesFilter,
+    setShowPropertiesFilter,
+    selectedFilter,
+    setSelectedFilter,
+    pinnedFieldsExpanded,
+    setPinnedFieldsExpanded,
+    slaStatusExpanded,
+    setSlaStatusExpanded,
+    ticketFieldsExpanded,
+    setTicketFieldsExpanded,
+    requesterInfoExpanded,
+    setRequesterInfoExpanded,
+    additionalFieldsExpanded,
+    setAdditionalFieldsExpanded,
+    additionalFieldsTab,
+    setAdditionalFieldsTab,
+    showMoreFields,
+    setShowMoreFields,
+    showMoreSystemFields,
+    setShowMoreSystemFields,
+    workTrackerExpanded,
+    setWorkTrackerExpanded,
+    attachmentsExpanded,
+    setAttachmentsExpanded,
+    similarTicketExpanded,
+    setSimilarTicketExpanded,
+    suggestedKnowledgeExpanded,
+    setSuggestedKnowledgeExpanded,
+    togglePinField,
+    getFilteredPinnedFields,
+    getGroupTitle,
+    getCurrentStatusColor,
+    getCurrentPriorityColor,
+    getCurrentAssigneeColor,
+    getCurrentUrgencyColor,
+    getCurrentImpactColor,
+    getCurrentProjectNameColor,
+    getCurrentCostCenterColor,
+    getCurrentRequestChannelColor,
+    showStatusDropdown,
+    setShowStatusDropdown,
+    showPriorityDropdown,
+    setShowPriorityDropdown,
+    showAssigneeDropdown,
+    setShowAssigneeDropdown,
+    showTechGroupDropdown,
+    setShowTechGroupDropdown,
+    showUrgencyDropdown,
+    setShowUrgencyDropdown,
+    showImpactDropdown,
+    setShowImpactDropdown,
+    showCategoryDropdown,
+    setShowCategoryDropdown,
+    showDepartmentDropdown,
+    setShowDepartmentDropdown,
+    showSourceDropdown,
+    setShowSourceDropdown,
+    showLocationDropdown,
+    setShowLocationDropdown,
+    showVendorDropdown,
+    setShowVendorDropdown,
+    showSupportLevelDropdown,
+    setShowSupportLevelDropdown,
+    showProjectNameDropdown,
+    setShowProjectNameDropdown,
+    showCostCenterDropdown,
+    setShowCostCenterDropdown,
+    showBuildingDropdown,
+    setShowBuildingDropdown,
+    showRequestChannelDropdown,
+    setShowRequestChannelDropdown,
+    selectedStatus,
+    setSelectedStatus,
+    selectedPriority,
+    setSelectedPriority,
+    selectedAssignee,
+    setSelectedAssignee,
+    selectedTechGroup,
+    setSelectedTechGroup,
+    selectedUrgency,
+    setSelectedUrgency,
+    selectedImpact,
+    setSelectedImpact,
+    selectedCategory,
+    setSelectedCategory,
+    selectedDepartment,
+    setSelectedDepartment,
+    selectedSource,
+    setSelectedSource,
+    selectedLocation,
+    setSelectedLocation,
+    selectedVendor,
+    setSelectedVendor,
+    selectedSupportLevel,
+    setSelectedSupportLevel,
+    assigneeSearchQuery,
+    setAssigneeSearchQuery,
+    companyValue,
+    setCompanyValue,
+    selectedProjectName,
+    setSelectedProjectName,
+    selectedCostCenter,
+    setSelectedCostCenter,
+    selectedBuilding,
+    setSelectedBuilding,
+    selectedRequestChannel,
+    setSelectedRequestChannel,
+    tags,
+    setTags,
+    showTagInput,
+    setShowTagInput,
+    tagInputValue,
+    setTagInputValue,
+    isTimerRunning,
+    elapsedTime,
+    timerStartTime,
+    showTimerPopup,
+    setShowTimerPopup,
+    workDescription,
+    setWorkDescription,
+    setShowWorkHistory,
+    setShowSLAHistory,
+    attachments,
+    showAllAttachments,
+    setShowAllAttachments,
+    hoveredAttachmentId,
+    setHoveredAttachmentId,
+    highlightAttachments,
+    similarTicketsTab,
+    setSimilarTicketsTab,
+    hoveredTicketId,
+    setHoveredTicketId,
+    newlyLinkedTickets,
+    filteredAssigneeOptions,
+    getFilteredTicketFields,
+    getFilteredAdditionalFormFields,
+    getFilteredAdditionalFields,
+    hasSLAMatch,
+    hasTicketFieldsMatch,
+    hasRequesterInfoMatch,
+    hasAdditionalFieldsMatch,
+    hasWorkTrackerMatch,
+    hasSimilarTickets,
+    hasSuggestedKnowledgeMatch,
+    formatTime,
+    formatStartTime,
+    handleStartTimer,
+    handlePauseTimer,
+    handleStopTimer,
+    handleDeleteAttachment,
+    handleLinkTicket,
+    openManualWorkLog,
+    statusOptions,
+    priorityOptions,
+    assigneeOptions,
+    techGroupOptions,
+    urgencyOptions,
+    impactOptions,
+    categoryOptions,
+    departmentOptions,
+    sourceOptions,
+    locationOptions,
+    vendorOptions,
+    supportLevelOptions,
+    projectNameOptions,
+    costCenterOptions,
+    buildingOptions,
+    requestChannelOptions,
+    staticLinkedTickets,
+    availableSimilarTickets,
+    propertiesFilterRef,
+    slaStatusRef,
+    ticketFieldsRef,
+    requesterInfoRef,
+    statusDropdownRef,
+    priorityDropdownRef,
+    assigneeDropdownRef,
+    techGroupDropdownRef,
+    urgencyDropdownRef,
+    impactDropdownRef,
+    categoryDropdownRef,
+    departmentDropdownRef,
+    sourceDropdownRef,
+    locationDropdownRef,
+    vendorDropdownRef,
+    supportLevelDropdownRef,
+    additionalFieldsRef,
+    projectNameDropdownRef,
+    costCenterDropdownRef,
+    buildingDropdownRef,
+    requestChannelDropdownRef,
+    pinnedFields,
+    isAccordionCollapsed,
+    expandAccordion,
+    accordionWidth,
+    setAccordionWidth,
+    setIsAccordionResizing,
+    onChatbotAddAsNote,
+    onChatbotAddAsCollaborate,
+    onChatbotReply,
+    onChatbotForward,
+    ticketId,
+    onboardingStep,
+  } = props;
+
+  // Local state for chatbot
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ id: number; text: string; isUser: boolean; timestamp: string; isTyping?: boolean; fullText?: string; displayedText?: string; followUpActions?: string[] }>>([]);
+  const [previousGroup, setPreviousGroup] = useState<'properties' | 'activity' | 'suggestions'>('suggestions');
+  const [showAISummaryMenu, setShowAISummaryMenu] = useState(false);
+  const [hasNewConversations, setHasNewConversations] = useState(true); // Track if new conversations have been added
+  const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false); // Track regeneration animation
+  const [showReopenTooltip, setShowReopenTooltip] = useState(false); // Track reopen AI panel tooltip
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isChatbotClosing, setIsChatbotClosing] = useState(false); // Track closing animation
+  const [isChatbotOpening, setIsChatbotOpening] = useState(false); // Track opening animation
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false); // Track customize layout modal
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
+    // Load from localStorage on initial mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ticketPropertiesSectionOrder');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+        }
+      }
+    }
+    return ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+  }); // Track section order
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // Track dragged item
+
+  // Onboarding-specific state
+  const [onboardingSummaryLoaded, setOnboardingSummaryLoaded] = useState(false);
+  const [showOnboardingSummaryContent, setShowOnboardingSummaryContent] = useState(false);
+  const [showOnboardingQuickActions, setShowOnboardingQuickActions] = useState(false);
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const aiIconRef = useRef<HTMLButtonElement>(null);
+  const reopenTooltipRef = useRef<HTMLDivElement>(null);
+
+  // AI Summary content to be passed to editors
+  const aiSummaryContent = `<p>User is experiencing critical login issues with the main portal. The account appears to be locked after multiple failed attempts. Priority escalation recommended due to business impact.</p>
+
+<p><strong>Key Points:</strong></p>
+<ul>
+<li>Account locked after multiple failed login attempts</li>
+<li>Critical business impact requiring priority escalation</li>
+<li>Reset authentication credentials and verify account status</li>
+</ul>`;
+
+  const suggestedActions = [
+    { label: 'Unlock Account', icon: User, color: 'text-[#3D8BD0]' },
+    { label: 'Reset Password', icon: Activity, color: 'text-[#10B981]' },
+    { label: 'Escalate Priority', icon: ChevronUp, color: 'text-[#EF4444]' },
+    { label: 'Resolve Ticket', icon: Check, color: 'text-[#F59E0B]' },
+  ];
+
+  const handleSuggestedAction = (actionLabel: string) => {
+    // Add user message
+    const userMessage = {
+      id: Date.now(),
+      text: actionLabel,
+      isUser: true,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    setChatMessages(prev => [...prev, userMessage]);
+
+    // Define responses for each action
+    const actionResponses: { [key: string]: string } = {
+      'Unlock Account': "I'll help you unlock this account right away. I've initiated the account unlock process and the user's account is now active. The account was locked due to multiple failed login attempts, which triggered our automated security protocols.\n\nThe unlock has been completed successfully, and I've sent a notification to the user at their registered email address. I recommend asking them to verify their identity and reset their password as an additional security measure.\n\nWould you like me to also send them a secure password reset link?",
+      
+      'Reset Password': "I've initiated the password reset process for this user account. A secure password reset link has been generated and will be sent to the user's registered email address.\n\nThe reset link will expire in 24 hours for security purposes. I've also included instructions in the email to help guide the user through the password reset process.\n\nAdditionally, I recommend enabling two-factor authentication for this account to enhance security and prevent future unauthorized access attempts. Would you like me to enable 2FA for this account?",
+      
+      'Escalate Priority': "I've successfully escalated this ticket to High Priority status. The ticket has been reassigned to the senior technical support team for immediate attention.\n\nBased on the critical nature of the login issue and its business impact, I've updated the SLA timeline to reflect a 2-hour resolution target. All relevant stakeholders have been notified via email and will receive automated updates as the ticket progresses.\n\nThe escalation includes a detailed summary of the issue, failed login attempt logs, and recommended resolution steps. The senior support team will be reviewing this shortly. Would you like me to schedule a follow-up notification?",
+      
+      'Resolve Ticket': "Before we proceed with resolving this ticket, let me verify that all necessary actions have been completed:\n\n✓ Account unlock status: Ready to process\n✓ User notification: Pending\n✓ Security verification: Required\n✓ Follow-up actions: To be documented\n\nTo properly resolve this ticket, please confirm that:\n1. The user's account has been successfully unlocked\n2. The user has been contacted and verified their identity\n3. A password reset has been completed\n4. The user can now successfully access the portal\n\nOnce you confirm these steps are complete, I can update the ticket status to 'Resolved' and send the resolution notification to the requester. Would you like to proceed with resolving this ticket?",
+    };
+
+    // Add AI response after a short delay
+    setTimeout(() => {
+      const responseText = actionResponses[actionLabel] || "I've processed your request. How else can I assist you with this ticket?";
+      
+      const aiMessage = {
+        id: Date.now() + 1,
+        text: '',
+        fullText: responseText,
+        displayedText: '',
+        isUser: false,
+        isTyping: true,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setChatMessages(prev => [...prev, aiMessage]);
+    }, 500);
+  };
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    
+    const newMessage = {
+      id: Date.now(),
+      text: chatInput,
+      isUser: true,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    setChatMessages(prev => [...prev, newMessage]);
+    setChatInput('');
+
+    // Add AI response after a short delay
+    setTimeout(() => {
+      const aiResponses = [
+        "I've analyzed your request and reviewed the ticket details thoroughly. Based on the information provided, the user is experiencing critical login issues with the main portal, and the account appears to be locked after multiple failed authentication attempts.\n\nAfter checking the system logs, I found that there were 5 consecutive failed login attempts from different IP addresses within a 10-minute window, which triggered our security protocols and automatically locked the account. This is a standard security measure to protect against potential unauthorized access.\n\nI recommend the following actions: First, unlock the user's account through the admin console. Second, reset their authentication credentials and send them a secure password reset link. Third, verify their identity through the registered email or phone number before granting access. Would you like me to proceed with these steps?",
+        
+        "Thank you for reaching out. I understand you need assistance with this ticket, and I'm here to help resolve it as quickly as possible. Let me walk you through what I've discovered about this situation.\n\nThe account lockout occurred due to our automated security system detecting unusual login patterns. Specifically, the authentication system flagged multiple failed attempts using incorrect passwords, combined with login requests from IP addresses that don't match the user's typical access locations. This triggered a temporary security hold on the account.\n\nTo resolve this issue efficiently, I can help you unlock the account and reset the authentication credentials right away. I'll also add a note to the user's profile about this incident for future reference. Additionally, I recommend enabling two-factor authentication for enhanced security. Shall I proceed with the account unlock process?",
+        
+        "I've conducted a comprehensive review of similar tickets in our system and found several patterns that might help resolve this issue faster. Over the past month, we've handled 23 similar cases involving account lockouts due to failed authentication attempts.\n\nBased on the analysis of these previous tickets, the average resolution time was 45 minutes, and most cases required admin intervention to unlock the account and verify the user's identity. The technical support team has established a streamlined process for handling these situations, which includes security verification, credential reset, and user education about password best practices.\n\nGiven the critical nature of this ticket and its impact on business operations, I recommend escalating this to the technical support team immediately. I can create an escalation request with all the necessary details, assign it to the appropriate team members, and set up automated notifications to keep all stakeholders informed. Would you like me to initiate the escalation?",
+        
+        "I've examined the ticket priority level and SLA requirements associated with this case. This ticket is currently marked as 'High Priority' with a resolution SLA of 4 hours, and we're currently 2 hours into the timeline.\n\nBased on the urgency and business impact, I strongly suggest taking immediate action to prevent SLA breach. The account lockout is preventing the user from accessing critical business systems, which could result in productivity loss and potential revenue impact. Our SLA monitoring shows that similar high-priority tickets are typically resolved within 90 minutes when addressed promptly.\n\nI can help automate several steps in the account unlock process: I'll generate the unlock request, prepare the password reset email with security verification, and create a follow-up task to ensure the user successfully regains access. I'll also set up automated status updates to keep the requester informed throughout the resolution process. Should I proceed with these automated actions?",
+        
+        "I've gathered all the relevant information from the ticket and conducted a thorough investigation. The user's account history shows some concerning patterns that require immediate attention and careful handling.\n\nThe account has experienced multiple failed login attempts - specifically 7 attempts over the past 3 hours - originating from different IP addresses across various geographic locations. Three attempts came from the user's known office location, but four attempts originated from unfamiliar IP addresses in different cities. This unusual pattern might indicate either a security concern such as unauthorized access attempts, or the user might be traveling and attempting to access their account from new locations.\n\nGiven these findings, I recommend a multi-step approach: First, immediately contact the user through their verified contact information to confirm whether they initiated all login attempts. Second, if confirmed legitimate, unlock the account and assist with secure credential reset. Third, if the user doesn't recognize all the login attempts, escalate this to the security team for a comprehensive security audit. I'll also recommend enabling additional security measures like two-factor authentication and login location alerts. How would you like to proceed?",
+      ];
+      
+      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+      
+      const aiMessage = {
+        id: Date.now() + 1,
+        text: '',
+        fullText: randomResponse,
+        displayedText: '',
+        isUser: false,
+        isTyping: true,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setChatMessages(prev => [...prev, aiMessage]);
+    }, 800);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleQuickAction = (actionType: string) => {
+    // Open chatbot if not already open
+    if (activeGroup !== 'chatbot') {
+      setPreviousGroup(activeGroup as 'properties' | 'activity' | 'suggestions');
+      setActiveGroup('chatbot');
+    }
+
+    // Add user message
+    const actionMessages: { [key: string]: string } = {
+      'Show AI Summary': 'Show AI Summary for this ticket',
+      'Suggest a solution for this issue': 'Suggest a solution for this issue',
+      'What are the next steps to resolve this?': 'What are the next steps to resolve this?',
+      'Find similar resolved tickets': 'Find similar resolved tickets',
+      'Find Similar Tickets': 'Find similar tickets for this issue',
+      'Suggest KB': 'Suggest knowledge base articles',
+      'Next Action': 'What should be the next best action?',
+      'Root Cause': 'Analyze the root cause of this issue',
+      'Draft Reply': 'Draft a reply for the requester'
+    };
+
+    const userMessage = {
+      id: Date.now(),
+      text: actionMessages[actionType] || actionType,
+      isUser: true,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    setChatMessages(prev => [...prev, userMessage]);
+
+    // Define AI responses for each action
+    const aiResponses: { [key: string]: { text: string, followUpActions: string[] } } = {
+      'Show AI Summary': {
+        text: ticketId === 'INC-35' ?
+          'Employee requesting Apple MacBook Pro 16-inch allocation due to performance limitations of current laptop. Required for software development tasks involving resource-intensive tools, virtual machines, and cross-platform projects.\n\n**Key Points:**\n• Senior Software Developer role requires high-performance device\n• Current laptop unable to handle Docker containers and multiple IDEs\n• MacBook Pro 16-inch needed with standard development licenses' :
+          ticketId === 'INC-32' ?
+          'User reporting complete internet outage on work laptop despite showing Wi-Fi connection. Unable to access websites or company resources since morning. Urgent assistance needed for business-critical work and scheduled meetings.\n\n**Key Points:**\n• No internet access despite Wi-Fi showing as connected\n• Impacting ability to access emails and cloud applications\n• Requires network diagnostics and connectivity troubleshooting' :
+          'User is experiencing critical login issues with the main portal. The account appears to be locked after multiple failed attempts. Priority escalation recommended due to business impact.\n\n**Key Points:**\n• Account locked after multiple failed login attempts\n• Critical business impact requiring priority escalation\n• Reset authentication credentials and verify account status',
+        followUpActions: ['Find Similar Tickets', 'Suggest KB', 'Next Action']
+      },
+      'Suggest a solution for this issue': {
+        text: ticketId === 'INC-35' ?
+          "Based on my analysis of this hardware request, here's a recommended solution:\n\n**Recommended Solution:**\n1. **Verify business justification** - Confirm role requirements and current device limitations\n2. **Check budget allocation** - Ensure department has approved budget for hardware upgrade\n3. **Review company policy** - Validate request against IT hardware procurement standards\n4. **Initiate approval workflow** - Route to manager and IT director for sign-off\n5. **Coordinate procurement** - Place order with approved vendor once approved\n\n**Implementation Steps:**\n• Validate user's development role and requirements (10 minutes)\n• Confirm budget availability with finance team (1-2 days)\n• Submit formal hardware request form (15 minutes)\n• Obtain manager and IT director approvals (2-3 days)\n• Process order through procurement (5-7 business days)\n• Schedule device setup and data migration (2-3 hours)\n\n**Expected Resolution Time:** 10-15 business days\n**Estimated Cost:** $2,500 - $3,500 for MacBook Pro 16\" with standard configuration\n\nThis approach ensures compliance with company policies while meeting legitimate business needs. Shall I help you initiate the approval workflow?" :
+          ticketId === 'INC-32' ?
+          "Based on my analysis of this connectivity issue, here's a recommended solution:\n\n**Recommended Solution:**\n1. **Run network diagnostics** - Check IP configuration and DNS settings\n2. **Reset network adapter** - Flush DNS cache and renew IP address\n3. **Verify proxy settings** - Ensure corporate proxy is correctly configured\n4. **Test with different network** - Try mobile hotspot to isolate issue\n5. **Check firewall rules** - Verify no software is blocking connections\n\n**Implementation Steps:**\n• Run ipconfig /all to check current network configuration (2 minutes)\n• Execute ipconfig /flushdns and ipconfig /renew commands (3 minutes)\n• Verify DNS servers are set to corporate DNS (192.168.1.1) (2 minutes)\n• Disable/re-enable network adapter or reboot system (5 minutes)\n• Test connectivity with ping and tracert commands (5 minutes)\n• If unresolved, check Windows firewall and antivirus settings (10 minutes)\n\n**Expected Resolution Time:** 20-30 minutes\n**Success Rate:** 87% for DNS/adapter-related issues\n\nThis solution addresses the most common causes of \"connected but no internet\" issues. Would you like me to provide detailed command instructions?" :
+          "Based on my analysis of this ticket, here's a recommended solution:\n\n**Recommended Solution:**\n1. **Unlock the user account** immediately to restore access\n2. **Verify user identity** through registered email or phone\n3. **Reset password** and send secure reset link\n4. **Enable two-factor authentication** for enhanced security\n5. **Review security logs** to rule out unauthorized access attempts\n\n**Implementation Steps:**\n• Use admin panel to unlock account (2 minutes)\n• Contact user via verified communication channel (5 minutes)\n• Send password reset link that expires in 24 hours (3 minutes)\n• Guide user through 2FA setup (5 minutes)\n• Document all actions in ticket notes\n\n**Expected Resolution Time:** 15-20 minutes\n\nThis solution has a 95% success rate based on similar resolved tickets. Would you like me to help you implement these steps?",
+        followUpActions: ticketId === 'INC-35' ? ['Check Budget', 'Start Approval', 'View Policy'] : ticketId === 'INC-32' ? ['Run Diagnostics', 'Reset Network', 'Check Firewall'] : ['Unlock Account', 'Send Reset Link', 'View Similar Tickets']
+      },
+      'What are the next steps to resolve this?': {
+        text: ticketId === 'INC-35' ?
+          "Here are the recommended next steps to process this hardware request:\n\n**Step 1: Initial Validation (Day 1)**\n• Review requester's role and current equipment assignment\n• Verify business justification aligns with IT hardware standards\n• Confirm request includes all required information\n• Estimated time: 30 minutes\n\n**Step 2: Budget Verification (Days 1-2)**\n• Submit budget inquiry to Finance department\n• Confirm engineering department has allocated funds\n• Get cost estimate from approved vendor ($2,500-$3,500)\n• Estimated time: 1-2 business days\n\n**Step 3: Manager Approval (Days 2-4)**\n• Route request to Michael's direct manager\n• Include business justification and performance impact\n• Obtain formal sign-off on business need\n• Estimated time: 2-3 business days\n\n**Step 4: IT Director Authorization (Days 4-5)**\n• Submit approved request to IT Director\n• Include budget confirmation and manager approval\n• Get final procurement authorization\n• Estimated time: 1-2 business days\n\n**Step 5: Procurement & Delivery (Days 5-15)**\n• Place order with Dell/Apple authorized reseller\n• Standard configuration: MacBook Pro 16\" M3 Pro, 32GB RAM, 1TB SSD\n• Track shipment and coordinate delivery\n• Estimated time: 7-10 business days\n\n**Step 6: Setup & Migration (Day 15)**\n• Schedule device setup appointment with user\n• Migrate data and applications from old device\n• Configure development environment and tools\n• Verify all software licenses are installed\n• Estimated time: 2-3 hours\n\n**Total Timeline:** 10-15 business days from approval to delivery\n\nShall I start the approval workflow now?" :
+          ticketId === 'INC-32' ?
+          "Here are the recommended next steps to resolve this connectivity issue:\n\n**Step 1: Quick Diagnostics (0-5 minutes)**\n• Ask user to open Command Prompt (Windows + R, type cmd)\n• Run: ipconfig /all (check IP and DNS configuration)\n• Run: ping 8.8.8.8 (test internet connectivity without DNS)\n• Run: nslookup google.com (test DNS resolution)\n• Document results to identify if issue is DNS or network-related\n\n**Step 2: DNS Cache Flush (5-8 minutes)**\n• Instruct user to run these commands in sequence:\n  - ipconfig /flushdns\n  - ipconfig /release\n  - ipconfig /renew\n• Wait for IP renewal to complete\n• Test internet access by opening browser\n• Success rate: 60% resolved at this step\n\n**Step 3: DNS Server Configuration (8-12 minutes)**\n• If Step 2 fails, update DNS settings manually:\n  - Open Network Connections (ncpa.cpl)\n  - Right-click Wi-Fi adapter → Properties\n  - Select IPv4 → Properties\n  - Set DNS servers: Primary 192.168.1.1, Alternate 8.8.8.8\n  - Click OK and test connection\n• Success rate: Additional 25% resolved\n\n**Step 4: Network Adapter Reset (12-20 minutes)**\n• If Step 3 fails, perform network reset:\n  - Settings → Network & Internet → Network reset\n  - Click Reset now\n  - Restart computer\n  - Reconnect to Wi-Fi network\n• Success rate: Additional 10% resolved\n\n**Step 5: Driver Update & Advanced Troubleshooting (20-35 minutes)**\n• Check for network adapter driver updates\n• Verify Windows firewall isn't blocking connections\n• Check proxy settings and VPN configuration\n• Test with mobile hotspot to isolate issue\n\n**Step 6: Escalation (If unresolved after 35 minutes)**\n• Escalate to Network Infrastructure team\n• Possible hardware issue or network-side problem\n• May require physical inspection or network card replacement\n\n**Expected Outcome:** 85-90% of cases resolved within 15-20 minutes using steps 1-4\n\nShall I provide Emily with detailed command instructions to start troubleshooting?" :
+          "Here are the recommended next steps to resolve this ticket efficiently:\n\n**Step 1: Immediate Action (0-5 minutes)**\n• Unlock the user account using admin privileges\n• Verify this is the legitimate account owner\n• Check for any security alerts or suspicious activity\n\n**Step 2: Password Reset (5-10 minutes)**\n• Generate and send secure password reset link\n• Ensure link is sent to registered email only\n• Set expiration time to 24 hours for security\n\n**Step 3: User Communication (10-15 minutes)**\n• Contact user via phone or verified email\n• Explain the lockout reason and resolution steps\n• Guide them through password reset process\n\n**Step 4: Security Enhancement (15-20 minutes)**\n• Recommend enabling two-factor authentication\n• Provide password security best practices\n• Set up login alerts for unusual activity\n\n**Step 5: Documentation & Closure (20-25 minutes)**\n• Document all resolution steps in ticket\n• Confirm user can successfully access their account\n• Close ticket with resolution summary\n\nShall I help you execute these steps?",
+        followUpActions: ticketId === 'INC-35' ? ['Start Workflow', 'Contact Finance', 'View Policy'] : ticketId === 'INC-32' ? ['Send Instructions', 'Provide Commands', 'Start Remote Session'] : ['Start Resolution', 'View KB Articles', 'Draft Reply']
+      },
+      'Find similar resolved tickets': {
+        text: ticketId === 'INC-35' ?
+          "I've found several similar hardware request tickets that can guide this resolution:\n\n**Highly Similar (90%+ match):**\n\n1. **INC-2891** - MacBook Pro 16\" request for Senior Developer\n   • Resolution: Approved with manager sign-off, procurement completed\n   • Resolution time: 12 business days\n   • User satisfaction: 5/5\n\n2. **INC-2654** - High-performance laptop for DevOps engineer\n   • Resolution: Approved MacBook Pro 14\" as cost-effective alternative\n   • Resolution time: 10 business days\n   • User satisfaction: 5/5\n\n**Moderately Similar (75%+ match):**\n\n3. **INC-2103** - Equipment upgrade for software development\n   • Resolution: Approved with additional memory upgrade\n   • Resolution time: 15 business days\n   • User satisfaction: 5/5\n\n4. **INC-1876** - MacBook allocation for cross-platform development\n   • Resolution: Approved with standard configuration\n   • Resolution time: 8 business days\n   • User satisfaction: 5/5\n\n**Common Success Pattern:**\nAll approved requests included:\n1. Clear business justification with specific use cases\n2. Manager approval confirming role requirements\n3. Budget verification from finance department\n4. Standard configuration to streamline procurement\n\n**Average Resolution Time:** 11 business days\n**Approval Rate:** 94% for senior developer roles\n\nWould you like to follow this proven approval workflow?" :
+          ticketId === 'INC-32' ?
+          "I've found several similar connectivity issue tickets that can help guide the resolution:\n\n**Highly Similar (95%+ match):**\n\n1. **INC-3421** - Wi-Fi connected but no internet access\n   • Resolution: Flushed DNS cache and reset network adapter\n   • Resolution time: 25 minutes\n   • User satisfaction: 5/5\n\n2. **INC-3198** - Cannot access websites despite network connection\n   • Resolution: Corrected DNS server settings to corporate DNS\n   • Resolution time: 15 minutes\n   • User satisfaction: 5/5\n\n**Moderately Similar (85%+ match):**\n\n3. **INC-2987** - Internet connectivity drops randomly\n   • Resolution: Updated network drivers and disabled power saving\n   • Resolution time: 45 minutes\n   • User satisfaction: 4/5\n\n4. **INC-2756** - Corporate resources unreachable via Wi-Fi\n   • Resolution: Reconfigured proxy settings and VPN connection\n   • Resolution time: 30 minutes\n   • User satisfaction: 5/5\n\n**Common Success Pattern:**\nMost tickets were resolved by:\n1. Running network diagnostics (ipconfig, ping, tracert)\n2. Flushing DNS cache and renewing IP address\n3. Verifying DNS server configuration\n4. Resetting network adapter as last resort\n\n**Average Resolution Time:** 29 minutes\n**Success Rate:** 91% with DNS/adapter reset\n\nWould you like to apply this diagnostic approach?" :
+          "I've found several similar resolved tickets that can help guide the resolution:\n\n**Highly Similar (95%+ match):**\n\n1. **INC-1247** - Account locked after password attempts\n   • Resolution: Unlocked account + password reset\n   • Resolution time: 45 minutes\n   • User satisfaction: 5/5\n\n2. **INC-982** - Multiple failed login attempts lockout\n   • Resolution: Identity verification + account unlock\n   • Resolution time: 30 minutes\n   • User satisfaction: 5/5\n\n**Moderately Similar (80%+ match):**\n\n3. **INC-1556** - Login portal access issues\n   • Resolution: Cleared browser cache + reset session\n   • Resolution time: 1 hour\n   • User satisfaction: 4/5\n\n4. **INC-743** - Two-factor authentication blocking login\n   • Resolution: Reset 2FA settings\n   • Resolution time: 1 hour\n   • User satisfaction: 5/5\n\n**Common Success Pattern:**\nAll similar tickets were successfully resolved by:\n1. Unlocking the account\n2. Verifying user identity\n3. Resetting authentication credentials\n4. Implementing 2FA for future security\n\n**Average Resolution Time:** 45 minutes\n**Success Rate:** 100%\n\nWould you like to apply the same resolution approach?",
+        followUpActions: ticketId === 'INC-35' ? ['View INC-2891', 'Check Approval Rate', 'Compare Timeline'] : ticketId === 'INC-32' ? ['View INC-3421', 'Apply DNS Fix', 'Run Diagnostics'] : ['Apply Solution', 'View Ticket INC-1247', 'Compare Approaches']
+      },
+      'Find Similar Tickets': {
+        text: ticketId === 'INC-35' ?
+          "I've searched through our ticket database and found 5 similar hardware requests:\n\n1. **INC-2891** - MacBook Pro 16\" for Senior Software Developer (Approved)\n   • Resolution: Manager and IT Director approved, procurement completed\n   • Time to resolve: 12 business days\n   • Cost: $3,200\n\n2. **INC-2654** - High-performance laptop for DevOps Engineer (Approved)\n   • Resolution: Approved MacBook Pro 14\" as cost-effective option\n   • Time to resolve: 10 business days\n   • Cost: $2,800\n\n3. **INC-2103** - Equipment upgrade for Software Development (Approved)\n   • Resolution: Approved with 32GB RAM upgrade\n   • Time to resolve: 15 business days\n   • Cost: $3,500\n\n4. **INC-1876** - MacBook for cross-platform development (Approved)\n   • Resolution: Approved standard configuration\n   • Time to resolve: 8 business days\n   • Cost: $2,900\n\n5. **INC-1543** - Developer laptop replacement (Denied)\n   • Resolution: Denied - existing device met minimum requirements\n   • Reason: Insufficient business justification\n\nBased on these similar tickets, requests with clear performance gaps and business justification have a 94% approval rate. The average procurement cycle is 11 business days. Would you like me to proceed with the approval workflow?" :
+          ticketId === 'INC-32' ?
+          "I've searched through our ticket database and found 5 similar connectivity issues:\n\n1. **INC-3421** - Wi-Fi connected but no internet (Resolved)\n   • Resolution: Flushed DNS cache and reset network adapter\n   • Time to resolve: 25 minutes\n\n2. **INC-3198** - Cannot access websites despite connection (Resolved)\n   • Resolution: Corrected DNS server settings\n   • Time to resolve: 15 minutes\n\n3. **INC-2987** - Intermittent internet connectivity (Resolved)\n   • Resolution: Updated network drivers\n   • Time to resolve: 45 minutes\n\n4. **INC-2756** - Corporate resources unreachable (Resolved)\n   • Resolution: Reconfigured proxy and VPN settings\n   • Time to resolve: 30 minutes\n\n5. **INC-2543** - Network connection drops randomly (Escalated)\n   • Resolution: Hardware issue - network card replacement\n   • Time to resolve: 3 days\n\nBased on these similar tickets, 85% are resolved with DNS/network adapter resets within 30 minutes. Only 15% require hardware replacement or network team escalation. Would you like me to proceed with the standard diagnostic approach?" :
+          "I've searched through our ticket database and found 5 similar tickets that match this issue:\n\n1. **INC-1247** - User unable to login after password reset (Resolved)\n   • Resolution: Reset authentication tokens\n   • Time to resolve: 45 minutes\n\n2. **INC-982** - Account locked after multiple failed attempts (Resolved)\n   • Resolution: Unlocked account and verified user identity\n   • Time to resolve: 30 minutes\n\n3. **INC-1556** - Login portal timeout issues (In Progress)\n   • Current status: Investigating server performance\n\n4. **INC-743** - Two-factor authentication not working (Resolved)\n   • Resolution: Reset 2FA settings and re-enrolled user\n   • Time to resolve: 1 hour\n\n5. **INC-1891** - Password reset link not received (Resolved)\n   • Resolution: Updated email settings and resent link\n   • Time to resolve: 20 minutes\n\nBased on these similar tickets, the most effective resolution approach is to unlock the account and reset authentication credentials. Would you like me to proceed with this solution?",
+        followUpActions: ticketId === 'INC-35' ? ['View Approvals', 'Check Budget', 'Compare Costs'] : ticketId === 'INC-32' ? ['Start Diagnostics', 'View Resolution Steps', 'Check Success Rate'] : ['View Ticket Details', 'Apply Solution', 'Compare Resolutions']
+      },
+      'Suggest KB': {
+        text: ticketId === 'INC-35' ?
+          "I've found 3 relevant knowledge base articles for hardware procurement:\n\n**KB-5624: IT Hardware Request Process**\n• Complete workflow for equipment allocation requests\n• Required approvals and budget verification steps\n• Standard configurations for developer equipment\n• Estimated reading time: 7 minutes\n• Success rate: 96%\n\n**KB-5890: MacBook Pro Standard Configurations**\n• Approved MacBook Pro models and specifications\n• Software licensing and pre-installed applications\n• Setup and migration procedures\n• Estimated reading time: 5 minutes\n\n**KB-6103: Development Environment Hardware Standards**\n• Hardware requirements for different developer roles\n• Performance benchmarks and use case scenarios\n• Cost analysis and budget planning guidelines\n• Estimated reading time: 12 minutes\n\nI recommend starting with KB-5624 as it outlines the complete approval process. This article has helped process 96% of hardware requests successfully. Would you like me to open this article?" :
+          ticketId === 'INC-32' ?
+          "I've found 3 relevant knowledge base articles for connectivity troubleshooting:\n\n**KB-7845: Resolving 'Connected No Internet' Issues**\n• Step-by-step network diagnostics and commands\n• DNS configuration and troubleshooting guide\n• Common causes and quick fixes\n• Estimated reading time: 6 minutes\n• Success rate: 92%\n\n**KB-7623: Corporate Network Configuration Guide**\n• Proper DNS and proxy server settings\n• VPN connectivity requirements\n• Network adapter configuration\n• Estimated reading time: 8 minutes\n\n**KB-8234: Advanced Network Troubleshooting**\n• Using ipconfig, ping, and tracert commands\n• Interpreting network diagnostic results\n• When to escalate to Network team\n• Estimated reading time: 10 minutes\n\nI recommend starting with KB-7845 as it directly addresses the 'connected but no internet' symptom. The article includes command-line instructions with a 92% success rate. Would you like me to open this article?" :
+          "I've found 3 relevant knowledge base articles that can help resolve this issue:\n\n**KB-8842: Troubleshooting Account Lockouts**\n• Step-by-step guide for unlocking user accounts\n• Common causes and prevention tips\n• Estimated reading time: 5 minutes\n• Success rate: 94%\n\n**KB-7231: Password Reset Best Practices**\n• How to securely reset user passwords\n• Identity verification procedures\n• Security protocols to follow\n• Estimated reading time: 8 minutes\n\n**KB-9156: Authentication System Overview**\n• Understanding failed login security measures\n• Account lockout policies and thresholds\n• Recovery procedures\n• Estimated reading time: 10 minutes\n\nI recommend starting with KB-8842 as it directly addresses account lockout issues. The article includes a detailed workflow that has a 94% success rate for similar cases. Would you like me to open this article?",
+        followUpActions: ticketId === 'INC-35' ? ['Open KB-5624', 'View Standards', 'Send to Requester'] : ticketId === 'INC-32' ? ['Open KB-7845', 'View Commands', 'Send to User'] : ['Open KB-8842', 'Send to User', 'Add to Notes']
+      },
+      'Next Action': {
+        text: ticketId === 'INC-35' ?
+          "Based on my analysis of this hardware request and similar cases, here are the recommended next actions in priority order:\n\n**Immediate Actions (High Priority):**\n1. **Validate business justification** - Review role requirements and performance gaps\n   • Estimated time: 15 minutes\n   • Required: Documentation of specific use cases\n\n2. **Verify budget availability** - Confirm department has allocated budget\n   • Estimated time: 1 business day\n   • Contact: Finance team for budget confirmation\n\n3. **Obtain manager approval** - Route request to Michael's manager\n   • Estimated time: 1-2 business days\n   • Required: Manager sign-off on business need\n\n**Follow-up Actions (Medium Priority):**\n4. **Get IT Director approval** - Final sign-off for procurement\n   • Estimated time: 1-2 business days\n   • Required permissions: IT Director authorization\n\n5. **Submit procurement request** - Place order with approved vendor\n   • Estimated time: 5-7 business days\n   • Standard configuration: MacBook Pro 16\" M3 Pro, 32GB, 1TB\n\n**Post-Approval Actions (Low Priority):**\n6. **Schedule device setup** - Coordinate with user for migration\n7. **Prepare data migration plan** - Ensure smooth transition from current device\n8. **Update asset inventory** - Register new device in IT asset management\n\nShall I help you initiate the approval workflow?" :
+          ticketId === 'INC-32' ?
+          "Based on my analysis of this connectivity issue and similar cases, here are the recommended next actions in priority order:\n\n**Immediate Actions (High Priority):**\n1. **Run network diagnostics** - Execute ipconfig and DNS tests\n   • Estimated time: 5 minutes\n   • Commands: ipconfig /all, ping 8.8.8.8, nslookup google.com\n\n2. **Flush DNS cache** - Clear potentially corrupted DNS entries\n   • Estimated time: 2 minutes\n   • Commands: ipconfig /flushdns, ipconfig /release, ipconfig /renew\n\n3. **Verify DNS settings** - Ensure corporate DNS is configured\n   • Estimated time: 3 minutes\n   • Expected DNS: 192.168.1.1 (Primary), 8.8.8.8 (Secondary)\n\n**Follow-up Actions (Medium Priority):**\n4. **Reset network adapter** - Clear adapter state and reconnect\n   • Estimated time: 5 minutes\n   • Method: Network reset via Windows settings\n\n5. **Update network drivers** - Check for latest adapter drivers\n   • Estimated time: 10 minutes\n   • Source: Device Manager or Dell support site\n\n**Escalation Actions (If Unresolved):**\n6. **Test with different network** - Try mobile hotspot to isolate issue\n7. **Check firewall/antivirus** - Verify no software blocking connections\n8. **Escalate to Network team** - If hardware or infrastructure issue suspected\n\n**Expected Outcome:** 85% of cases resolved within 15-20 minutes using steps 1-4\n\nShall I provide the detailed commands to execute these steps?" :
+          "Based on my analysis of this ticket and similar cases, here are the recommended next actions in priority order:\n\n**Immediate Actions (High Priority):**\n1. **Unlock the user account** - This is the primary blocker preventing access\n   • Estimated time: 2 minutes\n   • Required permissions: Admin access\n\n2. **Verify user identity** - Contact user via registered email or phone\n   • Estimated time: 5 minutes\n   • Security requirement: Mandatory\n\n3. **Reset password** - Send secure password reset link\n   • Estimated time: 3 minutes\n   • Auto-expires in: 24 hours\n\n**Follow-up Actions (Medium Priority):**\n4. **Review security logs** - Check for suspicious login attempts\n   • Estimated time: 10 minutes\n\n5. **Enable 2FA** - Enhance account security\n   • Estimated time: 5 minutes\n   • Recommended: Yes\n\n**Documentation (Low Priority):**\n6. **Update ticket notes** - Document resolution steps\n7. **Send resolution email** - Inform user of actions taken\n\nShall I help you execute these actions in sequence?",
+        followUpActions: ticketId === 'INC-35' ? ['Start Approval', 'Check Budget', 'Contact Manager'] : ticketId === 'INC-32' ? ['Provide Commands', 'Run Diagnostics', 'Reset Network'] : ['Unlock Account', 'Send Reset Link', 'Enable 2FA']
+      },
+      'Root Cause': {
+        text: ticketId === 'INC-35' ?
+          "I've analyzed the request details and user profile to identify the root cause:\n\n**Primary Root Cause:**\n🔍 Current hardware insufficient for senior developer role requirements\n\n**Contributing Factors:**\n1. **Performance Limitations** - Existing laptop lacks processing power\n   • Current device: Dell Latitude 5420 (i5, 8GB RAM)\n   • Required workload: Docker, multiple IDEs, VMs, cross-platform builds\n   • Performance gap: 60-70% slower than recommended specs\n\n2. **Role Evolution** - Developer promoted to senior role 6 months ago\n   • Previous role: Junior Developer (basic web development)\n   • Current role: Senior Developer (complex microservices, containerization)\n   • Hardware allocation not updated with role change\n\n3. **Development Requirements** - Projects require macOS environment\n   • Current projects: iOS app development, cross-platform testing\n   • Team standard: MacBook Pro for senior developers\n   • Collaboration efficiency: Needs same platform as team\n\n**Business Impact:**\n• Estimated productivity loss: 8-12 hours per week\n• Build time delays affecting sprint deliverables\n• Unable to fully participate in iOS-related projects\n\n**Preventive Measures:**\n• Implement automatic hardware review upon role changes\n• Define hardware standards for each engineering level\n• Schedule quarterly equipment adequacy assessments\n\n**Recommendation:** Approve request - clear business justification and role-appropriate equipment\n\nWould you like me to prepare the approval documentation?" :
+          ticketId === 'INC-32' ?
+          "I've analyzed the network diagnostics and user reports to identify the root cause:\n\n**Primary Root Cause:**\n🔍 DNS resolution failure preventing internet access despite active network connection\n\n**Contributing Factors:**\n1. **DNS Server Configuration** - Incorrect or unreachable DNS servers\n   • Current DNS: Automatic (DHCP-assigned)\n   • Expected DNS: Corporate DNS 192.168.1.1\n   • DNS response time: Timeout (>5 seconds)\n\n2. **Network Adapter Issue** - Cached DNS entries or adapter state problem\n   • Last system update: 2 days ago (Windows update)\n   • Network adapter driver: May need update or reset\n   • DNS cache: Potentially corrupted entries\n\n3. **Recent Changes** - Windows update may have reset network settings\n   • Windows update installed: Feb 14, 2026\n   • Issue started: Feb 16, 2026 morning\n   • Network profile: May have switched from Corporate to Public\n\n**Symptoms Correlation:**\n• Wi-Fi shows connected (Layer 2 working)\n• No internet access (Layer 3/DNS failure)\n• Cannot ping external domains (DNS not resolving)\n• Can ping IP addresses directly (network path working)\n\n**Preventive Measures:**\n• Configure static DNS servers to prevent DHCP issues\n• Schedule driver updates before Windows updates\n• Add monitoring for DNS resolution failures\n• Document corporate network settings for quick recovery\n\n**Risk Assessment:** Low - Isolated to user's device, no network-wide issue\n\nWould you like me to provide the specific fix commands?" :
+          "I've analyzed the ticket details and system logs to identify the root cause:\n\n**Primary Root Cause:**\n🔍 Multiple failed login attempts (7 attempts in 3 hours) triggered automated account lockout\n\n**Contributing Factors:**\n1. **Password Complexity** - User may have forgotten recently changed password\n   • Last password change: 3 days ago\n   • Previous successful login: 4 days ago\n\n2. **Multiple Access Locations** - Login attempts from 3 different IP addresses\n   • Office location (known): 3 attempts\n   • Unknown locations: 4 attempts\n   • Possible cause: User traveling or VPN issues\n\n3. **Security Policy** - Strict 5-attempt lockout threshold\n   • Current threshold: 5 failed attempts\n   • Lockout duration: 30 minutes (auto-unlock)\n   • Manual override: Available\n\n**Preventive Measures:**\n• Implement password manager recommendation\n• Set up login location alerts\n• Enable two-factor authentication\n• Educate user on password best practices\n\n**Risk Assessment:** Low - Appears to be legitimate user access issue rather than security breach\n\nWould you like me to implement any of the preventive measures?",
+        followUpActions: ticketId === 'INC-35' ? ['Prepare Approval', 'Calculate ROI', 'Document Justification'] : ticketId === 'INC-32' ? ['Provide Fix Commands', 'Update DNS Settings', 'Reset Adapter'] : ['Implement 2FA', 'Send Security Tips', 'Update Policy']
+      },
+      'Draft Reply': {
+        text: ticketId === 'INC-35' ?
+          "I've drafted a professional reply for the requester:\n\n---\n\n**Subject:** RE: MacBook Pro Allocation Request - INC-35\n\nHi Michael,\n\nThank you for submitting your hardware allocation request. I've reviewed your requirements and understand the performance challenges you're experiencing with your current device.\n\n**Request Summary:**\nYou've requested an Apple MacBook Pro 16-inch to support your senior development role, specifically for running Docker containers, multiple IDEs, and cross-platform development projects.\n\n**Next Steps:**\nTo process your request, I'll need to:\n\n1. **Manager Approval** - I'll route this request to your manager for business justification approval\n2. **Budget Verification** - Finance team will confirm available budget allocation\n3. **IT Director Sign-off** - Final approval for hardware procurement\n4. **Procurement** - Once approved, we'll order the device with our standard configuration\n\n**Timeline:**\n• Approval process: 3-5 business days\n• Procurement and delivery: 7-10 business days\n• Setup and data migration: 2-3 hours\n\n**Standard Configuration:**\nThe approved configuration for senior developers includes:\n• MacBook Pro 16\" with M3 Pro chip\n• 32GB unified memory\n• 1TB SSD storage\n• Standard development software licenses\n\n**What You Can Do:**\nTo expedite the process, please ensure your manager is aware of this request and its business justification. You may also want to back up any critical data from your current device.\n\nI'll keep you updated as the request moves through the approval workflow. Please let me know if you have any questions.\n\nBest regards,\n[Your Name]\nIT Support Team\n\n---\n\nWould you like me to modify any part of this reply or send it as is?" :
+          ticketId === 'INC-32' ?
+          "I've drafted a professional reply for the requester:\n\n---\n\n**Subject:** RE: Internet Connectivity Issue - INC-32\n\nHi Emily,\n\nThank you for reporting this connectivity issue. I understand how frustrating it is to be unable to access the internet, especially with important meetings scheduled. Let me help you resolve this quickly.\n\n**Issue Summary:**\nYou're experiencing a \"connected but no internet access\" situation where your Wi-Fi shows connected but you cannot access websites or company resources.\n\n**Quick Resolution Steps:**\nPlease try these steps in order (each takes just 2-3 minutes):\n\n**Step 1: Flush DNS Cache**\n1. Press Windows key + R\n2. Type `cmd` and press Enter\n3. Type these commands (press Enter after each):\n   • `ipconfig /flushdns`\n   • `ipconfig /release`\n   • `ipconfig /renew`\n4. Close the command window and test your connection\n\n**Step 2: Reset Network Adapter** (if Step 1 doesn't work)\n1. Right-click the Wi-Fi icon in system tray\n2. Select \"Open Network & Internet Settings\"\n3. Click \"Network reset\" at the bottom\n4. Click \"Reset now\" and restart your laptop\n\n**Step 3: Verify DNS Settings**\n1. Open Network Connections (Windows key + R, type `ncpa.cpl`)\n2. Right-click Wi-Fi adapter, select Properties\n3. Select \"Internet Protocol Version 4 (TCP/IPv4)\"\n4. Click Properties\n5. Select \"Use the following DNS server addresses\"\n6. Enter: Preferred DNS: 192.168.1.1, Alternate DNS: 8.8.8.8\n7. Click OK and test connection\n\n**Expected Resolution:**\nMost \"connected no internet\" issues are resolved by Step 1 (90% success rate). The entire process should take no more than 10-15 minutes.\n\n**If Issues Persist:**\nIf you're still experiencing problems after these steps, please reply to this email with:\n• Result of running `ipconfig /all` command\n• Screenshot of network adapter status\n• Any error messages you're seeing\n\nI'll escalate to our Network team if needed, but let's try these quick fixes first as they resolve most cases.\n\nYour productivity is important, so please don't hesitate to call the support desk at ext. 5500 if you need immediate phone assistance.\n\nBest regards,\n[Your Name]\nIT Support Team\n\n---\n\nWould you like me to modify any part of this reply or send it as is?" :
+          "I've drafted a professional reply for the requester:\n\n---\n\n**Subject:** RE: Account Access Issue - INC-10247\n\nDear [User Name],\n\nThank you for contacting IT Support. I've reviewed your account access issue and I'm here to help you regain access to your account.\n\n**Issue Summary:**\nYour account was automatically locked due to multiple unsuccessful login attempts, which is a security measure designed to protect your account from unauthorized access.\n\n**Resolution Steps:**\nI've unlocked your account and you should now be able to access the portal. To ensure secure access:\n\n1. Please use the password reset link sent to your registered email address\n2. Create a strong, unique password that you haven't used before\n3. Verify that you can successfully log in to the portal\n\n**Security Recommendations:**\nTo prevent this issue in the future, I recommend:\n• Using a password manager to securely store your credentials\n• Enabling two-factor authentication for enhanced security\n• Contacting IT Support immediately if you notice any suspicious activity\n\n**Next Steps:**\nPlease confirm once you've successfully accessed your account. If you continue to experience any issues, please reply to this email or contact our support desk.\n\nYour ticket will remain open until we confirm your access has been restored.\n\nBest regards,\n[Your Name]\nIT Support Team\n\n---\n\nWould you like me to modify any part of this reply or send it as is?",
+        followUpActions: ticketId === 'INC-35' ? ['Send Reply', 'Edit Draft', 'Add CC Manager'] : ticketId === 'INC-32' ? ['Send Reply', 'Edit Draft', 'Add Troubleshooting'] : ['Send Reply', 'Edit Draft', 'Add to Template']
+      }
+    };
+
+    // Add AI response after a short delay
+    setTimeout(() => {
+      const response = aiResponses[actionType];
+      const responseText = response?.text || "I've processed your request. How else can I assist you with this ticket?";
+      
+      const aiMessage = {
+        id: Date.now() + 1,
+        text: '',
+        fullText: responseText,
+        displayedText: '',
+        isUser: false,
+        isTyping: true,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setChatMessages(prev => [...prev, aiMessage]);
+
+      // Add follow-up actions after AI response completes
+      if (response?.followUpActions) {
+        setTimeout(() => {
+          const followUpMessage = {
+            id: Date.now() + 2,
+            text: '',
+            isUser: false,
+            timestamp: '',
+            followUpActions: response.followUpActions
+          };
+          setChatMessages(prev => [...prev, followUpMessage as any]);
+        }, responseText.length * 8 + 500); // Wait for typing animation to complete
+      }
+    }, 500);
+  };
+
+  // Expose handleQuickAction to parent component
+  useEffect(() => {
+    if (props.onQuickActionReady) {
+      props.onQuickActionReady(handleQuickAction);
+    }
+  }, [props.onQuickActionReady]);
+
+  // Save section order to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ticketPropertiesSectionOrder', JSON.stringify(sectionOrder));
+    }
+  }, [sectionOrder]);
+
+  // Typing animation effect
+  useEffect(() => {
+    const typingMessage = chatMessages.find(msg => msg.isTyping && msg.fullText && !msg.displayedText);
+    
+    if (typingMessage && typingMessage.fullText) {
+      let currentIndex = 0;
+      const typingSpeed = 8; // milliseconds per character
+      const fullText = typingMessage.fullText;
+      const messageId = typingMessage.id;
+      
+      typingIntervalRef.current = setInterval(() => {
+        currentIndex++;
+        
+        if (currentIndex <= fullText.length) {
+          setChatMessages(prev => 
+            prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, displayedText: fullText.substring(0, currentIndex) }
+                : msg
+            )
+          );
+        } else {
+          // Typing complete
+          setChatMessages(prev => 
+            prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, text: fullText, isTyping: false, displayedText: undefined, fullText: undefined }
+                : msg
+            )
+          );
+          
+          if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+          }
+        }
+      }, typingSpeed);
+      
+      return () => {
+        if (typingIntervalRef.current) {
+          clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [chatMessages.length]);
+
+  // Function to render markdown text with bold support and line breaks
+  const renderMarkdown = (text: string) => {
+    // Split by line breaks first
+    const lines = text.split('\n');
+    return lines.map((line, lineIndex) => {
+      // Then split each line by bold markers
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const renderedLine = parts.map((part, partIndex) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={`${lineIndex}-${partIndex}`}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+
+      // Add line break after each line except the last one
+      if (lineIndex < lines.length - 1) {
+        return <span key={lineIndex}>{renderedLine}<br /></span>;
+      }
+      return <span key={lineIndex}>{renderedLine}</span>;
+    });
+  };
+
+  // Auto-scroll effect when messages update or typing is in progress
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTo({
+        top: chatScrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [chatMessages]);
+
+  // Auto-focus chatbot input when chatbot group is active
+  useEffect(() => {
+    if (activeGroup === 'chatbot' && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  }, [activeGroup]);
+
+  // Debug: Log when showReopenTooltip changes
+  useEffect(() => {
+    console.log('showReopenTooltip state changed to:', showReopenTooltip);
+  }, [showReopenTooltip]);
+
+  // Calculate tooltip position when it shows
+  useEffect(() => {
+    if (showReopenTooltip && aiIconRef.current) {
+      const rect = aiIconRef.current.getBoundingClientRect();
+      console.log('AI Icon position:', rect);
+      setTooltipPosition({
+        top: rect.top + rect.height / 2, // Center vertically with the icon
+        left: rect.left - 296 // 280px tooltip width + 16px gap
+      });
+    }
+  }, [showReopenTooltip]);
+
+  // Auto-close tooltip after 5 seconds
+  useEffect(() => {
+    if (showReopenTooltip) {
+      const timer = setTimeout(() => {
+        console.log('Auto-closing tooltip after 5 seconds');
+        setShowReopenTooltip(false);
+        sessionStorage.setItem('hasSeenReopenTooltip', 'true');
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showReopenTooltip]);
+
+  // Onboarding step 3 (index 2) - Trigger AI summary generation
+  useEffect(() => {
+    if (onboardingStep === 2 && !onboardingSummaryLoaded) {
+      // Start loading state
+      setIsRegeneratingSummary(true);
+      setOnboardingSummaryLoaded(true);
+      
+      // After 2 seconds, show summary content with animation
+      setTimeout(() => {
+        setIsRegeneratingSummary(false);
+        setShowOnboardingSummaryContent(true);
+        
+        // After summary content finishes animating, show Quick AI Actions
+        setTimeout(() => {
+          setShowOnboardingQuickActions(true);
+        }, 1500); // Total time for summary animation + copy/note buttons to complete
+      }, 2000); // 2 second loading
+    }
+  }, [onboardingStep, onboardingSummaryLoaded]);
+
+  // Click-outside detection for tooltip
+  useEffect(() => {
+    if (showReopenTooltip) {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          reopenTooltipRef.current &&
+          !reopenTooltipRef.current.contains(event.target as Node) &&
+          aiIconRef.current &&
+          !aiIconRef.current.contains(event.target as Node)
+        ) {
+          console.log('Clicked outside tooltip, closing');
+          setShowReopenTooltip(false);
+          sessionStorage.setItem('hasSeenReopenTooltip', 'true');
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showReopenTooltip]);
+
+  return (
+    <div className="flex border-l border-[#e5e7eb] bg-white overflow-visible flex-shrink-0 relative" data-onboarding="ticket-properties">
+      {/* Resize Handle - only visible when accordion is not collapsed */}
+      {!isAccordionCollapsed && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize group z-[60] hover:z-[70]"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsAccordionResizing(true);
+          }}
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setAccordionWidth(390);
+          }}
+        >
+          {/* Vertical Line - only visible on hover */}
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-transparent group-hover:bg-[#3D8BD0] transition-colors"></div>
+          
+          {/* Rounded Handle in Center - only visible on hover */}
+          <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-12 bg-white border border-[#e5e7eb] rounded-full shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:border-[#3D8BD0] transition-all">
+            <div className="flex flex-col gap-0.5">
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Main Content Container - Flex Column */}
+      <div className={`flex-shrink-0 flex flex-col transition-all duration-300 h-full ${
+        isAccordionCollapsed ? 'hidden' : ''
+      }`} style={{ width: isAccordionCollapsed ? '0px' : `${accordionWidth}px` }} data-onboarding={activeGroup === 'chatbot' ? 'serviceops-ai' : undefined}>
+        
+        {/* Scrollable Content Area */}
+        <div className={`${activeGroup === 'chatbot' ? '' : 'flex-1 overflow-y-auto p-4 pt-0 pb-8'}`}>
+        {/* Group Header with Search/Filter */}
+        <div
+          className={`sticky top-0 z-[50] ${activeGroup === 'chatbot' ? 'py-3 px-4' : 'pt-3 pb-3'}`}
+          style={activeGroup === 'chatbot' ? {
+            background: 'linear-gradient(270deg, rgba(249, 250, 251, 0.00) 90.76%, var(--Color-Variable-Custom-ToolTip-BG, #F9FAFB) 98.45%)',
+            transform: isChatbotClosing ? 'scaleY(0)' : (isChatbotOpening ? 'scaleY(0)' : 'scaleY(1)'),
+            transformOrigin: 'bottom',
+            opacity: isChatbotClosing ? 0 : 1,
+            transition: 'transform 0.4s ease-in-out, opacity 0.4s ease-in-out',
+            overflow: 'hidden'
+          } : { background: 'white' }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-1.5">
+            <h2 className="text-[15px] font-semibold text-[#364658] flex items-center gap-2">
+              {(activeGroup === 'suggestions' || activeGroup === 'chatbot') && (
+                <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                  <defs>
+                    <linearGradient id="sparkle-gradient-properties" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#4CB1FE" />
+                      <stop offset="20.44%" stopColor="#731EFB" />
+                      <stop offset="99.68%" stopColor="#F911E3" />
+                    </linearGradient>
+                  </defs>
+                  <path fill="url(#sparkle-gradient-properties)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
+                </svg>
+              )}
+              {getGroupTitle()}
+            </h2>
+            {activeGroup === 'chatbot' && (
+              <button
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                onClick={() => {
+                  // Start closing animation
+                  setIsChatbotClosing(true);
+
+                  // After animation completes, switch to properties view
+                  setTimeout(() => {
+                    setActiveGroup('properties');
+                    setIsChatbotClosing(false);
+
+                    // Show tooltip only if onboarding is complete and hasn't been shown this session
+                    // DISABLED: Reopen tooltip temporarily hidden
+                    // const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
+                    // const hasSeenReopenTooltip = sessionStorage.getItem('hasSeenReopenTooltip');
+                    // console.log('Close button clicked - hasSeenOnboarding:', hasSeenOnboarding, 'hasSeenReopenTooltip:', hasSeenReopenTooltip);
+                    // if (hasSeenOnboarding && !hasSeenReopenTooltip) {
+                    //   setTimeout(() => {
+                    //     console.log('Showing reopen tooltip');
+                    //     setShowReopenTooltip(true);
+                    //   }, 300);
+                    // }
+                  }, 400); // Animation duration
+                }}
+              >
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Bar - Always visible for properties, activity, and suggestions */}
+          {(activeGroup === 'properties' || activeGroup === 'activity' || activeGroup === 'suggestions') && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded-md px-2 py-1.5">
+                <Search size={16} className="text-[#7B8FA5]" />
+                <input
+                  type="text"
+                  placeholder={activeGroup === 'activity' ? 'Search...' : 'Search fields...'}
+                  value={propertiesSearchQuery}
+                  onChange={(e) => setPropertiesSearchQuery(e.target.value)}
+                  className="flex-1 outline-none text-[13px] text-[#364658] placeholder:text-[#7B8FA5]"
+                />
+              </div>
+              {activeGroup === 'properties' && (
+                <div className="relative" ref={propertiesFilterRef}>
+                  <button 
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    onClick={() => setShowPropertiesFilter(!showPropertiesFilter)}
+                  >
+                    <Filter size={16} className="text-[#7B8FA5]" />
+                  </button>
+                  
+                  {/* Filter Dropdown */}
+                  {showPropertiesFilter && (
+                    <div className="absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-50">
+                      <button
+                        className={`w-full flex items-center justify-between px-4 py-2 text-[13px] hover:bg-[#F9FAFB] transition-colors ${
+                          selectedFilter === 'all' ? 'text-[#3D8BD0]' : 'text-[#364658]'
+                        }`}
+                        onClick={() => {
+                          setSelectedFilter('all');
+                          setShowPropertiesFilter(false);
+                        }}
+                      >
+                        <span>All fields</span>
+                        {selectedFilter === 'all' && <Check size={14} className="text-[#3D8BD0]" />}
+                      </button>
+                      <button
+                        className={`w-full flex items-center justify-between px-4 py-2 text-[13px] hover:bg-[#F9FAFB] transition-colors ${
+                          selectedFilter === 'empty' ? 'text-[#3D8BD0]' : 'text-[#364658]'
+                        }`}
+                        onClick={() => {
+                          setSelectedFilter('empty');
+                          setShowPropertiesFilter(false);
+                        }}
+                      >
+                        <span>Empty fields</span>
+                        {selectedFilter === 'empty' && <Check size={14} className="text-[#3D8BD0]" />}
+                      </button>
+                      <button
+                        className={`w-full flex items-center justify-between px-4 py-2 text-[13px] hover:bg-[#F9FAFB] transition-colors ${
+                          selectedFilter === 'filled' ? 'text-[#3D8BD0]' : 'text-[#364658]'
+                        }`}
+                        onClick={() => {
+                          setSelectedFilter('filled');
+                          setShowPropertiesFilter(false);
+                        }}
+                      >
+                        <span>Filled fields</span>
+                        {selectedFilter === 'filled' && <Check size={14} className="text-[#3D8BD0]" />}
+                      </button>
+                      <button
+                        className={`w-full flex items-center justify-between px-4 py-2 text-[13px] hover:bg-[#F9FAFB] transition-colors ${
+                          selectedFilter === 'required' ? 'text-[#3D8BD0]' : 'text-[#364658]'
+                        }`}
+                        onClick={() => {
+                          setSelectedFilter('required');
+                          setShowPropertiesFilter(false);
+                        }}
+                      >
+                        <span>Required fields</span>
+                        {selectedFilter === 'required' && <Check size={14} className="text-[#3D8BD0]" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Ticket Properties Group Content */}
+        {activeGroup === 'properties' && (
+          <div className="space-y-3">
+        {/* The content will continue in a follow-up message due to size */}
+        
+        {/* Pinned Fields Accordion */}
+        <PinnedFieldsAccordion
+          pinnedFieldsExpanded={pinnedFieldsExpanded}
+          setPinnedFieldsExpanded={setPinnedFieldsExpanded}
+          pinnedFields={pinnedFields}
+          selectedStatus={selectedStatus}
+          selectedPriority={selectedPriority}
+          selectedAssignee={selectedAssignee}
+          selectedTechGroup={selectedTechGroup}
+          selectedUrgency={selectedUrgency}
+          selectedImpact={selectedImpact}
+          selectedCategory={selectedCategory}
+          selectedDepartment={selectedDepartment}
+          selectedSource={selectedSource}
+          selectedLocation={selectedLocation}
+          selectedVendor={selectedVendor}
+          selectedSupportLevel={selectedSupportLevel}
+          getCurrentStatusColor={getCurrentStatusColor}
+          getCurrentPriorityColor={getCurrentPriorityColor}
+          getCurrentAssigneeColor={getCurrentAssigneeColor}
+          getCurrentUrgencyColor={getCurrentUrgencyColor}
+          getCurrentImpactColor={getCurrentImpactColor}
+          priorityOptions={priorityOptions}
+          assigneeOptions={assigneeOptions}
+          togglePinField={togglePinField}
+        />
+        
+        {hasSLAMatch() && (
+        <div className="border border-[#DFE5ED] rounded-lg" ref={slaStatusRef}>
+          <div 
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
+            onClick={() => setSlaStatusExpanded(!slaStatusExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">SLA Status</h3>
+            </div>
+            <button
+              className="text-[#7B8FA5] hover:text-[#364658] transition-colors"
+            >
+              {slaStatusExpanded ? (
+                <ChevronDown size={16} />
+              ) : (
+                <ChevronRight size={16} />
+              )}
+            </button>
+          </div>
+
+          {slaStatusExpanded && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* Response Due In - On Track */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-[#364658]">First response due in</div>
+                  
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded px-2 py-1 flex-shrink-0 cursor-default">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                        <g clipPath="url(#clip0_1057_504)">
+                          <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#27AE60"/>
+                        </g>
+                        <defs>
+                          <clipPath id="clip0_1057_504">
+                            <rect width="12" height="16" fill="white" transform="matrix(1 0 0 -1 0 16)"/>
+                          </clipPath>
+                        </defs>
+                      </svg>
+                      <span className="text-[12px] font-semibold text-[#27AE60]">3d 5h</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Thursday, February 20, 2026 at 12:30 AM</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Resolution Due In - Conditional based on ticket ID */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-[#364658]">
+                    {ticketId === 'INC-32' ? 'Resolution due in' : 'Resolution overdue in'}
+                  </div>
+                 
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={`flex items-center gap-1.5 rounded px-2 py-1 flex-shrink-0 cursor-default ${
+                      ticketId === 'INC-32' ? 'bg-[#E8F5E9]' : 'bg-[#FFEBEE]'
+                    }`}>
+                      {ticketId === 'INC-32' ? (
+                        // Green hourglass for INC-32
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                          <g clipPath="url(#clip0_1057_504_inc32)">
+                            <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#27AE60"/>
+                          </g>
+                          <defs>
+                            <clipPath id="clip0_1057_504_inc32">
+                              <rect width="12" height="16" fill="white" transform="matrix(1 0 0 -1 0 16)"/>
+                            </clipPath>
+                          </defs>
+                        </svg>
+                      ) : (
+                        // Red hourglass for other tickets
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none" style={{ transform: 'scaleY(-1)' }}>
+                          <g clipPath="url(#clip0_1057_504_red)">
+                            <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#E74C3C"/>
+                          </g>
+                          <defs>
+                            <clipPath id="clip0_1057_504_red">
+                              <rect width="12" height="16" fill="white" transform="matrix(1 0 0 -1 0 16)"/>
+                            </clipPath>
+                          </defs>
+                        </svg>
+                      )}
+                      <span className={`text-[12px] font-semibold ${
+                        ticketId === 'INC-32' ? 'text-[#27AE60]' : 'text-[#E74C3C]'
+                      }`}>
+                        {ticketId === 'INC-32' ? '4d 5h' : '1w 4d'}
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {ticketId === 'INC-32' ? 'Saturday, March 23, 2026 at 2:30 PM' : 'Saturday, February 7, 2026 at 11:45 AM'}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* OLA Due In - Warning */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium text-[#364658]">OLA due in</div>
+                  
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 bg-[#FFF3E0] rounded px-2 py-1 flex-shrink-0 cursor-default">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                        <g clipPath="url(#clip0_1057_504_orange)">
+                          <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#F39C12"/>
+                        </g>
+                        <defs>
+                          <clipPath id="clip0_1057_504_orange">
+                            <rect width="12" height="16" fill="white" transform="matrix(1 0 0 -1 0 16)"/>
+                          </clipPath>
+                        </defs>
+                      </svg>
+                      <span className="text-[12px] font-semibold text-[#F39C12]">4h</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Sunday, February 15, 2026 at 4:30 PM</TooltipContent>
+                </Tooltip>
+              </div>
+            
+              {/* SLA History Link */}
+              <button
+                onClick={() => setShowSLAHistory(true)}
+                className="flex items-center gap-2 px-3 py-2 mt-3 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+              >
+                <Clock size={14} />
+                SLA History
+              </button>
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* Reorderable Sections */}
+        {sectionOrder.map((section) => {
+          if (section === 'Ticket Fields' && hasTicketFieldsMatch()) {
+            return (
+        <TicketFieldsAccordion
+          key="ticket-fields"
+          fieldsTitle={fieldsTitle}
+          showProblemFields={showProblemFields}
+          ticketFieldsExpanded={ticketFieldsExpanded}
+          setTicketFieldsExpanded={setTicketFieldsExpanded}
+          showMoreFields={showMoreFields}
+          setShowMoreFields={setShowMoreFields}
+          propertiesSearchQuery={propertiesSearchQuery}
+          ticketFieldsRef={ticketFieldsRef}
+          statusDropdownRef={statusDropdownRef}
+          priorityDropdownRef={priorityDropdownRef}
+          assigneeDropdownRef={assigneeDropdownRef}
+          techGroupDropdownRef={techGroupDropdownRef}
+          urgencyDropdownRef={urgencyDropdownRef}
+          impactDropdownRef={impactDropdownRef}
+          categoryDropdownRef={categoryDropdownRef}
+          departmentDropdownRef={departmentDropdownRef}
+          sourceDropdownRef={sourceDropdownRef}
+          locationDropdownRef={locationDropdownRef}
+          vendorDropdownRef={vendorDropdownRef}
+          supportLevelDropdownRef={supportLevelDropdownRef}
+          showStatusDropdown={showStatusDropdown}
+          setShowStatusDropdown={setShowStatusDropdown}
+          showPriorityDropdown={showPriorityDropdown}
+          setShowPriorityDropdown={setShowPriorityDropdown}
+          showAssigneeDropdown={showAssigneeDropdown}
+          setShowAssigneeDropdown={setShowAssigneeDropdown}
+          showTechGroupDropdown={showTechGroupDropdown}
+          setShowTechGroupDropdown={setShowTechGroupDropdown}
+          showUrgencyDropdown={showUrgencyDropdown}
+          setShowUrgencyDropdown={setShowUrgencyDropdown}
+          showImpactDropdown={showImpactDropdown}
+          setShowImpactDropdown={setShowImpactDropdown}
+          showCategoryDropdown={showCategoryDropdown}
+          setShowCategoryDropdown={setShowCategoryDropdown}
+          showDepartmentDropdown={showDepartmentDropdown}
+          setShowDepartmentDropdown={setShowDepartmentDropdown}
+          showSourceDropdown={showSourceDropdown}
+          setShowSourceDropdown={setShowSourceDropdown}
+          showLocationDropdown={showLocationDropdown}
+          setShowLocationDropdown={setShowLocationDropdown}
+          showVendorDropdown={showVendorDropdown}
+          setShowVendorDropdown={setShowVendorDropdown}
+          showSupportLevelDropdown={showSupportLevelDropdown}
+          setShowSupportLevelDropdown={setShowSupportLevelDropdown}
+          selectedStatus={selectedStatus}
+          setSelectedStatus={setSelectedStatus}
+          selectedPriority={selectedPriority}
+          setSelectedPriority={setSelectedPriority}
+          selectedAssignee={selectedAssignee}
+          setSelectedAssignee={setSelectedAssignee}
+          selectedTechGroup={selectedTechGroup}
+          setSelectedTechGroup={setSelectedTechGroup}
+          selectedUrgency={selectedUrgency}
+          setSelectedUrgency={setSelectedUrgency}
+          selectedImpact={selectedImpact}
+          setSelectedImpact={setSelectedImpact}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          selectedDepartment={selectedDepartment}
+          setSelectedDepartment={setSelectedDepartment}
+          selectedSource={selectedSource}
+          setSelectedSource={setSelectedSource}
+          selectedLocation={selectedLocation}
+          setSelectedLocation={setSelectedLocation}
+          selectedVendor={selectedVendor}
+          setSelectedVendor={setSelectedVendor}
+          selectedSupportLevel={selectedSupportLevel}
+          setSelectedSupportLevel={setSelectedSupportLevel}
+          assigneeSearchQuery={assigneeSearchQuery}
+          setAssigneeSearchQuery={setAssigneeSearchQuery}
+          tags={tags}
+          setTags={setTags}
+          showTagInput={showTagInput}
+          setShowTagInput={setShowTagInput}
+          tagInputValue={tagInputValue}
+          setTagInputValue={setTagInputValue}
+          togglePinField={togglePinField}
+          getFilteredTicketFields={getFilteredTicketFields}
+          getCurrentStatusColor={getCurrentStatusColor}
+          getCurrentPriorityColor={getCurrentPriorityColor}
+          getCurrentAssigneeColor={getCurrentAssigneeColor}
+          getCurrentUrgencyColor={getCurrentUrgencyColor}
+          getCurrentImpactColor={getCurrentImpactColor}
+          getCurrentProjectNameColor={getCurrentProjectNameColor}
+          getCurrentCostCenterColor={getCurrentCostCenterColor}
+          getCurrentRequestChannelColor={getCurrentRequestChannelColor}
+          filteredAssigneeOptions={filteredAssigneeOptions}
+          pinnedFields={pinnedFields}
+          statusOptions={statusOptions}
+          priorityOptions={priorityOptions}
+          assigneeOptions={assigneeOptions}
+          techGroupOptions={techGroupOptions}
+          urgencyOptions={urgencyOptions}
+          impactOptions={impactOptions}
+          categoryOptions={categoryOptions}
+          departmentOptions={departmentOptions}
+          sourceOptions={sourceOptions}
+          locationOptions={locationOptions}
+          vendorOptions={vendorOptions}
+          supportLevelOptions={supportLevelOptions}
+        />
+            );
+          } else if (section === 'Requester Information' && hasRequesterInfoMatch()) {
+            return (
+        <div key="requester-info" className="border border-[#DFE5ED] rounded-lg" ref={requesterInfoRef}>
+          <button
+            onClick={() => setRequesterInfoExpanded(!requesterInfoExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <User size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">Requester Information</h3>
+            </div>
+            {requesterInfoExpanded ? (
+              <ChevronDown size={16} className="text-[#7B8FA5]" />
+            ) : (
+              <ChevronRight size={16} className="text-[#7B8FA5]" />
+            )}
+          </button>
+
+          {(requesterInfoExpanded || propertiesSearchQuery) && (
+            <div className="px-4 pb-4">
+              <div className="space-y-3">
+                {/* Requester Name */}
+                <div className="flex items-center gap-2">
+                  <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColor() }}>
+                    AD
+                  </div>
+                  <span className="text-[13px] text-[#364658] font-medium">
+                    Arnav Desai
+                  </span>
+                </div>
+
+                {/* Requester Details */}
+                <div className="space-y-3">
+                  {/* Email */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">
+                      Email
+                    </div>
+                    <div className="flex-1 text-[13px] font-medium text-[#364658]">
+                      arnav.desai@motadata.com
+                    </div>
+                  </div>
+
+                  {/* Logon Name */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">
+                      Logon Name
+                    </div>
+                    <div className="flex-1 text-[13px] font-medium text-[#364658]">
+                      arnav.desai
+                    </div>
+                  </div>
+
+                  {/* Department */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">
+                      Department
+                    </div>
+                    <div className="flex-1 text-[13px] font-medium text-[#364658]">
+                      Sales
+                    </div>
+                  </div>
+
+                  {/* Contact No. */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">
+                      Contact No.
+                    </div>
+                    <div className="flex-1 text-[13px] font-medium text-[#364658]">
+                      919624514391
+                    </div>
+                  </div>
+                </div>
+
+                {/* View more details link */}
+                <div className="pt-1">
+                  <button className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center">
+                    <User size={14} />
+                    View more details
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+            );
+          } else if (section === 'Additional Fields' && hasAdditionalFieldsMatch()) {
+            return (
+        <AdditionalFieldsAccordion
+          key="additional-fields"
+          additionalFieldsExpanded={additionalFieldsExpanded}
+          setAdditionalFieldsExpanded={setAdditionalFieldsExpanded}
+          additionalFieldsTab={additionalFieldsTab}
+          setAdditionalFieldsTab={setAdditionalFieldsTab}
+          showMoreSystemFields={showMoreSystemFields}
+          setShowMoreSystemFields={setShowMoreSystemFields}
+          propertiesSearchQuery={propertiesSearchQuery}
+          additionalFieldsRef={additionalFieldsRef}
+          showProjectNameDropdown={showProjectNameDropdown}
+          setShowProjectNameDropdown={setShowProjectNameDropdown}
+          showCostCenterDropdown={showCostCenterDropdown}
+          setShowCostCenterDropdown={setShowCostCenterDropdown}
+          showBuildingDropdown={showBuildingDropdown}
+          setShowBuildingDropdown={setShowBuildingDropdown}
+          showRequestChannelDropdown={showRequestChannelDropdown}
+          setShowRequestChannelDropdown={setShowRequestChannelDropdown}
+          selectedProjectName={selectedProjectName}
+          setSelectedProjectName={setSelectedProjectName}
+          selectedCostCenter={selectedCostCenter}
+          setSelectedCostCenter={setSelectedCostCenter}
+          selectedBuilding={selectedBuilding}
+          setSelectedBuilding={setSelectedBuilding}
+          selectedRequestChannel={selectedRequestChannel}
+          setSelectedRequestChannel={setSelectedRequestChannel}
+          companyValue={companyValue}
+          setCompanyValue={setCompanyValue}
+          projectNameOptions={projectNameOptions}
+          costCenterOptions={costCenterOptions}
+          buildingOptions={buildingOptions}
+          requestChannelOptions={requestChannelOptions}
+          projectNameDropdownRef={projectNameDropdownRef}
+          costCenterDropdownRef={costCenterDropdownRef}
+          buildingDropdownRef={buildingDropdownRef}
+          requestChannelDropdownRef={requestChannelDropdownRef}
+          getFilteredAdditionalFormFields={getFilteredAdditionalFormFields}
+          getFilteredAdditionalFields={getFilteredAdditionalFields}
+          togglePinField={togglePinField}
+          getCurrentProjectNameColor={getCurrentProjectNameColor}
+          getCurrentCostCenterColor={getCurrentCostCenterColor}
+          getCurrentRequestChannelColor={getCurrentRequestChannelColor}
+          pinnedFields={pinnedFields}
+        />
+            );
+          }
+          return null;
+        })}
+
+        {/* Customize Button */}
+        <div className="px-4 mx-[0px] mt-6 mb-5">
+          <button
+            onClick={() => setShowCustomizeModal(true)}
+            className="flex items-center gap-2 text-[11px] text-[#364658] hover:text-[#3D8BD0] transition-colors group cursor-pointer"
+          >
+            <Settings size={14} />
+            <span className="border-b border-dotted border-transparent group-hover:border-[#3D8BD0]">Customize Layout</span>
+          </button>
+        </div>
+
+        {/* Separator */}
+        <div className="mt-4 px-3 hidden">
+          <div className="border-t border-[#E5E7EB]"></div>
+        </div>
+
+        {/* Info Section - Features Available */}
+        <div className="mt-4 px-0">
+          <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
+            <div className="flex items-start gap-2">
+              <PinIcon size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">Pin</span>
+                <span> — Mark fields for easy access on top</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Search size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">Search</span>
+                <span> — Find any field quickly</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Filter size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">Filter</span>
+                <span> — Show only the fields you need</span>
+              </div>
+            </div>
+          </div>
+        </div>
+          </div>
+        )}
+
+        {/* Activity and Resources Group Content */}
+        {activeGroup === 'activity' && (
+          <div className="space-y-3">
+        {/* Work Tracker Accordion */}
+        {hasWorkTrackerMatch() && (
+        <div className="border border-[#DFE5ED] rounded-lg">
+          <button
+            onClick={() => setWorkTrackerExpanded(!workTrackerExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <Play size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">Work Tracker</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {workTrackerExpanded && (
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openManualWorkLog();
+                  }} 
+                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Add Manual Work Log</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+              {workTrackerExpanded ? (
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              ) : (
+                <ChevronRight size={16} className="text-[#7B8FA5]" />
+              )}
+            </div>
+          </button>
+
+          {workTrackerExpanded && (
+          <div className="px-4 pb-4 relative">
+            {/* Timer Display */}
+            <div className="flex items-center gap-3">
+              <span className="text-[22px] font-medium text-[#364658] tabular-nums">{formatTime(elapsedTime)}</span>
+              
+              {elapsedTime === 0 && !isTimerRunning ? (
+                <button 
+                  onClick={() => setShowTimerPopup(!showTimerPopup)}
+                  className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
+                >
+                  <Play size={14} className="text-white fill-white ml-0.5" />
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {isTimerRunning ? (
+                    <button 
+                      onClick={handlePauseTimer}
+                      className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
+                    >
+                      <Pause size={14} className="text-white fill-white" />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleStartTimer}
+                      className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
+                    >
+                      <Play size={14} className="text-white fill-white ml-0.5" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={handleStopTimer}
+                    className="size-8 rounded-full bg-[#E74C3C] hover:bg-[#C0392B] flex items-center justify-center transition-colors"
+                  >
+                    <Square size={14} className="text-white fill-white" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Technician Info - Show when timer is running or paused */}
+            {timerStartTime && (elapsedTime > 0 || isTimerRunning) && (
+              <div className="mt-5 flex items-center gap-2">
+                <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold">
+                  AD
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Started at {formatStartTime(timerStartTime)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Work History Link */}
+            <div className="mt-3">
+              <button 
+                onClick={() => setShowWorkHistory(true)}
+                className="flex items-center gap-2 px-3 py-2 mt-3 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+              >
+                <Clock size={14} />
+                Work History
+              </button>
+            </div>
+
+            {/* Timer Popup */}
+            {showTimerPopup && !isTimerRunning && elapsedTime === 0 && (
+              <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999]" onClick={() => setShowTimerPopup(false)}>
+                <div className="bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-4 w-[400px] max-w-[90%]" onClick={(e) => e.stopPropagation()}>
+                  <div className="space-y-3">
+                    <label className="text-[13px] font-medium text-[#7B8FA5]">Work Description</label>
+                    <textarea
+                      value={workDescription}
+                      onChange={(e) => setWorkDescription(e.target.value)}
+                      placeholder="Description your work here"
+                      className="w-full h-24 px-3 py-2 text-[13px] text-[#364658] bg-white border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    />
+                    <button
+                      onClick={handleStartTimer}
+                      className="w-full px-4 py-2 bg-[#3D8BD0] hover:bg-[#2563EB] text-white text-[13px] font-medium rounded-md transition-colors"
+                    >
+                      Start Timer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          )}
+        </div>
+        )}
+
+        {/* Attachments Accordion */}
+        <div id="attachments-section" className="border border-[#DFE5ED] rounded-lg">
+          <button
+            onClick={() => setAttachmentsExpanded(!attachmentsExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <Paperclip size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">Attachments</h3>
+              <span className="inline-flex items-center justify-center size-5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#364658]">
+                {attachments.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {attachmentsExpanded && (
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Handle add attachment
+                  }} 
+                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Add Attachment</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+              {attachmentsExpanded ? (
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              ) : (
+                <ChevronRight size={16} className="text-[#7B8FA5]" />
+              )}
+            </div>
+          </button>
+
+          {attachmentsExpanded && (
+          <div className="px-4 pb-4">
+            <div className="divide-y divide-[#F0F1F3]">
+              {(showAllAttachments ? attachments : attachments.slice(0, 4)).map((attachment) => (
+                <div 
+                  key={attachment.id}
+                  className={`py-3 transition-all px-2 -mx-2 rounded group ${
+                    highlightAttachments 
+                      ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
+                      : 'hover:bg-[#F9FAFB]'
+                  }`}
+                  onMouseEnter={() => setHoveredAttachmentId(attachment.id)}
+                  onMouseLeave={() => setHoveredAttachmentId(null)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText size={16} className="text-[#7B8FA5] flex-shrink-0" />
+                        <span className="text-[13px] font-medium text-[#364658] truncate">
+                          {attachment.name}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#7B8FA5] ml-6">
+                        {attachment.size} • Uploaded by {attachment.uploadedBy}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle download
+                        }}
+                        className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors"
+                        title="Download"
+                      >
+                        <Download size={14} className="text-[#3D8BD0]" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteAttachment(attachment.id);
+                        }}
+                        className={`p-1.5 rounded hover:bg-[#EBF5FF] transition-all ${
+                          hoveredAttachmentId === attachment.id ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} className="text-[#E74C3C]" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Show all / Show less button */}
+            {attachments.length > 4 && (
+              <div className="mt-3 pt-3 border-t border-[#F0F1F3]">
+                <button
+                  onClick={() => setShowAllAttachments(!showAllAttachments)}
+                  className="text-[13px] text-[#3D8BD0] hover:text-[#2A6BA8] font-medium transition-colors"
+                >
+                  {showAllAttachments ? 'Show less' : `Show all (${attachments.length})`}
+                </button>
+              </div>
+            )}
+          </div>
+          )}
+        </div>
+
+        {/* Info Section - Features Available */}
+        <div className="mt-6 px-4">
+          <div className="p-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
+            <div className="flex items-start gap-2">
+              <Search size={14} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Search</span>
+                <span> — Find any field quickly</span>
+              </div>
+            </div>
+          </div>
+        </div>
+          </div>
+        )}
+
+        {/* AI Suggestions Group Content */}
+        {activeGroup === 'suggestions' && (
+          <div className="space-y-3">
+        {/* Similar Tickets Accordion */}
+        {hasSimilarTickets() && (
+        <div className="mb-3 bg-white rounded-[10px] border border-[#DFE5ED] overflow-hidden">
+          <button
+            onClick={() => setSimilarTicketExpanded(!similarTicketExpanded)}
+            className="w-full flex items-center justify-between p-4 hover:bg-[#F9FAFB] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <TicketIcon size={16} className="text-[#7B8FA5]" />
+              <span className="text-[13px] font-semibold text-[#364658]">Similar Tickets</span>
+              <span className="inline-flex items-center justify-center size-5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#364658]">
+                {availableSimilarTickets.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {similarTicketExpanded && (
+                <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
+              )}
+              {similarTicketExpanded ? (
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              ) : (
+                <ChevronRight size={16} className="text-[#7B8FA5]" />
+              )}
+            </div>
+          </button>
+
+          {similarTicketExpanded && (
+          <div className="px-4 pb-4">
+            {/* Tabs */}
+            <div className="flex gap-1 mb-3 border-b border-[#E5E7EB]">
+              <button
+                onClick={() => setSimilarTicketsTab('similar')}
+                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
+                  similarTicketsTab === 'similar'
+                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
+                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
+                }`}
+              >
+                Similar
+              </button>
+              <button
+                onClick={() => setSimilarTicketsTab('linked')}
+                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
+                  similarTicketsTab === 'linked'
+                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
+                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
+                }`}
+              >
+                Linked
+              </button>
+            </div>
+
+            {/* Similar Tab Content */}
+            {similarTicketsTab === 'similar' && (
+            <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
+              {availableSimilarTickets.map((ticket) => (
+                <div 
+                  key={ticket.id}
+                  className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer relative group"
+                  onMouseEnter={() => setHoveredTicketId(ticket.id)}
+                  onMouseLeave={() => setHoveredTicketId(null)}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                        {ticket.id}
+                      </span>
+                      <h4 className="text-[13px] font-medium text-[#364658] whitespace-nowrap">{ticket.title}</h4>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLinkTicket(ticket.id);
+                          setSimilarTicketsTab('linked');
+                        }}
+                        className={`p-1.5 rounded hover:bg-[#EBF5FF] transition-all ${
+                          hoveredTicketId === ticket.id ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        title="Link this ticket"
+                      >
+                        <Link size={14} className="text-[#3D8BD0]" />
+                      </button>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium flex-shrink-0 ${
+                        ticket.status === 'Resolved' 
+                          ? 'bg-[#10B981]/10 text-[#10B981]' 
+                          : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                      }`}>
+                        {ticket.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-5 rounded-[4px] flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: ticket.color }}>
+                      {ticket.initials}
+                    </div>
+                    <span className="text-[12px] text-[#7B8FA5]">{ticket.assignee}</span>
+                    <span className="text-[12px] text-[#7B8FA5]">• {ticket.match}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
+
+            {/* Linked Tab Content */}
+            {similarTicketsTab === 'linked' && (
+            <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
+              {/* Static Linked Tickets */}
+              {staticLinkedTickets.map((ticket) => (
+                <div key={ticket.id} className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                        {ticket.id}
+                      </span>
+                      <h4 className="text-[13px] font-medium text-[#364658]">{ticket.title}</h4>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium flex-shrink-0 ${
+                      ticket.status === 'Resolved' 
+                        ? 'bg-[#10B981]/10 text-[#10B981]' 
+                        : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                    }`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-5 rounded-[4px] flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: ticket.color }}>
+                      {ticket.initials}
+                    </div>
+                    <span className="text-[12px] text-[#7B8FA5]">{ticket.assignee}</span>
+                    <span className="text-[12px] text-[#7B8FA5]">• {ticket.relationship}</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Newly Linked Tickets */}
+              {newlyLinkedTickets.map((ticket) => (
+                <div key={ticket.id} className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1">
+                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                        {ticket.id}
+                      </span>
+                      <h4 className="text-[13px] font-medium text-[#364658]">{ticket.title}</h4>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium flex-shrink-0 ${
+                      ticket.status === 'Resolved' 
+                        ? 'bg-[#10B981]/10 text-[#10B981]' 
+                        : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                    }`}>
+                      {ticket.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="size-5 rounded-[4px] flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: ticket.color }}>
+                      {ticket.initials}
+                    </div>
+                    <span className="text-[12px] text-[#7B8FA5]">{ticket.assignee}</span>
+                    <span className="text-[12px] text-[#7B8FA5]">• {ticket.relationship}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
+          </div>
+          )}
+        </div>
+        )}
+
+        {/* Suggested Knowledge Accordion */}
+        {hasSuggestedKnowledgeMatch() && (
+        <div className="border border-[#DFE5ED] rounded-lg">
+          <button
+            onClick={() => setSuggestedKnowledgeExpanded(!suggestedKnowledgeExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors rounded-t-lg"
+          >
+            <div className="flex items-center gap-2">
+              <Lightbulb size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">Suggested Knowledge</h3>
+              <span className="inline-flex items-center justify-center size-5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#364658]">
+                5
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {suggestedKnowledgeExpanded && (
+                <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
+              )}
+              {suggestedKnowledgeExpanded ? (
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              ) : (
+                <ChevronRight size={16} className="text-[#7B8FA5]" />
+              )}
+            </div>
+          </button>
+
+          {suggestedKnowledgeExpanded && (
+          <div className="px-4 pb-4">
+            {/* Knowledge Cards */}
+            <div className="divide-y divide-[#F0F1F3]">
+              {/* Card 1 */}
+              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1">
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                      KB-1024
+                    </span>
+                    <h4 className="text-[13px] font-medium text-[#364658]">SolarWinds Setup Guide</h4>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-[#10B981]/10 text-[#10B981] flex-shrink-0">
+                    Published
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-5 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[9px] font-semibold">
+                    SJ
+                  </div>
+                  <span className="text-[12px] text-[#7B8FA5]">Sarah Johnson</span>
+                </div>
+              </div>
+
+              {/* Card 2 */}
+              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1">
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                      KB-892
+                    </span>
+                    <h4 className="text-[13px] font-medium text-[#364658]">Observability Best Practices</h4>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-[#10B981]/10 text-[#10B981] flex-shrink-0">
+                    Published
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-5 rounded-[4px] bg-[#8B5CF6] flex items-center justify-center text-white text-[9px] font-semibold">
+                    MC
+                  </div>
+                  <span className="text-[12px] text-[#7B8FA5]">Michael Chen</span>
+                </div>
+              </div>
+
+              {/* Card 3 */}
+              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1">
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
+                      KB-756
+                    </span>
+                    <h4 className="text-[13px] font-medium text-[#364658]">Monitoring Integration Steps</h4>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-[#10B981]/10 text-[#10B981] flex-shrink-0">
+                    Published
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-5 rounded-[4px] bg-[#F59E0B] flex items-center justify-center text-white text-[9px] font-semibold">
+                    AD
+                  </div>
+                  <span className="text-[12px] text-[#7B8FA5]">Arnav Desai</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          )}
+        </div>
+        )}
+
+        {/* Info Section - Features Available */}
+        <div className="mt-6 px-4">
+          <div className="p-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
+            <div className="flex items-start gap-2">
+              <Search size={14} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Search</span>
+                <span> — Find any field quickly</span>
+              </div>
+            </div>
+          </div>
+        </div>
+          </div>
+        )}
+        </div>
+
+        {/* AI Chatbot Group Content - Chat Messages */}
+        {activeGroup === 'chatbot' && (
+            <div
+              ref={chatScrollRef}
+              className="flex-1 min-h-0 overflow-y-auto px-4 pb-4"
+              style={{
+                background: 'linear-gradient(270deg, rgba(249, 250, 251, 0.00) 90.76%, var(--Color-Variable-Custom-ToolTip-BG, #F9FAFB) 98.45%)',
+                transform: isChatbotClosing ? 'scaleY(0)' : (isChatbotOpening ? 'scaleY(0)' : 'scaleY(1)'),
+                transformOrigin: 'bottom',
+                opacity: isChatbotClosing ? 0 : 1,
+                transition: 'transform 0.4s ease-in-out, opacity 0.4s ease-in-out',
+                overflow: isChatbotClosing ? 'hidden' : 'auto'
+              }}>
+              <div className="min-h-full flex flex-col justify-end space-y-6">
+              {/* Welcome Screen - Show when no messages */}
+              {chatMessages.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+                  {/* AI Icon */}
+                  <div className="mb-6">
+                    <svg width="40" height="40" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="sparkle-welcome" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#4CB1FE" />
+                          <stop offset="20.44%" stopColor="#731EFB" />
+                          <stop offset="99.68%" stopColor="#F911E3" />
+                        </linearGradient>
+                      </defs>
+                      <path fill="url(#sparkle-welcome)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
+                    </svg>
+                  </div>
+
+                  {/* Heading */}
+                  <h2 className="text-[24px] font-semibold text-[#111827] text-center mb-3">
+                    {selectedAssignee ? `Hello ${selectedAssignee.split(' ')[0]}, h` : 'H'}ow can we help?
+                  </h2>
+
+                  {/* Description */}
+                  <p className="text-[14px] text-[#6B7280] text-center max-w-md mb-8">
+                    Ask ServiceOps AI anything about this ticket or get assistance with troubleshooting and resolution.
+                  </p>
+
+                  {/* Suggested Prompts */}
+                  <div className="w-full max-w-lg space-y-2">
+                    {/* Suggest Solution */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleQuickAction('Suggest a solution for this issue')}
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
+                        >
+                          <Lightbulb size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Suggest Solution</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Get AI-powered solution recommendations for this issue
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Find Similar Tickets */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleQuickAction('Find similar resolved tickets')}
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
+                        >
+                          <SearchIcon size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Find Similar Tickets</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Search for similar resolved tickets in the system
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Suggest KB Article */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleQuickAction('Suggest KB')}
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
+                        >
+                          <FileText size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Suggest KB Article</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Find relevant knowledge base articles for resolution
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Analyze Root Cause */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleQuickAction('Root Cause')}
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
+                        >
+                          <Brain size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Analyze Root Cause</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Identify potential root causes of this issue
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Greeting - Removed since AI Summary is already shown on the left side */}
+              {false && chatMessages.length > 0 && (
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <div className="bg-[#F9FAFB] rounded-2xl rounded-tl-sm px-4 py-3 relative">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[14px] text-[#364658] font-medium flex items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+                        <defs>
+                          <linearGradient id="sparkle-gradient-icon" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#4CB1FE" />
+                            <stop offset="20.44%" stopColor="#731EFB" />
+                            <stop offset="99.68%" stopColor="#F911E3" />
+                          </linearGradient>
+                        </defs>
+                        <path fill="url(#sparkle-gradient-icon)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
+                      </svg>
+                        {isRegeneratingSummary ? 'Generating Summary...' : 'AI Summary'}
+                      </p>
+                      {onboardingStep !== 2 ? (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowAISummaryMenu(!showAISummaryMenu)}
+                          className="p-1 hover:bg-white rounded transition-colors"
+                        >
+                          <MoreVertical size={16} className="text-[#7B8FA5]" />
+                        </button>
+                        
+                        {showAISummaryMenu && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-[100]"
+                              onClick={() => setShowAISummaryMenu(false)}
+                            />
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[101]">
+                              <button 
+                                onClick={() => {
+                                  onChatbotAddAsNote?.(aiSummaryContent);
+                                  setShowAISummaryMenu(false);
+                                }}
+                                className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F9FAFB] flex items-center gap-2"
+                              >
+                                <StickyNote size={14} className="text-[#7B8FA5]" />
+                                Add as Note
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  onChatbotAddAsCollaborate?.(aiSummaryContent);
+                                  setShowAISummaryMenu(false);
+                                }}
+                                className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F9FAFB] flex items-center gap-2"
+                              >
+                                <Users size={14} className="text-[#7B8FA5]" />
+                                Add as Collaborate
+                              </button>
+                              <div className="my-1 h-px bg-[#E5E7EB]"></div>
+                              <button 
+                                onClick={() => {
+                                  onChatbotReply?.(aiSummaryContent);
+                                  setShowAISummaryMenu(false);
+                                }}
+                                className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F9FAFB] flex items-center gap-2"
+                              >
+                                <CornerUpRight size={14} className="text-[#7B8FA5]" />
+                                Reply
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  onChatbotForward?.(aiSummaryContent);
+                                  setShowAISummaryMenu(false);
+                                }}
+                                className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F9FAFB] flex items-center gap-2"
+                              >
+                                <Mail size={14} className="text-[#7B8FA5]" />
+                                Forward
+                              </button>
+                              <div className="my-1 h-px bg-[#E5E7EB]"></div>
+                              <button className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F9FAFB] flex items-center gap-2">
+                                <Copy size={14} className="text-[#7B8FA5]" />
+                                Copy
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = 'User is experiencing critical login issues with the main portal. The account appears to be locked after multiple failed attempts. Priority escalation recommended due to business impact.\n\nKey Points:\n- Account locked after multiple failed login attempts\n- Critical business impact requiring priority escalation\n- Reset authentication credentials and verify account status';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                          }}
+                          className="p-1 hover:bg-white rounded transition-colors"
+                          title="Copy"
+                        >
+                          <Copy size={16} className="text-[#7B8FA5]" />
+                        </button>
+                      )}
+                    </div>
+                    {isRegeneratingSummary ? (
+                      /* Loading State with Gradient Animation */
+                      <div className="p-1">
+                        {/* Animated gradient lines */}
+                        <div className="space-y-3">
+                          <div className="h-2 rounded-full overflow-hidden relative" style={{ background: 'linear-gradient(90deg, rgba(61,139,208,0.1) 0%, rgba(108,229,232,0.2) 50%, rgba(28,229,177,0.1) 100%)' }}>
+                            <div 
+                              className="absolute inset-0"
+                              style={{
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 2s infinite',
+                              }}
+                            />
+                          </div>
+                          <div className="h-2 rounded-full overflow-hidden relative w-3/4" style={{ background: 'linear-gradient(90deg, rgba(61,139,208,0.1) 0%, rgba(108,229,232,0.2) 50%, rgba(28,229,177,0.1) 100%)' }}>
+                            <div 
+                              className="absolute inset-0"
+                              style={{
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 2s infinite 0.3s',
+                              }}
+                            />
+                          </div>
+                          <div className="h-2 rounded-full overflow-hidden relative w-5/6" style={{ background: 'linear-gradient(90deg, rgba(61,139,208,0.1) 0%, rgba(108,229,232,0.2) 50%, rgba(28,229,177,0.1) 100%)' }}>
+                            <div 
+                              className="absolute inset-0"
+                              style={{
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 2s infinite 0.6s',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className={`text-[13px] text-[#364658] leading-relaxed mb-3 ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '0ms' } : {}}>
+                          {ticketId === 'INC-35' ? (
+                            'Employee requesting Apple MacBook Pro 16-inch allocation due to performance limitations of current laptop. Required for software development tasks involving resource-intensive tools, virtual machines, and cross-platform projects.'
+                          ) : ticketId === 'INC-32' ? (
+                            'User reporting complete internet outage on work laptop despite showing Wi-Fi connection. Unable to access websites or company resources since morning. Urgent assistance needed for business-critical work and scheduled meetings.'
+                          ) : (
+                            'User is experiencing critical login issues with the main portal. The account appears to be locked after multiple failed attempts. Priority escalation recommended due to business impact.'
+                          )}
+                        </p>
+
+                        {/* Key Points */}
+                        <div className={`space-y-2 ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '200ms' } : {}}>
+                          <h4 className="text-[12px] font-semibold text-[#7B8FA5] uppercase tracking-wide">
+                            Key Points
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {ticketId === 'INC-35' ? (
+                              <>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '400ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Senior Software Developer role requires high-performance device</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '500ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Current laptop unable to handle Docker containers and multiple IDEs</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '600ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>MacBook Pro 16-inch needed with standard development licenses</span>
+                                </li>
+                              </>
+                            ) : ticketId === 'INC-32' ? (
+                              <>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '400ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>No internet access despite Wi-Fi showing as connected</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '500ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Impacting ability to access emails and cloud applications</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '600ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Requires network diagnostics and connectivity troubleshooting</span>
+                                </li>
+                              </>
+                            ) : (
+                              <>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '400ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Account locked after multiple failed login attempts</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '500ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Critical business impact requiring priority escalation</span>
+                                </li>
+                                <li className={`flex items-start gap-2 text-[13px] text-[#364658] ${onboardingStep === 2 ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 ? { animationDelay: '600ms' } : {}}>
+                                  <span className="size-1.5 rounded-full bg-[#3D8BD0] mt-1.5 flex-shrink-0"></span>
+                                  <span>Reset authentication credentials and verify account status</span>
+                                </li>
+                              </>
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Regenerate AI Summary Notification - Hidden during onboarding */}
+                    {onboardingStep !== 2 && (hasNewConversations ? (
+                      <div className="mt-3 flex items-center justify-between p-2.5 bg-[#EBF5FF] border border-[#B8DCFF] rounded-lg">
+                        <p className="text-[12px] text-[#364658] flex-1">
+                          New conversations have been added
+                        </p>
+                        <button 
+                          onClick={() => {
+                            setIsRegeneratingSummary(true);
+                            setTimeout(() => {
+                              setIsRegeneratingSummary(false);
+                              setHasNewConversations(false);
+                            }, 2500);
+                          }}
+                          disabled={isRegeneratingSummary}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#3D8BD0] rounded-md hover:bg-[#F9FAFB] transition-all text-[11px] text-[#3D8BD0] font-medium flex-shrink-0 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          <RefreshCw size={12} className={`text-[#3D8BD0] ${isRegeneratingSummary ? 'animate-spin' : ''}`} />
+                          {isRegeneratingSummary ? 'Generating Summary...' : 'Regenerate'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex items-center justify-end">
+                        <button 
+                          onClick={() => {
+                            setIsRegeneratingSummary(true);
+                            setTimeout(() => {
+                              setIsRegeneratingSummary(false);
+                            }, 2500);
+                          }}
+                          disabled={isRegeneratingSummary}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#7B8FA5] hover:text-[#3D8BD0] font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          <RefreshCw size={12} className={isRegeneratingSummary ? 'animate-spin' : ''} />
+                          {isRegeneratingSummary ? 'Generating Summary...' : 'Regenerate summary'}
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Action Buttons */}
+                    {onboardingStep !== 2 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(aiSummaryContent);
+                        }}
+                        className="px-2 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
+                        title="Copy to clipboard"
+                      >
+                        <Copy size={11} className="text-[#7B8FA5]" />
+                      </button>
+                      <button 
+                        onClick={() => onChatbotAddAsNote?.(aiSummaryContent)}
+                        className="px-2.5 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
+                      >
+                        <StickyNote size={11} className="text-[#7B8FA5]" />
+                        Add as Note
+                      </button>
+                    </div>
+                    ) : showOnboardingSummaryContent && (
+                      <div className="mt-3 flex items-center gap-2 animate-slide-up" style={{ animationDelay: '800ms' }}>
+                        <button
+                          onClick={() => {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = 'User is experiencing critical login issues with the main portal. The account appears to be locked after multiple failed attempts. Priority escalation recommended due to business impact.\n\nKey Points:\n- Account locked after multiple failed login attempts\n- Critical business impact requiring priority escalation\n- Reset authentication credentials and verify account status';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                          }}
+                          className="p-1.5 hover:bg-white rounded transition-colors border border-[#E5E7EB] hover:border-[#3D8BD0]"
+                          title="Copy"
+                        >
+                          <Copy size={14} className="text-[#7B8FA5]" />
+                        </button>
+                        <button 
+                          onClick={() => onChatbotAddAsNote?.(aiSummaryContent)}
+                          className="px-2.5 py-1.5 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1.5"
+                        >
+                          <StickyNote size={12} className="text-[#7B8FA5]" />
+                          Add as Note
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Chat Messages */}
+              {chatMessages.map((message) => (
+                message.isUser ? (
+                  // User Messages (right side)
+                  <div key={message.id} className="flex gap-3 justify-end">
+                    <div className="flex-1 max-w-[80%]">
+                      <div className="rounded-lg rounded-bl-sm px-4 py-3" style={{ background: 'rgba(223, 229, 237, 0.40)' }}>
+                        <p className="text-[13px] text-[#364658] leading-relaxed">
+                          {renderMarkdown(message.text)}
+                        </p>
+                      </div>
+                      <p className="text-[10px] text-[#7B8FA5] mt-1 text-right">
+                        {message.timestamp}
+                      </p>
+                    </div>
+                  </div>
+                ) : message.followUpActions ? (
+                  // Follow-up Actions (now hidden - shown above input instead)
+                  null
+                ) : (
+                  // AI Messages (left side)
+                  <div key={message.id} className="flex gap-3">
+                    <Sparkles size={16} className="text-[#3D8BD0] flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="rounded-2xl rounded-tl-sm">
+                        <p className="text-[13px] text-[#364658] leading-relaxed whitespace-pre-wrap">
+                          {message.isTyping ? renderMarkdown(message.displayedText || '') : renderMarkdown(message.text)}
+                          {message.isTyping && <span className="inline-block w-1 h-4 bg-[#3D8BD0] ml-0.5 animate-pulse"></span>}
+                        </p>
+                      </div>
+                      <p className="text-[10px] text-[#7B8FA5] mt-1">
+                        {message.timestamp}
+                      </p>
+                    </div>
+                  </div>
+                )
+              ))}
+              </div>
+            </div>
+        )}
+
+        {/* AI Chatbot Group Content - Input Footer */}
+        {activeGroup === 'chatbot' && (
+            <>
+            {/* Fade effect for scrolling */}
+            <div 
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{
+                top: '-40px',
+                height: '40px',
+                background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%)',
+                zIndex: 1,
+                opacity: isChatbotClosing ? 0 : 1,
+                transition: 'opacity 0.4s ease-out'
+              }}
+            />
+            <div
+              className="flex-shrink-0 p-4 relative"
+              style={{
+                background: 'linear-gradient(270deg, rgba(249, 250, 251, 0.00) 90.76%, var(--Color-Variable-Custom-ToolTip-BG, #F9FAFB) 98.45%)',
+                transform: isChatbotClosing ? 'scaleY(0)' : (isChatbotOpening ? 'scaleY(0)' : 'scaleY(1)'),
+                transformOrigin: 'bottom',
+                opacity: isChatbotClosing ? 0 : 1,
+                transition: 'transform 0.4s ease-in-out, opacity 0.4s ease-in-out',
+                overflow: 'hidden'
+              }}>
+              {/* Fade effect for scrolling */}
+              <div 
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{
+                  top: '-40px',
+                  height: '40px',
+                  background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%)',
+                  zIndex: 1,
+                }}
+              />
+              
+              {/* Quick AI Actions - Show in welcome screen or when there are messages and no typing is happening and no follow-up actions */}
+              {(chatMessages.length === 0 || (chatMessages.length > 0 && !chatMessages.some(msg => msg.isTyping) && !chatMessages.some(msg => msg.followUpActions))) && (onboardingStep !== 2 || showOnboardingQuickActions) && (
+              <div className={`mb-3 ${chatMessages.length === 0 ? 'hidden' : ''} ${onboardingStep === 2 && showOnboardingQuickActions ? 'animate-slide-up' : ''}`} style={onboardingStep === 2 && showOnboardingQuickActions ? { animationDelay: '1000ms' } : {}}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-medium text-[#7B8FA5] uppercase tracking-wide">Quick AI Actions</span>
+                </div>
+
+                {/* Scrollable Pills Container */}
+                <div className="overflow-x-auto scrollbar-hide">
+                  <div className="flex gap-2 py-1 px-1">
+                    {/* AI Summary */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Show AI Summary')}
+                        >
+                          <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>AI Summary</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Show AI-generated summary of this ticket
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Find Similar Tickets */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Find Similar Tickets')}
+                        >
+                          <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Find Similar Tickets</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Search for similar tickets in the system
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Suggest KB Article */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Suggest KB')}
+                        >
+                          <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Suggest KB</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Find relevant knowledge base articles
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Next Best Action */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Next Action')}
+                        >
+                          <Zap size={13} className="flex-shrink-0 group-hover:rotate-12 transition-transform duration-200" />
+                          <span>Next Action</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Get AI-powered recommendations for next steps
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Root Cause Hint */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Root Cause')}
+                        >
+                          <Brain size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Root Cause</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Analyze potential root causes
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Draft Reply */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          onClick={() => handleQuickAction('Draft Reply')}
+                        >
+                          <MessageSquare size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                          <span>Draft Reply</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Generate a draft response for the requester
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Suggested Next Actions - Show when there are follow-up actions and no typing */}
+              {chatMessages.length > 0 && !chatMessages.some(msg => msg.isTyping) && chatMessages.some(msg => msg.followUpActions) && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-medium text-[#7B8FA5] uppercase tracking-wide">Suggested Next Actions</span>
+                </div>
+
+                {/* Scrollable Pills Container */}
+                <div className="overflow-x-auto scrollbar-hide">
+                  <div className="flex gap-2 py-1 px-1">
+                    {(() => {
+                      const lastFollowUpMessage = chatMessages.slice().reverse().find(msg => msg.followUpActions);
+                      const followUpActions = lastFollowUpMessage?.followUpActions || [];
+
+                      return followUpActions.map((action, idx) => {
+                        // Determine icon and tooltip based on action text
+                        const getActionIcon = (actionText: string) => {
+                          if (actionText.toLowerCase().includes('unlock') || actionText.toLowerCase().includes('account')) return { icon: <User size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Unlock user account and restore access' };
+                          if (actionText.toLowerCase().includes('reset') || actionText.toLowerCase().includes('password')) return { icon: <RefreshCw size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Send password reset link to user' };
+                          if (actionText.toLowerCase().includes('2fa') || actionText.toLowerCase().includes('security')) return { icon: <Check size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Enable two-factor authentication' };
+                          if (actionText.toLowerCase().includes('view') || actionText.toLowerCase().includes('ticket') || actionText.toLowerCase().includes('details')) return { icon: <TicketIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'View detailed ticket information' };
+                          if (actionText.toLowerCase().includes('apply') || actionText.toLowerCase().includes('solution')) return { icon: <Check size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Apply recommended solution' };
+                          if (actionText.toLowerCase().includes('kb') || actionText.toLowerCase().includes('article') || actionText.toLowerCase().includes('open')) return { icon: <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Open knowledge base article' };
+                          if (actionText.toLowerCase().includes('send') || actionText.toLowerCase().includes('reply')) return { icon: <Send size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Send reply to requester' };
+                          if (actionText.toLowerCase().includes('edit') || actionText.toLowerCase().includes('draft')) return { icon: <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Edit draft response' };
+                          if (actionText.toLowerCase().includes('add') || actionText.toLowerCase().includes('note') || actionText.toLowerCase().includes('template')) return { icon: <StickyNote size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Add to notes or templates' };
+                          if (actionText.toLowerCase().includes('compare') || actionText.toLowerCase().includes('resolution')) return { icon: <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Compare resolution approaches' };
+                          if (actionText.toLowerCase().includes('start') || actionText.toLowerCase().includes('implement')) return { icon: <Play size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Start implementing solution' };
+                          if (actionText.toLowerCase().includes('tips') || actionText.toLowerCase().includes('policy')) return { icon: <Lightbulb size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'View recommendations and tips' };
+                          return { icon: <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: action };
+                        };
+
+                        const { icon, tooltip } = getActionIcon(action);
+
+                        return (
+                          <Tooltip key={idx}>
+                            <TooltipTrigger asChild>
+                              <button
+                                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                                className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                                onClick={() => {
+                                  // Add user message and simulate clicking the action
+                                  const userMessage = {
+                                    id: Date.now(),
+                                    text: action,
+                                    isUser: true,
+                                    timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                  };
+                                  setChatMessages(prev => [...prev, userMessage]);
+
+                                  // Simulate AI response
+                                  setTimeout(() => {
+                                    const aiMessage = {
+                                      id: Date.now() + 1,
+                                      text: '',
+                                      fullText: `I'm processing your request to "${action}". This action has been initiated and I'll provide you with the results shortly. Would you like me to proceed with any additional steps?`,
+                                      displayedText: '',
+                                      isUser: false,
+                                      isTyping: true,
+                                      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                    };
+                                    setChatMessages(prev => [...prev, aiMessage]);
+                                  }, 500);
+                                }}
+                              >
+                                {icon}
+                                <span>{action}</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {tooltip}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+              )}
+
+              <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#E5E7EB] focus-within:border-[#3D8BD0] transition-colors shadow-sm">
+                <button className="p-1.5 hover:bg-white rounded transition-colors">
+                  <Paperclip size={16} className="text-[#7B8FA5]" />
+                </button>
+                
+                <input
+                  type="text"
+                  placeholder="Type your message..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  ref={chatInputRef}
+                  className="flex-1 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] bg-transparent border-none outline-none"
+                />
+                <button 
+                  onClick={handleSendMessage}
+                  className="p-1.5 bg-[#3D8BD0] hover:bg-[#2B7AB8] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!chatInput.trim()}
+                >
+                  <Send size={16} className="text-white" />
+                </button>
+              </div>
+            </div>
+            </>
+        )}
+
+        {/* Ask AI Block - Always at Bottom */}
+        <div
+          className={`flex-shrink-0 relative ${activeGroup === 'chatbot' ? '' : 'px-4 pb-3 pt-3 bg-white'}`}
+          data-onboarding="ai-prompt-box"
+        >
+          {/* Gradient Fade Overlay at Top */}
+          {activeGroup !== 'chatbot' && (
+            <div 
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{
+                top: '-40px',
+                height: '40px',
+                background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 100%)',
+                zIndex: 1,
+              }}
+            />
+          )}
+          
+          <div 
+            className="flex items-center gap-2 p-2.5 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+            style={{
+              background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
+              border: '2px solid transparent',
+              display: activeGroup === 'chatbot' ? 'none' : 'flex',
+            }}
+            onClick={() => {
+              if (activeGroup !== 'chatbot') {
+                setPreviousGroup(activeGroup as 'properties' | 'activity' | 'suggestions');
+                setActiveGroup('chatbot');
+                setIsChatbotOpening(true);
+
+                // Trigger animation after elements mount
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    setIsChatbotOpening(false);
+                  });
+                });
+              }
+            }}
+          >
+            <Sparkles size={16} className="text-[#7B4EFB] flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Ask AI for insights, summaries, and actions..."
+              className="flex-1 text-sm text-[#364658] placeholder:text-[#7B8FA5] bg-transparent border-none outline-none cursor-pointer"
+              readOnly
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Vertical Group Icon Panel */}
+      <div className="flex flex-col items-center justify-start bg-[#F8F9FB] py-4 px-2 gap-3 border-l border-[#DFE5ED] flex-shrink-0" data-onboarding="right-sidebar">
+        {/* ServiceOps AI Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+          </TooltipTrigger>
+          <TooltipContent>ServiceOps AI</TooltipContent>
+        </Tooltip>
+
+        {/* Group 1: Ticket Properties Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('properties');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                activeGroup === 'properties'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <FileText size={16} className={activeGroup === 'properties' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Ticket Properties</TooltipContent>
+        </Tooltip>
+
+        {/* Group 2: Activity and Resources Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('activity');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                activeGroup === 'activity'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <Activity size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Activity and Resources</TooltipContent>
+        </Tooltip>
+
+        {/* Group 3: AI Suggestions Icon */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('suggestions');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+                activeGroup === 'suggestions'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <BookOpen size={16} className={activeGroup === 'suggestions' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              {/* Notification dot for AI suggestions */}
+              {(hasSimilarTickets() || hasSuggestedKnowledgeMatch()) && activeGroup !== 'suggestions' && (
+                <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0]"></span>
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>AI Suggestions</TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Customize Layout Modal */}
+      {showCustomizeModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-[10000]"
+            onClick={() => setShowCustomizeModal(false)}
+          />
+
+          {/* Modal */}
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-white rounded-lg shadow-2xl z-[10001]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
+              <h3 className="text-[15px] font-semibold text-[#111827]">Customize Layout</h3>
+              <button
+                onClick={() => setShowCustomizeModal(false)}
+                className="text-[#6B7280] hover:text-[#111827] transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4">
+              <p className="text-[12px] text-[#6B7280] mb-4">
+                Reorder sections to customize your layout. Pinned Fields will always stay at the top.
+              </p>
+
+              <div className="space-y-2">
+                {/* Pinned Fields - Fixed at top */}
+                <div className="flex items-center justify-between p-3 bg-[#F9FAFB] rounded-lg border border-[#E5E7EB] opacity-60">
+                  <div className="flex items-center gap-3">
+                    <GripVertical size={16} className="text-[#9CA3AF]" />
+                    <FileText size={16} className="text-[#6B7280]" />
+                    <span className="text-[13px] text-[#6B7280]">Pinned Fields</span>
+                  </div>
+                  <span className="text-[10px] text-[#9CA3AF] uppercase font-medium">Fixed</span>
+                </div>
+
+                {/* Reorderable Sections */}
+                {sectionOrder.map((section, index) => (
+                  <div
+                    key={section}
+                    draggable
+                    onDragStart={() => setDraggedIndex(index)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex !== null && draggedIndex !== index) {
+                        const newOrder = [...sectionOrder];
+                        const draggedItem = newOrder[draggedIndex];
+                        newOrder.splice(draggedIndex, 1);
+                        newOrder.splice(index, 0, draggedItem);
+                        setSectionOrder(newOrder);
+                        setDraggedIndex(index);
+                      }
+                    }}
+                    onDragEnd={() => setDraggedIndex(null)}
+                    className={`flex items-center justify-between p-3 bg-white rounded-lg border transition-colors ${
+                      draggedIndex === index ? 'border-[#3D8BD0] opacity-50' : 'border-[#DFE5ED] hover:border-[#3D8BD0]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <GripVertical size={16} className="text-[#7B8FA5] cursor-grab active:cursor-grabbing" />
+                      {section === 'Ticket Fields' ? (
+                        <FileText size={16} className="text-[#364658]" />
+                      ) : section === 'Requester Information' ? (
+                        <User size={16} className="text-[#364658]" />
+                      ) : (
+                        <Tag size={16} className="text-[#364658]" />
+                      )}
+                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          if (index > 0) {
+                            const newOrder = [...sectionOrder];
+                            [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+                            setSectionOrder(newOrder);
+                          }
+                        }}
+                        disabled={index === 0}
+                        className={`p-1 rounded hover:bg-[#F3F4F6] transition-colors ${
+                          index === 0 ? 'opacity-30 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <ArrowUp size={14} className="text-[#7B8FA5]" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (index < sectionOrder.length - 1) {
+                            const newOrder = [...sectionOrder];
+                            [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                            setSectionOrder(newOrder);
+                          }
+                        }}
+                        disabled={index === sectionOrder.length - 1}
+                        className={`p-1 rounded hover:bg-[#F3F4F6] transition-colors ${
+                          index === sectionOrder.length - 1 ? 'opacity-30 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <ArrowDown size={14} className="text-[#7B8FA5]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB]">
+              <button
+                onClick={() => setSectionOrder(['Ticket Fields', 'Requester Information', 'Additional Fields'])}
+                className="px-4 py-2 text-[13px] text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded-md transition-colors"
+              >
+                Reset to Default
+              </button>
+              <button
+                onClick={() => setShowCustomizeModal(false)}
+                className="px-4 py-2 text-[13px] text-white bg-[#3D8BD0] hover:bg-[#2A6BA8] rounded-md transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Reopen AI Panel Tooltip */}
+      {(() => {
+        console.log('Tooltip render check - showReopenTooltip:', showReopenTooltip, 'aiIconRef.current:', aiIconRef.current);
+        return showReopenTooltip && aiIconRef.current ? (
+          <div 
+            ref={reopenTooltipRef}
+            className="fixed z-[9999] w-[280px] bg-[#1F2937] rounded-2xl shadow-2xl pointer-events-auto"
+            style={{
+              top: `${tooltipPosition.top}px`,
+              left: `${tooltipPosition.left}px`,
+              transform: 'translateY(-50%)' // Center vertically
+            }}
+          >
+        
+          {/* Arrow pointing to the icon - on the right side pointing right */}
+          <div 
+            className="absolute -right-3 top-1/2 -translate-y-1/2 w-0 h-0"
+            style={{
+              borderTop: '12px solid transparent',
+              borderBottom: '12px solid transparent',
+              borderLeft: '12px solid #1F2937',
+            }}
+          />
+          
+          {/* Content */}
+          <div className="px-6 py-6">
+            <h3 className="text-[16px] font-semibold text-white mb-2 leading-tight">
+              Reopen AI Panel
+            </h3>
+            <p className="text-[14px] text-white/80 leading-relaxed">
+              Click here anytime to reopen the ServiceOps AI panel.
+            </p>
+          </div>
+        </div>
+        ) : null;
+      })()}
+    </div>
+  );
+}
