@@ -6,7 +6,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Server, AlertTriangle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Problem } from './ProblemListPage';
@@ -1927,6 +1927,58 @@ export function ProblemDrawer({
 
   const thread = getProblemThread(activeProblem?.id);
 
+  // Affected tickets + assets for this problem (drives the Impact summary and the Relations tab)
+  const getProblemImpact = (id?: string) => {
+    const mk = (type: string, ticketId: string, subject: string, status: string, priority: string, assignee = 'Unassigned') => ({
+      id: `${id}-${ticketId}`, type, ticketId, subject, status, assignedTo: { name: assignee }, priority,
+    });
+    const map: Record<string, ReturnType<typeof mk>[]> = {
+      'PBM-627': [
+        mk('Request', 'INC-1042', 'WiFi keeps disconnecting on 3rd floor', 'Open', 'High', 'Diksha Patel'),
+        mk('Request', 'INC-1048', 'Cannot stay connected to office WiFi', 'Open', 'Medium', 'Rahul Dev'),
+        mk('Request', 'INC-1051', 'Frequent WiFi drops near the east wing', 'In Progress', 'Medium', 'Hemal Joshi'),
+        mk('Request', 'INC-1055', 'WiFi slow and dropping in meeting room 3B', 'Open', 'Low', 'Sakshi Gupta'),
+        mk('Request', 'INC-1060', '3rd floor WiFi unusable during peak hours', 'Open', 'High', 'Manasvi Shah'),
+        mk('Asset', 'AST-3301', 'Cisco Aironet AP — 3rd Floor East', 'In Use', 'High', 'Network Team'),
+        mk('Asset', 'AST-3302', 'Cisco WLC — Wireless Controller', 'In Use', 'High', 'Network Team'),
+      ],
+      'PBM-626': [
+        mk('Request', 'INC-2011', 'Not receiving external emails', 'Open', 'P1', 'Diksha Patel'),
+        mk('Request', 'INC-2014', 'Customer emails to us are bouncing', 'Open', 'P1', 'Manasvi Shah'),
+        mk('Request', 'INC-2019', 'No inbound mail since yesterday afternoon', 'In Progress', 'High', 'Pavan Mehta'),
+        mk('Request', 'INC-2023', 'Vendor says their emails fail to deliver', 'Open', 'High', 'Saahil Joshi'),
+        mk('Asset', 'AST-5001', 'Exchange Mail Server — MX01', 'In Use', 'P1', 'Mail Admin'),
+        mk('Asset', 'AST-5002', 'DNS Server — NS01', 'In Use', 'High', 'DNS Team'),
+      ],
+      'PBM-624': [
+        mk('Request', 'INC-3101', 'Cannot log into the business application', 'Open', 'P1', 'Anita Verma'),
+        mk('Request', 'INC-3105', 'Login times out for everyone in finance', 'Open', 'P1', 'Pavan Mehta'),
+        mk('Request', 'INC-3108', 'SSO not working since this morning', 'In Progress', 'High', 'Hemal Joshi'),
+        mk('Asset', 'AST-6001', 'Identity Provider — SSO01', 'In Use', 'P1', 'IAM Team'),
+      ],
+    };
+    return map[id ?? ''] ?? [
+      mk('Request', 'INC-1001', 'User reporting the same issue', 'Open', 'Medium', 'Support Team'),
+      mk('Request', 'INC-1002', 'Similar issue reported by another user', 'Open', 'Medium', 'Support Team'),
+      mk('Request', 'INC-1003', 'Recurring complaint linked to this problem', 'In Progress', 'Low', 'Support Team'),
+      mk('Asset', 'AST-2001', 'Affected infrastructure component', 'In Use', 'Medium', 'IT Operations'),
+    ];
+  };
+
+  const problemImpact = getProblemImpact(activeProblem?.id);
+  const totalImpact = problemImpact.length;
+  // Dynamic breakdown by type (scales to any number of affected module types)
+  const impactBreakdown = Object.entries(
+    problemImpact.reduce<Record<string, number>>((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
+  ).map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`).join(' · ');
+
+  // Seed the Relations tab with the affected tickets/assets so they're visible to the technician
+  useEffect(() => {
+    const id = activeProblem?.id;
+    if (!id) return;
+    setTicketRelations((prev) => (prev[id] ? prev : { ...prev, [id]: problemImpact }));
+  }, [activeProblem?.id]);
+
   // Function to get AI summary text
   const getAiSummaryText = () => {
     const content = getProblemContent(activeProblem?.id);
@@ -2899,6 +2951,28 @@ export function ProblemDrawer({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Impact Summary — single block covering all affected items (click to open Relations) */}
+            <div className="mx-[24px] mb-[12px]">
+              <button
+                onClick={() => setActiveMainTab('relations')}
+                className="w-full group flex items-center gap-3 p-3 bg-white border border-[#DFE5ED] rounded-lg hover:border-[#3D8BD0] hover:shadow-sm transition-all text-left"
+              >
+                <div className="size-9 rounded-lg bg-[#FFF4E5] flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="size-[18px] text-[#E08B00]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] text-[#364658]">
+                    <span className="text-[16px] font-semibold">{totalImpact}</span>{' '}
+                    {totalImpact === 1 ? 'item' : 'items'} affected by this problem
+                  </div>
+                  {impactBreakdown && (
+                    <div className="text-[12px] text-[#7B8FA5] mt-0.5 truncate">{impactBreakdown}</div>
+                  )}
+                </div>
+                <span className="text-[12px] text-[#3D8BD0] font-medium flex-shrink-0 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity no-underline">View relations</span>
+              </button>
             </div>
 
             {/* AI Summary Accordion */}
