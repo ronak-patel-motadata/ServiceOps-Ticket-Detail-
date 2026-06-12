@@ -2489,6 +2489,8 @@ export function ChangeDrawer({
           <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto">
+            {/* Change Lifecycle Stages — shown at the top, under the header */}
+            <ChangeStagesShowcase status={selectedStatus} drawerWidth={drawerWidth} />
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -3195,9 +3197,6 @@ export function ChangeDrawer({
                 </div>
               )}
             </div>
-
-            {/* Change Lifecycle Stages — design options for review */}
-            <ChangeStagesShowcase status={selectedStatus} drawerWidth={drawerWidth} />
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">

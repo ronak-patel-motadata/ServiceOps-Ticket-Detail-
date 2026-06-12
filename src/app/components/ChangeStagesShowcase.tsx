@@ -1,4 +1,5 @@
 import { LogIn, ClipboardList, FileCheck, Wrench, ScanSearch, CheckCheck, Check, Info } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /**
  * Review-only showcase: renders multiple stage-bar styles stacked with captions
@@ -17,20 +18,22 @@ interface Stage {
   icon: (size: number) => React.ReactNode;
   options: { label: string; color: string }[];
   completedLabel: string;
+  /** Mock date/time the stage was completed (shown in the hover tooltip) */
+  date: string;
 }
 
 const STAGES: Stage[] = [
-  { key: 'submitted', label: 'Submitted', icon: (s) => <LogIn style={{ width: s, height: s }} />,
+  { key: 'submitted', label: 'Submitted', icon: (s) => <LogIn style={{ width: s, height: s }} />, date: 'Wed, Feb 26, 2025 03:02 PM',
     options: [{ label: 'Requested', color: '#3D8BD0' }, { label: 'Accepted', color: '#22A06B' }, { label: 'Rejected', color: '#E5484D' }], completedLabel: 'Accepted' },
-  { key: 'planning', label: 'Planning', icon: (s) => <ClipboardList style={{ width: s, height: s }} />,
+  { key: 'planning', label: 'Planning', icon: (s) => <ClipboardList style={{ width: s, height: s }} />, date: 'Thu, Feb 27, 2025 11:30 AM',
     options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Pre Approved', color: '#9CA3AF' }, { label: 'Cancelled', color: '#E5484D' }, { label: 'Completed', color: '#22A06B' }], completedLabel: 'Completed' },
-  { key: 'approval', label: 'Approval', icon: (s) => <FileCheck style={{ width: s, height: s }} />,
+  { key: 'approval', label: 'Approval', icon: (s) => <FileCheck style={{ width: s, height: s }} />, date: 'Fri, Feb 28, 2025 02:15 PM',
     options: [{ label: 'Pending', color: '#F59E0B' }, { label: 'Approved', color: '#22A06B' }, { label: 'Rejected', color: '#E5484D' }], completedLabel: 'Approved' },
-  { key: 'implementation', label: 'Implementation', icon: (s) => <Wrench style={{ width: s, height: s }} />,
+  { key: 'implementation', label: 'Implementation', icon: (s) => <Wrench style={{ width: s, height: s }} />, date: 'Mon, Mar 03, 2025 10:00 AM',
     options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Build', color: '#8B5CF6' }, { label: 'Deployment', color: '#F97316' }, { label: 'Completed', color: '#22A06B' }], completedLabel: 'Completed' },
-  { key: 'review', label: 'In Review', icon: (s) => <ScanSearch style={{ width: s, height: s }} />,
+  { key: 'review', label: 'In Review', icon: (s) => <ScanSearch style={{ width: s, height: s }} />, date: 'Tue, Mar 04, 2025 04:45 PM',
     options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Testing', color: '#22A06B' }, { label: 'Failed', color: '#E5484D' }, { label: 'Passed', color: '#22A06B' }], completedLabel: 'Passed' },
-  { key: 'closed', label: 'Closed', icon: (s) => <CheckCheck style={{ width: s, height: s }} />,
+  { key: 'closed', label: 'Closed', icon: (s) => <CheckCheck style={{ width: s, height: s }} />, date: 'Wed, Mar 05, 2025 01:20 PM',
     options: [{ label: 'Closed', color: '#6B7280' }, { label: 'Cancelled', color: '#E5484D' }], completedLabel: 'Closed' },
 ];
 
@@ -47,6 +50,17 @@ function resolveStatus(status?: string): { index: number; sub: string } {
 }
 
 const colorFor = (stage: Stage, sub: string) => stage.options.find(o => o.label === sub)?.color || '#F59E0B';
+
+/** Wraps a completed stage in a hover tooltip showing the completion date/time. */
+function StageTip({ done, date, children }: { done: boolean; date?: string; children: React.ReactNode }) {
+  if (!done || !date) return <>{children}</>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{date}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function SubPill({ color, label, compact }: { color: string; label: string; compact: boolean }) {
   // Display-only status badge — the status is changed from the Status field in Properties.
@@ -69,13 +83,15 @@ function IconStepper({ activeIndex, sub, compact }: VariantProps) {
         const done = i < activeIndex, active = i === activeIndex, last = i === STAGES.length - 1;
         const circle = done ? 'bg-[#22A06B] text-white border-[#22A06B]' : active ? 'bg-[#3D8BD0] text-white border-[#3D8BD0] shadow-[0_1px_5px_rgba(61,139,208,0.3)]' : 'bg-[#F7F9FB] text-[#C2CAD4] border-[#E1E6ED]';
         return (
-          <div key={stage.key} className="flex-1 flex flex-col items-center relative min-w-0">
-            {!last && <div className="absolute h-[2px]" style={{ top: center - 1, left: '50%', width: '100%', backgroundColor: i < activeIndex ? '#22A06B' : '#E1E6ED' }} />}
-            <div className={`relative z-10 rounded-lg border flex items-center justify-center ${circle}`} style={{ width: box, height: box }}>
-              {done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}
+          <StageTip key={stage.key} done={done} date={stage.date}>
+            <div className={`flex-1 flex flex-col items-center relative min-w-0 ${done ? 'cursor-default' : ''}`}>
+              {!last && <div className="absolute h-[2px]" style={{ top: center - 1, left: '50%', width: '100%', backgroundColor: i < activeIndex ? '#22A06B' : '#E1E6ED' }} />}
+              <div className={`relative z-10 rounded-lg border flex items-center justify-center ${circle}`} style={{ width: box, height: box }}>
+                {done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}
+              </div>
+              <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
             </div>
-            <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-          </div>
+          </StageTip>
         );
       })}
     </div>
@@ -97,12 +113,17 @@ function ChevronFlow({ activeIndex, sub, compact }: VariantProps) {
         const bg = done ? '#22A06B' : active ? '#3D8BD0' : '#EEF2F6';
         const fg = done || active ? '#FFFFFF' : '#9CA3AF';
         return (
-          <div key={stage.key} className="flex-1 flex flex-col items-center min-w-0" style={{ marginLeft: i === 0 ? 0 : -(D - 4) }}>
-            <div className="w-full flex items-center justify-center gap-1.5 overflow-hidden" style={{ height: H, backgroundColor: bg, color: fg, clipPath: clipFor(i, last), paddingLeft: i === 0 ? 8 : D + 6, paddingRight: last ? 8 : D + 6 }}>
-              <span className="flex-shrink-0 flex items-center">{done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}</span>
-              <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-none truncate`}>{stage.label}</span>
+          <StageTip key={stage.key} done={done} date={stage.date}>
+            <div
+              className={`flex-1 flex flex-col items-center min-w-0 ${done ? 'cursor-default' : ''}`}
+              style={{ marginLeft: i === 0 ? 0 : -(D - 4) }}
+            >
+              <div className="w-full flex items-center justify-center gap-1.5 overflow-hidden" style={{ height: H, backgroundColor: bg, color: fg, clipPath: clipFor(i, last), paddingLeft: i === 0 ? 8 : D + 6, paddingRight: last ? 8 : D + 6 }}>
+                <span className="flex-shrink-0 flex items-center">{done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}</span>
+                <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-none truncate`}>{stage.label}</span>
+              </div>
             </div>
-          </div>
+          </StageTip>
         );
       })}
     </div>
@@ -118,13 +139,15 @@ function NumberedStepper({ activeIndex, sub, compact }: VariantProps) {
         const done = i < activeIndex, active = i === activeIndex, last = i === STAGES.length - 1;
         const circle = done ? 'bg-[#22A06B] text-white border-[#22A06B]' : active ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white text-[#9CA3AF] border-[#D7DEE7]';
         return (
-          <div key={stage.key} className="flex-1 flex flex-col items-center relative min-w-0">
-            {!last && <div className="absolute h-[2px]" style={{ top: center - 1, left: '50%', width: '100%', backgroundColor: i < activeIndex ? '#22A06B' : '#E1E6ED' }} />}
-            <div className={`relative z-10 rounded-full border flex items-center justify-center font-semibold ${compact ? 'text-[11px]' : 'text-[12px]'} ${circle}`} style={{ width: box, height: box }}>
-              {done ? <Check style={{ width: compact ? 13 : 15, height: compact ? 13 : 15 }} /> : i + 1}
+          <StageTip key={stage.key} done={done} date={stage.date}>
+            <div className={`flex-1 flex flex-col items-center relative min-w-0 ${done ? 'cursor-default' : ''}`}>
+              {!last && <div className="absolute h-[2px]" style={{ top: center - 1, left: '50%', width: '100%', backgroundColor: i < activeIndex ? '#22A06B' : '#E1E6ED' }} />}
+              <div className={`relative z-10 rounded-full border flex items-center justify-center font-semibold ${compact ? 'text-[11px]' : 'text-[12px]'} ${circle}`} style={{ width: box, height: box }}>
+                {done ? <Check style={{ width: compact ? 13 : 15, height: compact ? 13 : 15 }} /> : i + 1}
+              </div>
+              <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
             </div>
-            <span className={`mt-1.5 ${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-          </div>
+          </StageTip>
         );
       })}
     </div>
@@ -146,9 +169,11 @@ function SegmentedBar({ activeIndex, sub, compact }: VariantProps) {
         {STAGES.map((stage, i) => {
           const done = i < activeIndex, active = i === activeIndex;
           return (
-            <div key={stage.key} className="flex-1 flex flex-col items-center min-w-0 px-0.5">
-              <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
-            </div>
+            <StageTip key={stage.key} done={done} date={stage.date}>
+              <div className={`flex-1 flex flex-col items-center min-w-0 px-0.5 ${done ? 'cursor-default' : ''}`}>
+                <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold truncate max-w-full ${active || done ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{stage.label}</span>
+              </div>
+            </StageTip>
           );
         })}
       </div>
@@ -173,10 +198,12 @@ function PillRow({ activeIndex, sub, compact }: VariantProps) {
         }
         if (done) {
           return (
-            <span key={stage.key} className={`inline-flex items-center gap-1.5 rounded-full bg-[#E6F6EF] text-[#1F8A5B] border border-[#BFE6D2] ${compact ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-[12px]'} font-medium`}>
-              <Check style={{ width: iconPx, height: iconPx }} />
-              <span>{stage.label}</span>
-            </span>
+            <StageTip key={stage.key} done={done} date={stage.date}>
+              <span className={`inline-flex items-center gap-1.5 rounded-full bg-[#E6F6EF] text-[#1F8A5B] border border-[#BFE6D2] cursor-default ${compact ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-[12px]'} font-medium`}>
+                <Check style={{ width: iconPx, height: iconPx }} />
+                <span>{stage.label}</span>
+              </span>
+            </StageTip>
           );
         }
         return (
