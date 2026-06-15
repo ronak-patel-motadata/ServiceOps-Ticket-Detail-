@@ -836,13 +836,6 @@ export function ProblemDrawer({
         }
       }
 
-      // Only apply overflow detection for INC-35
-      if (activeProblem?.id !== 'PBM-608') {
-        setVisibleTabs(allTabs);
-        setOverflowTabs([]);
-        return;
-      }
-
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
@@ -5432,6 +5425,7 @@ export function ProblemDrawer({
             ticketId={activeProblem?.id}
             fieldsTitle="Problem Fields"
             showProblemFields={true}
+            requesterName={activeProblem?.requester}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

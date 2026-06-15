@@ -260,6 +260,21 @@ interface TicketPropertiesPanelProps {
   
   // Onboarding
   onboardingStep?: number;
+  // Requester whose details populate the Requester Information accordion
+  requesterName?: string;
+}
+
+const REQUESTER_COLORS = ['#3D8BD0', '#E67E22', '#8B5CF6', '#10B981', '#EC4899', '#F59E0B', '#6366F1', '#14B8A6'];
+
+/** Derive requester details (email, logon, initials, avatar color) from a display name. */
+function deriveRequester(name?: string) {
+  const clean = name && name.trim() ? name.trim() : 'Arnav Desai';
+  const parts = clean.toLowerCase().split(/\s+/).filter(Boolean);
+  const logonName = parts.join('.');
+  const email = `${logonName}@motadata.com`;
+  const initials = clean.split(/\s+/).filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+  const color = REQUESTER_COLORS[clean.length % REQUESTER_COLORS.length];
+  return { name: clean, email, logonName, initials, color };
 }
 
 export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
@@ -267,6 +282,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
     statusGroupLabel,
+    requesterName,
     activeGroup,
     setActiveGroup,
     showPropertiesSearch,
@@ -1413,11 +1429,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="space-y-3">
                 {/* Requester Name */}
                 <div className="flex items-center gap-2">
-                  <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColor() }}>
-                    AD
+                  <div className="size-[24px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: deriveRequester(requesterName).color }}>
+                    {deriveRequester(requesterName).initials}
                   </div>
                   <span className="text-[13px] text-[#364658] font-medium">
-                    Arnav Desai
+                    {deriveRequester(requesterName).name}
                   </span>
                 </div>
 
@@ -1428,8 +1444,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">
                       Email
                     </div>
-                    <div className="flex-1 text-[13px] font-medium text-[#364658]">
-                      arnav.desai@motadata.com
+                    <div className="flex-1 text-[13px] font-medium text-[#364658] break-all">
+                      {deriveRequester(requesterName).email}
                     </div>
                   </div>
 
@@ -1439,7 +1455,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       Logon Name
                     </div>
                     <div className="flex-1 text-[13px] font-medium text-[#364658]">
-                      arnav.desai
+                      {deriveRequester(requesterName).logonName}
                     </div>
                   </div>
 

@@ -863,13 +863,6 @@ export function ChangeDrawer({
         }
       }
 
-      // Only apply overflow detection for INC-35
-      if (activeChange?.id !== 'CHG-976') {
-        setVisibleTabs(allTabs);
-        setOverflowTabs([]);
-        return;
-      }
-
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
@@ -5387,6 +5380,7 @@ export function ChangeDrawer({
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
             ticketId={activeChange?.id}
+            requesterName={activeChange?.requester}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

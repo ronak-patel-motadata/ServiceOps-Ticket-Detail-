@@ -115,12 +115,12 @@ function ChevronFlow({ activeIndex, sub, compact }: VariantProps) {
         return (
           <StageTip key={stage.key} done={done} date={stage.date}>
             <div
-              className={`flex-1 flex flex-col items-center min-w-0 ${done ? 'cursor-default' : ''}`}
+              className={`flex flex-col items-center flex-shrink-0 ${done ? 'cursor-default' : ''}`}
               style={{ marginLeft: i === 0 ? 0 : -(D - 4) }}
             >
-              <div className="w-full flex items-center justify-center gap-1.5 overflow-hidden" style={{ height: H, backgroundColor: bg, color: fg, clipPath: clipFor(i, last), paddingLeft: i === 0 ? 8 : D + 6, paddingRight: last ? 8 : D + 6 }}>
+              <div className="flex items-center justify-center gap-1.5 overflow-hidden" style={{ height: H, backgroundColor: bg, color: fg, clipPath: clipFor(i, last), paddingLeft: i === 0 ? 12 : D + 10, paddingRight: last ? 12 : D + 10 }}>
                 <span className="flex-shrink-0 flex items-center">{done ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}</span>
-                <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-none truncate`}>{stage.label}</span>
+                <span className={`${compact ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-none whitespace-nowrap`}>{stage.label}</span>
               </div>
             </div>
           </StageTip>

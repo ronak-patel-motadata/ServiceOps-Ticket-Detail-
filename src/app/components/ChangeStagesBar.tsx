@@ -132,25 +132,25 @@ export function ChangeStagesBar({ status, drawerWidth = 1546 }: ChangeStagesBarP
           return (
             <div
               key={stage.key}
-              className="flex-1 flex flex-col items-center min-w-0"
+              className="flex flex-col items-center flex-shrink-0"
               style={{ marginLeft: i === 0 ? 0 : -(D - 4) }}
             >
               {/* Chevron */}
               <div
-                className="w-full flex items-center justify-center gap-1.5 overflow-hidden"
+                className="flex items-center justify-center gap-1.5 overflow-hidden"
                 style={{
                   height: H,
                   backgroundColor: bg,
                   color: fg,
                   clipPath: clipFor(i, isLast),
-                  paddingLeft: i === 0 ? 8 : D + 6,
-                  paddingRight: isLast ? 8 : D + 6,
+                  paddingLeft: i === 0 ? 12 : D + 10,
+                  paddingRight: isLast ? 12 : D + 10,
                 }}
               >
                 <span className="flex-shrink-0 flex items-center justify-center">
                   {isCompleted ? <Check style={{ width: iconPx, height: iconPx }} /> : stage.icon(iconPx)}
                 </span>
-                <span className={`${labelCls} font-semibold leading-none truncate`}>{stage.label}</span>
+                <span className={`${labelCls} font-semibold leading-none whitespace-nowrap`}>{stage.label}</span>
               </div>
 
             </div>

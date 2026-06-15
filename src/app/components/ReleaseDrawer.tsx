@@ -768,13 +768,6 @@ export function ReleaseDrawer({
         }
       }
 
-      // Only apply overflow detection for INC-35
-      if (activeRelease?.id !== 'REL-37') {
-        setVisibleTabs(allTabs);
-        setOverflowTabs([]);
-        return;
-      }
-
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
@@ -5662,6 +5655,7 @@ export function ReleaseDrawer({
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
             ticketId={activeRelease?.id}
+            requesterName={activeRelease?.requester}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {
