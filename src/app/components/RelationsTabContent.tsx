@@ -1,4 +1,4 @@
-import { Plus, Link2, X, ChevronDown, Search, MoreVertical, Filter } from 'lucide-react';
+import { Plus, Link2, X, ChevronDown, Search, MoreVertical, Filter, Check } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface Relation {
@@ -25,9 +25,11 @@ interface TicketItem {
 interface RelationsTabContentProps {
   ticketId?: string;
   externalRelations?: Relation[];
+  initialTypeFilter?: string | null;
+  onClearTypeFilter?: () => void;
 }
 
-export function RelationsTabContent({ ticketId, externalRelations = [] }: RelationsTabContentProps = {}) {
+export function RelationsTabContent({ ticketId, externalRelations = [], initialTypeFilter = null, onClearTypeFilter }: RelationsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
   
@@ -55,6 +57,9 @@ export function RelationsTabContent({ ticketId, externalRelations = [] }: Relati
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('All Open Requests');
   const [activeFilters, setActiveFilters] = useState<string[]>(['Status Not In Closed']);
+  // Filter the list by relation type (e.g. Request / Asset) — set from the "Affected Items" pills
+  const [typeFilter, setTypeFilter] = useState<string | null>(initialTypeFilter);
+  useEffect(() => { setTypeFilter(initialTypeFilter); }, [initialTypeFilter]);
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const addRelationDropdownRef = useRef<HTMLDivElement>(null);
   const statusFilterDropdownRef = useRef<HTMLDivElement>(null);
@@ -268,24 +273,34 @@ export function RelationsTabContent({ ticketId, externalRelations = [] }: Relati
             <div className="relative" ref={sortDropdownRef}>
               <button
                 onClick={() => setShowTaskSortMenu(!showTaskSortMenu)}
-                className="p-1.5 hover:bg-[#f9fafb] rounded transition-colors"
-                title="Sort tasks"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-[13px] font-medium text-[#364658]"
+                title="Filter by type"
               >
-                <Filter size={16} className="text-[#6b7280]" />
+                <Filter size={14} className="text-[#6b7280]" />
+                <span>{typeFilter || 'All'}</span>
+                <ChevronDown size={14} className="text-[#7B8FA5]" />
               </button>
 
               {showTaskSortMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto w-[160px]">
+                <div className="absolute top-full left-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[280px] overflow-y-auto w-[180px]">
+                  <button
+                    onClick={() => { setTypeFilter(null); onClearTypeFilter?.(); setShowTaskSortMenu(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
+                  >
+                    All
+                    {!typeFilter && <Check size={14} className="text-[#3D8BD0]" />}
+                  </button>
                   {relationTypes.map((type) => (
                     <button
                       key={type}
                       onClick={() => {
-                        // TODO: Implement filter by relation type
+                        setTypeFilter(type);
                         setShowTaskSortMenu(false);
                       }}
-                      className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
                     >
                       {type}
+                      {typeFilter === type && <Check size={14} className="text-[#3D8BD0]" />}
                     </button>
                   ))}
                 </div>
@@ -460,7 +475,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [] }: Relati
         </div>
       ) : (
         <div className="space-y-3">
-          {relations.map((relation) => (
+          {relations.filter((relation) => !typeFilter || relation.type === typeFilter).map((relation) => (
             <div
               key={relation.id}
               className="p-4 bg-white border border-[#E5E7EB] rounded-lg hover:border-[#3D8BD0] transition-colors group"

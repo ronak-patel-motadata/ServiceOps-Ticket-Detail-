@@ -100,7 +100,7 @@ function IconStepper({ activeIndex, sub, compact }: VariantProps) {
 
 /* ---------- Option B: Chevron Process Flow ---------- */
 function ChevronFlow({ activeIndex, sub, compact }: VariantProps) {
-  const H = compact ? 30 : 38, D = compact ? 10 : 13, iconPx = compact ? 13 : 15;
+  const H = compact ? 26 : 30, D = compact ? 9 : 11, iconPx = compact ? 12 : 14;
   const clipFor = (i: number, last: boolean) => {
     if (i === 0) return `polygon(0 0, calc(100% - ${D}px) 0, 100% 50%, calc(100% - ${D}px) 100%, 0 100%)`;
     if (last) return `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${D}px 50%)`;
@@ -110,8 +110,8 @@ function ChevronFlow({ activeIndex, sub, compact }: VariantProps) {
     <div className="flex items-start">
       {STAGES.map((stage, i) => {
         const done = i < activeIndex, active = i === activeIndex, last = i === STAGES.length - 1;
-        const bg = done ? '#22A06B' : active ? '#3D8BD0' : '#EEF2F6';
-        const fg = done || active ? '#FFFFFF' : '#9CA3AF';
+        const bg = done ? '#E6F6EF' : active ? '#3D8BD0' : '#EEF2F6';
+        const fg = done ? '#1F8A5B' : active ? '#FFFFFF' : '#9CA3AF';
         return (
           <StageTip key={stage.key} done={done} date={stage.date}>
             <div
@@ -229,7 +229,7 @@ export function ChangeStagesShowcase({ status, drawerWidth = 1546 }: ShowcasePro
   if (!SHOW_ALL_OPTIONS) {
     // Live stage bar — Chevron Process Flow (Option B).
     return (
-      <div className="bg-white border-b border-[#e5e7eb] px-4 py-3">
+      <div className="bg-white px-4 py-3">
         <ChevronFlow {...vp} />
       </div>
     );

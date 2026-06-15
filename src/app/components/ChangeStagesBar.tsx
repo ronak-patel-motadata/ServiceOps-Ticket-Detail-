@@ -103,9 +103,9 @@ export function ChangeStagesBar({ status, drawerWidth = 1546 }: ChangeStagesBarP
   const { index: activeIndex, sub: subStatus } = resolveStatus(status);
 
   const compact = drawerWidth <= 1080;
-  const H = compact ? 30 : 38;          // chevron height
-  const D = compact ? 10 : 13;          // arrow depth
-  const iconPx = compact ? 13 : 15;
+  const H = compact ? 26 : 30;          // chevron height
+  const D = compact ? 9 : 11;           // arrow depth
+  const iconPx = compact ? 12 : 14;
   const labelCls = compact ? 'text-[10px]' : 'text-[12px]';
   const subCls = compact ? 'text-[10px]' : 'text-[11px]';
 
@@ -126,8 +126,8 @@ export function ChangeStagesBar({ status, drawerWidth = 1546 }: ChangeStagesBarP
           const isActive = i === activeIndex;
           const isLast = i === STAGES.length - 1;
 
-          const bg = isCompleted ? '#22A06B' : isActive ? '#3D8BD0' : '#EEF2F6';
-          const fg = isCompleted || isActive ? '#FFFFFF' : '#9CA3AF';
+          const bg = isCompleted ? '#E6F6EF' : isActive ? '#3D8BD0' : '#EEF2F6';
+          const fg = isCompleted ? '#1F8A5B' : isActive ? '#FFFFFF' : '#9CA3AF';
 
           return (
             <div

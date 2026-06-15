@@ -34,6 +34,7 @@ import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { ProblemActionsMenu } from './ProblemActionsMenu';
+import { IconRequest, IconAssets, IconChange, IconRelease, IconCMDB, IconProblem } from './SidebarIcons';
 import { ConversationEmptyState } from './ConversationEmptyState';
 import { ReplyEditor } from './ReplyEditor';
 import { BlankTicketConversationView } from './BlankTicketConversationView';
@@ -179,6 +180,8 @@ export function ProblemDrawer({
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
   const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
+  // Type filter applied to the Relations tab when opened from an "Affected Items" pill
+  const [relationsTypeFilter, setRelationsTypeFilter] = useState<string | null>(null);
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -1961,9 +1964,10 @@ export function ProblemDrawer({
   const problemImpact = getProblemImpact(activeProblem?.id);
   const totalImpact = problemImpact.length;
   // Dynamic breakdown by type (scales to any number of affected module types)
-  const impactBreakdown = Object.entries(
+  const impactTypeColors: Record<string, string> = { Request: '#3D8BD0', Asset: '#8B5CF6', Change: '#F97316', Release: '#22A06B', CI: '#14B8A6', Problem: '#E5484D' };
+  const impactByType = Object.entries(
     problemImpact.reduce<Record<string, number>>((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
-  ).map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`).join(' · ');
+  ).map(([type, count]) => ({ type, count, label: `${count} ${type}${count > 1 ? 's' : ''}`, color: impactTypeColors[type] || '#7B8FA5' }));
 
   // Seed the Relations tab with the affected tickets/assets so they're visible to the technician
   useEffect(() => {
@@ -2946,26 +2950,30 @@ export function ProblemDrawer({
               </div>
             </div>
 
-            {/* Impact Summary — single block covering all affected items (click to open Relations) */}
-            <div className="mx-[24px] mb-[12px]">
-              <button
-                onClick={() => setActiveMainTab('relations')}
-                className="w-full group flex items-center gap-3 p-3 bg-white border border-[#DFE5ED] rounded-lg hover:border-[#3D8BD0] hover:shadow-sm transition-all text-left"
-              >
-                <div className="size-9 rounded-lg bg-[#FFF4E5] flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="size-[18px] text-[#E08B00]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13px] text-[#364658]">
-                    <span className="text-[16px] font-semibold">{totalImpact}</span>{' '}
-                    {totalImpact === 1 ? 'item' : 'items'} affected by this problem
-                  </div>
-                  {impactBreakdown && (
-                    <div className="text-[12px] text-[#7B8FA5] mt-0.5 truncate">{impactBreakdown}</div>
-                  )}
-                </div>
-                <span className="text-[12px] text-[#3D8BD0] font-medium flex-shrink-0 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity no-underline">View relations</span>
-              </button>
+            {/* Impact Summary — "Affected Items :" label with type pills (click a pill to open Relations) */}
+            <div className="mx-[24px] mb-[12px] flex items-center flex-wrap gap-2">
+              <span className="text-[13px] font-medium text-[#364658]">Affected Items :</span>
+              {impactByType.map((t) => {
+                const Icon = t.type === 'Request' ? IconRequest
+                  : t.type === 'Asset' ? IconAssets
+                  : t.type === 'Change' ? IconChange
+                  : t.type === 'Release' ? IconRelease
+                  : t.type === 'CI' ? IconCMDB
+                  : t.type === 'Problem' ? IconProblem
+                  : IconRequest;
+                return (
+                  <button
+                    key={t.type}
+                    onClick={() => { setRelationsTypeFilter(t.type); setActiveMainTab('relations'); }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#DFE5ED] bg-white hover:border-[#3D8BD0] hover:bg-[#F9FBFD] transition-colors text-[12px] font-medium text-[#364658]"
+                  >
+                    <span className="flex items-center flex-shrink-0" style={{ color: t.color }}>
+                      <Icon size={14} />
+                    </span>
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* AI Summary Accordion */}
@@ -3262,7 +3270,7 @@ export function ProblemDrawer({
                     <button 
                       key={tabId}
                       className={`px-1 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 ${activeMainTab === tabId ? 'text-[#3D8BD0] border-b-2 border-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                      onClick={() => setActiveMainTab(tabId as any)}
+                      onClick={() => { setActiveMainTab(tabId as any); setRelationsTypeFilter(null); }}
                     >
                       {tabLabels[tabId]}
                       {tabId === 'conversation' && activeProblem?.id !== 'PBM-627' && activeProblem?.id !== 'PBM-608' && (
@@ -4984,9 +4992,11 @@ export function ProblemDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeProblem?.id} 
+              <RelationsTabContent
+                ticketId={activeProblem?.id}
                 externalRelations={activeProblem?.id ? ticketRelations[activeProblem.id] : undefined}
+                initialTypeFilter={relationsTypeFilter}
+                onClearTypeFilter={() => setRelationsTypeFilter(null)}
               />
             )}
 
@@ -4995,7 +5005,7 @@ export function ProblemDrawer({
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
-              <div className={drawerWidth > 1080 ? 'px-6 py-6 grid grid-cols-2 gap-8 items-start' : 'px-6 py-6 space-y-6'}>
+              <div className="px-6 py-6 space-y-6">
                 {/* Analysis Section */}
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -5003,7 +5013,7 @@ export function ProblemDrawer({
                     <h3 className="text-[14px] font-semibold text-[#364658]">Analysis</h3>
                   </div>
                   <p className="text-[12px] text-[#7B8FA5] mb-3">Document the root cause analysis for this problem.</p>
-                  <div className="space-y-3">
+                  <div className={drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}>
                     <AnalysisField
                       label="Root Cause"
                       value={analysis.rootCause}

@@ -6,7 +6,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Change } from './ChangeListPage';
@@ -160,6 +160,232 @@ function AnalysisField({ label, value, placeholder, onSave }: AnalysisFieldProps
   );
 }
 
+/** Format a datetime-local value ("2026-06-09T23:10") as "09/06/2026 11:10 PM". */
+function formatScheduleDate(v: string) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
+}
+
+/** Format a datetime-local value as "Tue, Jun 02, 2026 07:18 PM". */
+function formatScheduleDateLong(v: string) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
+}
+
+interface ScheduleDateFieldProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+}
+
+function ScheduleDateField({ label, value, onChange, required }: ScheduleDateFieldProps) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <div className="text-[12px] text-[#4A5568] mb-1.5">{label}{required && <span className="text-[#E5484D] ml-0.5">*</span>}</div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { const el = ref.current as any; el?.showPicker ? el.showPicker() : el?.focus(); }}
+          className="w-full pl-3 pr-9 py-2 text-[13px] text-left border border-[#DFE5ED] rounded-md bg-white hover:border-[#3D8BD0] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+        >
+          <span className={value ? 'text-[#364658]' : 'text-[#9CA3AF]'}>{value ? formatScheduleDate(value) : 'Select'}</span>
+        </button>
+        <Clock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-[#7B8FA5] pointer-events-none" />
+        <input
+          ref={ref}
+          type="datetime-local"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
+          tabIndex={-1}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface DownTime {
+  id: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+/** Down Times manager — add/edit/remove downtime windows under the Rollout Plan. */
+function DownTimesSection({ drawerWidth }: { drawerWidth: number }) {
+  const [items, setItems] = useState<DownTime[]>([]);
+  const [draft, setDraft] = useState({ start: '', end: '', description: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [addType, setAddType] = useState<'downtime' | 'custom'>('downtime');
+  const idRef = useRef(1);
+  const gridGap = drawerWidth > 1080 ? 'gap-6' : 'gap-3';
+
+  const resetForm = () => { setDraft({ start: '', end: '', description: '' }); setEditingId(null); };
+
+  const save = () => {
+    if (!draft.start || !draft.end) return; // Start & End are required
+    if (editingId) {
+      setItems(items.map((it) => (it.id === editingId ? { ...it, ...draft } : it)));
+    } else {
+      setItems([...items, { id: `dt-${idRef.current++}`, ...draft }]);
+    }
+    resetForm();
+    setShowForm(false);
+  };
+
+  const editItem = (it: DownTime) => { setDraft({ start: it.start, end: it.end, description: it.description }); setEditingId(it.id); setShowForm(true); };
+  const removeItem = (id: string) => { setItems(items.filter((it) => it.id !== id)); if (editingId === id) resetForm(); };
+
+  const actionIcons = (
+    <div className="flex items-center gap-1 flex-shrink-0">
+      <button onClick={save} className="text-[#22A06B] hover:bg-[#E5E7EB] rounded p-0.5 transition-colors" title="Save">
+        <CheckCircle size={18} />
+      </button>
+      <button onClick={() => { resetForm(); setShowForm(false); }} className="text-[#7B8FA5] hover:bg-[#E5E7EB] rounded p-0.5 transition-colors" title="Cancel">
+        <XCircle size={18} />
+      </button>
+    </div>
+  );
+
+  const formFields = (
+    <>
+      <div className={`grid grid-cols-2 ${gridGap}`}>
+        <ScheduleDateField label="Start Date" required value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
+        <ScheduleDateField label="End Date" required value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
+      </div>
+      <div className="mt-3">
+        <div className="text-[12px] text-[#4A5568] mb-1.5">Description</div>
+        <textarea
+          value={draft.description}
+          onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+          placeholder="Description..."
+          className="w-full min-h-[72px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white resize-y placeholder:text-[#9CA3AF]"
+        />
+      </div>
+    </>
+  );
+
+  const addingNew = showForm && !editingId;
+
+  const switchEl = (
+    <div className="inline-flex items-center rounded-[6px] border border-[#DFE5ED] overflow-hidden text-[14px] font-medium">
+      <button
+        onClick={() => setAddType('downtime')}
+        className={`px-2.5 py-1 text-[14px] transition-colors ${addType === 'downtime' ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
+      >
+        Down Time
+      </button>
+      <button
+        onClick={() => setAddType('custom')}
+        className={`px-2.5 py-1 text-[14px] border-l border-[#DFE5ED] transition-colors ${addType === 'custom' ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
+      >
+        Custom
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="mt-4">
+      {/* Down Time heading — always at the top of the down time area */}
+      {(items.length > 0 || addingNew) && (
+        <>
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
+            <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+          </div>
+          <p className="text-[12px] text-[#7B8FA5] mb-3">Define the downtime windows expected during this change.</p>
+        </>
+      )}
+      {items.map((it, i) => (
+        editingId === it.id ? (
+          <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-[13px] font-medium text-[#364658]">{i + 1}</span>
+              {actionIcons}
+            </div>
+            {formFields}
+          </div>
+        ) : (
+          <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-[13px] font-medium text-[#364658]">{i + 1}</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => editItem(it)} className="text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Edit">
+                  <Edit size={15} />
+                </button>
+                <button onClick={() => removeItem(it.id)} className="text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Remove">
+                  <XCircle size={15} />
+                </button>
+              </div>
+            </div>
+            <div className={`grid grid-cols-2 ${gridGap}`}>
+              <div>
+                <div className="text-[12px] text-[#7B8FA5] mb-1">Start Date</div>
+                <div className="text-[13px] text-[#364658]">{formatScheduleDateLong(it.start)}</div>
+              </div>
+              <div>
+                <div className="text-[12px] text-[#7B8FA5] mb-1">End Date</div>
+                <div className="text-[13px] text-[#364658]">{formatScheduleDateLong(it.end)}</div>
+              </div>
+            </div>
+            {it.description && (
+              <div className="mt-3">
+                <div className="text-[12px] text-[#7B8FA5] mb-1">Description</div>
+                <div className="text-[13px] text-[#364658] whitespace-pre-wrap">{it.description}</div>
+              </div>
+            )}
+          </div>
+        )
+      ))}
+
+      {/* Adding a new entry — opens BELOW the saved entries */}
+      {addingNew && (
+        <div className={items.length > 0 ? 'border-t border-[#DFE5ED] pt-4' : ''}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            {switchEl}
+            {addType === 'downtime' && actionIcons}
+          </div>
+          {addType === 'downtime' ? (
+            formFields
+          ) : (
+            <div className="text-[13px] text-[#7B8FA5]">Custom configuration coming soon.</div>
+          )}
+        </div>
+      )}
+
+      {/* Add button (when no form is open) */}
+      {!showForm && !editingId && (
+        <div className={items.length > 0 ? 'border-t border-[#DFE5ED] pt-4' : ''}>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+          >
+            <Plus size={13} />
+            Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChangeDrawer({
   openChanges,
   activeChangeId,
@@ -179,7 +405,14 @@ export function ChangeDrawer({
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
-  const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
+  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '' });
+  // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
+  const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
+  const [changeScheduleEnd, setChangeScheduleEnd] = useState('');
+  const [plannedRolloutStart, setPlannedRolloutStart] = useState('');
+  const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
+  const [actualRolloutStart, setActualRolloutStart] = useState('');
+  const [actualRolloutEnd, setActualRolloutEnd] = useState('');
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -877,7 +1110,7 @@ export function ChangeDrawer({
         'approvals': 85,
         'relations': 80,
         'audit': 100,
-        'resolution': 160
+        'resolution': 90
       };
 
       const availableWidth = containerWidth - paddingLeft - paddingRight;
@@ -1083,14 +1316,9 @@ export function ChangeDrawer({
       // CHG-969 is a completed/closed change, open to Resolution tab with pre-filled data
       setActiveMainTab('resolution');
       setAnalysis({
-        rootCause: "Legitimate application traffic was being blocked by overly aggressive WAF rules, while some newer attack patterns were slipping through due to outdated signatures.",
-        symptoms: "Users reported intermittent 403 errors on valid requests, and the security team flagged coverage gaps for emerging web-based attack patterns.",
-        impact: "Affected customer-facing web application availability and left the application exposed to emerging threats until the rule set was tuned.",
-        workaround: "Temporarily switched the affected WAF rules to detection-only mode to restore application access while the rule set was reviewed and tuned."
-      });
-      setSolutionData({
-        content: 'Tuned the WAF rule set: refined the false-positive rules, updated signatures to the latest OWASP CRS, and re-enabled blocking mode. Verified that legitimate traffic passes cleanly and known attack patterns are blocked.',
-        timestamp: new Date(2026, 2, 5, 15, 45).toISOString()
+        impact: "Customer-facing web application availability was at risk and the application was exposed to emerging threats until the WAF rule set was tuned and re-enabled in blocking mode.",
+        rolloutPlan: "Refine the false-positive WAF rules, update signatures to the latest OWASP CRS, and re-enable blocking mode in a monitored window. Validate that legitimate traffic passes cleanly and known attack patterns are blocked.",
+        backoutPlan: "If legitimate traffic is blocked or errors spike after cutover, revert the WAF rules to the previous detection-only configuration from the saved snapshot and re-open analysis."
       });
     } else if (activeChange) {
       setActiveMainTab('resolution');
@@ -3202,7 +3430,7 @@ export function ChangeDrawer({
                     { id: 'approvals', label: 'Approvals', condition: activeChange?.id !== 'CHG-993' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeChange?.id || '']?.length || 0) > 0 },
                     { id: 'audit', label: 'Audit Trails' },
-                    { id: 'resolution', label: 'Analysis & Resolution' },
+                    { id: 'resolution', label: 'Planning' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -3216,7 +3444,7 @@ export function ChangeDrawer({
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'Audit Trails',
-                    'resolution': 'Analysis & Resolution'
+                    'resolution': 'Planning'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -4952,164 +5180,81 @@ export function ChangeDrawer({
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
-              <div className={drawerWidth > 1080 ? 'px-6 py-6 grid grid-cols-2 gap-8 items-start' : 'px-6 py-6 space-y-6'}>
-                {/* Analysis Section */}
+              <div className="px-6 py-6 space-y-8">
+                {/* Change Schedule Section */}
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Stethoscope className="size-4 text-[#3D8BD0]" />
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Analysis</h3>
+                    <Calendar className="size-4 text-[#3D8BD0] flex-shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Change Schedule</h3>
                   </div>
-                  <p className="text-[12px] text-[#7B8FA5] mb-3">Document the root cause analysis for this change.</p>
-                  <div className="space-y-3">
-                    <AnalysisField
-                      label="Root Cause"
-                      value={analysis.rootCause}
-                      placeholder="No root cause defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, rootCause: v }))}
-                    />
-                    <AnalysisField
-                      label="Symptoms"
-                      value={analysis.symptoms}
-                      placeholder="No symptoms defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, symptoms: v }))}
-                    />
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Set the overall change schedule and its impact.</p>
+
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={changeScheduleStart} onChange={setChangeScheduleStart} />
+                    <ScheduleDateField label="End Date" value={changeScheduleEnd} onChange={setChangeScheduleEnd} />
+                  </div>
+
+                  <div className={`mt-4 ${drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}`}>
                     <AnalysisField
                       label="Impact"
                       value={analysis.impact}
                       placeholder="No impact defined yet. Click the edit button to add details."
                       onSave={(v) => setAnalysis((a) => ({ ...a, impact: v }))}
                     />
-                    <AnalysisField
-                      label="Work Around"
-                      value={analysis.workaround}
-                      placeholder="No work around defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, workaround: v }))}
-                    />
                   </div>
                 </div>
 
-                {/* Solution Section */}
+                <div className="border-t border-[#DFE5ED]" />
+
+                {/* Rollout Plan Section */}
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Lightbulb className="size-4 text-[#3D8BD0]" />
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Solution</h3>
+                    <ClipboardList className="size-4 text-[#3D8BD0] flex-shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Rollout Plan</h3>
                   </div>
-                  <p className="text-[12px] text-[#7B8FA5] mb-3">Record the implementation details and outcome of this change.</p>
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Plan the rollout window, backout plan and any downtime for this change.</p>
 
-                  {solutionData ? (
-                    <SolutionCard
-                      content={solutionData.content}
-                      timestamp={solutionData.timestamp}
-                      onEdit={() => {
-                        setSolutionText(solutionData.content);
-                        setHasSolution(true);
-                        setSolutionData(null);
-                      }}
-                      onDelete={() => {
-                        setSolutionData(null);
-                      }}
+                  {/* Planned Rollout */}
+                  <div className="text-[13px] font-semibold text-[#364658] mb-2">Planned Rollout</div>
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={plannedRolloutStart} onChange={setPlannedRolloutStart} />
+                    <ScheduleDateField label="End Date" value={plannedRolloutEnd} onChange={setPlannedRolloutEnd} />
+                  </div>
+
+                  {/* Actual Rollout */}
+                  <div className="text-[13px] font-semibold text-[#364658] mt-5 mb-2">Actual Rollout</div>
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={actualRolloutStart} onChange={setActualRolloutStart} />
+                    <ScheduleDateField label="End Date" value={actualRolloutEnd} onChange={setActualRolloutEnd} />
+                  </div>
+
+                  <div className={`mt-5 ${drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}`}>
+                    <AnalysisField
+                      label="Rollout Plan"
+                      value={analysis.rolloutPlan}
+                      placeholder="No rollout plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, rolloutPlan: v }))}
                     />
-                  ) : hasSolution ? (
-                    <div className="w-full border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
-                      <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
-                        <button
-                          className="text-[#7B8FA5] hover:text-[#364658]"
-                          onClick={() => { setHasSolution(false); setSolutionText(''); }}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                      <div className="p-4">
-                        <div className="mb-4">
-                          <textarea
-                            value={solutionText}
-                            onChange={(e) => setSolutionText(e.target.value)}
-                            placeholder="Add your solution..."
-                            className="w-full h-40 text-sm text-[#364658] focus:outline-none bg-transparent resize-none"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <div className="relative" ref={aiAssistMenuSolutionRef}>
-                              <button
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
-                                onClick={() => setShowAIAssistMenuSolution(!showAIAssistMenuSolution)}
-                              >
-                                <Sparkles size={14} className="text-[#3D8BD0]" />
-                                <span>AI Assist</span>
-                                <ChevronDown size={12} className="text-[#7B8FA5]" />
-                              </button>
-                              {showAIAssistMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 w-[200px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 py-2">
-                                  <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">Refine</div>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <RefreshCw size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Rephrase</span>
-                                  </button>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <TextCursorInput size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Make longer</span>
-                                  </button>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <Minimize2 size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Make shorter</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                              <Paperclip size={16} />
-                            </button>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                              <Image size={16} />
-                            </button>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                              <Link2 size={16} />
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => {
-                              if (solutionText.trim()) {
-                                setSolutionData({
-                                  content: solutionText,
-                                  timestamp: new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
-                                });
-                                setSolutionText('');
-                                setHasSolution(false);
-                              }
-                            }}
-                            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setHasSolution(true)}
-                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                    >
-                      <Lightbulb className="size-4" />
-                      Add Solution
-                    </button>
-                  )}
+                    <AnalysisField
+                      label="Backout Plan"
+                      value={analysis.backoutPlan}
+                      placeholder="No backout plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, backoutPlan: v }))}
+                    />
+                  </div>
+
+                  <div className="border-t border-[#DFE5ED] mt-8" />
+
+                  {/* Rollout additions (Down Time / Custom) */}
+                  <div className="mt-8">
+                    <DownTimesSection drawerWidth={drawerWidth} />
+                  </div>
                 </div>
+
               </div>
             )}
 
-            {/* Service Request Tab Content */}
+                        {/* Service Request Tab Content */}
             {activeMainTab === 'service-request' && (
               <div className="px-6 py-6">
                 <div className="space-y-4">

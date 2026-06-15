@@ -94,6 +94,71 @@ interface ReleaseDrawerProps {
   onTabChange: (problemId: string) => void;
 }
 
+interface AnalysisFieldProps {
+  label: string;
+  value: string;
+  placeholder: string;
+  onSave: (val: string) => void;
+}
+
+function AnalysisField({ label, value, placeholder, onSave }: AnalysisFieldProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  return (
+    <div className="border border-[#DFE5ED] rounded-lg overflow-hidden bg-white">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F9FAFB] border-b border-[#DFE5ED]">
+        <span className="text-[13px] font-semibold text-[#364658]">{label}</span>
+        {!editing ? (
+          <button
+            onClick={() => { setDraft(value); setEditing(true); }}
+            className="text-[#7B8FA5] hover:text-[#3D8BD0] transition-colors"
+            title="Edit"
+          >
+            <Edit size={14} />
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { onSave(draft.trim()); setEditing(false); }}
+              className="size-7 flex items-center justify-center rounded hover:bg-[#E5E7EB] text-[#22A06B]"
+              title="Save"
+            >
+              <Check size={15} />
+            </button>
+            <button
+              onClick={() => { setDraft(value); setEditing(false); }}
+              className="size-7 flex items-center justify-center rounded hover:bg-[#E5E7EB] text-[#7B8FA5]"
+              title="Cancel"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="p-4">
+        {editing ? (
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add details..."
+            className="w-full min-h-[90px] text-[13px] text-[#364658] focus:outline-none bg-transparent resize-none"
+          />
+        ) : value ? (
+          <p className="text-[13px] text-[#364658] whitespace-pre-wrap leading-relaxed">{value}</p>
+        ) : (
+          <p className="text-[13px] text-[#9CA3AF]">{placeholder}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ReleaseDrawer({
   openReleases,
   activeReleaseId,
@@ -113,6 +178,7 @@ export function ReleaseDrawer({
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
+  const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -735,8 +801,8 @@ export function ReleaseDrawer({
       if (!tabContainerRef.current) return;
 
       // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['conversation', 'tasks', 'audit', 'resolution'];
-      const baseTabsForINC35 = ['service-request', 'conversation', 'tasks', 'audit', 'resolution'];
+      const baseTabsForOthers = ['resolution', 'conversation', 'tasks', 'audit'];
+      const baseTabsForINC35 = ['service-request', 'resolution', 'conversation', 'tasks', 'audit'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -782,7 +848,7 @@ export function ReleaseDrawer({
         'approvals': 85,
         'relations': 80,
         'audit': 100,
-        'resolution': 90
+        'resolution': 160
       };
 
       const availableWidth = containerWidth - paddingLeft - paddingRight;
@@ -984,19 +1050,21 @@ export function ReleaseDrawer({
   useEffect(() => {
     if (activeRelease?.id === 'REL-37') {
       setActiveMainTab('service-request');
-    } else if (activeRelease?.id === 'PBM-599') {
-      // INC-39 is a closed ticket, open to Resolution tab with pre-filled data
+    } else if (activeRelease?.id === 'REL-20') {
+      // REL-20 is a completed/closed release, open to Analysis & Resolution with pre-filled data
       setActiveMainTab('resolution');
-      setDiagnosisData({
-        content: 'After thorough investigation, the root cause has been identified as a network configuration issue affecting the user\'s connectivity. The DNS settings were incorrectly configured, preventing proper domain resolution.',
-        timestamp: new Date(2022, 3, 18, 14, 30).toISOString()
+      setAnalysis({
+        rootCause: "The previous backup and recovery process had not been validated end-to-end, leaving uncertainty about whether production data could be restored within the required recovery objectives.",
+        symptoms: "Backup jobs were completing successfully, but restore drills were inconsistent and recovery time was unverified against the documented RTO/RPO targets.",
+        impact: "Risk of extended downtime and potential data loss in a disaster scenario until the backup and recovery procedure was validated across all critical databases.",
+        workaround: "Maintained manual off-site backups and a documented manual restore runbook while the automated backup/recovery validation release was prepared and tested."
       });
       setSolutionData({
-        content: 'Updated the DNS configuration with the correct primary and secondary DNS servers. Flushed the DNS cache and verified connectivity. The user confirmed that all services are now accessible and functioning properly.',
-        timestamp: new Date(2022, 3, 18, 15, 45).toISOString()
+        content: 'Deployed the database backup and recovery validation release: automated restore drills were run against all critical databases, recovery time and recovery point were measured and confirmed within target, and the validated runbook was published. Backups and restores are now verified end-to-end.',
+        timestamp: new Date(2024, 9, 1, 15, 45).toISOString()
       });
     } else if (activeRelease) {
-      setActiveMainTab('conversation');
+      setActiveMainTab('resolution');
     }
   }, [activeRelease?.id]);
 
@@ -2880,7 +2948,7 @@ export function ReleaseDrawer({
                     { id: 'approvals', label: 'Approvals', condition: activeRelease?.id !== 'REL-56' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeRelease?.id || '']?.length || 0) > 0 },
                     { id: 'audit', label: 'Audit Trails' },
-                    { id: 'resolution', label: 'Resolution' },
+                    { id: 'resolution', label: 'Analysis & Resolution' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -2894,7 +2962,7 @@ export function ReleaseDrawer({
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'Audit Trails',
-                    'resolution': 'Resolution'
+                    'resolution': 'Analysis & Resolution'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -4670,364 +4738,87 @@ export function ReleaseDrawer({
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
-              <div className="px-6 py-6">
-                {(!hasDiagnosis && !hasSolution && !diagnosisData && !solutionData) ? (
-                  <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="text-center max-w-lg">
-                      <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
-                        <Lightbulb className="size-8 text-[#7B8FA5]" />
-                      </div>
-                      <h3 className="font-semibold text-[#364658] mb-2 text-[14px]">No Diagnosis or Solution Added</h3>
-                      <p className="text-[#7B8FA5] mb-6 text-[13px] max-w-[300px]">
-                        Document the root cause analysis and resolution steps for this service request.
-                      </p>
-                      <div className="flex items-center justify-center gap-3">
-                        <button 
-                          onClick={() => setHasDiagnosis(true)}
-                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                        >
-                          <Stethoscope className="size-4" />
-                          Add Diagnosis
-                        </button>
-                        <button 
-                          onClick={() => setHasSolution(true)}
-                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                        >
-                          <Lightbulb className="size-4" />
-                          Add Solution
-                        </button>
-                      </div>
-                    </div>
+              <div className="px-6 py-6 space-y-6">
+                {/* Analysis Section */}
+                <div className="w-full min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Stethoscope className="size-4 text-[#3D8BD0]" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Analysis</h3>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {hasDiagnosis && !diagnosisData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={diagnosisFormRef}>
-                        {/* Diagnosis Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-[#364658]">Diagnosis</h3>
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
-                              <Lock size={12} />
-                              <span className="text-xs">Not visible to requester</span>
-                            </div>
-                            <button className="text-[#7B8FA5] hover:text-[#364658]">
-                              <Maximize2 size={16} />
-                            </button>
-                            <button className="text-[#7B8FA5] hover:text-[#364658]" onClick={onCloseDiagnosis}>
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Document the root cause analysis for this release.</p>
+                  <div className={drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}>
+                    <AnalysisField
+                      label="Root Cause"
+                      value={analysis.rootCause}
+                      placeholder="No root cause defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, rootCause: v }))}
+                    />
+                    <AnalysisField
+                      label="Symptoms"
+                      value={analysis.symptoms}
+                      placeholder="No symptoms defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, symptoms: v }))}
+                    />
+                    <AnalysisField
+                      label="Impact"
+                      value={analysis.impact}
+                      placeholder="No impact defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, impact: v }))}
+                    />
+                    <AnalysisField
+                      label="Work Around"
+                      value={analysis.workaround}
+                      placeholder="No work around defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, workaround: v }))}
+                    />
+                  </div>
+                </div>
 
-                        {/* Diagnosis Form Content */}
-                        <div className="p-4">
-                          {/* Text Area */}
-                          <div className="mb-4">
-                            <textarea
-                              value={diagnosisText}
-                              onChange={(e) => setDiagnosisText(e.target.value)}
-                              placeholder="Add your diagnosis..."
-                              className="w-full h-48 text-sm text-[#364658] focus:outline-none bg-transparent resize-none"
-                            />
-                          </div>
+                {/* Solution Section */}
+                <div className="w-full min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lightbulb className="size-4 text-[#3D8BD0]" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Solution</h3>
+                  </div>
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Record the implementation details and outcome of this release.</p>
 
-                          {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
-                            {/* Left Side - AI Assist and Formatting Tools */}
-                            <div className="flex items-center gap-1">
-                              <div className="relative" ref={aiAssistMenuDiagnosisRef}>
-                                <button 
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                  style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
-                                  onClick={() => setShowAIAssistMenuDiagnosis(!showAIAssistMenuDiagnosis)}
-                                >
-                                  <Sparkles size={14} className="text-[#3D8BD0]" />
-                                  <span>AI Assist</span>
-                                  <ChevronDown size={12} className="text-[#7B8FA5]" />
-                                </button>
-
-                                {/* AI Assist Dropdown Menu - Refine options only */}
-                                {showAIAssistMenuDiagnosis && (
-                                  <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
-                                    <div className="py-2">
-                                      {/* Refine section header */}
-                                      <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
-                                        Refine
-                                      </div>
-                                      
-                                      {/* Rephrase */}
-                                      <button 
-                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                        onClick={() => {
-                                          setShowAIAssistMenuDiagnosis(false);
-                                        }}
-                                      >
-                                        <RefreshCw size={14} className="text-[#364658]" />
-                                        <span className="text-xs text-[#364658]">Rephrase</span>
-                                      </button>
-                                      
-                                      {/* Make longer */}
-                                      <button 
-                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                        onClick={() => {
-                                          setShowAIAssistMenuDiagnosis(false);
-                                        }}
-                                      >
-                                        <TextCursorInput size={14} className="text-[#364658]" />
-                                        <span className="text-xs text-[#364658]">Make longer</span>
-                                      </button>
-                                      
-                                      {/* Make shorter */}
-                                      <button 
-                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                        onClick={() => {
-                                          setShowAIAssistMenuDiagnosis(false);
-                                        }}
-                                      >
-                                        <Minimize2 size={14} className="text-[#364658]" />
-                                        <span className="text-xs text-[#364658]">Make shorter</span>
-                                      </button>
-                                      
-                                      {/* Change tone */}
-                                      <div className="relative">
-                                        <button 
-                                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left justify-between"
-                                          onClick={() => {
-                                            setShowToneSubmenuDiagnosis(!showToneSubmenuDiagnosis);
-                                          }}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <Wand2 size={14} className="text-[#364658]" />
-                                            <span className="text-xs text-[#364658]">Change tone</span>
-                                          </div>
-                                          <ChevronRight size={14} className="text-[#7B8FA5]" />
-                                        </button>
-
-                                        {/* Tone Submenu */}
-                                        {showToneSubmenuDiagnosis && (
-                                          <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
-                                            <div className="py-2">
-                                              <button 
-                                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                                onClick={() => {
-                                                  setShowToneSubmenuDiagnosis(false);
-                                                  setShowAIAssistMenuDiagnosis(false);
-                                                }}
-                                              >
-                                                <Briefcase size={14} className="text-[#364658]" />
-                                                <span className="text-xs text-[#364658]">Professional</span>
-                                              </button>
-                                              
-                                              <button 
-                                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                                onClick={() => {
-                                                  setShowToneSubmenuDiagnosis(false);
-                                                  setShowAIAssistMenuDiagnosis(false);
-                                                }}
-                                              >
-                                                <Heart size={14} className="text-[#364658]" />
-                                                <span className="text-xs text-[#364658]">Empathetic</span>
-                                              </button>
-                                              
-                                              <button 
-                                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                                onClick={() => {
-                                                  setShowToneSubmenuDiagnosis(false);
-                                                  setShowAIAssistMenuDiagnosis(false);
-                                                }}
-                                              >
-                                                <Zap size={14} className="text-[#364658]" />
-                                                <span className="text-xs text-[#364658]">Concise</span>
-                                              </button>
-                                              
-                                              <button 
-                                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                                onClick={() => {
-                                                  setShowToneSubmenuDiagnosis(false);
-                                                  setShowAIAssistMenuDiagnosis(false);
-                                                }}
-                                              >
-                                                <FileText size={14} className="text-[#364658]" />
-                                                <span className="text-xs text-[#364658]">Formal</span>
-                                              </button>
-                                              
-                                              <button 
-                                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                                onClick={() => {
-                                                  setShowToneSubmenuDiagnosis(false);
-                                                  setShowAIAssistMenuDiagnosis(false);
-                                                }}
-                                              >
-                                                <SmilePlus size={14} className="text-[#364658]" />
-                                                <span className="text-xs text-[#364658]">Friendly</span>
-                                              </button>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Formatting Tools */}
-                              <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
-                                {/* Always visible quick access icons */}
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                  <Paperclip size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                  <Image size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                  <Link2 size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                  <Smile size={16} />
-                                </button>
-                                
-                                {/* Type button to show all formatting options */}
-                                <button 
-                                  className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                  onClick={() => setShowFormattingMenuDiagnosis(!showFormattingMenuDiagnosis)}
-                                >
-                                  <Type size={16} />
-                                </button>
-
-                                {/* All Formatting Options Dropdown */}
-                                {showFormattingMenuDiagnosis && (
-                                  <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
-                                    <div className="flex items-center gap-1">
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
-                                        <Bold size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Italic">
-                                        <Italic size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Underline">
-                                        <Underline size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bulleted List">
-                                        <List size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Numbered List">
-                                        <ListOrdered size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 1">
-                                        <Heading1 size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 2">
-                                        <Heading2 size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 3">
-                                        <Heading3 size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Left">
-                                        <AlignLeft size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Center">
-                                        <AlignCenter size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Right">
-                                        <AlignRight size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Justify">
-                                        <AlignJustify size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Code">
-                                        <Code size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Link">
-                                        <Link2 size={16} />
-                                      </button>
-                                      <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Video">
-                                        <Video size={16} />
-                                      </button>
-                                      <button 
-                                        className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" 
-                                        title="Close"
-                                        onClick={() => setShowFormattingMenuDiagnosis(false)}
-                                      >
-                                        <X size={16} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Right Side - Add Button */}
-                            <button 
-                              onClick={() => {
-                                if (diagnosisText.trim()) {
-                                  setDiagnosisData({
-                                    content: diagnosisText,
-                                    timestamp: new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
-                                  });
-                                  setDiagnosisText('');
-                                  setHasDiagnosis(false);
-                                }
-                              }}
-                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        </div>
+                  {solutionData ? (
+                    <SolutionCard
+                      content={solutionData.content}
+                      timestamp={solutionData.timestamp}
+                      onEdit={() => {
+                        setSolutionText(solutionData.content);
+                        setHasSolution(true);
+                        setSolutionData(null);
+                      }}
+                      onDelete={() => {
+                        setSolutionData(null);
+                      }}
+                    />
+                  ) : hasSolution ? (
+                    <div className="w-full border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
+                      <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
+                        <button
+                          className="text-[#7B8FA5] hover:text-[#364658]"
+                          onClick={() => { setHasSolution(false); setSolutionText(''); }}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                    )}
-
-                    {/* Display saved diagnosis */}
-                    {diagnosisData && (
-                      <DiagnosisCard
-                        content={diagnosisData.content}
-                        timestamp={diagnosisData.timestamp}
-                        onEdit={() => {
-                          // Reopen diagnosis form with existing content
-                          setDiagnosisText(diagnosisData.content);
-                          setHasDiagnosis(true);
-                          setDiagnosisData(null);
-                        }}
-                        onDelete={() => {
-                          setDiagnosisData(null);
-                        }}
-                      />
-                    )}
-                    
-                    {hasSolution && !solutionData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
-                        {/* Solution Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
-                          <div className="flex items-center gap-2">
-                            <button className="text-[#7B8FA5] hover:text-[#364658]">
-                              <Maximize2 size={16} />
-                            </button>
-                            <button className="text-[#7B8FA5] hover:text-[#364658]" onClick={onCloseSolution}>
-                              <X size={16} />
-                            </button>
-                          </div>
+                      <div className="p-4">
+                        <div className="mb-4">
+                          <textarea
+                            value={solutionText}
+                            onChange={(e) => setSolutionText(e.target.value)}
+                            placeholder="Add your solution..."
+                            className="w-full h-40 text-sm text-[#364658] focus:outline-none bg-transparent resize-none"
+                          />
                         </div>
-
-                        {/* Solution Form Content */}
-                        <div className="p-4">
-                          {/* Text Area */}
-                          <div className="mb-4">
-                            <textarea
-                              value={solutionText}
-                              onChange={(e) => setSolutionText(e.target.value)}
-                              placeholder="Add your solution..."
-                              className="w-full h-48 text-sm text-[#364658] focus:outline-none bg-transparent resize-none"
-                            />
-                          </div>
-
-                          {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
-                            {/* Left Side - AI Assist and Formatting Tools */}
-                            <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
-                              <button 
+                              <button
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
                                 style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
                                 onClick={() => setShowAIAssistMenuSolution(!showAIAssistMenuSolution)}
@@ -5036,288 +4827,71 @@ export function ReleaseDrawer({
                                 <span>AI Assist</span>
                                 <ChevronDown size={12} className="text-[#7B8FA5]" />
                               </button>
-
-                              {/* AI Assist Dropdown Menu - Refine options only */}
                               {showAIAssistMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
-                                  <div className="py-2">
-                                    {/* Refine section header */}
-                                    <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
-                                      Refine
-                                    </div>
-                                    
-                                    {/* Rephrase */}
-                                    <button 
-                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                      onClick={() => {
-                                        setShowAIAssistMenuSolution(false);
-                                        // Handle rephrase action
-                                      }}
-                                    >
-                                      <RefreshCw size={14} className="text-[#364658]" />
-                                      <span className="text-xs text-[#364658]">Rephrase</span>
-                                    </button>
-                                    
-                                    {/* Make longer */}
-                                    <button 
-                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                      onClick={() => {
-                                        setShowAIAssistMenuSolution(false);
-                                        // Handle make longer action
-                                      }}
-                                    >
-                                      <TextCursorInput size={14} className="text-[#364658]" />
-                                      <span className="text-xs text-[#364658]">Make longer</span>
-                                    </button>
-                                    
-                                    {/* Make shorter */}
-                                    <button 
-                                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                      onClick={() => {
-                                        setShowAIAssistMenuSolution(false);
-                                        // Handle make shorter action
-                                      }}
-                                    >
-                                      <Minimize2 size={14} className="text-[#364658]" />
-                                      <span className="text-xs text-[#364658]">Make shorter</span>
-                                    </button>
-                                    
-                                    {/* Change tone */}
-                                    <div className="relative">
-                                      <button 
-                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left justify-between"
-                                        onClick={() => {
-                                          setShowToneSubmenuSolution(!showToneSubmenuSolution);
-                                        }}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <Wand2 size={14} className="text-[#364658]" />
-                                          <span className="text-xs text-[#364658]">Change tone</span>
-                                        </div>
-                                        <ChevronRight size={14} className="text-[#7B8FA5]" />
-                                      </button>
-
-                                      {/* Tone Submenu */}
-                                      {showToneSubmenuSolution && (
-                                        <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
-                                          <div className="py-2">
-                                            <button 
-                                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                              onClick={() => {
-                                                setShowToneSubmenuSolution(false);
-                                                setShowAIAssistMenuSolution(false);
-                                                // Handle professional tone action
-                                              }}
-                                            >
-                                              <Briefcase size={14} className="text-[#364658]" />
-                                              <span className="text-xs text-[#364658]">Professional</span>
-                                            </button>
-                                            
-                                            <button 
-                                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                              onClick={() => {
-                                                setShowToneSubmenuSolution(false);
-                                                setShowAIAssistMenuSolution(false);
-                                                // Handle empathetic tone action
-                                              }}
-                                            >
-                                              <Heart size={14} className="text-[#364658]" />
-                                              <span className="text-xs text-[#364658]">Empathetic</span>
-                                            </button>
-                                            
-                                            <button 
-                                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                              onClick={() => {
-                                                setShowToneSubmenuSolution(false);
-                                                setShowAIAssistMenuSolution(false);
-                                                // Handle concise tone action
-                                              }}
-                                            >
-                                              <Zap size={14} className="text-[#364658]" />
-                                              <span className="text-xs text-[#364658]">Concise</span>
-                                            </button>
-                                            
-                                            <button 
-                                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                              onClick={() => {
-                                                setShowToneSubmenuSolution(false);
-                                                setShowAIAssistMenuSolution(false);
-                                                // Handle formal tone action
-                                              }}
-                                            >
-                                              <FileText size={14} className="text-[#364658]" />
-                                              <span className="text-xs text-[#364658]">Formal</span>
-                                            </button>
-                                            
-                                            <button 
-                                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                              onClick={() => {
-                                                setShowToneSubmenuSolution(false);
-                                                setShowAIAssistMenuSolution(false);
-                                                // Handle friendly tone action
-                                              }}
-                                            >
-                                              <SmilePlus size={14} className="text-[#364658]" />
-                                              <span className="text-xs text-[#364658]">Friendly</span>
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
+                                <div className="absolute left-0 bottom-full mb-2 w-[200px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 py-2">
+                                  <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">Refine</div>
+                                  <button
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
+                                    onClick={() => setShowAIAssistMenuSolution(false)}
+                                  >
+                                    <RefreshCw size={14} className="text-[#364658]" />
+                                    <span className="text-xs text-[#364658]">Rephrase</span>
+                                  </button>
+                                  <button
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
+                                    onClick={() => setShowAIAssistMenuSolution(false)}
+                                  >
+                                    <TextCursorInput size={14} className="text-[#364658]" />
+                                    <span className="text-xs text-[#364658]">Make longer</span>
+                                  </button>
+                                  <button
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
+                                    onClick={() => setShowAIAssistMenuSolution(false)}
+                                  >
+                                    <Minimize2 size={14} className="text-[#364658]" />
+                                    <span className="text-xs text-[#364658]">Make shorter</span>
+                                  </button>
                                 </div>
                               )}
                             </div>
-
-                            {/* Formatting Tools */}
-                            <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
-                              {/* Always visible quick access icons */}
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                <Paperclip size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                <Image size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                <Link2 size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                <Smile size={16} />
-                              </button>
-                              
-                              {/* Type button to show all formatting options */}
-                              <button 
-                                className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                onClick={() => setShowFormattingMenuSolution(!showFormattingMenuSolution)}
-                              >
-                                <Type size={16} />
-                              </button>
-
-                              {/* All Formatting Options Dropdown */}
-                              {showFormattingMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
-                                  <div className="flex items-center gap-1">
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
-                                      <Bold size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Italic">
-                                      <Italic size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Underline">
-                                      <Underline size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bulleted List">
-                                      <List size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Numbered List">
-                                      <ListOrdered size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 1">
-                                      <Heading1 size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 2">
-                                      <Heading2 size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 3">
-                                      <Heading3 size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Left">
-                                      <AlignLeft size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Center">
-                                      <AlignCenter size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Right">
-                                      <AlignRight size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Justify">
-                                      <AlignJustify size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Code">
-                                      <Code size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Link">
-                                      <Link2 size={16} />
-                                    </button>
-                                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Video">
-                                      <Video size={16} />
-                                    </button>
-                                    <button 
-                                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" 
-                                      title="Close"
-                                      onClick={() => setShowFormattingMenuSolution(false)}
-                                    >
-                                      <X size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            </div>
-
-                            {/* Right Side - Add Button */}
-                            <button 
-                              onClick={() => {
-                                if (solutionText.trim()) {
-                                  setSolutionData({
-                                    content: solutionText,
-                                    timestamp: new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
-                                  });
-                                  setSolutionText('');
-                                  setHasSolution(false);
-                                }
-                              }}
-                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                            >
-                              Add
+                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
+                              <Paperclip size={16} />
+                            </button>
+                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
+                              <Image size={16} />
+                            </button>
+                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
+                              <Link2 size={16} />
                             </button>
                           </div>
+                          <button
+                            onClick={() => {
+                              if (solutionText.trim()) {
+                                setSolutionData({
+                                  content: solutionText,
+                                  timestamp: new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+                                });
+                                setSolutionText('');
+                                setHasSolution(false);
+                              }
+                            }}
+                            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                          >
+                            Add
+                          </button>
                         </div>
                       </div>
-                    )}
-
-                    {/* Display Saved Solution */}
-                    {solutionData && (
-                      <SolutionCard
-                        content={solutionData.content}
-                        timestamp={solutionData.timestamp}
-                        onEdit={() => {
-                          // Reopen solution form with existing content
-                          setSolutionText(solutionData.content);
-                          setHasSolution(true);
-                          setSolutionData(null);
-                        }}
-                        onDelete={() => {
-                          setSolutionData(null);
-                        }}
-                      />
-                    )}
-                    
-                    {/* Add More Button */}
-                    {(hasDiagnosis || hasSolution || diagnosisData || solutionData) && (
-                      <div className="flex gap-3">
-                        {!hasDiagnosis && !diagnosisData && (
-                          <button 
-                            onClick={() => setHasDiagnosis(true)}
-                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                          >
-                            <Stethoscope className="size-4" />
-                            Add Diagnosis
-                          </button>
-                        )}
-                        {!hasSolution && !solutionData && (
-                          <button 
-                            onClick={() => setHasSolution(true)}
-                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                          >
-                            <Lightbulb className="size-4" />
-                            Add Solution
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setHasSolution(true)}
+                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                    >
+                      <Lightbulb className="size-4" />
+                      Add Solution
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
