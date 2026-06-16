@@ -6,7 +6,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Change } from './ChangeListPage';
@@ -172,20 +172,6 @@ function formatScheduleDate(v: string) {
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
 }
 
-/** Format a datetime-local value as "Tue, Jun 02, 2026 07:18 PM". */
-function formatScheduleDateLong(v: string) {
-  if (!v) return '—';
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return v;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  let h = d.getHours();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
-}
-
 interface ScheduleDateFieldProps {
   label: string;
   value: string;
@@ -227,48 +213,246 @@ interface DownTime {
   description: string;
 }
 
-/** Down Times manager — add/edit/remove downtime windows under the Rollout Plan. */
-function DownTimesSection({ drawerWidth }: { drawerWidth: number }) {
+interface CustomItem {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+interface CustomGroup {
+  id: string;
+  name: string;
+  items: CustomItem[];
+  order: number;
+}
+
+/** Schedule entry surfaced to the Change Calendar (shape matches MiniCalendar's CalendarEvent). */
+interface CalendarScheduleEntry {
+  start: string;
+  id: string;
+  group: string;
+  label?: string;
+  description?: string;
+  color?: string;
+}
+
+/** A user-defined custom group — editable group name and editable sub-entry names,
+    each with start/end dates and a description (mirrors the Down Time group). */
+function CustomGroupBlock({
+  group,
+  gridGap,
+  onUpdateName,
+  onRemoveGroup,
+  onAddItem,
+  onUpdateItem,
+  onRemoveItem,
+}: {
+  group: CustomGroup;
+  gridGap: string;
+  onUpdateName: (name: string) => void;
+  onRemoveGroup: () => void;
+  onAddItem: (data: { name: string; start: string; end: string; description: string }) => void;
+  onUpdateItem: (itemId: string, patch: Partial<CustomItem>) => void;
+  onRemoveItem: (itemId: string) => void;
+}) {
+  const [draft, setDraft] = useState({ name: '', start: '', end: '', description: '' });
+  const [showForm, setShowForm] = useState(group.items.length === 0);
+  const addLabel = group.name.trim() ? group.name.trim() : 'Item';
+
+  const suggestedName = `${addLabel} ${group.items.length + 1}`;
+
+  const saveDraft = () => {
+    if (!((draft.start && draft.end) || draft.description.trim())) return; // need both dates or a description
+    onAddItem({ ...draft, name: draft.name.trim() || suggestedName });
+    setDraft({ name: '', start: '', end: '', description: '' });
+    setShowForm(false);
+  };
+
+  return (
+    <div>
+      {/* Group heading — editable name + remove-group */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Settings2 className="size-4 text-[#3D8BD0] flex-shrink-0" />
+          <input
+            value={group.name}
+            onChange={(e) => onUpdateName(e.target.value)}
+            placeholder="Group name"
+            className="flex-1 min-w-0 text-[14px] font-semibold text-[#364658] bg-transparent border-b border-transparent hover:border-[#DFE5ED] focus:border-[#3D8BD0] focus:outline-none placeholder:text-[#9CA3AF] placeholder:font-normal"
+          />
+        </div>
+        <button onClick={onRemoveGroup} title="Remove group" className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors">
+          <Trash2 size={16} />
+        </button>
+      </div>
+      <p className="text-[12px] text-[#7B8FA5] mb-3">Define the custom schedule windows for this change.</p>
+
+      {/* Saved sub-entries — editable name + dates; description shows as a card only when set */}
+      {group.items.map((it, i) => (
+        <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <input
+              value={it.name}
+              onChange={(e) => onUpdateItem(it.id, { name: e.target.value })}
+              placeholder={`${addLabel} ${i + 1}`}
+              className="flex-1 min-w-0 text-[13px] font-medium text-[#364658] bg-transparent border-b border-transparent hover:border-[#DFE5ED] focus:border-[#3D8BD0] focus:outline-none placeholder:text-[#9CA3AF] placeholder:font-normal"
+            />
+            <button onClick={() => onRemoveItem(it.id)} className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Remove">
+              <XCircle size={15} />
+            </button>
+          </div>
+          {(it.start || it.end) && (
+            <div className={`grid grid-cols-2 ${gridGap}`}>
+              <ScheduleDateField label="Start Date" value={it.start} onChange={(v) => onUpdateItem(it.id, { start: v })} />
+              <ScheduleDateField label="End Date" value={it.end} onChange={(v) => onUpdateItem(it.id, { end: v })} />
+            </div>
+          )}
+          {it.description && (
+            <div className="mt-3">
+              <AnalysisField
+                label="Description"
+                value={it.description}
+                placeholder="No description added yet. Click the edit button to add details."
+                onSave={(val) => onUpdateItem(it.id, { description: val })}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Add-entry form (textarea description) OR the Add button */}
+      {showForm ? (
+        <div className={`${group.items.length > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+          <div className="mb-3">
+            <div className="text-[12px] text-[#4A5568] mb-1.5">Subgroup Name</div>
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder={suggestedName}
+              className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white placeholder:text-[#9CA3AF]"
+            />
+          </div>
+          <div className={`grid grid-cols-2 ${gridGap}`}>
+            <ScheduleDateField label="Start Date" value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
+            <ScheduleDateField label="End Date" value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
+          </div>
+          <div className="mt-3">
+            <div className="text-[12px] text-[#4A5568] mb-1.5">Description</div>
+            <textarea
+              value={draft.description}
+              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+              placeholder="Description..."
+              className="w-full min-h-[72px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white resize-y placeholder:text-[#9CA3AF]"
+            />
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={saveDraft}
+              disabled={!((draft.start && draft.end) || draft.description.trim())}
+              className={`px-3 py-2 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${((draft.start && draft.end) || draft.description.trim()) ? 'bg-[#3D8BD0] hover:bg-[#3578B5]' : 'bg-[#9DBEDC] cursor-not-allowed'}`}
+            >
+              <Plus className="size-3.5" />
+              Add {addLabel}
+            </button>
+            <button
+              onClick={() => {
+                if (group.items.length === 0) {
+                  onRemoveGroup(); // dismiss the empty group entirely
+                } else {
+                  setDraft({ name: '', start: '', end: '', description: '' });
+                  setShowForm(false);
+                }
+              }}
+              className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4">
+          <button onClick={() => setShowForm(true)} className="text-[#3D8BD0] hover:text-[#2563EB] text-[13px] font-medium flex items-center gap-1.5 transition-colors">
+            <PlusCircle className="size-4" />
+            Add {addLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Down Times manager — add downtime windows under the Rollout Plan.
+    Saved entries are edited inline; the "+" icon opens a form to add more. */
+function DownTimesSection({ drawerWidth, onScheduleEntriesChange }: { drawerWidth: number; onScheduleEntriesChange?: (entries: CalendarScheduleEntry[]) => void }) {
   const [items, setItems] = useState<DownTime[]>([]);
   const [draft, setDraft] = useState({ start: '', end: '', description: '' });
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [addType, setAddType] = useState<'downtime' | 'custom'>('downtime');
+  const [customGroups, setCustomGroups] = useState<CustomGroup[]>([]);
+  const [downtimeOrder, setDowntimeOrder] = useState<number | null>(null);
   const idRef = useRef(1);
+  const cgIdRef = useRef(1);
+  const ciIdRef = useRef(1);
+  const orderRef = useRef(1); // shared sequence so groups render in creation order
   const gridGap = drawerWidth > 1080 ? 'gap-6' : 'gap-3';
 
-  const resetForm = () => { setDraft({ start: '', end: '', description: '' }); setEditingId(null); };
+  const resetForm = () => setDraft({ start: '', end: '', description: '' });
 
   const save = () => {
-    if (!draft.start || !draft.end) return; // Start & End are required
-    if (editingId) {
-      setItems(items.map((it) => (it.id === editingId ? { ...it, ...draft } : it)));
-    } else {
-      setItems([...items, { id: `dt-${idRef.current++}`, ...draft }]);
-    }
+    if (!((draft.start && draft.end) || draft.description.trim())) return; // need both dates or a description
+    setItems((prev) => [...prev, { id: `dt-${idRef.current++}`, ...draft }]);
     resetForm();
     setShowForm(false);
   };
 
-  const editItem = (it: DownTime) => { setDraft({ start: it.start, end: it.end, description: it.description }); setEditingId(it.id); setShowForm(true); };
-  const removeItem = (id: string) => { setItems(items.filter((it) => it.id !== id)); if (editingId === id) resetForm(); };
+  const updateItem = (id: string, patch: Partial<DownTime>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
+  const openDownTimeForm = () => {
+    setShowForm(true);
+    setDowntimeOrder((o) => (o === null ? orderRef.current++ : o));
+  };
+  const removeDownTimeGroup = () => { setItems([]); resetForm(); setShowForm(false); setDowntimeOrder(null); };
+  const cancelDownTimeForm = () => { resetForm(); setShowForm(false); if (items.length === 0) setDowntimeOrder(null); };
 
-  const actionIcons = (
-    <div className="flex items-center gap-1 flex-shrink-0">
-      <button onClick={save} className="text-[#22A06B] hover:bg-[#E5E7EB] rounded p-0.5 transition-colors" title="Save">
-        <CheckCircle size={18} />
-      </button>
-      <button onClick={() => { resetForm(); setShowForm(false); }} className="text-[#7B8FA5] hover:bg-[#E5E7EB] rounded p-0.5 transition-colors" title="Cancel">
-        <XCircle size={18} />
-      </button>
-    </div>
-  );
+  // Custom groups
+  const addCustomGroup = () => setCustomGroups((prev) => [...prev, { id: `cg-${cgIdRef.current++}`, name: '', items: [], order: orderRef.current++ }]);
+  const updateCustomGroup = (gid: string, patch: Partial<CustomGroup>) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, ...patch } : g)));
+  const removeCustomGroup = (gid: string) => setCustomGroups((prev) => prev.filter((g) => g.id !== gid));
+  const addCustomItem = (gid: string, data: { name: string; start: string; end: string; description: string }) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: [...g.items, { id: `ci-${ciIdRef.current++}`, ...data }] } : g)));
+  const updateCustomItem = (gid: string, iid: string, patch: Partial<CustomItem>) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: g.items.map((it) => (it.id === iid ? { ...it, ...patch } : it)) } : g)));
+  const removeCustomItem = (gid: string, iid: string) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: g.items.filter((it) => it.id !== iid) } : g)));
+
+  // Surface Down Time + Custom group windows to the Change Calendar.
+  // onScheduleEntriesChange must be stable (pass a useState setter) to avoid a render loop.
+  useEffect(() => {
+    if (!onScheduleEntriesChange) return;
+    const entries: CalendarScheduleEntry[] = [];
+    items.forEach((it) => {
+      if (it.start) entries.push({ start: it.start, id: `${it.id}-s`, group: 'Down Time', label: 'Downtime start', description: it.description, color: '#E5484D' });
+      if (it.end) entries.push({ start: it.end, id: `${it.id}-e`, group: 'Down Time', label: 'Downtime end', description: it.description, color: '#E5484D' });
+    });
+    customGroups.forEach((g) => {
+      const groupName = g.name.trim() || 'Custom Schedule';
+      g.items.forEach((it) => {
+        const itemName = it.name.trim();
+        if (it.start) entries.push({ start: it.start, id: `${it.id}-s`, group: groupName, label: itemName ? `${itemName} start` : 'Start', description: it.description, color: '#8B5CF6' });
+        if (it.end) entries.push({ start: it.end, id: `${it.id}-e`, group: groupName, label: itemName ? `${itemName} end` : 'End', description: it.description, color: '#8B5CF6' });
+      });
+    });
+    onScheduleEntriesChange(entries);
+  }, [items, customGroups, onScheduleEntriesChange]);
 
   const formFields = (
     <>
       <div className={`grid grid-cols-2 ${gridGap}`}>
-        <ScheduleDateField label="Start Date" required value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
-        <ScheduleDateField label="End Date" required value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
+        <ScheduleDateField label="Start Date" value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
+        <ScheduleDateField label="End Date" value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
       </div>
       <div className="mt-3">
         <div className="text-[12px] text-[#4A5568] mb-1.5">Description</div>
@@ -282,104 +466,162 @@ function DownTimesSection({ drawerWidth }: { drawerWidth: number }) {
     </>
   );
 
-  const addingNew = showForm && !editingId;
-
-  const switchEl = (
-    <div className="inline-flex items-center rounded-[6px] border border-[#DFE5ED] overflow-hidden text-[14px] font-medium">
-      <button
-        onClick={() => setAddType('downtime')}
-        className={`px-2.5 py-1 text-[14px] transition-colors ${addType === 'downtime' ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
-      >
-        Down Time
-      </button>
-      <button
-        onClick={() => setAddType('custom')}
-        className={`px-2.5 py-1 text-[14px] border-l border-[#DFE5ED] transition-colors ${addType === 'custom' ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
-      >
-        Custom
-      </button>
-    </div>
+  const downtimeForm = (
+    <>
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
+        <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+      </div>
+      {formFields}
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={!((draft.start && draft.end) || draft.description.trim())}
+          className={`px-3 py-2 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${((draft.start && draft.end) || draft.description.trim()) ? 'bg-[#3D8BD0] hover:bg-[#3578B5]' : 'bg-[#9DBEDC] cursor-not-allowed'}`}
+        >
+          <Plus className="size-3.5" />
+          Add Down Time
+        </button>
+        <button
+          onClick={cancelDownTimeForm}
+          className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </>
   );
 
-  return (
-    <div className="mt-4">
-      {/* Down Time heading — always at the top of the down time area */}
-      {(items.length > 0 || addingNew) && (
+  const addDownTimeButton = (
+    <button
+      onClick={openDownTimeForm}
+      className="text-[#3D8BD0] hover:text-[#2563EB] text-[13px] font-medium flex items-center gap-1.5 transition-colors"
+    >
+      <PlusCircle className="size-4" />
+      Add Down Time
+    </button>
+  );
+
+  const customButton = (
+    <button
+      onClick={addCustomGroup}
+      className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1.5"
+    >
+      <Settings2 className="size-3.5" />
+      Custom
+    </button>
+  );
+
+  // The Down Time group exists once it has entries or while its form is open.
+  const downtimeExists = items.length > 0 || showForm;
+
+  const downtimeBlock = (
+    <>
+      {items.length > 0 && (
         <>
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
-            <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+          {/* heading — remove icon clears the whole group */}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
+              <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+            </div>
+            <button
+              onClick={removeDownTimeGroup}
+              title="Remove all down time"
+              className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
           <p className="text-[12px] text-[#7B8FA5] mb-3">Define the downtime windows expected during this change.</p>
-        </>
-      )}
-      {items.map((it, i) => (
-        editingId === it.id ? (
-          <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[13px] font-medium text-[#364658]">{i + 1}</span>
-              {actionIcons}
-            </div>
-            {formFields}
-          </div>
-        ) : (
-          <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-[13px] font-medium text-[#364658]">{i + 1}</span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => editItem(it)} className="text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Edit">
-                  <Edit size={15} />
-                </button>
+
+          {/* Saved entries — directly editable; no edit icon needed */}
+          {items.map((it, i) => (
+            <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[13px] font-medium text-[#364658]">Down Time {i + 1}</span>
                 <button onClick={() => removeItem(it.id)} className="text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Remove">
                   <XCircle size={15} />
                 </button>
               </div>
+              {(it.start || it.end) && (
+                <div className={`grid grid-cols-2 ${gridGap}`}>
+                  <ScheduleDateField label="Start Date" value={it.start} onChange={(v) => updateItem(it.id, { start: v })} />
+                  <ScheduleDateField label="End Date" value={it.end} onChange={(v) => updateItem(it.id, { end: v })} />
+                </div>
+              )}
+              {it.description && (
+                <div className="mt-3">
+                  <AnalysisField
+                    label="Description"
+                    value={it.description}
+                    placeholder="No description added yet. Click the edit button to add details."
+                    onSave={(val) => updateItem(it.id, { description: val })}
+                  />
+                </div>
+              )}
             </div>
-            <div className={`grid grid-cols-2 ${gridGap}`}>
-              <div>
-                <div className="text-[12px] text-[#7B8FA5] mb-1">Start Date</div>
-                <div className="text-[13px] text-[#364658]">{formatScheduleDateLong(it.start)}</div>
-              </div>
-              <div>
-                <div className="text-[12px] text-[#7B8FA5] mb-1">End Date</div>
-                <div className="text-[13px] text-[#364658]">{formatScheduleDateLong(it.end)}</div>
-              </div>
-            </div>
-            {it.description && (
-              <div className="mt-3">
-                <div className="text-[12px] text-[#7B8FA5] mb-1">Description</div>
-                <div className="text-[13px] text-[#364658] whitespace-pre-wrap">{it.description}</div>
-              </div>
-            )}
-          </div>
-        )
-      ))}
-
-      {/* Adding a new entry — opens BELOW the saved entries */}
-      {addingNew && (
-        <div className={items.length > 0 ? 'border-t border-[#DFE5ED] pt-4' : ''}>
-          <div className="flex items-center justify-between gap-2 mb-3">
-            {switchEl}
-            {addType === 'downtime' && actionIcons}
-          </div>
-          {addType === 'downtime' ? (
-            formFields
-          ) : (
-            <div className="text-[13px] text-[#7B8FA5]">Custom configuration coming soon.</div>
-          )}
-        </div>
+          ))}
+        </>
       )}
 
-      {/* Add button (when no form is open) */}
-      {!showForm && !editingId && (
-        <div className={items.length > 0 ? 'border-t border-[#DFE5ED] pt-4' : ''}>
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
-          >
-            <Plus size={13} />
-            Add
-          </button>
+      {/* Add Down Time — form when open, button otherwise */}
+      {showForm ? (
+        <div className={items.length > 0 ? 'border-t border-[#EEF1F5] pt-4 mb-4' : 'mb-4'}>{downtimeForm}</div>
+      ) : items.length > 0 ? (
+        <div className="mb-4">{addDownTimeButton}</div>
+      ) : null}
+    </>
+  );
+
+  // Render all groups (Down Time + custom) in creation order.
+  const orderedBlocks: { key: string; order: number; node: React.ReactNode }[] = [];
+  if (downtimeExists) {
+    orderedBlocks.push({ key: 'downtime', order: downtimeOrder ?? 0, node: downtimeBlock });
+  }
+  customGroups.forEach((g) => {
+    orderedBlocks.push({
+      key: g.id,
+      order: g.order,
+      node: (
+        <CustomGroupBlock
+          group={g}
+          gridGap={gridGap}
+          onUpdateName={(name) => updateCustomGroup(g.id, { name })}
+          onRemoveGroup={() => removeCustomGroup(g.id)}
+          onAddItem={(data) => addCustomItem(g.id, data)}
+          onUpdateItem={(iid, patch) => updateCustomItem(g.id, iid, patch)}
+          onRemoveItem={(iid) => removeCustomItem(g.id, iid)}
+        />
+      ),
+    });
+  });
+  orderedBlocks.sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="mt-4">
+      {/* Groups in creation order, separated by a divider */}
+      {orderedBlocks.map((b, idx) => (
+        <div key={b.key} className={idx > 0 ? 'border-t border-[#DFE5ED] mt-8 pt-8' : ''}>
+          {b.node}
+        </div>
+      ))}
+
+      {/* ===== BOTTOM CONTROLS — Down Time (first) + Custom buttons ===== */}
+      {!showForm && (
+        <div className={orderedBlocks.length > 0 ? 'border-t border-[#DFE5ED] mt-8 pt-8' : ''}>
+          <div className="flex items-center gap-3">
+            {items.length === 0 && (
+              <button
+                onClick={openDownTimeForm}
+                className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1.5"
+              >
+                <Clock className="size-3.5" />
+                Down Time
+              </button>
+            )}
+            {customButton}
+          </div>
         </div>
       )}
     </div>
@@ -413,6 +655,8 @@ export function ChangeDrawer({
   const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
   const [actualRolloutStart, setActualRolloutStart] = useState('');
   const [actualRolloutEnd, setActualRolloutEnd] = useState('');
+  // Down Time + Custom group schedule windows, surfaced up from the Rollout Plan for the Change Calendar.
+  const [extraScheduleEntries, setExtraScheduleEntries] = useState<CalendarScheduleEntry[]>([]);
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -5247,7 +5491,7 @@ export function ChangeDrawer({
 
                   {/* Rollout additions (Down Time / Custom) */}
                   <div className="mt-8">
-                    <DownTimesSection drawerWidth={drawerWidth} />
+                    <DownTimesSection drawerWidth={drawerWidth} onScheduleEntriesChange={setExtraScheduleEntries} />
                   </div>
                 </div>
 
@@ -5526,6 +5770,16 @@ export function ChangeDrawer({
           <TicketPropertiesPanel
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
+            showChangeCalendar={true}
+            changeCalendarEvents={[
+              ...(changeScheduleStart ? [{ start: changeScheduleStart, id: `${activeChange?.id || 'chg'}-cs-s`, group: 'Change Schedule', label: 'Scheduled start', description: analysis.impact, color: '#3D8BD0' }] : []),
+              ...(changeScheduleEnd ? [{ start: changeScheduleEnd, id: `${activeChange?.id || 'chg'}-cs-e`, group: 'Change Schedule', label: 'Scheduled end', description: analysis.impact, color: '#3D8BD0' }] : []),
+              ...(plannedRolloutStart ? [{ start: plannedRolloutStart, id: `${activeChange?.id || 'chg'}-pr-s`, group: 'Planned Rollout', label: 'Rollout start', description: analysis.rolloutPlan, color: '#22A06B' }] : []),
+              ...(plannedRolloutEnd ? [{ start: plannedRolloutEnd, id: `${activeChange?.id || 'chg'}-pr-e`, group: 'Planned Rollout', label: 'Rollout end', description: analysis.rolloutPlan, color: '#22A06B' }] : []),
+              ...(actualRolloutStart ? [{ start: actualRolloutStart, id: `${activeChange?.id || 'chg'}-ar-s`, group: 'Actual Rollout', label: 'Rollout start', description: analysis.rolloutPlan, color: '#0EA5E9' }] : []),
+              ...(actualRolloutEnd ? [{ start: actualRolloutEnd, id: `${activeChange?.id || 'chg'}-ar-e`, group: 'Actual Rollout', label: 'Rollout end', description: analysis.rolloutPlan, color: '#0EA5E9' }] : []),
+              ...extraScheduleEntries,
+            ]}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

@@ -1,9 +1,10 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
+import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
 import { Minus, X as XIcon, Send, Image, Smile } from 'lucide-react';
 
@@ -14,6 +15,12 @@ interface TicketPropertiesPanelProps {
   showProblemFields?: boolean;
   // Optional header shown above the Status dropdown options (e.g. the current lifecycle stage)
   statusGroupLabel?: string;
+  // Show the Change Calendar (Change detail page only), rendered under SLA Status
+  showChangeCalendar?: boolean;
+  // Schedule entries for the change currently open (shown in the Change Calendar)
+  changeCalendarEvents?: CalendarEvent[];
+  // Calendar section title (e.g. "Change Calendar" or "Release Calendar")
+  changeCalendarTitle?: string;
   // State
   activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot';
   setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot') => void;
@@ -282,6 +289,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
     statusGroupLabel,
+    showChangeCalendar = false,
+    changeCalendarEvents,
+    changeCalendarTitle = 'Change Calendar',
     requesterName,
     activeGroup,
     setActiveGroup,
@@ -506,19 +516,26 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [isChatbotClosing, setIsChatbotClosing] = useState(false); // Track closing animation
   const [isChatbotOpening, setIsChatbotOpening] = useState(false); // Track opening animation
   const [showCustomizeModal, setShowCustomizeModal] = useState(false); // Track customize layout modal
+  // Change detail page gets its own order (with the Change Calendar) so it doesn't leak to other modules
+  const sectionStorageKey = showChangeCalendar ? 'changePropertiesSectionOrder' : 'ticketPropertiesSectionOrder';
+  const defaultSectionOrder = showChangeCalendar
+    ? ['Change Calendar', 'Ticket Fields', 'Requester Information', 'Additional Fields']
+    : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ticketPropertiesSectionOrder');
+      const saved = localStorage.getItem(sectionStorageKey);
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed: string[] = JSON.parse(saved);
+          if (showChangeCalendar && !parsed.includes('Change Calendar')) parsed.unshift('Change Calendar');
+          return parsed;
         } catch (e) {
-          return ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+          return defaultSectionOrder;
         }
       }
     }
-    return ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+    return defaultSectionOrder;
   }); // Track section order
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // Track dragged item
 
@@ -787,9 +804,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Save section order to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('ticketPropertiesSectionOrder', JSON.stringify(sectionOrder));
+      localStorage.setItem(sectionStorageKey, JSON.stringify(sectionOrder));
     }
-  }, [sectionOrder]);
+  }, [sectionOrder, sectionStorageKey]);
 
   // Typing animation effect
   useEffect(() => {
@@ -1299,6 +1316,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
         {/* Reorderable Sections */}
         {sectionOrder.map((section) => {
+          if (section === 'Change Calendar') {
+            return showChangeCalendar ? <MiniCalendar key="change-calendar" events={changeCalendarEvents} title={changeCalendarTitle} /> : null;
+          }
           if (section === 'Ticket Fields' && hasTicketFieldsMatch()) {
             return (
         <TicketFieldsAccordion
@@ -3036,14 +3056,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   >
                     <div className="flex items-center gap-3">
                       <GripVertical size={16} className="text-[#7B8FA5] cursor-grab active:cursor-grabbing" />
-                      {section === 'Ticket Fields' ? (
+                      {section === 'Change Calendar' ? (
+                        <CalendarDays size={16} className="text-[#364658]" />
+                      ) : section === 'Ticket Fields' ? (
                         <FileText size={16} className="text-[#364658]" />
                       ) : section === 'Requester Information' ? (
                         <User size={16} className="text-[#364658]" />
                       ) : (
                         <Tag size={16} className="text-[#364658]" />
                       )}
-                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section}</span>
+                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section === 'Change Calendar' ? changeCalendarTitle : section}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -3085,7 +3107,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {/* Footer */}
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB]">
               <button
-                onClick={() => setSectionOrder(['Ticket Fields', 'Requester Information', 'Additional Fields'])}
+                onClick={() => setSectionOrder(defaultSectionOrder)}
                 className="px-4 py-2 text-[13px] text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded-md transition-colors"
               >
                 Reset to Default

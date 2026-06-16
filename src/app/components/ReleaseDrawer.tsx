@@ -6,10 +6,10 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import type { Change } from './ReleaseListPage';
+import type { Release } from './ReleaseListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -34,6 +34,7 @@ import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { ReleaseActionsMenu } from './ReleaseActionsMenu';
+import { ReleaseStagesShowcase } from './ReleaseStagesShowcase';
 import { ConversationEmptyState } from './ConversationEmptyState';
 import { ReplyEditor } from './ReplyEditor';
 import { BlankTicketConversationView } from './BlankTicketConversationView';
@@ -159,6 +160,474 @@ function AnalysisField({ label, value, placeholder, onSave }: AnalysisFieldProps
   );
 }
 
+/** Format a datetime-local value ("2026-06-09T23:10") as "09/06/2026 11:10 PM". */
+function formatScheduleDate(v: string) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  let h = d.getHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
+}
+
+interface ScheduleDateFieldProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+}
+
+function ScheduleDateField({ label, value, onChange, required }: ScheduleDateFieldProps) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <div className="text-[12px] text-[#4A5568] mb-1.5">{label}{required && <span className="text-[#E5484D] ml-0.5">*</span>}</div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => { const el = ref.current as any; el?.showPicker ? el.showPicker() : el?.focus(); }}
+          className="w-full pl-3 pr-9 py-2 text-[13px] text-left border border-[#DFE5ED] rounded-md bg-white hover:border-[#3D8BD0] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+        >
+          <span className={value ? 'text-[#364658]' : 'text-[#9CA3AF]'}>{value ? formatScheduleDate(value) : 'Select'}</span>
+        </button>
+        <Clock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-[#7B8FA5] pointer-events-none" />
+        <input
+          ref={ref}
+          type="datetime-local"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
+          tabIndex={-1}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface DownTime {
+  id: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+interface CustomItem {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+interface CustomGroup {
+  id: string;
+  name: string;
+  items: CustomItem[];
+  order: number;
+}
+
+/** Schedule entry surfaced to the Change Calendar (shape matches MiniCalendar's CalendarEvent). */
+interface CalendarScheduleEntry {
+  start: string;
+  id: string;
+  group: string;
+  label?: string;
+  description?: string;
+  color?: string;
+}
+
+/** A user-defined custom group — editable group name and editable sub-entry names,
+    each with start/end dates and a description (mirrors the Down Time group). */
+function CustomGroupBlock({
+  group,
+  gridGap,
+  onUpdateName,
+  onRemoveGroup,
+  onAddItem,
+  onUpdateItem,
+  onRemoveItem,
+}: {
+  group: CustomGroup;
+  gridGap: string;
+  onUpdateName: (name: string) => void;
+  onRemoveGroup: () => void;
+  onAddItem: (data: { name: string; start: string; end: string; description: string }) => void;
+  onUpdateItem: (itemId: string, patch: Partial<CustomItem>) => void;
+  onRemoveItem: (itemId: string) => void;
+}) {
+  const [draft, setDraft] = useState({ name: '', start: '', end: '', description: '' });
+  const [showForm, setShowForm] = useState(group.items.length === 0);
+  const addLabel = group.name.trim() ? group.name.trim() : 'Item';
+
+  const suggestedName = `${addLabel} ${group.items.length + 1}`;
+
+  const saveDraft = () => {
+    if (!((draft.start && draft.end) || draft.description.trim())) return; // need both dates or a description
+    onAddItem({ ...draft, name: draft.name.trim() || suggestedName });
+    setDraft({ name: '', start: '', end: '', description: '' });
+    setShowForm(false);
+  };
+
+  return (
+    <div>
+      {/* Group heading — editable name + remove-group */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Settings2 className="size-4 text-[#3D8BD0] flex-shrink-0" />
+          <input
+            value={group.name}
+            onChange={(e) => onUpdateName(e.target.value)}
+            placeholder="Group name"
+            className="flex-1 min-w-0 text-[14px] font-semibold text-[#364658] bg-transparent border-b border-transparent hover:border-[#DFE5ED] focus:border-[#3D8BD0] focus:outline-none placeholder:text-[#9CA3AF] placeholder:font-normal"
+          />
+        </div>
+        <button onClick={onRemoveGroup} title="Remove group" className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors">
+          <Trash2 size={16} />
+        </button>
+      </div>
+      <p className="text-[12px] text-[#7B8FA5] mb-3">Define the custom schedule windows for this release.</p>
+
+      {/* Saved sub-entries — editable name + dates; description shows as a card only when set */}
+      {group.items.map((it, i) => (
+        <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <input
+              value={it.name}
+              onChange={(e) => onUpdateItem(it.id, { name: e.target.value })}
+              placeholder={`${addLabel} ${i + 1}`}
+              className="flex-1 min-w-0 text-[13px] font-medium text-[#364658] bg-transparent border-b border-transparent hover:border-[#DFE5ED] focus:border-[#3D8BD0] focus:outline-none placeholder:text-[#9CA3AF] placeholder:font-normal"
+            />
+            <button onClick={() => onRemoveItem(it.id)} className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Remove">
+              <XCircle size={15} />
+            </button>
+          </div>
+          {(it.start || it.end) && (
+            <div className={`grid grid-cols-2 ${gridGap}`}>
+              <ScheduleDateField label="Start Date" value={it.start} onChange={(v) => onUpdateItem(it.id, { start: v })} />
+              <ScheduleDateField label="End Date" value={it.end} onChange={(v) => onUpdateItem(it.id, { end: v })} />
+            </div>
+          )}
+          {it.description && (
+            <div className="mt-3">
+              <AnalysisField
+                label="Description"
+                value={it.description}
+                placeholder="No description added yet. Click the edit button to add details."
+                onSave={(val) => onUpdateItem(it.id, { description: val })}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Add-entry form (textarea description) OR the Add button */}
+      {showForm ? (
+        <div className={`${group.items.length > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+          <div className="mb-3">
+            <div className="text-[12px] text-[#4A5568] mb-1.5">Subgroup Name</div>
+            <input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder={suggestedName}
+              className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white placeholder:text-[#9CA3AF]"
+            />
+          </div>
+          <div className={`grid grid-cols-2 ${gridGap}`}>
+            <ScheduleDateField label="Start Date" value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
+            <ScheduleDateField label="End Date" value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
+          </div>
+          <div className="mt-3">
+            <div className="text-[12px] text-[#4A5568] mb-1.5">Description</div>
+            <textarea
+              value={draft.description}
+              onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+              placeholder="Description..."
+              className="w-full min-h-[72px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white resize-y placeholder:text-[#9CA3AF]"
+            />
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={saveDraft}
+              disabled={!((draft.start && draft.end) || draft.description.trim())}
+              className={`px-3 py-2 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${((draft.start && draft.end) || draft.description.trim()) ? 'bg-[#3D8BD0] hover:bg-[#3578B5]' : 'bg-[#9DBEDC] cursor-not-allowed'}`}
+            >
+              <Plus className="size-3.5" />
+              Add {addLabel}
+            </button>
+            <button
+              onClick={() => {
+                if (group.items.length === 0) {
+                  onRemoveGroup(); // dismiss the empty group entirely
+                } else {
+                  setDraft({ name: '', start: '', end: '', description: '' });
+                  setShowForm(false);
+                }
+              }}
+              className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4">
+          <button onClick={() => setShowForm(true)} className="text-[#3D8BD0] hover:text-[#2563EB] text-[13px] font-medium flex items-center gap-1.5 transition-colors">
+            <PlusCircle className="size-4" />
+            Add {addLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Down Times manager — add downtime windows under the Rollout Plan.
+    Saved entries are edited inline; the "+" icon opens a form to add more. */
+function DownTimesSection({ drawerWidth, onScheduleEntriesChange }: { drawerWidth: number; onScheduleEntriesChange?: (entries: CalendarScheduleEntry[]) => void }) {
+  const [items, setItems] = useState<DownTime[]>([]);
+  const [draft, setDraft] = useState({ start: '', end: '', description: '' });
+  const [showForm, setShowForm] = useState(false);
+  const [customGroups, setCustomGroups] = useState<CustomGroup[]>([]);
+  const [downtimeOrder, setDowntimeOrder] = useState<number | null>(null);
+  const idRef = useRef(1);
+  const cgIdRef = useRef(1);
+  const ciIdRef = useRef(1);
+  const orderRef = useRef(1); // shared sequence so groups render in creation order
+  const gridGap = drawerWidth > 1080 ? 'gap-6' : 'gap-3';
+
+  const resetForm = () => setDraft({ start: '', end: '', description: '' });
+
+  const save = () => {
+    if (!((draft.start && draft.end) || draft.description.trim())) return; // need both dates or a description
+    setItems((prev) => [...prev, { id: `dt-${idRef.current++}`, ...draft }]);
+    resetForm();
+    setShowForm(false);
+  };
+
+  const updateItem = (id: string, patch: Partial<DownTime>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
+  const openDownTimeForm = () => {
+    setShowForm(true);
+    setDowntimeOrder((o) => (o === null ? orderRef.current++ : o));
+  };
+  const removeDownTimeGroup = () => { setItems([]); resetForm(); setShowForm(false); setDowntimeOrder(null); };
+  const cancelDownTimeForm = () => { resetForm(); setShowForm(false); if (items.length === 0) setDowntimeOrder(null); };
+
+  // Custom groups
+  const addCustomGroup = () => setCustomGroups((prev) => [...prev, { id: `cg-${cgIdRef.current++}`, name: '', items: [], order: orderRef.current++ }]);
+  const updateCustomGroup = (gid: string, patch: Partial<CustomGroup>) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, ...patch } : g)));
+  const removeCustomGroup = (gid: string) => setCustomGroups((prev) => prev.filter((g) => g.id !== gid));
+  const addCustomItem = (gid: string, data: { name: string; start: string; end: string; description: string }) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: [...g.items, { id: `ci-${ciIdRef.current++}`, ...data }] } : g)));
+  const updateCustomItem = (gid: string, iid: string, patch: Partial<CustomItem>) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: g.items.map((it) => (it.id === iid ? { ...it, ...patch } : it)) } : g)));
+  const removeCustomItem = (gid: string, iid: string) =>
+    setCustomGroups((prev) => prev.map((g) => (g.id === gid ? { ...g, items: g.items.filter((it) => it.id !== iid) } : g)));
+
+  // Surface Down Time + Custom group windows to the Change Calendar.
+  // onScheduleEntriesChange must be stable (pass a useState setter) to avoid a render loop.
+  useEffect(() => {
+    if (!onScheduleEntriesChange) return;
+    const entries: CalendarScheduleEntry[] = [];
+    items.forEach((it) => {
+      if (it.start) entries.push({ start: it.start, id: `${it.id}-s`, group: 'Down Time', label: 'Downtime start', description: it.description, color: '#E5484D' });
+      if (it.end) entries.push({ start: it.end, id: `${it.id}-e`, group: 'Down Time', label: 'Downtime end', description: it.description, color: '#E5484D' });
+    });
+    customGroups.forEach((g) => {
+      const groupName = g.name.trim() || 'Custom Schedule';
+      g.items.forEach((it) => {
+        const itemName = it.name.trim();
+        if (it.start) entries.push({ start: it.start, id: `${it.id}-s`, group: groupName, label: itemName ? `${itemName} start` : 'Start', description: it.description, color: '#8B5CF6' });
+        if (it.end) entries.push({ start: it.end, id: `${it.id}-e`, group: groupName, label: itemName ? `${itemName} end` : 'End', description: it.description, color: '#8B5CF6' });
+      });
+    });
+    onScheduleEntriesChange(entries);
+  }, [items, customGroups, onScheduleEntriesChange]);
+
+  const formFields = (
+    <>
+      <div className={`grid grid-cols-2 ${gridGap}`}>
+        <ScheduleDateField label="Start Date" value={draft.start} onChange={(v) => setDraft((d) => ({ ...d, start: v }))} />
+        <ScheduleDateField label="End Date" value={draft.end} onChange={(v) => setDraft((d) => ({ ...d, end: v }))} />
+      </div>
+      <div className="mt-3">
+        <div className="text-[12px] text-[#4A5568] mb-1.5">Description</div>
+        <textarea
+          value={draft.description}
+          onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+          placeholder="Description..."
+          className="w-full min-h-[72px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:border-[#3D8BD0] bg-white resize-y placeholder:text-[#9CA3AF]"
+        />
+      </div>
+    </>
+  );
+
+  const downtimeForm = (
+    <>
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
+        <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+      </div>
+      {formFields}
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={!((draft.start && draft.end) || draft.description.trim())}
+          className={`px-3 py-2 text-white text-[13px] font-medium rounded-lg transition-colors flex items-center gap-1.5 ${((draft.start && draft.end) || draft.description.trim()) ? 'bg-[#3D8BD0] hover:bg-[#3578B5]' : 'bg-[#9DBEDC] cursor-not-allowed'}`}
+        >
+          <Plus className="size-3.5" />
+          Add Down Time
+        </button>
+        <button
+          onClick={cancelDownTimeForm}
+          className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </>
+  );
+
+  const addDownTimeButton = (
+    <button
+      onClick={openDownTimeForm}
+      className="text-[#3D8BD0] hover:text-[#2563EB] text-[13px] font-medium flex items-center gap-1.5 transition-colors"
+    >
+      <PlusCircle className="size-4" />
+      Add Down Time
+    </button>
+  );
+
+  const customButton = (
+    <button
+      onClick={addCustomGroup}
+      className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1.5"
+    >
+      <Settings2 className="size-3.5" />
+      Custom
+    </button>
+  );
+
+  // The Down Time group exists once it has entries or while its form is open.
+  const downtimeExists = items.length > 0 || showForm;
+
+  const downtimeBlock = (
+    <>
+      {items.length > 0 && (
+        <>
+          {/* heading — remove icon clears the whole group */}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-[#3D8BD0] flex-shrink-0" />
+              <h3 className="text-[14px] font-semibold text-[#364658]">Down Time</h3>
+            </div>
+            <button
+              onClick={removeDownTimeGroup}
+              title="Remove all down time"
+              className="flex-shrink-0 text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <p className="text-[12px] text-[#7B8FA5] mb-3">Define the downtime windows expected during this release.</p>
+
+          {/* Saved entries — directly editable; no edit icon needed */}
+          {items.map((it, i) => (
+            <div key={it.id} className={`${i > 0 ? 'border-t border-[#EEF1F5] pt-4' : ''} mb-4`}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[13px] font-medium text-[#364658]">Down Time {i + 1}</span>
+                <button onClick={() => removeItem(it.id)} className="text-[#7B8FA5] hover:text-[#E5484D] hover:bg-[#F3F4F6] rounded p-1 transition-colors" title="Remove">
+                  <XCircle size={15} />
+                </button>
+              </div>
+              {(it.start || it.end) && (
+                <div className={`grid grid-cols-2 ${gridGap}`}>
+                  <ScheduleDateField label="Start Date" value={it.start} onChange={(v) => updateItem(it.id, { start: v })} />
+                  <ScheduleDateField label="End Date" value={it.end} onChange={(v) => updateItem(it.id, { end: v })} />
+                </div>
+              )}
+              {it.description && (
+                <div className="mt-3">
+                  <AnalysisField
+                    label="Description"
+                    value={it.description}
+                    placeholder="No description added yet. Click the edit button to add details."
+                    onSave={(val) => updateItem(it.id, { description: val })}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Add Down Time — form when open, button otherwise */}
+      {showForm ? (
+        <div className={items.length > 0 ? 'border-t border-[#EEF1F5] pt-4 mb-4' : 'mb-4'}>{downtimeForm}</div>
+      ) : items.length > 0 ? (
+        <div className="mb-4">{addDownTimeButton}</div>
+      ) : null}
+    </>
+  );
+
+  // Render all groups (Down Time + custom) in creation order.
+  const orderedBlocks: { key: string; order: number; node: React.ReactNode }[] = [];
+  if (downtimeExists) {
+    orderedBlocks.push({ key: 'downtime', order: downtimeOrder ?? 0, node: downtimeBlock });
+  }
+  customGroups.forEach((g) => {
+    orderedBlocks.push({
+      key: g.id,
+      order: g.order,
+      node: (
+        <CustomGroupBlock
+          group={g}
+          gridGap={gridGap}
+          onUpdateName={(name) => updateCustomGroup(g.id, { name })}
+          onRemoveGroup={() => removeCustomGroup(g.id)}
+          onAddItem={(data) => addCustomItem(g.id, data)}
+          onUpdateItem={(iid, patch) => updateCustomItem(g.id, iid, patch)}
+          onRemoveItem={(iid) => removeCustomItem(g.id, iid)}
+        />
+      ),
+    });
+  });
+  orderedBlocks.sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="mt-4">
+      {/* Groups in creation order, separated by a divider */}
+      {orderedBlocks.map((b, idx) => (
+        <div key={b.key} className={idx > 0 ? 'border-t border-[#DFE5ED] mt-8 pt-8' : ''}>
+          {b.node}
+        </div>
+      ))}
+
+      {/* ===== BOTTOM CONTROLS — Down Time (first) + Custom buttons ===== */}
+      {!showForm && (
+        <div className={orderedBlocks.length > 0 ? 'border-t border-[#DFE5ED] mt-8 pt-8' : ''}>
+          <div className="flex items-center gap-3">
+            {items.length === 0 && (
+              <button
+                onClick={openDownTimeForm}
+                className="px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1.5"
+              >
+                <Clock className="size-3.5" />
+                Down Time
+              </button>
+            )}
+            {customButton}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ReleaseDrawer({
   openReleases,
   activeReleaseId,
@@ -166,7 +635,10 @@ export function ReleaseDrawer({
   onCloseTab,
   onTabChange
 }: ReleaseDrawerProps) {
-  const activeRelease = openReleases.find(c => c.id === activeReleaseId);
+  // Alias release props to the internal change-based names so the cloned body works unchanged
+  const openChanges = openReleases;
+  const activeChangeId = activeReleaseId;
+  const activeChange = openChanges.find(c => c.id === activeChangeId);
   const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
@@ -178,7 +650,16 @@ export function ReleaseDrawer({
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
-  const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
+  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '' });
+  // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
+  const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
+  const [changeScheduleEnd, setChangeScheduleEnd] = useState('');
+  const [plannedRolloutStart, setPlannedRolloutStart] = useState('');
+  const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
+  const [actualRolloutStart, setActualRolloutStart] = useState('');
+  const [actualRolloutEnd, setActualRolloutEnd] = useState('');
+  // Down Time + Custom group schedule windows, surfaced up from the Rollout Plan for the Change Calendar.
+  const [extraScheduleEntries, setExtraScheduleEntries] = useState<CalendarScheduleEntry[]>([]);
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -198,11 +679,11 @@ export function ReleaseDrawer({
   
   // Approvals count - based on ticket ID
   const getApprovalsCount = (ticketId: string | undefined) => {
-    if (ticketId === 'REL-56') return 0; // Blank ticket has no approvals
-    if (ticketId === 'REL-37') return 1; // INC-35 has 1 approval (filtered)
+    if (ticketId === 'CHG-993') return 0; // Blank ticket has no approvals
+    if (ticketId === 'CHG-976') return 1; // INC-35 has 1 approval (filtered)
     return 2; // Other tickets have 2 approvals
   };
-  const approvalsCount = getApprovalsCount(activeRelease?.id);
+  const approvalsCount = getApprovalsCount(activeChange?.id);
   
   // Mock watchers data
   const watchers = mockWatchers;
@@ -370,8 +851,8 @@ export function ReleaseDrawer({
   
   // Check if this is the blank ticket (INC-32 or INC-35)
   // But also check if there are any conversations - if there are, show them instead of empty state
-  const hasConversationsForTicket = sentConversations.some(c => c.ticketId === activeReleaseId);
-  const isBlankTicket = (activeRelease?.id === 'REL-56' || activeRelease?.id === 'REL-37') && !hasConversationsForTicket;
+  const hasConversationsForTicket = sentConversations.some(c => c.ticketId === activeChangeId);
+  const isBlankTicket = (activeChange?.id === 'CHG-993' || activeChange?.id === 'CHG-976') && !hasConversationsForTicket;
   
   // Edit Service Request Item State
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -413,6 +894,35 @@ export function ReleaseDrawer({
   
   // Selected Values
   const [selectedStatus, setSelectedStatus] = useState('Open');
+
+  // The Status dropdown is scoped to the CURRENT lifecycle stage: it shows the stage
+  // name as a header and only that stage's sub-status options. Selecting one sets
+  // "<Stage>: <Sub>", which keeps the stage bar in sync.
+  const changeStageStatus = (() => {
+    const stages = [
+      { label: 'Submitted',  opts: [['Requested', '#3D8BD0'], ['Accepted', '#22A06B'], ['Rejected', '#E5484D']] },
+      { label: 'Planning',   opts: [['In Progress', '#F59E0B'], ['Cancelled', '#E5484D'], ['Completed', '#22A06B']] },
+      { label: 'Approval',   opts: [['Pending', '#F59E0B'], ['Approved', '#22A06B'], ['Rejected', '#E5484D']] },
+      { label: 'Build',      opts: [['In Progress', '#F59E0B'], ['Completed', '#22A06B']] },
+      { label: 'Testing',    opts: [['In Progress', '#F59E0B'], ['Passed', '#22A06B'], ['Failed', '#E5484D']] },
+      { label: 'Deployment', opts: [['In Progress', '#F59E0B'], ['Completed', '#22A06B']] },
+      { label: 'In Review',  opts: [['In Progress', '#F59E0B'], ['Passed', '#22A06B'], ['Failed', '#E5484D']] },
+      { label: 'Closed',     opts: [['Closed', '#6B7280'], ['Cancelled', '#E5484D']] },
+    ];
+    const s = (selectedStatus || '').toLowerCase();
+    let idx = stages.findIndex((st) => s.startsWith(st.label.toLowerCase()));
+    if (idx === -1) {
+      if (s.startsWith('review')) idx = 6;
+      else if (s.startsWith('completed')) idx = 7;
+      else idx = 1; // default to Planning
+    }
+    const stage = stages[idx];
+    return {
+      label: stage.label,
+      options: stage.opts.map(([sub, color]) => ({ label: `${stage.label}: ${sub}`, display: sub, color })),
+    };
+  })();
+
   const [selectedPriority, setSelectedPriority] = useState('Medium');
   const [selectedAssignee, setSelectedAssignee] = useState('Sarah Johnson');
   const [selectedTechGroup, setSelectedTechGroup] = useState('IT Support Team');
@@ -722,7 +1232,7 @@ export function ReleaseDrawer({
   };
 
   const handleAddPropertiesRelations = () => {
-    if (!activeRelease) return;
+    if (!activeChange) return;
     
     // Get the available tickets to add as relations
     const availableTickets = getPropertiesRelationMockTickets(propertiesRelationType);
@@ -744,7 +1254,7 @@ export function ReleaseDrawer({
     // Add relations to the current ticket
     setTicketRelations(prev => ({
       ...prev,
-      [activeRelease.id]: [...(prev[activeRelease.id] || []), ...newRelations]
+      [activeChange.id]: [...(prev[activeChange.id] || []), ...newRelations]
     }));
     
     // Switch to the Relations tab after adding relations
@@ -760,19 +1270,19 @@ export function ReleaseDrawer({
   // Onboarding - shows once per session, resets on page refresh
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
-    if (!hasSeenOnboarding && activeReleaseId) {
+    if (!hasSeenOnboarding && activeChangeId) {
       setActiveGroup('properties'); // Open ticket properties by default for first-time users
       setTimeout(() => setShowOnboarding(true), 500);
     }
-  }, [activeReleaseId]);
+  }, [activeChangeId]);
 
   // Reset to properties when ticket changes (only after onboarding is complete)
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
-    if (hasSeenOnboarding && activeReleaseId) {
+    if (hasSeenOnboarding && activeChangeId) {
       setActiveGroup('properties');
     }
-  }, [activeReleaseId]);
+  }, [activeChangeId]);
 
   const handleOnboardingComplete = () => {
     sessionStorage.setItem('hasSeenTicketDetailsOnboarding', 'true');
@@ -807,22 +1317,22 @@ export function ReleaseDrawer({
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
       
-      if (activeRelease?.id === 'REL-37') {
+      if (activeChange?.id === 'CHG-976') {
         allTabs = [...baseTabsForINC35];
       } else {
         allTabs = [...baseTabsForOthers];
       }
       
       // Add Approvals tab if not INC-32
-      if (activeRelease?.id !== 'REL-56') {
+      if (activeChange?.id !== 'CHG-993') {
         // Insert approvals after tasks
         const tasksIndex = allTabs.indexOf('tasks');
         allTabs.splice(tasksIndex + 1, 0, 'approvals');
       }
       
       // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
-      const shouldShowRelations = activeRelease?.id !== 'REL-56' || 
-                                  (activeRelease?.id && ticketRelations[activeRelease.id]?.length > 0);
+      const shouldShowRelations = activeChange?.id !== 'CHG-993' || 
+                                  (activeChange?.id && ticketRelations[activeChange.id]?.length > 0);
       if (shouldShowRelations) {
         // Insert relations after approvals (if exists) or tasks
         const approvalsIndex = allTabs.indexOf('approvals');
@@ -848,7 +1358,7 @@ export function ReleaseDrawer({
         'approvals': 85,
         'relations': 80,
         'audit': 100,
-        'resolution': 160
+        'resolution': 90
       };
 
       const availableWidth = containerWidth - paddingLeft - paddingRight;
@@ -882,7 +1392,7 @@ export function ReleaseDrawer({
     setTimeout(calculateTabOverflow, 0);
     window.addEventListener('resize', calculateTabOverflow);
     return () => window.removeEventListener('resize', calculateTabOverflow);
-  }, [activeRelease?.id, drawerWidth, ticketRelations]);
+  }, [activeChange?.id, drawerWidth, ticketRelations]);
 
   // Click outside handler for More dropdown
   useEffect(() => {
@@ -1048,35 +1558,30 @@ export function ReleaseDrawer({
 
   // Set default tab based on ticket type
   useEffect(() => {
-    if (activeRelease?.id === 'REL-37') {
+    if (activeChange?.id === 'CHG-976') {
       setActiveMainTab('service-request');
-    } else if (activeRelease?.id === 'REL-20') {
-      // REL-20 is a completed/closed release, open to Analysis & Resolution with pre-filled data
+    } else if (activeChange?.id === 'CHG-969') {
+      // CHG-969 is a completed/closed change, open to Resolution tab with pre-filled data
       setActiveMainTab('resolution');
       setAnalysis({
-        rootCause: "The previous backup and recovery process had not been validated end-to-end, leaving uncertainty about whether production data could be restored within the required recovery objectives.",
-        symptoms: "Backup jobs were completing successfully, but restore drills were inconsistent and recovery time was unverified against the documented RTO/RPO targets.",
-        impact: "Risk of extended downtime and potential data loss in a disaster scenario until the backup and recovery procedure was validated across all critical databases.",
-        workaround: "Maintained manual off-site backups and a documented manual restore runbook while the automated backup/recovery validation release was prepared and tested."
+        impact: "Customer-facing web application availability was at risk and the application was exposed to emerging threats until the WAF rule set was tuned and re-enabled in blocking mode.",
+        rolloutPlan: "Refine the false-positive WAF rules, update signatures to the latest OWASP CRS, and re-enable blocking mode in a monitored window. Validate that legitimate traffic passes cleanly and known attack patterns are blocked.",
+        backoutPlan: "If legitimate traffic is blocked or errors spike after cutover, revert the WAF rules to the previous detection-only configuration from the saved snapshot and re-open analysis."
       });
-      setSolutionData({
-        content: 'Deployed the database backup and recovery validation release: automated restore drills were run against all critical databases, recovery time and recovery point were measured and confirmed within target, and the validated runbook was published. Backups and restores are now verified end-to-end.',
-        timestamp: new Date(2024, 9, 1, 15, 45).toISOString()
-      });
-    } else if (activeRelease) {
+    } else if (activeChange) {
       setActiveMainTab('resolution');
     }
-  }, [activeRelease?.id]);
+  }, [activeChange?.id]);
 
   // Update ticket fields when active ticket changes
   useEffect(() => {
-    if (activeRelease) {
+    if (activeChange) {
       // Update status to match the actual ticket status
-      setSelectedStatus(activeRelease.status);
+      setSelectedStatus(activeChange.status);
       // Update priority to match the actual ticket priority
-      setSelectedPriority(activeRelease.priority);
+      setSelectedPriority(activeChange.priority);
     }
-  }, [activeRelease?.id, activeRelease?.status, activeRelease?.priority]);
+  }, [activeChange?.id, activeChange?.status, activeChange?.priority]);
 
   // Auto-expand accordions when switching to activity group
   useEffect(() => {
@@ -1185,7 +1690,7 @@ export function ReleaseDrawer({
     // Create new conversation entry
     const newConversation = {
       id: `sent-${Date.now()}`,
-      ticketId: activeReleaseId, // Associate with the current active ticket
+      ticketId: activeChangeId, // Associate with the current active ticket
       author: 'Arnav Desai', // Current user - in production this would come from auth
       authorInitials: 'AD',
       authorColor: '#E67E22',
@@ -1234,7 +1739,7 @@ export function ReleaseDrawer({
     // Create new note conversation entry
     const newConversation = {
       id: `sent-${Date.now()}`,
-      ticketId: activeReleaseId,
+      ticketId: activeChangeId,
       author: 'Arnav Desai',
       authorInitials: 'AD',
       authorColor: '#E67E22',
@@ -1262,7 +1767,7 @@ export function ReleaseDrawer({
     // Create new collaborate conversation entry
     const newConversation = {
       id: `sent-${Date.now()}`,
-      ticketId: activeReleaseId,
+      ticketId: activeChangeId,
       author: 'Arnav Desai',
       authorInitials: 'AD',
       authorColor: '#E67E22',
@@ -1392,16 +1897,16 @@ export function ReleaseDrawer({
 
   // Reset drawer width to full width only when drawer first opens (not when switching tickets)
   useEffect(() => {
-    if (openReleases.length > 0 && !hasDrawerBeenInitialized) {
+    if (openChanges.length > 0 && !hasDrawerBeenInitialized) {
       setDrawerWidth(window.innerWidth - 54);
       setIsAccordionCollapsed(false);
       setAccordionWidth(390); // Reset accordion width to default
       setHasDrawerBeenInitialized(true);
-    } else if (openReleases.length === 0) {
+    } else if (openChanges.length === 0) {
       // Reset initialization flag when all tickets are closed
       setHasDrawerBeenInitialized(false);
     }
-  }, [openReleases.length, hasDrawerBeenInitialized]);
+  }, [openChanges.length, hasDrawerBeenInitialized]);
 
 
   // Function to expand accordion and set optimal width
@@ -1432,278 +1937,495 @@ export function ReleaseDrawer({
   };
 
   // Change-specific content for AI summary and description
-  function getReleaseContent(id: string) {
-  const map: Record<string, { summary: string; keyPoints: string[]; desc: string; descExtra?: string }> = {
-    'REL-56': {
-      summary: 'ServiceOps Platform Patch Upgrade to v8.7.4.22 is in active planning. The patch addresses 3 critical CVEs and 12 stability issues. Planning team is coordinating deployment window with infrastructure and QA.',
-      keyPoints: [
-        'Patch targets CVE-2026-1182, CVE-2026-1194, CVE-2026-1201 — all rated Critical severity',
-        'Estimated downtime: 45 minutes for rolling restart across 6 nodes',
-        'QA sign-off required before deployment window opens',
-        'Rollback script prepared and validated in staging environment',
-      ],
-      desc: 'The ServiceOps platform requires an urgent patch upgrade from v8.7.4.18 to v8.7.4.22. Security audit on 28/May/2026 identified three critical CVEs in the authentication middleware and session management layer. The patch also resolves 12 stability issues including memory leak under high concurrent load.',
-      descExtra: 'Deployment is scheduled for the approved maintenance window on 06/Jun/2026 22:00–01:00. All dependent services have been notified. Pre-deployment checklist is 90% complete pending final QA sign-off.',
-    },
-    'REL-55': {
-      summary: 'Kubernetes cluster upgrade from v1.27 to v1.29 is submitted and awaiting approval. The upgrade brings enhanced pod scheduling, improved autoscaling, and critical security patches for the container runtime.',
-      keyPoints: [
-        'Upgrade path: v1.27 → v1.28 → v1.29 (two-step rolling upgrade)',
-        'All existing workloads validated for API compatibility with v1.29',
-        'Node drain strategy prepared — zero downtime expected for stateless services',
-        'etcd backup completed and verified before proceeding',
-      ],
-      desc: 'The production Kubernetes cluster currently running v1.27 has reached end-of-community support. Upgrade to v1.29 is required to maintain security patch coverage and access improved scheduling features needed for the Q3 autoscaling rollout.',
-      descExtra: 'Upgrade will be performed in two phases across control plane nodes and worker nodes separately. Rollback to v1.27 snapshot is available within 24 hours post-upgrade.',
-    },
-    'REL-53': {
-      summary: 'Production server infrastructure upgrade was cancelled during planning phase due to budget reallocation. Scope included hardware refresh across 8 production servers and OS upgrade from RHEL 7 to RHEL 9.',
-      keyPoints: [
-        'Budget reallocation to emergency network replacement caused cancellation',
-        'Hardware procurement orders cancelled with vendor — no penalty incurred',
-        'RHEL 7 extended support purchased to cover 12-month deferral period',
-        'Rescheduled for Q1 2027 with revised scope and budget approval',
-      ],
-      desc: 'The server infrastructure upgrade was initiated to replace aging hardware reaching end-of-support and upgrade the OS from RHEL 7 to RHEL 9. The release was cancelled during planning after emergency budget reallocation to cover network infrastructure failure replacement.',
-      descExtra: 'All planning artifacts (hardware specs, upgrade runbooks, test plans) have been archived and will be reused when the release is rescheduled. Vendor quotes remain valid until Dec 2026.',
-    },
-    'REL-52': {
-      summary: 'Authentication service hotfix rollout failed review due to incomplete test coverage and a regression found in SSO token refresh. The release has been sent back to the build phase for remediation.',
-      keyPoints: [
-        'Regression: SSO token refresh fails for users with MFA enabled (affects ~15% of users)',
-        'Review board identified missing integration test cases for SAML 2.0 flows',
-        'Fix estimated at 3 days development + 2 days regression testing',
-        'Second review scheduled after fix is merged and validated',
-      ],
-      desc: 'The authentication service hotfix was submitted to address a session timeout issue affecting API consumers. During review, the QA team discovered a regression introduced by the hotfix that breaks SSO token refresh for MFA-enabled users.',
-      descExtra: 'The development team has identified the root cause as an incorrect token expiry calculation in the refresh endpoint. A targeted fix is being developed with expanded test coverage to prevent recurrence.',
-    },
-    'REL-43': {
-      summary: 'Mobile application release v3.2.1 failed review due to crash reports on iOS 17.4 devices and excessive battery drain reported during beta testing. Release sent back for hotfix development.',
-      keyPoints: [
-        'Crash rate on iOS 17.4: 2.3% of sessions — above acceptable 0.1% threshold',
-        'Battery drain: 18% higher than v3.2.0 baseline due to background location polling bug',
-        'Android build passed all review criteria — iOS-only issue',
-        'Fix targeted for v3.2.2 release with expedited review cycle',
-      ],
-      desc: 'Mobile application v3.2.1 introduced push notification improvements and offline sync enhancements. Beta testing revealed a memory management issue on iOS 17.4 causing app crashes and a background location polling loop that significantly increases battery consumption.',
-      descExtra: 'The iOS engineering team has reproduced both issues in isolation. Fixes are in progress. Android release may be approved separately while iOS fix is completed to avoid delaying all users.',
-    },
-    'REL-42': {
-      summary: 'Server security patch deployment for October 2025 is pending approval from the Change Advisory Board. The patch addresses 7 critical CVEs across the application server fleet of 12 nodes.',
-      keyPoints: [
-        '7 critical CVEs addressed including CVSS 9.8 remote code execution vulnerability',
-        'Patch validated in staging across all 12 server configurations',
-        'CAB meeting scheduled for 17/Oct/2025 for approval',
-        'Deployment window: 19/Oct/2025 22:00–02:00 (4-hour window)',
-      ],
-      desc: 'Monthly security patch cycle for October 2025 covers a major CVE batch released by the OS vendor. One vulnerability (CVE-2025-8821, CVSS 9.8) allows unauthenticated remote code execution via a crafted HTTP request and requires priority patching within the defined SLA window.',
-      descExtra: 'Rollback procedure tested and validated. Automated deployment script will apply patches in rolling fashion across server groups to maintain service availability during patching.',
-    },
-    'REL-40': {
-      summary: 'ESG module latest version deployment is currently in active deployment. Version 4.2.1 includes regulatory reporting enhancements and performance improvements for large dataset processing.',
-      keyPoints: [
-        'Version 4.2.1 adds EU Taxonomy 2025 reporting framework support',
-        'Data processing throughput improved by 340% for datasets over 1M records',
-        'Database schema migration running — estimated 2 hours for full completion',
-        '3 of 5 deployment stages completed successfully',
-      ],
-      desc: 'ESG module version 4.2.1 is being deployed to address new regulatory requirements for EU Taxonomy reporting and to resolve performance bottlenecks that caused timeouts for enterprise clients processing quarterly ESG data sets.',
-      descExtra: 'Stage 4 (database migration) is currently in progress. Stages 1-3 (application servers, API gateway, reporting services) completed without issues. Stage 5 (cache warm-up and validation) will begin after migration completes.',
-    },
-    'REL-39': {
-      summary: 'ESG reporting engine version upgrade is pending approval. This release separates the reporting engine from the core ESG module to enable independent scaling and reduces report generation time by 60%.',
-      keyPoints: [
-        'Reporting engine extracted as independent microservice — improved scalability',
-        'Report generation time: reduced from 45 minutes to 18 minutes for quarterly runs',
-        'New async report queue with email notification on completion',
-        'Backward compatible with all existing report templates',
-      ],
-      desc: 'The ESG reporting engine has been refactored into a standalone microservice to address scalability limitations in the monolithic module. The new architecture allows horizontal scaling during peak reporting periods (quarter-end) without affecting core ESG data operations.',
-      descExtra: 'CAB review is scheduled for 15/Oct/2025. Infrastructure team has pre-provisioned auto-scaling groups for the reporting engine in both primary and DR regions.',
-    },
-    'REL-37': {
-      summary: 'Critical patch release for application servers is in active build phase. This emergency release addresses a zero-day vulnerability discovered in the web application framework actively being exploited in the wild.',
-      keyPoints: [
-        'Zero-day: CVE-2025-7741 — unauthenticated path traversal in framework routing layer',
-        'Active exploitation detected in production logs — immediate release required',
-        'Build ETA: 4 hours, testing: 2 hours, deployment: 1 hour',
-        'WAF temporary mitigation rule deployed to block known attack patterns',
-      ],
-      desc: 'A zero-day vulnerability in the web application framework was reported by the security team after detecting exploitation attempts in production access logs. An emergency patch release was initiated with a WAF mitigation deployed as interim protection while the permanent fix is built and tested.',
-      descExtra: 'Security team is monitoring for active exploitation. Build team is working in parallel with QA to compress the validation cycle from 8 hours to 6 hours. All non-essential releases are paused until this patch is deployed.',
-    },
-    'REL-36': {
-      summary: 'API gateway rate limiting configuration update is pending approval. This release implements dynamic rate limiting policies to protect backend services from traffic spikes and potential DDoS patterns.',
-      keyPoints: [
-        'Dynamic rate limiting: 1000 req/min per authenticated user, 100 req/min unauthenticated',
-        'Circuit breaker thresholds configured per service tier',
-        'Burst allowance: 50% above limit for 30-second windows',
-        'Real-time rate limit metrics dashboard configured in Grafana',
-      ],
-      desc: 'Following two production incidents caused by uncontrolled traffic spikes from a misconfigured client integration, the API gateway rate limiting policy is being formalised and deployed as a release. Current configuration lacks per-client throttling and circuit breakers.',
-      descExtra: 'Policy definitions reviewed and approved by architecture team. The release includes updated API documentation for all consumers explaining the new limits and retry guidance.',
-    },
-    'REL-35': {
-      summary: 'Frontend dashboard performance optimization release is in active planning. This release targets a 70% improvement in initial load time and addresses 23 reported performance issues from the last user satisfaction survey.',
-      keyPoints: [
-        'Bundle size reduced from 4.2MB to 1.8MB via code splitting and tree shaking',
-        'Initial load time target: under 2 seconds on standard enterprise connections',
-        'Lazy loading implemented for all non-critical dashboard widgets',
-        'API response caching added for frequently accessed read-only data',
-      ],
-      desc: 'User satisfaction scores for the dashboard fell below target in the Q2 2025 survey, with page load time and responsiveness as primary complaints. This release implements systematic performance improvements across bundle optimization, rendering efficiency, and API call reduction.',
-      descExtra: 'Performance benchmarks established and regression testing suite created to prevent future regressions. A/B testing framework will be used to validate improvements with a subset of users before full rollout.',
-    },
-    'REL-33': {
-      summary: 'QA-validated regression fix release is in testing phase. This release bundles 18 confirmed regression fixes identified during the Q3 2025 regression cycle, prioritized by customer impact severity.',
-      keyPoints: [
-        '18 regression fixes across 6 modules: ticketing, reporting, asset, CMDB, approval, notifications',
-        'All fixes validated against isolated test cases — no cross-module impacts detected',
-        'Performance regression in search module resolved — query time reduced 45%',
-        'Release notes prepared with customer-facing changelog for each fix',
-      ],
-      desc: 'The Q3 2025 regression testing cycle identified 18 issues introduced by previous feature releases. This bundle release addresses all confirmed regressions before the Q4 feature release cycle begins, ensuring a stable baseline for subsequent development.',
-      descExtra: 'Testing phase is 65% complete. Remaining test cases cover edge cases in the approval workflow and multi-tenancy isolation. Expected testing completion: 08/Aug/2025.',
-    },
-    'REL-32': {
-      summary: 'CI/CD pipeline integration release build 123 is in planning phase. This release migrates the legacy Jenkins pipelines to GitLab CI, reducing build times by 55% and enabling parallel test execution.',
-      keyPoints: [
-        'Migration from Jenkins to GitLab CI for all 14 application pipelines',
-        'Build time reduction: from 22 minutes to 10 minutes average through parallelization',
-        'Automated security scanning (SAST/DAST) integrated into all pipelines',
-        'Rollback to Jenkins pipelines available within 48 hours if needed',
-      ],
-      desc: 'The CI/CD pipeline migration to GitLab CI has been planned as a formal release to ensure proper change governance. The migration directly impacts the software delivery pipeline and requires coordinated cutover to avoid disrupting active development teams.',
-      descExtra: 'All 14 pipelines have been replicated in GitLab CI and validated against the last 10 build artifacts. Dev team training sessions completed. Cutover planned during low-activity period on 12/Jul/2025.',
-    },
-    'REL-31': {
-      summary: 'Motadata ServiceOps New Release 1 is pending Change Advisory Board approval. This is a major platform release introducing the new unified inbox, AI-assisted ticket routing, and the redesigned CMDB relationship visualizer.',
-      keyPoints: [
-        'Unified inbox consolidates tickets, alerts, and approvals into single workflow view',
-        'AI ticket routing achieves 87% accuracy in pilot — reduces manual assignment by 60%',
-        'CMDB visualizer supports impact radius analysis with 5-level dependency mapping',
-        'Migration scripts prepared for existing workflow configurations — estimated 2 hours',
-      ],
-      desc: 'Motadata ServiceOps New Release 1 represents the largest feature release in 18 months. Key highlights include the unified inbox experience that merges service desk, operations alerts, and approval workflows, and the AI-powered ticket routing engine trained on 2 years of historical data.',
-      descExtra: 'CAB review documentation submitted. All dependent infrastructure changes (database schema, search index rebuild, cache cluster expansion) have been sequenced and approved separately. Release coordination call scheduled with all module owners for 13/Mar/2025.',
-    },
-    'REL-30': {
-      summary: 'Web portal minor update and bug fixes release is in active deployment. This release resolves 9 UI bugs reported since the last major release and updates 3 third-party dependencies with security fixes.',
-      keyPoints: [
-        '9 UI bugs fixed: file upload widget, date picker timezone, table export formatting',
-        'Dependencies updated: lodash (security), axios (security), chart.js (feature)',
-        'Session persistence fix: users no longer logged out after 15-minute browser inactivity',
-        'Accessibility improvements: WCAG 2.1 AA compliance for all updated components',
-      ],
-      desc: 'Following user feedback and the Q4 bug triage, a minor web portal update has been packaged to address accumulated small issues without waiting for the next major release cycle. Three dependencies with published CVEs have also been updated.',
-      descExtra: 'Deployment is rolling across CDN edge nodes. All changes are backward compatible — no API changes or configuration migration required. Monitoring shows no error rate increase after first 3 deployments.',
-    },
-    'REL-29': {
-      summary: 'Analytics service dependency update is pending Change Advisory Board approval. This release updates the analytics engine from Python 3.9 to Python 3.12 and updates 47 dependencies including pandas and numpy.',
-      keyPoints: [
-        'Python 3.9 reaches end-of-life in Oct 2025 — upgrade required for security coverage',
-        'Performance improvement: analytics job execution 28% faster on Python 3.12',
-        'All 47 updated dependencies validated for API compatibility with existing analytics code',
-        'Virtual environment isolation ensures no impact on other platform services',
-      ],
-      desc: 'The analytics service runtime requires a planned upgrade as Python 3.9 approaches end-of-life. The upgrade to Python 3.12 includes significant performance improvements for data-heavy analytics jobs. 47 dependencies have been updated and compatibility-tested.',
-      descExtra: 'Staging environment has been running Python 3.12 for 3 weeks with no issues. CAB review package submitted. Rollback plan: maintain Python 3.9 virtualenv as hot standby for 2 weeks post-deployment.',
-    },
-    'REL-27': {
-      summary: 'Security patch release for application servers is pending approval. This release addresses 5 high-severity CVEs discovered in the November 2024 quarterly security review, affecting the application server fleet.',
-      keyPoints: [
-        '5 high-severity CVEs patched — highest CVSS: 8.7 (privilege escalation via crafted request)',
-        'Applies to all 18 application servers in primary and DR datacenters',
-        'Coordinated with network team: firewall rules updated in parallel',
-        'CAB expedited review requested due to active CVE threat landscape',
-      ],
-      desc: 'The quarterly security review identified 5 high-severity vulnerabilities in the application server configuration, including a privilege escalation vulnerability actively discussed in security community forums. An expedited patch release has been initiated to meet the 30-day remediation SLA.',
-      descExtra: 'Patches tested across all server configurations in staging. Deployment sequenced to maintain N-1 redundancy throughout. Estimated deployment duration: 3 hours for full fleet.',
-    },
-    'REL-25': {
-      summary: 'Hardware refresh for datacenter rack A is in planning phase. This release covers replacement of 8 end-of-life servers, 2 storage arrays, and network switching infrastructure for the primary datacenter Rack A cluster.',
-      keyPoints: [
-        'Hardware EOL: 8 Dell PowerEdge R640s reaching 5-year support expiry in Dec 2024',
-        'Storage arrays: 2 × NetApp AFF A300 replaced with AFF A700 (4× capacity, 2× IOPS)',
-        'Network: 25GbE switches replacing 10GbE for backbone upgrade',
-        'Data migration strategy: live migration to new nodes — zero downtime planned',
-      ],
-      desc: 'Datacenter Rack A hardware is reaching end of vendor support and manufacturer warranty. The hardware refresh release coordinates the physical replacement of compute, storage, and network equipment with workload migration and validation activities.',
-      descExtra: 'Hardware delivery confirmed for 10/Nov/2024. Physical installation allocated 2-day maintenance window (15-16/Nov/2024). Workload migration phase begins immediately after hardware validation.',
-    },
-    'REL-24': {
-      summary: 'Application release update for Q4 2024 is submitted and awaiting planning. This major quarterly release includes 14 new features, 31 bug fixes, and 3 API version updates across the ServiceOps platform.',
-      keyPoints: [
-        '14 new features: SLA dashboard v2, bulk ticket operations, advanced CMDB search',
-        '31 bug fixes prioritized from customer support tickets — all P1/P2 issues resolved',
-        '3 API version updates: v3.2 for ticketing, v2.8 for assets, v4.1 for reporting APIs',
-        'Database migration includes schema changes — migration window: 90 minutes estimated',
-      ],
-      desc: 'The Q4 2024 quarterly release consolidates 3 months of development across 6 product teams. Major highlights include the redesigned SLA dashboard with predictive breach alerts, bulk ticket management operations, and the advanced multi-criteria CMDB search engine.',
-      descExtra: 'Release notes and upgrade guide published in the customer portal. Beta customers have had access for 3 weeks with positive feedback. Full general availability deployment follows CAB approval.',
-    },
-    'REL-23': {
-      summary: 'Network configuration release for new office branch is submitted and awaiting approval. This release covers VLAN configuration, site-to-site VPN provisioning, and SD-WAN policy deployment for the Chennai office expansion.',
-      keyPoints: [
-        'VLAN segmentation: 6 VLANs (corporate, guest, IoT, VOIP, management, DMZ)',
-        'Site-to-site VPN: IPSec tunnel to primary DC with 500Mbps bandwidth allocation',
-        'SD-WAN policy: traffic prioritization for video conferencing and critical apps',
-        'QoS policies aligned with corporate standards for 250-user capacity',
-      ],
-      desc: 'The new Chennai office opening on 15/Nov/2024 requires network infrastructure to be provisioned and configured as a formal release to ensure proper change control. The configuration covers all network layers from physical switching to SD-WAN policy and security zones.',
-      descExtra: 'Network team has completed the design review. Hardware pre-configured in staging lab and validated against the production SD-WAN controller. On-site engineer scheduled for 13/Nov/2024 installation.',
-    },
-    'REL-22': {
-      summary: 'Smoke test release for staging environment validation is submitted and awaiting review. This is a controlled release used to validate the release pipeline itself before the Q4 production deployment series begins.',
-      keyPoints: [
-        'Validates end-to-end release pipeline: build → test → staging → approval → deploy',
-        'Covers all 6 release automation steps including rollback verification',
-        'No production impact — staging environment only',
-        'Results will confirm pipeline readiness for Q4 release series',
-      ],
-      desc: 'Before the busy Q4 release period, the release management team runs a controlled smoke test release through the complete pipeline to validate all automation, approval gates, and deployment scripts are functioning correctly in the current environment state.',
-      descExtra: 'Smoke test artifact is a minimal no-op deployment package. All pipeline stages are exercised including the emergency rollback path. Results document archived as pipeline health baseline for Q4.',
-    },
-    'REL-21': {
-      summary: 'Load testing framework upgrade is in planning phase. This release upgrades the performance testing toolchain from JMeter 5.4 to k6 with Grafana Cloud integration for real-time load test visibility.',
-      keyPoints: [
-        'Migration from JMeter to k6: 80% reduction in load test script maintenance overhead',
-        'Grafana Cloud integration: real-time throughput and latency dashboards during tests',
-        'Existing JMeter test plans converted to k6 scripts — 94% scenario coverage maintained',
-        'CI pipeline integration: automated load tests run on every release candidate',
-      ],
-      desc: 'The performance testing framework is being modernized as a formal release. JMeter 5.4 scripts are difficult to maintain and lack real-time visibility. k6 offers code-based test scripts that integrate with the existing GitLab CI pipeline and Grafana observability stack.',
-      descExtra: 'k6 prototype validated against production-equivalent staging load. All 23 existing JMeter scenarios have been converted and cross-validated for result equivalence.',
-    },
-    'REL-20': {
-      summary: 'Database backup and recovery validation release has been completed and closed. This release implemented automated backup verification and quarterly recovery drill automation across all production databases.',
-      keyPoints: [
-        'Automated backup verification: daily checksum validation and restore test on replica',
-        'Recovery drill automated: full restore simulation runs monthly in isolated environment',
-        'RTO validated at 4.2 hours — within 6-hour SLA requirement',
-        'RPO validated at 23 minutes — within 30-minute SLA requirement',
-      ],
-      desc: 'Following an audit finding that backup verification was manual and infrequent, this release implemented systematic automated validation. The recovery automation ensures the DR procedure is continuously validated rather than relying on annual manual drills.',
-      descExtra: 'Release successfully deployed and closed. Automated validation has been running for 6 weeks with 100% success rate. Audit finding formally closed with evidence package submitted to compliance team.',
-    },
+  const getChangeContent = (id: string | undefined) => {
+    const map: Record<string, { summary: string; keyPoints: string[]; desc: string; descExtra: string }> = {
+      'CHG-993': {
+        summary: 'A change request to update firewall rules for the production DMZ has been submitted. The change adds inbound rules for a new partner integration endpoint and tightens outbound restrictions on legacy ports. Categorized as P1 due to production network impact.',
+        keyPoints: ['Adds inbound rules for new partner integration endpoint', 'Tightens outbound restrictions on deprecated legacy ports', 'P1 priority — requires CAB review before production deployment'],
+        desc: 'This change updates the firewall rule set on the production DMZ firewalls to support a new B2B partner integration while removing outdated outbound allowances on legacy ports.',
+        descExtra: 'The change introduces three new inbound ACL entries scoped to the partner source IP range on port 443 only, and removes five obsolete outbound rules identified during the last security audit. A rollback plan reverting to the current rule set snapshot is documented. Implementation is scheduled within the approved maintenance window with the network and security teams on standby.'
+      },
+      'CHG-992': {
+        summary: 'A change request to apply the latest OS security patches to the database server cluster is pending approval. The patches address several critical CVEs. A brief failover-protected restart is required for each node.',
+        keyPoints: ['Applies latest OS security patches addressing multiple critical CVEs', 'Rolling node-by-node restart protected by cluster failover', 'Awaiting CAB approval — scheduled for the weekend maintenance window'],
+        desc: 'This change applies the latest operating system security patches to all nodes in the production database cluster to remediate several critical vulnerabilities flagged in the most recent vulnerability scan.',
+        descExtra: 'Patching will be performed node-by-node using the cluster failover mechanism to maintain availability, with each node drained, patched, restarted, and validated before proceeding to the next. The full database backup completed prior to the window serves as the rollback safeguard. Estimated total duration is 3 hours with no expected user-facing downtime.'
+      },
+      'CHG-991': {
+        summary: 'A change request to migrate the email service to a new high-availability cluster is pending approval. The migration improves redundancy and increases mailbox storage capacity. Mail flow will be cut over during a low-traffic window.',
+        keyPoints: ['Migrates email service to new high-availability cluster', 'Increases per-mailbox storage capacity and adds redundancy', 'Cutover scheduled during overnight low-traffic window'],
+        desc: 'This change migrates the corporate email service from the existing single-node server to a new two-node high-availability cluster, improving resilience and expanding mailbox storage limits.',
+        descExtra: 'Mailbox data will be pre-synced to the new cluster ahead of the window, with a final delta sync and DNS/MX cutover performed during the overnight maintenance period. Users may experience a brief 5–10 minute interruption in mail delivery during cutover. The legacy server will be kept on standby for 72 hours to enable rapid rollback if required.'
+      },
+      'CHG-990': {
+        summary: 'A change request to renew the SSL certificate for the customer-facing web portal is pending approval. The current certificate expires in 14 days. The renewal includes upgrading to a SHA-256 wildcard certificate.',
+        keyPoints: ['Renews SSL certificate expiring in 14 days', 'Upgrades to SHA-256 wildcard certificate covering all subdomains', 'Zero-downtime hot reload of certificate on load balancers'],
+        desc: 'This change renews and upgrades the SSL/TLS certificate for the customer-facing web portal ahead of its expiry, moving to a wildcard certificate that covers all current and future subdomains.',
+        descExtra: 'The new certificate will be installed on the load balancers and application servers, then hot-reloaded without restarting services, ensuring zero downtime. Certificate chain validation and SSL Labs verification will be performed immediately after deployment. The previous certificate remains installed but inactive for 48 hours as a fallback.'
+      },
+      'CHG-989': {
+        summary: 'A change to update the core firewall policy governing branch office VPN traffic is in the planning stage. The change refines site-to-site rules to support two newly opened branch locations and consolidates redundant rules.',
+        keyPoints: ['Adds site-to-site VPN rules for two new branch locations', 'Consolidates and removes redundant overlapping rule entries', 'Currently in planning — risk assessment and rollback plan underway'],
+        desc: 'This change updates the core firewall policy to extend site-to-site VPN connectivity to two newly established branch offices and to clean up redundant rules accumulated over time.',
+        descExtra: 'The planning phase includes a full audit of the existing rule base to identify overlapping and shadowed rules for consolidation. New rules for the branch subnets will be added following least-privilege principles. A staged rollback plan and a configuration snapshot will be prepared before implementation. The change will proceed to CAB approval once the risk assessment is finalized.'
+      },
+      'CHG-988': {
+        summary: 'A change request to upgrade firmware on the core network switches is pending approval. The firmware addresses a known stability bug and adds support for enhanced QoS policies. A maintenance window with brief redundant-path failover is required.',
+        keyPoints: ['Upgrades core switch firmware to address known stability bug', 'Enables enhanced QoS policy support for voice and video traffic', 'Redundant path failover keeps network available during upgrade'],
+        desc: 'This change upgrades the firmware on the core distribution switches to a vendor-recommended release that resolves a stability defect and introduces improved QoS capabilities.',
+        descExtra: 'Switches will be upgraded one at a time, relying on redundant network paths and spanning-tree reconvergence to maintain connectivity throughout. Each switch will be validated for correct operation before the next is started. The previous firmware image is retained on each device, allowing a fast rollback by reverting the boot image if issues arise.'
+      },
+      'CHG-987': {
+        summary: 'A standard change to extend the Active Directory schema is pending approval. The extension adds custom attributes required by a new HR application. As a forest-wide schema change, it carries P1 priority and requires careful coordination.',
+        keyPoints: ['Extends AD schema with custom attributes for new HR application', 'Forest-wide change — irreversible, requires full schema backup', 'P1 standard change with mandatory CAB and AD team sign-off'],
+        desc: 'This standard change extends the Active Directory schema to add custom attributes needed by a newly deployed HR application for storing employee metadata directly in directory objects.',
+        descExtra: 'Schema extensions are forest-wide and effectively irreversible, so a full system-state backup of the schema master and a verified domain controller backup are mandatory prerequisites. The extension will be applied during a low-activity window and replication across all domain controllers will be monitored to completion. The AD team and application owner will jointly validate the new attributes before sign-off.'
+      },
+      'CHG-986': {
+        summary: 'A change request to update the integration between the HR onboarding system and downstream provisioning services has been submitted. The update fixes a data-mapping issue and adds automated account creation for new hires.',
+        keyPoints: ['Fixes data-mapping issue between HR system and provisioning service', 'Adds automated account creation workflow for new hires', 'Submitted and awaiting initial review and approval'],
+        desc: 'This change updates the integration layer connecting the HR onboarding system to identity and account provisioning services, resolving a field-mapping defect and introducing automated account creation.',
+        descExtra: 'The current integration occasionally maps department and role fields incorrectly, requiring manual correction. This change corrects the mapping logic and adds a workflow that automatically creates email and application accounts when a new hire record is finalized in the HR system. The change will be tested in the staging environment against sample records before production rollout.'
+      },
+      'CHG-985': {
+        summary: 'A change to reconfigure the API gateway load balancer is in the pre-approval planning stage. The reconfiguration introduces weighted routing and improved health checks to better distribute traffic across backend services.',
+        keyPoints: ['Introduces weighted routing across API backend service pools', 'Improves health-check sensitivity to remove unhealthy nodes faster', 'In pre-approval planning — design review in progress'],
+        desc: 'This change reconfigures the load balancer fronting the API gateway to use weighted round-robin routing and more responsive health checks, improving traffic distribution and fault tolerance.',
+        descExtra: 'The current configuration uses simple round-robin with slow health checks, occasionally routing traffic to degraded nodes. The new design assigns weights based on backend capacity and reduces health-check intervals and failure thresholds. The configuration will be validated in staging under load before scheduling. The change is currently undergoing design review prior to formal approval.'
+      },
+      'CHG-984': {
+        summary: 'A change request to expand the storage SAN capacity has been submitted. Additional disk shelves will be added to accommodate growing data volumes. The expansion is non-disruptive and performed online.',
+        keyPoints: ['Adds new disk shelves to expand SAN storage capacity', 'Online, non-disruptive expansion with no service downtime', 'Submitted and awaiting approval and procurement confirmation'],
+        desc: 'This change adds additional disk shelves to the production storage SAN to address capacity growth, expanding the available storage pool for database and file services.',
+        descExtra: 'The new shelves will be physically installed and brought online without interrupting existing I/O, then incorporated into the existing storage pools. Capacity will be allocated to the volumes approaching their thresholds. The operation is fully online and non-disruptive, though a low-activity window is preferred to minimize any performance impact during the initial rebalancing.'
+      },
+      'CHG-983': {
+        summary: 'A change request to update the backup retention policy is pending approval. The new policy extends retention for compliance-relevant data and reduces retention for transient logs, optimizing storage utilization.',
+        keyPoints: ['Extends retention for compliance-relevant backup sets', 'Reduces retention for transient log and temp data backups', 'Awaiting approval — projected 20% backup storage reduction'],
+        desc: 'This change updates the enterprise backup retention policy to align with updated compliance requirements while optimizing storage consumption by trimming retention of non-critical data.',
+        descExtra: 'Compliance-relevant datasets will move from a 1-year to a 7-year retention schedule, while transient logs and temporary data will be reduced from 90 to 30 days. The net effect is improved compliance posture alongside an estimated 20% reduction in total backup storage. The policy changes will be applied to the backup software configuration and validated against a sample restore test.'
+      },
+      'CHG-982': {
+        summary: 'A change request to update the VPN gateway configuration has been submitted. The change enforces stronger encryption ciphers and adds multi-factor authentication enforcement for all remote connections.',
+        keyPoints: ['Enforces stronger encryption ciphers (drops legacy protocols)', 'Mandates multi-factor authentication for all VPN connections', 'Submitted — requires user communication ahead of rollout'],
+        desc: 'This change hardens the VPN gateway configuration by disabling legacy encryption protocols, enforcing modern ciphers, and requiring multi-factor authentication for all remote access sessions.',
+        descExtra: 'Legacy protocols such as IKEv1 and weak cipher suites will be disabled in favor of IKEv2 with AES-256. MFA enforcement will be enabled for all user accounts. Because this affects every remote worker, advance communication and an updated connection guide will be distributed before the change. A pilot group will validate connectivity before the organization-wide rollout.'
+      },
+      'CHG-981': {
+        summary: 'A change request to consolidate the DNS server infrastructure has been submitted. Multiple aging DNS servers will be consolidated onto a new resilient pair, simplifying management and improving resolution performance.',
+        keyPoints: ['Consolidates multiple aging DNS servers onto a resilient pair', 'Improves resolution performance and simplifies management', 'Submitted — zone transfer validation required before cutover'],
+        desc: 'This change consolidates several legacy DNS servers onto a new highly available DNS server pair, reducing operational overhead and improving query response times.',
+        descExtra: 'All existing forward and reverse lookup zones will be transferred to the new servers and validated for completeness before any cutover. DHCP and client DNS settings will be updated to point to the new servers in a phased manner. The legacy servers will remain operational as secondaries for two weeks to ensure a smooth transition and provide rollback capability.'
+      },
+      'CHG-980': {
+        summary: 'A change request to migrate to a new endpoint antivirus platform has been submitted. The new platform provides improved threat detection and centralized management across all managed devices.',
+        keyPoints: ['Migrates all endpoints to new antivirus/EDR platform', 'Provides improved threat detection and centralized management', 'Submitted — phased rollout by department planned'],
+        desc: 'This change migrates the organization from the current antivirus solution to a new endpoint detection and response (EDR) platform offering superior threat detection and unified management.',
+        descExtra: 'The migration will be phased by department to limit risk, with the new agent deployed and validated on a pilot group before broader rollout. The legacy agent will be removed only after the new agent confirms healthy check-in to avoid any protection gap. Detection policies will be tuned during the pilot to minimize false positives before organization-wide deployment.'
+      },
+      'CHG-979': {
+        summary: 'A change request to provision a batch of new laptops for incoming hires has been submitted. The laptops will be imaged with the standard corporate build and enrolled in device management ahead of the onboarding date.',
+        keyPoints: ['Images batch of new laptops with standard corporate build', 'Enrolls devices in MDM and applies security baselines', 'Submitted — to be completed before new-hire start date'],
+        desc: 'This change covers the provisioning of a batch of new laptops for upcoming new hires, including imaging, software installation, and enrollment in mobile device management.',
+        descExtra: 'Each laptop will be imaged with the approved corporate build, enrolled in the MDM platform, and configured with the standard security baseline and role-appropriate software. Devices will be labeled and staged for distribution ahead of the new-hire start date. Asset records will be created and assigned in the CMDB as part of the process.'
+      },
+      'CHG-978': {
+        summary: 'A change request to decommission the legacy CRM application was submitted but has been REJECTED. The CAB determined that data migration and user transition planning are incomplete, and the change must be resubmitted with a full cutover plan.',
+        keyPoints: ['Proposed decommission of legacy CRM application', 'REJECTED by CAB — data migration plan incomplete', 'Must be resubmitted with full data migration and cutover plan'],
+        desc: 'This change proposed the decommissioning of the legacy CRM application following the rollout of its replacement. The change was reviewed by the CAB and rejected pending additional planning.',
+        descExtra: 'The CAB rejected the change because the historical data migration strategy and the user transition timeline were not sufficiently detailed, creating a risk of data loss and business disruption. The change owner has been asked to resubmit with a verified data export and migration plan, a defined read-only grace period, and confirmation that all dependent reports have been migrated to the new system.'
+      },
+      'CHG-977': {
+        summary: 'A change request to update Office 365 tenant security policies has been submitted. The update strengthens conditional access rules, enforces device compliance, and tightens external sharing controls.',
+        keyPoints: ['Strengthens conditional access and device compliance policies', 'Tightens external sharing and guest access controls', 'Submitted — pilot validation recommended before full enforcement'],
+        desc: 'This change updates the Microsoft 365 tenant security configuration to strengthen conditional access policies, enforce device compliance for access, and restrict external file sharing.',
+        descExtra: 'New conditional access rules will require compliant, managed devices for access to sensitive resources, and external sharing will be limited to approved domains with expiring links. Because overly aggressive policies could block legitimate access, the changes will first be applied to a pilot group in report-only mode, then enforced broadly once validated. A rollback is achieved by reverting the policy set to its current saved state.'
+      },
+      'CHG-976': {
+        summary: 'A change request to deploy version 2.3 of the payment processing module to production is pending approval. The release includes a critical concurrency fix and performance improvements. A blue-green deployment minimizes risk.',
+        keyPoints: ['Deploys payment module v2.3 with critical concurrency fix', 'Blue-green deployment enables instant rollback', 'Awaiting approval — deployment scheduled in low-traffic window'],
+        desc: 'This change deploys version 2.3 of the payment processing module to production, delivering a critical fix for a concurrency defect along with performance and stability improvements.',
+        descExtra: 'The deployment uses a blue-green strategy: the new version is deployed alongside the current version, smoke-tested against production, then traffic is switched over atomically. If any issue is detected, traffic is instantly reverted to the previous version. The change is scheduled during a low-traffic window with the development and operations teams monitoring transaction success rates closely after cutover.'
+      },
+      'CHG-975': {
+        summary: 'A change request to rebuild fragmented database indexes has been submitted. The rebuild addresses query performance degradation observed over recent weeks. The operation runs online with minimal locking.',
+        keyPoints: ['Rebuilds heavily fragmented indexes on primary tables', 'Online rebuild minimizes locking and user impact', 'Submitted — expected to restore query performance significantly'],
+        desc: 'This change performs an online rebuild of fragmented indexes on the most heavily queried database tables to restore query performance that has degraded over recent weeks.',
+        descExtra: 'Index fragmentation analysis identified several indexes exceeding 80% fragmentation. The rebuild will be performed using online index operations to avoid blocking active queries, scheduled during lower-activity hours to further reduce impact. Statistics will be updated following the rebuild. A maintenance plan adjustment will also be proposed to prevent recurrence of the fragmentation.'
+      },
+      'CHG-974': {
+        summary: 'A change request to roll out a new infrastructure monitoring agent has been submitted. The agent provides deeper metrics and faster alerting across servers and network devices.',
+        keyPoints: ['Deploys new monitoring agent for deeper metrics and alerting', 'Lightweight agent with negligible host resource impact', 'Submitted — phased deployment across server estate planned'],
+        desc: 'This change deploys a new monitoring agent across the server and network estate to provide more granular performance metrics, improved alerting, and better capacity-planning data.',
+        descExtra: 'The new agent is lightweight and designed for minimal resource consumption. Deployment will be phased, starting with non-critical systems to validate stability and alert tuning before extending to production-critical infrastructure. Existing monitoring will run in parallel until the new platform is fully validated, after which the legacy agents will be retired.'
+      },
+      'CHG-973': {
+        summary: 'A standard change to perform a disaster recovery failover test is in the implementation stage. The test validates the DR site readiness by failing over critical services and confirming functionality before failing back.',
+        keyPoints: ['Validates DR site readiness via controlled service failover', 'Confirms RTO/RPO targets are met for critical services', 'Currently being implemented during the approved DR test window'],
+        desc: 'This standard change executes a planned disaster recovery failover test, switching critical services to the DR site to validate recovery procedures, then failing back to primary.',
+        descExtra: 'The test follows the documented DR runbook: critical services are failed over to the secondary site, functionality and data integrity are validated, and recovery time and recovery point objectives are measured against targets. After validation, services are failed back to the primary site. Results and any gaps identified will be documented for the DR plan update. The test is currently in progress within the approved window.'
+      },
+      'CHG-972': {
+        summary: 'A normal change to deploy additional wireless access points on Floor 3 is in the planning stage. The deployment addresses coverage gaps and capacity constraints reported by users on that floor.',
+        keyPoints: ['Deploys additional wireless access points to Floor 3', 'Addresses reported coverage dead zones and capacity issues', 'In planning — site survey completed, cabling work scheduled'],
+        desc: 'This normal change adds new wireless access points on Floor 3 to eliminate coverage dead zones and improve capacity for the increased number of devices and users on that floor.',
+        descExtra: 'A wireless site survey has been completed, identifying optimal placement for the new access points. The implementation requires running additional network cabling and configuring the new APs on the wireless controller with the existing SSIDs and security policies. Work will be scheduled outside business hours to avoid disruption. Post-deployment signal testing will confirm coverage improvements.'
+      },
+      'CHG-971': {
+        summary: 'An emergency change to replace a failing core router in the primary datacenter is pending urgent approval. The router is showing hardware faults that threaten network stability. Categorized P1 with high risk due to its critical role.',
+        keyPoints: ['Replaces core router showing imminent hardware failure', 'P1 emergency change — high risk to datacenter connectivity', 'Redundant router carries traffic during replacement'],
+        desc: 'This emergency change replaces a core router in the primary datacenter that is exhibiting hardware faults and error escalation, posing an imminent risk to network stability.',
+        descExtra: 'The failing router shows increasing hardware error counters and memory faults in diagnostics. Its redundant pair will carry full traffic during the replacement, but the temporary loss of redundancy makes this a high-risk window. The replacement unit will be pre-staged with the validated configuration, swapped in, and verified before redundancy is restored. Given the urgency and risk, expedited CAB approval is required and a senior network engineer will perform the work with vendor support on standby.'
+      },
+      'CHG-970': {
+        summary: 'A normal change for a server room cooling maintenance window is in the pre-approval planning stage. The maintenance services the CRAC units to prevent thermal issues during the upcoming summer peak.',
+        keyPoints: ['Scheduled servicing of server room CRAC cooling units', 'Preventive maintenance ahead of summer thermal peak', 'In pre-approval — temporary portable cooling to be staged'],
+        desc: 'This normal change covers preventive maintenance on the server room computer room air conditioning (CRAC) units to ensure reliable cooling ahead of the summer peak season.',
+        descExtra: 'The maintenance includes coolant checks, filter replacement, and calibration of the CRAC units. To maintain safe temperatures while units are serviced one at a time, portable spot-cooling will be staged in the server room and temperature sensors will be monitored continuously. The work is scheduled during a low-load period, and a contingency plan to gracefully shut down non-critical equipment exists should temperatures approach thresholds.'
+      },
+      'CHG-969': {
+        summary: 'A standard change to tune the web application firewall (WAF) rule set has been completed and closed. The tuning reduced false positives while strengthening protection against common attack patterns.',
+        keyPoints: ['Tuned WAF rules to reduce false positives on legitimate traffic', 'Strengthened protections against OWASP Top 10 attack patterns', 'Completed and closed — monitoring confirmed stable operation'],
+        desc: 'This completed standard change tuned the web application firewall rule set to reduce false positives that were blocking legitimate traffic while improving coverage against common web attacks.',
+        descExtra: 'Analysis of WAF logs identified several overly broad rules generating false positives against legitimate application requests. These were refined, and additional rules aligned to the OWASP Top 10 were enabled in blocking mode after a monitoring period. Post-implementation monitoring over 48 hours confirmed a significant drop in false positives with no legitimate traffic blocked, and the change was closed successfully.'
+      },
+    };
+    return map[id ?? ''] ?? {
+      summary: 'This change request has been logged and is progressing through the change management workflow. The assigned team is reviewing scope, risk, and implementation requirements.',
+      keyPoints: ['Change request logged in the change management system', 'Scope, risk, and rollback plan under review', 'Updates will be provided as the change progresses through approval'],
+      desc: 'This change request has been logged and is currently progressing through the change management workflow. The assigned team is reviewing the scope, risk, and implementation plan.',
+      descExtra: 'Further details, the implementation schedule, and the rollback plan will be provided as the change advances through the approval and planning stages. If you have additional requirements or constraints relevant to this change, please add them as a reply to this change record.'
+    };
   };
 
-  return map[id] ?? {
-    summary: `Release ${id} is being managed through the standard release lifecycle. Current status reflects the active phase of this release.`,
-    keyPoints: [
-      'Release scope and objectives defined in the planning document',
-      'Stakeholder review and approval process underway',
-      'Testing and validation aligned with release quality gates',
-      'Deployment schedule coordinated with operations and infrastructure teams',
-    ],
-    desc: `Release ${id} is progressing through the standard release management workflow. All required artifacts including release plan, test results, and rollback procedures are being prepared in accordance with the release management policy.`,
+  // Change-specific conversation thread + approval titles, keyed by change ID
+  const getChangeThread = (id: string | undefined) => {
+    const map: Record<string, {
+      mention: string; team: string; to: [string, string];
+      escalateShort: string; escalateFull: string; origFrom: string; origMsg: string;
+      reply: string; file1: string; file2: string; note: string; today: string;
+      approval1: string; approval2: string;
+    }> = {
+      'CHG-993': {
+        mention: "@Arnav Desai - Can you review this firewall change for the production DMZ before CAB? It adds inbound rules for a new partner endpoint and tightens legacy outbound ports. P1 due to production impact.",
+        team: "network security team", to: ['netsec@motadata.com', 'cab@motadata.com'],
+        escalateShort: "Submitting this firewall rule change to the network security team and CAB for review. It adds three scoped inbound ACLs for the partner integration on port 443 and removes five obsolete outbound rules...",
+        escalateFull: "Submitting this firewall rule change to the network security team and CAB for review. It adds three scoped inbound ACLs for the partner integration on port 443 and removes five obsolete outbound rules identified in the last security audit. A rollback plan reverting to the current rule-set snapshot is documented, and the network and security teams will be on standby during the approved maintenance window.",
+        origFrom: "Sophie Laurent", origMsg: "Hi team, we need the production DMZ firewall updated to allow our new B2B partner's integration endpoint and to close off the legacy outbound ports flagged in the audit. Please raise this as a change.",
+        reply: "I've completed the rule review and risk assessment. The attached change plan and rollback document detail the exact ACL entries being added and removed. Tested the rule logic in the lab with no unintended exposure.",
+        file1: "firewall-rule-change-plan.pdf", file2: "dmz-rollback-plan.pdf",
+        note: "Implementation scheduled for the approved maintenance window. A current rule-set snapshot has been captured for rollback and both network and security teams are on standby.",
+        today: "Change pending CAB approval. All pre-implementation checks complete, rollback snapshot verified, and the partner source IP range confirmed with the integration owner.",
+        approval1: "CAB Approval: Production DMZ Firewall Rule Change", approval2: "Security Sign-off: DMZ ACL Update",
+      },
+      'CHG-992': {
+        mention: "@Arnav Desai - Please review this OS patching change for the database cluster. It covers several critical CVEs with a rolling node-by-node restart protected by failover.",
+        team: "database and infrastructure team", to: ['dba.team@motadata.com', 'infra.ops@motadata.com'],
+        escalateShort: "Submitting the database cluster OS patching change for approval. Patches address multiple critical CVEs and will be applied node-by-node using cluster failover to maintain availability...",
+        escalateFull: "Submitting the database cluster OS patching change for approval. Patches address multiple critical CVEs and will be applied node-by-node using cluster failover to maintain availability. Each node will be drained, patched, restarted and validated before proceeding. A full database backup taken before the window serves as the rollback safeguard; estimated duration is 3 hours with no expected user-facing downtime.",
+        origFrom: "Security Team", origMsg: "Hi team, the latest vulnerability scan flagged several critical CVEs on the database cluster OS. We need these patched in the next maintenance window. Please raise a change.",
+        reply: "Patch set validated in staging with no regressions. The attached patch plan and node-by-node runbook cover the failover sequence, and the pre-window backup plan is documented for rollback.",
+        file1: "os-patch-plan.pdf", file2: "cluster-failover-runbook.pdf",
+        note: "Patching scheduled for the weekend maintenance window. Full cluster backup will be taken immediately before starting; failover order confirmed with the DBA team.",
+        today: "Awaiting CAB approval. Staging validation passed, backup job verified, and the maintenance window confirmed with stakeholders.",
+        approval1: "CAB Approval: Database Cluster OS Patching", approval2: "Implementation Sign-off: Critical CVE Remediation",
+      },
+      'CHG-991': {
+        mention: "@Arnav Desai - Can you review the email migration change to the new HA cluster? Mailbox data pre-syncs ahead of time, with a short cutover during the overnight window.",
+        team: "messaging and infrastructure team", to: ['messaging@motadata.com', 'infra.ops@motadata.com'],
+        escalateShort: "Submitting the email service migration to the new high-availability cluster for approval. Mailboxes pre-sync ahead of the window with a final delta sync and MX cutover overnight...",
+        escalateFull: "Submitting the email service migration to the new high-availability cluster for approval. Mailboxes pre-sync ahead of the window with a final delta sync and MX cutover overnight. Users may see a brief 5–10 minute mail-delivery pause during cutover. The legacy server stays on standby for 72 hours to enable rapid rollback if required.",
+        origFrom: "Sakshi Joshi", origMsg: "Hi team, we're hitting mailbox storage limits and need better redundancy. Please raise a change to migrate email to the new high-availability cluster.",
+        reply: "Pre-sync tested successfully and the cutover steps are documented. The attached migration plan and rollback procedure cover the delta sync, MX change and the 72-hour standby fallback.",
+        file1: "email-migration-plan.pdf", file2: "mail-cutover-rollback.pdf",
+        note: "Cutover scheduled for the overnight low-traffic window. Mailbox pre-sync running now; final delta sync and MX cutover will run during the window with the legacy server kept on standby.",
+        today: "Awaiting approval. Pre-sync is healthy, DNS TTL lowered ahead of cutover, and the rollback path to the legacy server is verified.",
+        approval1: "CAB Approval: Email Service HA Migration", approval2: "Implementation Sign-off: Mail Cutover",
+      },
+      'CHG-990': {
+        mention: "@Arnav Desai - Please review the SSL renewal change for the customer portal. The current cert expires in 14 days; this upgrades to a SHA-256 wildcard with a zero-downtime hot reload.",
+        team: "security and PKI team", to: ['security.team@motadata.com', 'pki.admin@motadata.com'],
+        escalateShort: "Submitting the SSL certificate renewal change for the customer portal. It upgrades to a SHA-256 wildcard covering all subdomains and hot-reloads on the load balancers with zero downtime...",
+        escalateFull: "Submitting the SSL certificate renewal change for the customer portal. It upgrades to a SHA-256 wildcard covering all subdomains and hot-reloads on the load balancers with zero downtime. Chain validation and an SSL Labs check follow deployment, and the previous certificate stays installed but inactive for 48 hours as a fallback.",
+        origFrom: "Ashish Dhamelia", origMsg: "Hi team, the customer portal certificate expires in two weeks. Please raise a change to renew it — and if possible move us to a wildcard so we stop doing this per-subdomain.",
+        reply: "New wildcard certificate issued and staged. The attached deployment plan and validation checklist cover the hot reload and post-install SSL Labs verification; the old cert remains as a 48-hour fallback.",
+        file1: "ssl-renewal-plan.pdf", file2: "cert-validation-checklist.pdf",
+        note: "Hot reload scheduled with zero expected downtime. New wildcard cert staged on the load balancers; previous cert retained inactive for 48 hours as fallback.",
+        today: "Awaiting approval. Certificate issued and validated, deployment steps rehearsed, and monitoring set to confirm chain validity post-reload.",
+        approval1: "CAB Approval: Customer Portal SSL Renewal", approval2: "Security Sign-off: Wildcard Certificate Upgrade",
+      },
+      'CHG-989': {
+        mention: "@Arnav Desai - Can you help finalise the planning for the core firewall policy change? It adds site-to-site VPN rules for two new branches and consolidates redundant rules.",
+        team: "network security team", to: ['netsec@motadata.com', 'network.ops@motadata.com'],
+        escalateShort: "Sharing the core firewall policy change for planning review. It extends site-to-site VPN to two new branches and consolidates overlapping rules following least-privilege principles...",
+        escalateFull: "Sharing the core firewall policy change for planning review. It extends site-to-site VPN to two new branches and consolidates overlapping rules following least-privilege principles. A full rule-base audit is underway to identify shadowed rules, and a staged rollback plan with a config snapshot will be prepared before it goes to CAB.",
+        origFrom: "Ashini Sharma", origMsg: "Hi team, two new branch offices are coming online and need site-to-site VPN connectivity. While we're at it, can we clean up the redundant firewall rules? Please raise a change.",
+        reply: "Completed the rule-base audit and mapped the new branch subnets. The attached audit findings and draft rule set show which entries are consolidated and the new least-privilege rules for the branches.",
+        file1: "firewall-rulebase-audit.pdf", file2: "branch-vpn-rule-design.pdf",
+        note: "Still in planning — risk assessment and rollback plan being finalised. Config snapshot will be captured before implementation; targeting the next CAB cycle.",
+        today: "In planning. Rule-base audit complete and branch subnets confirmed; risk assessment in progress before submitting for approval.",
+        approval1: "CAB Approval: Core Firewall Policy Update", approval2: "Security Sign-off: Branch VPN Rule Consolidation",
+      },
+      'CHG-988': {
+        mention: "@Arnav Desai - Please review the core switch firmware upgrade change. It fixes a known stability bug and adds QoS support, with redundant-path failover keeping the network up.",
+        team: "network infrastructure team", to: ['network.team@motadata.com', 'datacenter.ops@motadata.com'],
+        escalateShort: "Submitting the core switch firmware upgrade change. It resolves a known stability defect and enables enhanced QoS, upgrading switches one at a time over redundant paths...",
+        escalateFull: "Submitting the core switch firmware upgrade change. It resolves a known stability defect and enables enhanced QoS, upgrading switches one at a time over redundant paths. Each switch is validated before the next is started, and the previous firmware image is retained on each device for a fast boot-image rollback if needed.",
+        origFrom: "Vasu Hirpara", origMsg: "Hi team, the vendor has a firmware release that fixes the switch stability bug we've been hitting and adds the QoS features we need for voice/video. Please raise an upgrade change.",
+        reply: "Firmware validated on the lab switch and the upgrade sequence documented. The attached upgrade plan and rollback procedure cover the per-switch order and boot-image revert path.",
+        file1: "switch-firmware-upgrade-plan.pdf", file2: "firmware-rollback-procedure.pdf",
+        note: "Upgrade scheduled for the maintenance window. Switches upgraded one at a time relying on redundant paths; prior firmware image retained on each device for rollback.",
+        today: "Awaiting approval. Lab validation passed, redundant-path failover confirmed, and the maintenance window agreed with stakeholders.",
+        approval1: "CAB Approval: Core Switch Firmware Upgrade", approval2: "Implementation Sign-off: Network Firmware Update",
+      },
+      'CHG-987': {
+        mention: "@Arnav Desai - This AD schema extension needs careful review before CAB. It's forest-wide and irreversible — adds custom attributes for the new HR app. P1.",
+        team: "directory services team", to: ['ad.team@motadata.com', 'cab@motadata.com'],
+        escalateShort: "Submitting the Active Directory schema extension for approval. It adds custom attributes for the new HR application — a forest-wide, effectively irreversible change requiring a full schema backup...",
+        escalateFull: "Submitting the Active Directory schema extension for approval. It adds custom attributes for the new HR application — a forest-wide, effectively irreversible change requiring a full schema backup. A system-state backup of the schema master and verified DC backups are mandatory prerequisites; replication across all DCs will be monitored to completion and the AD team and app owner will jointly validate the attributes.",
+        origFrom: "Pavan Mehta", origMsg: "Hi team, the new HR application needs custom attributes stored in AD. Please raise a schema extension change — I know this is forest-wide so flag it for full CAB review.",
+        reply: "Schema extension LDIF reviewed and tested in the isolated lab forest. The attached implementation plan and backup/verification checklist cover the mandatory schema-master backup and replication monitoring.",
+        file1: "ad-schema-extension-plan.pdf", file2: "schema-backup-checklist.pdf",
+        note: "Scheduled for a low-activity window. Full schema-master system-state backup and verified DC backups are prerequisites; replication will be monitored to completion before sign-off.",
+        today: "Awaiting CAB approval. Lab-forest test successful, backup prerequisites staged, and the AD team and HR app owner aligned on validation steps.",
+        approval1: "CAB Approval: Active Directory Schema Extension", approval2: "AD Team Sign-off: HR Attribute Rollout",
+      },
+      'CHG-986': {
+        mention: "@Arnav Desai - Can you review the HR onboarding integration change? It fixes the department/role data-mapping defect and adds automated account creation for new hires.",
+        team: "integration and identity team", to: ['integration.team@motadata.com', 'iam.team@motadata.com'],
+        escalateShort: "Submitting the HR onboarding integration change for review. It corrects the field-mapping defect and adds a workflow to auto-create email and app accounts when a new hire is finalised...",
+        escalateFull: "Submitting the HR onboarding integration change for review. It corrects the field-mapping defect and adds a workflow to auto-create email and app accounts when a new hire is finalised in the HR system. The change will be tested in staging against sample records before production rollout.",
+        origFrom: "Agasp Latayada", origMsg: "Hi team, the HR onboarding integration keeps mapping department and role fields wrong, and we're creating accounts manually. Please raise a change to fix the mapping and automate account creation.",
+        reply: "Corrected mapping logic and built the auto-provisioning workflow. The attached design doc and staging test results show correct field mapping and successful account creation against sample new-hire records.",
+        file1: "integration-fix-design.pdf", file2: "staging-test-results.pdf",
+        note: "Staging validation complete against sample records. Production rollout scheduled after sign-off, with the manual process kept as a fallback for the first onboarding cycle.",
+        today: "Submitted and awaiting review. Staging tests passed with correct mappings and automated account creation; rollback is reverting to the previous integration build.",
+        approval1: "CAB Approval: HR Onboarding Integration Update", approval2: "Sign-off: Automated Account Provisioning",
+      },
+      'CHG-985': {
+        mention: "@Arnav Desai - Please look over the API gateway load balancer redesign. It moves to weighted routing with faster health checks to stop traffic hitting degraded nodes.",
+        team: "platform engineering team", to: ['platform.eng@motadata.com', 'network.ops@motadata.com'],
+        escalateShort: "Sharing the API gateway load balancer reconfiguration for design review. It introduces weighted routing by backend capacity and more responsive health checks to evict unhealthy nodes faster...",
+        escalateFull: "Sharing the API gateway load balancer reconfiguration for design review. It introduces weighted routing by backend capacity and more responsive health checks to evict unhealthy nodes faster. The config will be load-tested in staging before scheduling; it's currently in design review prior to formal approval.",
+        origFrom: "Platform Team", origMsg: "Hi team, the API gateway occasionally routes traffic to degraded backends because the health checks are too slow. Please raise a change to move to weighted routing with tighter health checks.",
+        reply: "Drafted the weighted routing config and tuned the health-check thresholds. The attached design and staging load-test results show even distribution and fast eviction of unhealthy nodes.",
+        file1: "loadbalancer-redesign.pdf", file2: "staging-loadtest-results.pdf",
+        note: "Still in pre-approval planning. Design review in progress; once approved, the config will be validated under load in staging before a scheduled rollout.",
+        today: "In design review. Staging load tests look good — weighted routing balances correctly and unhealthy nodes are removed within seconds. Preparing for approval submission.",
+        approval1: "CAB Approval: API Gateway Load Balancer Reconfiguration", approval2: "Sign-off: Weighted Routing Rollout",
+      },
+      'CHG-984': {
+        mention: "@Arnav Desai - Can you review the SAN capacity expansion change? New disk shelves added online, non-disruptive, to relieve volumes nearing their thresholds.",
+        team: "storage team", to: ['storage.team@motadata.com', 'datacenter.ops@motadata.com'],
+        escalateShort: "Submitting the SAN capacity expansion change. New disk shelves will be installed and brought online without interrupting I/O, then added to the pools nearing capacity...",
+        escalateFull: "Submitting the SAN capacity expansion change. New disk shelves will be installed and brought online without interrupting I/O, then added to the pools nearing capacity. The operation is fully online and non-disruptive, though a low-activity window is preferred to minimise any performance impact during the initial rebalancing.",
+        origFrom: "Storage Team", origMsg: "Hi team, several SAN volumes are approaching their capacity thresholds. We've procured additional disk shelves — please raise a change to install and bring them online.",
+        reply: "Shelves received and the install/rebalance steps documented. The attached expansion plan and capacity report show the target pools and the online, non-disruptive procedure.",
+        file1: "san-expansion-plan.pdf", file2: "storage-capacity-report.pdf",
+        note: "Install scheduled during a low-activity window. Procedure is online and non-disruptive; rebalancing will be monitored for any performance impact.",
+        today: "Submitted and awaiting approval and procurement confirmation. Install runbook ready and the target volumes identified for the new capacity.",
+        approval1: "CAB Approval: SAN Capacity Expansion", approval2: "Sign-off: Storage Shelf Installation",
+      },
+      'CHG-983': {
+        mention: "@Arnav Desai - Please review the backup retention policy change. It extends retention for compliance data to 7 years and trims transient logs to 30 days — about a 20% storage saving.",
+        team: "backup and compliance team", to: ['backup.admin@motadata.com', 'compliance@motadata.com'],
+        escalateShort: "Submitting the backup retention policy change. Compliance-relevant datasets move from 1-year to 7-year retention while transient logs drop from 90 to 30 days, for an estimated 20% storage reduction...",
+        escalateFull: "Submitting the backup retention policy change. Compliance-relevant datasets move from 1-year to 7-year retention while transient logs drop from 90 to 30 days, for an estimated 20% storage reduction. The policy will be applied in the backup software and validated with a sample restore test.",
+        origFrom: "Compliance Team", origMsg: "Hi team, updated compliance requirements mean we need 7-year retention on certain datasets. We can offset the cost by trimming transient log retention. Please raise a change.",
+        reply: "Mapped each dataset to its new retention tier. The attached policy matrix and sample restore test confirm the compliance sets are retained correctly and restores work from the new schedule.",
+        file1: "retention-policy-matrix.pdf", file2: "sample-restore-test.pdf",
+        note: "Awaiting approval. Policy changes staged in the backup configuration; a sample restore test has validated recoverability before applying broadly.",
+        today: "Awaiting approval. Retention matrix reviewed with compliance, restore test passed, and projected storage reduction confirmed at ~20%.",
+        approval1: "CAB Approval: Backup Retention Policy Update", approval2: "Compliance Sign-off: Retention Schedule Change",
+      },
+      'CHG-982': {
+        mention: "@Arnav Desai - Can you review the VPN hardening change? It drops legacy ciphers, enforces IKEv2/AES-256 and mandates MFA for all remote connections. Needs user comms first.",
+        team: "network security team", to: ['netsec@motadata.com', 'vpn.admin@motadata.com'],
+        escalateShort: "Submitting the VPN gateway hardening change. It disables legacy protocols, enforces IKEv2 with AES-256 and requires MFA for all remote access — a pilot group validates connectivity before org-wide rollout...",
+        escalateFull: "Submitting the VPN gateway hardening change. It disables legacy protocols, enforces IKEv2 with AES-256 and requires MFA for all remote access. Because it affects every remote worker, advance communication and an updated connection guide will go out first, and a pilot group will validate connectivity before the organization-wide rollout.",
+        origFrom: "Security Team", origMsg: "Hi team, our VPN still allows legacy ciphers and doesn't enforce MFA. Please raise a hardening change — but make sure remote users are warned before we cut over.",
+        reply: "Hardened config drafted and tested with the pilot group. The attached config change and user comms plan cover the cipher changes, MFA enforcement and the connection guide for end users.",
+        file1: "vpn-hardening-config.pdf", file2: "user-comms-plan.pdf",
+        note: "User communication and updated connection guide scheduled to go out ahead of rollout. Pilot group validated; org-wide enforcement follows once comms have landed.",
+        today: "Submitted and awaiting approval. Pilot connectivity confirmed under the new ciphers and MFA; comms drafted and ready to distribute before enforcement.",
+        approval1: "CAB Approval: VPN Gateway Hardening", approval2: "Security Sign-off: MFA Enforcement Rollout",
+      },
+      'CHG-981': {
+        mention: "@Arnav Desai - Please review the DNS consolidation change. Several aging DNS servers move onto a new resilient pair; zones transfer and validate before any cutover.",
+        team: "DNS and network team", to: ['dns.team@motadata.com', 'network.ops@motadata.com'],
+        escalateShort: "Submitting the DNS consolidation change. Legacy DNS servers consolidate onto a new HA pair, with all forward and reverse zones transferred and validated before cutover...",
+        escalateFull: "Submitting the DNS consolidation change. Legacy DNS servers consolidate onto a new HA pair, with all forward and reverse zones transferred and validated for completeness before any cutover. Client and DHCP settings update in phases, and the legacy servers stay as secondaries for two weeks for a smooth transition and rollback.",
+        origFrom: "Network Team", origMsg: "Hi team, our DNS servers are aging and hard to manage. Please raise a change to consolidate them onto a new highly available pair.",
+        reply: "Built the new DNS pair and transferred all zones. The attached migration plan and zone validation report confirm every forward and reverse zone matches the source before cutover.",
+        file1: "dns-consolidation-plan.pdf", file2: "zone-transfer-validation.pdf",
+        note: "Phased cutover planned with client/DHCP settings updated gradually. Legacy servers remain as secondaries for two weeks to ensure a smooth transition and rollback path.",
+        today: "Submitted and awaiting approval. Zone transfers validated complete, new pair healthy, and the phased cutover sequence agreed.",
+        approval1: "CAB Approval: DNS Infrastructure Consolidation", approval2: "Sign-off: DNS Server Cutover",
+      },
+      'CHG-980': {
+        mention: "@Arnav Desai - Can you review the endpoint AV/EDR platform migration? Phased by department, new agent validated before the old one is removed to avoid any protection gap.",
+        team: "endpoint security team", to: ['endpoint.security@motadata.com', 'desktop.support@motadata.com'],
+        escalateShort: "Submitting the endpoint AV/EDR migration change. Rollout is phased by department; the new agent is deployed and validated on a pilot before the legacy agent is removed to avoid any protection gap...",
+        escalateFull: "Submitting the endpoint AV/EDR migration change. Rollout is phased by department; the new agent is deployed and validated on a pilot before the legacy agent is removed to avoid any protection gap. Detection policies are tuned during the pilot to minimise false positives before organization-wide deployment.",
+        origFrom: "Security Team", origMsg: "Hi team, we're moving to a new EDR platform with better detection and central management. Please raise a migration change — and make sure devices are never left unprotected during the swap.",
+        reply: "Pilot deployment complete with policies tuned. The attached migration plan and pilot results show healthy check-in on the new agent before legacy removal, with false positives tuned down.",
+        file1: "edr-migration-plan.pdf", file2: "pilot-deployment-results.pdf",
+        note: "Phased department rollout scheduled. New agent confirmed checking in before legacy agent removal on each device; detection policies tuned from the pilot.",
+        today: "Submitted and awaiting approval. Pilot ring stable on the new EDR, policies tuned, and the department rollout order agreed.",
+        approval1: "CAB Approval: Endpoint EDR Platform Migration", approval2: "Security Sign-off: Antivirus Agent Rollout",
+      },
+      'CHG-979': {
+        mention: "@Arnav Desai - Please review the new-hire laptop provisioning change. Batch imaged with the corporate build, enrolled in MDM, and staged before the start date.",
+        team: "endpoint provisioning team", to: ['desktop.support@motadata.com', 'asset.management@motadata.com'],
+        escalateShort: "Submitting the new-hire laptop provisioning change. The batch will be imaged with the corporate build, enrolled in MDM with the security baseline, and staged for distribution before the start date...",
+        escalateFull: "Submitting the new-hire laptop provisioning change. The batch will be imaged with the corporate build, enrolled in MDM with the security baseline, and staged for distribution before the start date. Asset records will be created and assigned in the CMDB as part of the process.",
+        origFrom: "HR Operations", origMsg: "Hi team, we have a group of new hires starting soon who'll each need a laptop ready on day one. Please raise a change to provision the batch.",
+        reply: "Imaging and enrollment steps confirmed against the standard build. The attached provisioning checklist and asset list cover the MDM enrollment, security baseline and CMDB records.",
+        file1: "laptop-provisioning-checklist.pdf", file2: "new-hire-asset-list.pdf",
+        note: "Provisioning to be completed before the new-hire start date. Devices imaged, enrolled in MDM and labeled; CMDB asset records created and assigned.",
+        today: "Submitted and awaiting approval. Standard build and MDM enrollment validated on the first unit; remaining batch queued for imaging.",
+        approval1: "CAB Approval: New-Hire Laptop Provisioning", approval2: "Sign-off: Device Imaging & MDM Enrollment",
+      },
+      'CHG-978': {
+        mention: "@Arnav Desai - This legacy CRM decommission was REJECTED by CAB — the data migration and user transition plan weren't complete. Can you help rebuild the cutover plan for resubmission?",
+        team: "applications team", to: ['apps.team@motadata.com', 'cab@motadata.com'],
+        escalateShort: "Following up on the rejected legacy CRM decommission. CAB flagged that the historical data migration strategy and user transition timeline weren't detailed enough, creating data-loss and disruption risk...",
+        escalateFull: "Following up on the rejected legacy CRM decommission. CAB flagged that the historical data migration strategy and user transition timeline weren't detailed enough, creating data-loss and disruption risk. We need to resubmit with a verified data export and migration plan, a defined read-only grace period, and confirmation that all dependent reports have moved to the new system.",
+        origFrom: "CAB Secretary", origMsg: "Hi team, the CAB has rejected the legacy CRM decommission change. The data migration plan and user transition timeline are incomplete. Please resubmit with a full cutover plan.",
+        reply: "Reworking the cutover plan per CAB feedback. The attached revised migration plan and dependency report add the verified data export, a read-only grace period and confirmation that dependent reports are migrated.",
+        file1: "revised-crm-migration-plan.pdf", file2: "report-dependency-report.pdf",
+        note: "Change rejected by CAB and being reworked. Verified data export and migration plan in progress; resubmission will include the read-only grace period and report migration sign-off.",
+        today: "Rejected by CAB — under revision. Data export validated and the dependency report complete; finalising the read-only grace period before resubmitting.",
+        approval1: "CAB Re-review: Legacy CRM Decommission (Resubmission)", approval2: "Data Owner Sign-off: CRM Migration Plan",
+      },
+      'CHG-977': {
+        mention: "@Arnav Desai - Please review the Microsoft 365 security policy change. It tightens conditional access, enforces device compliance and limits external sharing — pilot in report-only first.",
+        team: "cloud security team", to: ['cloud.security@motadata.com', 'm365.admin@motadata.com'],
+        escalateShort: "Submitting the M365 tenant security policy change. It strengthens conditional access, enforces device compliance and restricts external sharing — applied to a pilot in report-only mode before broad enforcement...",
+        escalateFull: "Submitting the M365 tenant security policy change. It strengthens conditional access, enforces device compliance and restricts external sharing — applied to a pilot in report-only mode first, then enforced broadly once validated. Rollback is reverting the policy set to its current saved state.",
+        origFrom: "Security Team", origMsg: "Hi team, our M365 conditional access and external sharing controls are too loose. Please raise a change to tighten them — but pilot it first so we don't lock anyone out.",
+        reply: "Policies drafted and run against the pilot in report-only mode. The attached policy design and report-only impact analysis show what would be blocked, with no legitimate access affected.",
+        file1: "m365-policy-design.pdf", file2: "report-only-impact-analysis.pdf",
+        note: "Pilot running in report-only mode. Broad enforcement scheduled after validation; rollback is reverting the tenant policy set to its saved state.",
+        today: "Submitted and awaiting approval. Report-only analysis shows no impact to legitimate access; ready to move the pilot to enforced once approved.",
+        approval1: "CAB Approval: Microsoft 365 Security Policy Update", approval2: "Security Sign-off: Conditional Access Enforcement",
+      },
+      'CHG-976': {
+        mention: "@Arnav Desai - Please review the payment module v2.3 production deployment. It includes the critical concurrency fix; using blue-green so we can roll back instantly.",
+        team: "platform engineering team", to: ['platform.eng@motadata.com', 'payments.dev@motadata.com'],
+        escalateShort: "Submitting the payment module v2.3 production deployment. It delivers the critical concurrency fix and performance improvements via a blue-green deployment with instant rollback...",
+        escalateFull: "Submitting the payment module v2.3 production deployment. It delivers the critical concurrency fix and performance improvements via a blue-green deployment: the new version runs alongside the current one, is smoke-tested against production, then traffic switches atomically — and reverts instantly if any issue is detected. Scheduled in a low-traffic window with transaction success rates monitored after cutover.",
+        origFrom: "Payments Dev Team", origMsg: "Hi team, v2.3 of the payment module fixes the concurrency defect that caused the production incident. Please raise a deployment change — we'd like blue-green so rollback is instant.",
+        reply: "Build verified and smoke tests written against production endpoints. The attached deployment plan and blue-green runbook cover the atomic traffic switch and the instant revert path.",
+        file1: "payment-v2.3-deployment-plan.pdf", file2: "blue-green-runbook.pdf",
+        note: "Deployment scheduled in a low-traffic window. Green environment will be smoke-tested before the atomic switch; instant rollback to blue is ready if transaction success dips.",
+        today: "Awaiting approval. Green environment staged and smoke-tested, monitoring dashboards prepared, and the rollback path validated.",
+        approval1: "CAB Approval: Payment Module v2.3 Deployment", approval2: "Release Sign-off: Blue-Green Cutover",
+      },
+      'CHG-975': {
+        mention: "@Arnav Desai - Please review the database index rebuild change. Heavy fragmentation on primary tables is degrading queries; online rebuild minimises locking.",
+        team: "database administration team", to: ['dba.team@motadata.com', 'app.support@motadata.com'],
+        escalateShort: "Submitting the database index rebuild change. Several indexes exceed 80% fragmentation; the online rebuild avoids blocking active queries and runs during lower-activity hours...",
+        escalateFull: "Submitting the database index rebuild change. Several indexes exceed 80% fragmentation; the online rebuild avoids blocking active queries and runs during lower-activity hours. Statistics will be updated afterward, and a maintenance-plan adjustment is proposed to prevent recurrence.",
+        origFrom: "DBA Team", origMsg: "Hi team, query performance has degraded over recent weeks and index fragmentation is high on the main tables. Please raise a change to rebuild the indexes online.",
+        reply: "Fragmentation analysis complete and the rebuild tested in staging. The attached fragmentation report and rebuild plan show the affected indexes and the online, low-lock procedure.",
+        file1: "index-fragmentation-report.pdf", file2: "index-rebuild-plan.pdf",
+        note: "Online rebuild scheduled for lower-activity hours to minimise impact. Statistics update included; a maintenance-plan change is proposed to stop recurrence.",
+        today: "Submitted and awaiting approval. Staging rebuild restored query performance to baseline with minimal locking; ready to schedule.",
+        approval1: "CAB Approval: Database Index Rebuild", approval2: "Sign-off: Online Index Maintenance",
+      },
+      'CHG-974': {
+        mention: "@Arnav Desai - Can you review the new monitoring agent rollout? Lightweight agent for deeper metrics and faster alerting, phased across the estate with old monitoring in parallel.",
+        team: "infrastructure monitoring team", to: ['monitoring.team@motadata.com', 'infra.ops@motadata.com'],
+        escalateShort: "Submitting the new monitoring agent rollout. The lightweight agent provides deeper metrics and faster alerting, deployed in phases starting with non-critical systems...",
+        escalateFull: "Submitting the new monitoring agent rollout. The lightweight agent provides deeper metrics and faster alerting, deployed in phases starting with non-critical systems to validate stability and alert tuning before production-critical infrastructure. Existing monitoring runs in parallel until fully validated, then legacy agents are retired.",
+        origFrom: "Operations Team", origMsg: "Hi team, our current monitoring is missing detail and alerts late. Please raise a change to roll out the new monitoring agent across servers and network devices.",
+        reply: "Agent validated on the non-critical ring with negligible resource impact. The attached rollout plan and pilot metrics show the deeper telemetry and tuned alerts running alongside legacy monitoring.",
+        file1: "monitoring-agent-rollout-plan.pdf", file2: "pilot-metrics-report.pdf",
+        note: "Phased deployment underway from non-critical systems. Existing monitoring kept in parallel until the new platform is fully validated, then legacy agents retired.",
+        today: "Submitted and awaiting approval. Non-critical ring stable on the new agent with alerts tuned; ready to extend to production-critical systems.",
+        approval1: "CAB Approval: Monitoring Agent Rollout", approval2: "Sign-off: Telemetry Platform Deployment",
+      },
+      'CHG-973': {
+        mention: "@Arnav Desai - The DR failover test is in progress. We're failing critical services to the DR site, validating, and measuring RTO/RPO before failing back. Can you track the results?",
+        team: "disaster recovery team", to: ['dr.team@motadata.com', 'infra.ops@motadata.com'],
+        escalateShort: "DR failover test underway per the runbook. Critical services are failing over to the DR site for functional and data-integrity validation, with RTO/RPO measured against targets...",
+        escalateFull: "DR failover test underway per the runbook. Critical services are failing over to the DR site for functional and data-integrity validation, with RTO/RPO measured against targets, then failed back to primary. Results and any gaps will be documented for the DR plan update.",
+        origFrom: "DR Coordinator", origMsg: "Hi team, it's time for our scheduled DR failover test. Please raise the change so we can validate the DR site and confirm we're hitting our recovery objectives.",
+        reply: "Failover executed and services validated at the DR site. The attached test runbook and results capture the measured RTO/RPO against targets and the few gaps found for follow-up.",
+        file1: "dr-test-runbook.pdf", file2: "dr-test-results.pdf",
+        note: "Test in progress within the approved window. Critical services validated at DR; failback to primary to follow, with results documented for the DR plan update.",
+        today: "Implementation in progress. Failover successful and RTO/RPO within targets; preparing the controlled failback and writing up the gap findings.",
+        approval1: "CAB Approval: DR Failover Test", approval2: "DR Sign-off: Failback & Validation",
+      },
+      'CHG-972': {
+        mention: "@Arnav Desai - Please help finalise the Floor 3 wireless AP deployment plan. Site survey's done; we need cabling and controller config to fix the dead zones and capacity issues.",
+        team: "network infrastructure team", to: ['network.team@motadata.com', 'facilities@motadata.com'],
+        escalateShort: "Sharing the Floor 3 wireless AP deployment for planning. The site survey identified optimal placements; implementation needs additional cabling and controller config with the existing SSIDs and security...",
+        escalateFull: "Sharing the Floor 3 wireless AP deployment for planning. The site survey identified optimal placements; implementation needs additional cabling and the new APs configured on the controller with the existing SSIDs and security policies. Work is scheduled outside business hours, with post-deployment signal testing to confirm coverage.",
+        origFrom: "Floor 3 Users", origMsg: "Hi team, the WiFi on Floor 3 has dead zones and struggles when the floor is busy. Please raise a change to add more access points.",
+        reply: "Site survey complete and placements finalised. The attached survey report and deployment plan show AP locations, cabling runs and the controller configuration for the new units.",
+        file1: "wireless-site-survey.pdf", file2: "ap-deployment-plan.pdf",
+        note: "In planning — cabling work scheduled outside business hours. APs will be configured on the controller with existing SSIDs; post-deployment signal testing will confirm coverage.",
+        today: "In planning. Site survey done and placements confirmed; cabling and after-hours install window being scheduled before submission to CAB.",
+        approval1: "CAB Approval: Floor 3 Wireless AP Deployment", approval2: "Sign-off: Wireless Coverage Expansion",
+      },
+      'CHG-971': {
+        mention: "@Arnav Desai - URGENT: the core router is showing hardware faults and needs emergency replacement. Redundant pair carries traffic but we lose redundancy during the swap. P1.",
+        team: "network infrastructure team", to: ['network.team@motadata.com', 'cab.emergency@motadata.com'],
+        escalateShort: "Raising this as an emergency change. The core router shows rising hardware error counters and memory faults; its redundant pair will carry traffic during replacement but the temporary loss of redundancy makes this high-risk...",
+        escalateFull: "Raising this as an emergency change. The core router shows rising hardware error counters and memory faults; its redundant pair will carry traffic during replacement but the temporary loss of redundancy makes this a high-risk window. The replacement is pre-staged with the validated config, swapped in and verified before redundancy is restored. Expedited CAB approval is required, with a senior network engineer performing the work and vendor support on standby.",
+        origFrom: "NOC", origMsg: "Team, the primary core router is throwing hardware errors and memory faults — it looks close to failing. We need an emergency change to replace it before it takes down datacenter connectivity.",
+        reply: "Replacement unit pre-staged with the validated config. The attached diagnostics and replacement runbook show the fault evidence and the swap/verify steps to restore redundancy quickly.",
+        file1: "router-fault-diagnostics.pdf", file2: "emergency-replacement-runbook.pdf",
+        note: "Emergency change — expedited approval requested. Redundant router carrying traffic; replacement pre-staged and a senior engineer assigned with vendor support on standby.",
+        today: "Pending urgent CAB approval. Replacement staged and verified in the lab; change window minimised to limit time without redundancy.",
+        approval1: "Emergency CAB Approval: Core Router Replacement", approval2: "Sign-off: Datacenter Connectivity Restoration",
+      },
+      'CHG-970': {
+        mention: "@Arnav Desai - Please help finalise the server room cooling maintenance plan. CRAC units serviced ahead of the summer peak, with portable spot-cooling staged during the work.",
+        team: "facilities and datacenter team", to: ['facilities@motadata.com', 'datacenter.ops@motadata.com'],
+        escalateShort: "Sharing the server room CRAC maintenance for pre-approval planning. Units are serviced one at a time with portable spot-cooling staged and temperatures monitored continuously...",
+        escalateFull: "Sharing the server room CRAC maintenance for pre-approval planning. Units are serviced one at a time with portable spot-cooling staged and temperatures monitored continuously. The work is scheduled during a low-load period, with a contingency to gracefully shut down non-critical equipment if temperatures approach thresholds.",
+        origFrom: "Facilities Team", origMsg: "Hi team, the server room CRAC units are due for servicing before the summer heat. Please raise a maintenance change so we avoid thermal issues during peak.",
+        reply: "Service scope agreed with the vendor and thermal contingency planned. The attached maintenance plan and thermal contingency doc cover coolant checks, filter replacement and the spot-cooling setup.",
+        file1: "crac-maintenance-plan.pdf", file2: "thermal-contingency-plan.pdf",
+        note: "In pre-approval — portable spot-cooling to be staged. Units serviced one at a time during a low-load period with continuous temperature monitoring and a shutdown contingency.",
+        today: "In pre-approval planning. Vendor scheduled and contingency defined; finalising the low-load window before submitting to CAB.",
+        approval1: "CAB Approval: Server Room Cooling Maintenance", approval2: "Facilities Sign-off: CRAC Servicing Window",
+      },
+      'CHG-969': {
+        mention: "@Arnav Desai - The WAF rule tuning change is complete and closed. We cut the false positives blocking legitimate traffic and strengthened OWASP Top 10 coverage. Can you confirm closure?",
+        team: "web security team", to: ['websec@motadata.com', 'app.support@motadata.com'],
+        escalateShort: "Wrapping up the WAF rule tuning change. Several overly broad rules causing false positives were refined and OWASP Top 10 rules were enabled in blocking mode after a monitoring period...",
+        escalateFull: "Wrapping up the WAF rule tuning change. Several overly broad rules causing false positives were refined and OWASP Top 10 rules were enabled in blocking mode after a monitoring period. Post-implementation monitoring over 48 hours confirmed a significant drop in false positives with no legitimate traffic blocked, and the change was closed successfully.",
+        origFrom: "Web Security Team", origMsg: "Hi team, the WAF is blocking legitimate requests with 403s while some newer attack patterns slip through. Please raise a change to tune the rule set.",
+        reply: "Tuning complete and validated over a 48-hour monitoring window. The attached before/after rule analysis and monitoring report show the false-positive drop with no legitimate traffic blocked.",
+        file1: "waf-rule-analysis.pdf", file2: "post-implementation-monitoring.pdf",
+        note: "Completed and closed. False-positive rules refined and OWASP Top 10 protections enabled in blocking mode; 48-hour monitoring confirmed stable operation.",
+        today: "Completed and closed. Post-implementation monitoring confirmed a significant false-positive reduction with no legitimate traffic blocked. No recurrence observed.",
+        approval1: "CAB Approval: WAF Rule Set Tuning", approval2: "Security Sign-off: WAF Blocking Mode Enablement",
+      },
+    };
+    return map[id ?? ''] ?? {
+      mention: "@Arnav Desai - Can you review this change request? It's been logged and needs scope, risk and rollback review before it goes to CAB.",
+      team: "change advisory board", to: ['cab@motadata.com', 'it.ops@motadata.com'],
+      escalateShort: "Submitting this change for review. Scope, risk and the rollback plan are being assessed ahead of CAB approval...",
+      escalateFull: "Submitting this change for review. Scope, risk and the rollback plan are being assessed ahead of CAB approval. Further details and the implementation schedule will follow as the change progresses.",
+      origFrom: "Change Requester", origMsg: "Hi team, please raise this change and take it through the approval process. Let me know if you need any more detail on the requirement.",
+      reply: "I've completed the initial assessment and drafted the implementation and rollback plans. The attached documents summarise the approach and the risk evaluation.",
+      file1: "implementation-plan.pdf", file2: "rollback-plan.pdf",
+      note: "Implementation scheduled for the next maintenance window once approved. Rollback plan documented and stakeholders notified.",
+      today: "Awaiting approval. Pre-implementation checks complete and the rollback path verified; ready to schedule once signed off.",
+      approval1: "CAB Approval: Change Request Review", approval2: "Implementation Sign-off",
+    };
   };
-}
+
+  const thread = getChangeThread(activeChange?.id);
 
   // Function to get AI summary text
   const getAiSummaryText = () => {
-    const content = getReleaseContent(activeRelease?.id);
+    const content = getChangeContent(activeChange?.id);
     const keyPointsText = content.keyPoints.map(point => '• ' + point).join('\n');
     const fullText = content.summary + '\n\nKEY POINTS:\n' + keyPointsText;
     return stripHtmlTags(fullText);
@@ -2001,7 +2723,7 @@ export function ReleaseDrawer({
     }
   }, [showAiSummaryMenu]);
 
-  if (openReleases.length === 0 || !activeRelease) return null;
+  if (openChanges.length === 0 || !activeChange) return null;
 
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
@@ -2028,18 +2750,18 @@ export function ReleaseDrawer({
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb] overflow-x-auto">
         <div className="flex items-center flex-1 min-w-0">
-          {openReleases.map((ticket) => (
+          {openChanges.map((ticket) => (
             <div
               key={ticket.id}
               className={`flex items-center gap-2 px-4 py-3 border-r border-[#e5e7eb] cursor-pointer min-w-0 max-w-[250px] ${
-                activeReleaseId === ticket.id
+                activeChangeId === ticket.id
                   ? 'bg-white border-b-2 border-b-[#3D8BD0]'
                   : 'hover:bg-white/50'
               }`}
               onClick={() => onTabChange(ticket.id)}
             >
               <span className={`text-[12px] font-semibold whitespace-nowrap ${
-                activeReleaseId === ticket.id ? 'text-[#3D8BD0]' : 'text-[#6b7280]'
+                activeChangeId === ticket.id ? 'text-[#3D8BD0]' : 'text-[#6b7280]'
               }`}>
                 {ticket.id}
               </span>
@@ -2092,7 +2814,7 @@ export function ReleaseDrawer({
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h1 className="text-[18px] font-semibold text-[#364658]">
-            {activeRelease.subject}
+            {activeChange.subject}
           </h1>
           <div className="flex items-center gap-2">
             <Tooltip>
@@ -2215,7 +2937,7 @@ export function ReleaseDrawer({
               {selectedStatus === 'Closed' ? 'Reopen Release' : 'Close Release'}
             </button>
             <ReleaseActionsMenu
-              ticketId={activeRelease?.id}
+              ticketId={activeChange?.id}
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
@@ -2236,6 +2958,8 @@ export function ReleaseDrawer({
           <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto">
+            {/* Change Lifecycle Stages — shown at the top, under the header */}
+            <ReleaseStagesShowcase status={selectedStatus} drawerWidth={drawerWidth} />
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -2268,8 +2992,14 @@ export function ReleaseDrawer({
                       
                       {/* Status Dropdown */}
                       {showBadgeStatusDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
-                          {statusOptions.map((option) => (
+                        <div className="absolute top-full left-0 mt-1 w-52 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
+                          <div className="px-3 pt-1.5 pb-2 border-b border-[#F0F2F5] mb-1">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EAF3FB] border border-[#D6E6F5] text-[#2F7AB8] text-[11px] font-semibold">
+                              <span className="size-1.5 rounded-full bg-[#3D8BD0] flex-shrink-0" />
+                              {changeStageStatus.label}
+                            </span>
+                          </div>
+                          {changeStageStatus.options.map((option) => (
                             <button
                               key={option.label}
                               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
@@ -2282,7 +3012,7 @@ export function ReleaseDrawer({
                                 className="size-2 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: option.color }}
                               ></div>
-                              <span className="text-[13px] text-[#364658]">{option.label}</span>
+                              <span className="text-[13px] text-[#364658]">{option.display}</span>
                               {selectedStatus === option.label && (
                                 <Check size={14} className="ml-auto text-[#3D8BD0]" />
                               )}
@@ -2511,7 +3241,7 @@ export function ReleaseDrawer({
                         </defs>
                       </svg>
                       <span className="text-xs font-medium text-[#067647]">
-                        {activeRelease?.id === 'REL-56' ? 'Resolution due in 4d 5h' : 'Resolution due in 5d 2h'}
+                        {activeChange?.id === 'CHG-993' ? 'Resolution due in 4d 5h' : 'Resolution due in 5d 2h'}
                       </span>
                     </div>
                   </TooltipTrigger>
@@ -2526,11 +3256,11 @@ export function ReleaseDrawer({
             <div className="px-6 py-4 bg-white">
               <div className="flex items-start gap-3">
                 <div className="flex h-6 w-6 items-center justify-center rounded bg-[#E67E22] text-[12px] font-medium text-white">
-                  {activeRelease?.id === 'REL-37' ? 'AD' : activeRelease.requester.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  {activeChange?.id === 'CHG-976' ? 'AD' : activeChange.requester.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[14px] font-semibold text-[#364658]">{activeRelease?.id === 'REL-37' ? 'Arnav Desai' : activeRelease.requester}</span>
+                    <span className="text-[14px] font-semibold text-[#364658]">{activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange.requester}</span>
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {
@@ -2548,24 +3278,24 @@ export function ReleaseDrawer({
                         }, 3000);
                       }}
                       className="flex items-center gap-1 text-[12px] text-[#6b7280] ml-auto cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                      style={{ display: activeRelease?.id === 'REL-37' ? 'none' : 'flex' }}
+                      style={{ display: activeChange?.id === 'CHG-976' ? 'none' : 'flex' }}
                     >
                       <Paperclip size={12} />
                       <span>2</span>
                     </div>
                   </div>
                   <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {activeRelease?.id === 'REL-37' ? (
+                    {activeChange?.id === 'CHG-976' ? (
                       // Description for INC-35: Request for Apple MacBook Pro Allocation
                       isDescriptionExpanded ? (
                         <>
-                          {getReleaseContent('REL-37').desc}
+                          {getChangeContent('CHG-976').desc}
                           <br /><br />
-                          {getReleaseContent('REL-37').descExtra}
+                          {getChangeContent('CHG-976').descExtra}
                         </>
                       ) : (
                         <>
-                          {getReleaseContent('REL-37').desc}{' '}
+                          {getChangeContent('CHG-976').desc}{' '}
                           <button
                             onClick={() => setIsDescriptionExpanded(true)}
                             className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
@@ -2575,17 +3305,17 @@ export function ReleaseDrawer({
                           </button>
                         </>
                       )
-                    ) : activeRelease?.id === 'REL-56' ? (
+                    ) : activeChange?.id === 'CHG-993' ? (
                       // Description for INC-32: My Internet Down
                       isDescriptionExpanded ? (
                         <>
-                          {getReleaseContent('REL-56').desc}
+                          {getChangeContent('CHG-993').desc}
                           <br /><br />
-                          {getReleaseContent('REL-56').descExtra}
+                          {getChangeContent('CHG-993').descExtra}
                         </>
                       ) : (
                         <>
-                          {getReleaseContent('REL-56').desc}{' '}
+                          {getChangeContent('CHG-993').desc}{' '}
                           <button
                             onClick={() => setIsDescriptionExpanded(true)}
                             className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
@@ -2598,13 +3328,13 @@ export function ReleaseDrawer({
                     ) : (
                       isDescriptionExpanded ? (
                         <>
-                          {getReleaseContent(activeRelease?.id).desc}
+                          {getChangeContent(activeChange?.id).desc}
                           <br /><br />
-                          {getReleaseContent(activeRelease?.id).descExtra}
+                          {getChangeContent(activeChange?.id).descExtra}
                         </>
                       ) : (
                         <>
-                          {getReleaseContent(activeRelease?.id).desc}{' '}
+                          {getChangeContent(activeChange?.id).desc}{' '}
                           <button
                             onClick={() => setIsDescriptionExpanded(true)}
                             className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
@@ -2627,7 +3357,7 @@ export function ReleaseDrawer({
                   )}
                   
                   {/* Attachments */}
-                  {isDescriptionExpanded && activeRelease?.id !== 'REL-37' && (
+                  {isDescriptionExpanded && activeChange?.id !== 'CHG-976' && (
                   <div className="mt-3 flex items-center gap-2">
                     <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
                       highlightAttachments 
@@ -2870,13 +3600,13 @@ export function ReleaseDrawer({
                   {!isRefreshingAiSummary && (
                   <>
                   <div className="text-[13px] text-[#364658] leading-relaxed mb-4">
-                    {getReleaseContent(activeRelease?.id).summary}
+                    {getChangeContent(activeChange?.id).summary}
                   </div>
 
                   <div className="mb-3">
                     <h4 className="text-[11px] font-semibold text-[#7B8FA5] mb-2">KEY POINTS</h4>
                     <ul className="space-y-1.5">
-                      {getReleaseContent(activeRelease?.id).keyPoints.map((point, i) => (
+                      {getChangeContent(activeChange?.id).keyPoints.map((point, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13px] text-[#364658]">
                           <span className="text-[#3D8BD0] mt-1">•</span>
                           <span>{point}</span>
@@ -2942,13 +3672,13 @@ export function ReleaseDrawer({
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
                   const tabConfig = [
-                    { id: 'service-request', label: 'Service Request', condition: activeRelease?.id === 'REL-37' },
+                    { id: 'service-request', label: 'Service Request', condition: activeChange?.id === 'CHG-976' },
                     { id: 'conversation', label: 'Conversation' },
                     { id: 'tasks', label: 'Tasks' },
-                    { id: 'approvals', label: 'Approvals', condition: activeRelease?.id !== 'REL-56' },
-                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeRelease?.id || '']?.length || 0) > 0 },
+                    { id: 'approvals', label: 'Approvals', condition: activeChange?.id !== 'CHG-993' },
+                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeChange?.id || '']?.length || 0) > 0 },
                     { id: 'audit', label: 'Audit Trails' },
-                    { id: 'resolution', label: 'Analysis & Resolution' },
+                    { id: 'resolution', label: 'Planning' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -2962,7 +3692,7 @@ export function ReleaseDrawer({
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'Audit Trails',
-                    'resolution': 'Analysis & Resolution'
+                    'resolution': 'Planning'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -2972,7 +3702,7 @@ export function ReleaseDrawer({
                       onClick={() => setActiveMainTab(tabId as any)}
                     >
                       {tabLabels[tabId]}
-                      {tabId === 'conversation' && activeRelease?.id !== 'REL-56' && activeRelease?.id !== 'REL-37' && (
+                      {tabId === 'conversation' && activeChange?.id !== 'CHG-993' && activeChange?.id !== 'CHG-976' && (
                         <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
                           {conversationCount}
                         </span>
@@ -2982,7 +3712,7 @@ export function ReleaseDrawer({
                           {tasksCount}
                         </span>
                       )}
-                      {tabId === 'approvals' && activeRelease?.id !== 'REL-56' && (
+                      {tabId === 'approvals' && activeChange?.id !== 'CHG-993' && (
                         <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
                           {approvalsCount}
                         </span>
@@ -3034,10 +3764,10 @@ export function ReleaseDrawer({
             <div className="px-6 pt-0">
               {isBlankTicket ? (
                 <ConversationEmptyState onAcknowledge={() => handleReplyWithAI('Acknowledge')} />
-              ) : hasConversationsForTicket && (activeRelease?.id === 'REL-56' || activeRelease?.id === 'REL-37') ? (
+              ) : hasConversationsForTicket && (activeChange?.id === 'CHG-993' || activeChange?.id === 'CHG-976') ? (
                 // Show only sent conversations for blank tickets that have conversations
                 <BlankTicketConversationView 
-                  conversations={sentConversations.filter(c => c.ticketId === activeReleaseId)}
+                  conversations={sentConversations.filter(c => c.ticketId === activeChangeId)}
                   activeConversationTab={activeConversationTab}
                   setActiveConversationTab={setActiveConversationTab}
                   showSubTabSearch={showSubTabSearch}
@@ -3059,21 +3789,7 @@ export function ReleaseDrawer({
               ) : (
               <>
               <div className="space-y-4">
-                <div className="sticky top-[48px] z-10 bg-white flex items-center justify-between mb-6 py-3 px-6 -mx-6">
-                  <div className="flex gap-2 flex-shrink-0 whitespace-nowrap">
-                    <button 
-                      className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'all' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                      onClick={() => setActiveConversationTab('all')}
-                    >
-                      All Activities
-                    </button>
-                    <button 
-                      className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                      onClick={() => setActiveConversationTab('technician')}
-                    >
-                      Technician Conversation
-                    </button>
-                  </div>
+                <div className="sticky top-[48px] z-10 bg-white flex items-center justify-end mb-6 py-3 px-6 -mx-6">
                   <div className="flex items-center gap-2 relative">
                     {!showSubTabSearch ? (
                       <button 
@@ -3182,7 +3898,7 @@ export function ReleaseDrawer({
                     </div>
                     <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
                       <p className="text-sm text-[#364658] leading-relaxed">
-                        <span className="text-[#3D8BD0] font-medium">@Arnav Desai</span> - Can you take a look at this? The requester needs assistance with the SolarWinds migration. This seems related to the infrastructure modernization project we discussed last month.
+                        <span className="text-[#3D8BD0] font-medium">@Arnav Desai</span>{thread.mention.replace('@Arnav Desai', '')}
                       </p>
                     </div>
                   </div>
@@ -3204,7 +3920,7 @@ export function ReleaseDrawer({
                     onClose={() => setReplyingToConversation(null)}
                     conversationAuthor="Arnav Desai"
                     conversationTime="5 days ago"
-                    conversationText="Forwarding to the infrastructure team for review and approval. Please prioritize this request as it impacts multiple production environments. We need to ensure all stakeholders are aligned on the timeline and resource allocation for this migration. The SolarWinds Observability platform will provide comprehensive monitoring capabilities..."
+                    conversationText={thread.escalateShort}
                     onDeleteQuotedText={() => setReplyingToConversation(null)}
                   />
                 ) : (
@@ -3229,49 +3945,33 @@ export function ReleaseDrawer({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,...</div>
+                          <div>Escalated to {thread.to[0]}, {thread.to[1]}, Cc: saahil.pandya@motadata.com,...</div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: infrastructure.team@motadata.com</div>
-                            <div className="ml-4">devops@motadata.com</div>
+                            <div className="font-medium">To: {thread.to[0]}</div>
+                            <div className="ml-4">{thread.to[1]}</div>
                           </div>
                           <div>
                             <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
                             <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">database.team@motadata.com</div>
+                            <div className="ml-4">{thread.to[0]}</div>
                           </div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
-                    
+
                     <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
                       <p className="text-sm text-[#364658] leading-relaxed">
                         {showFullForwardText ? (
                           <>
-                            Forwarding to the infrastructure team for review and approval. Please prioritize this request 
-                            as it impacts multiple production environments. We need to ensure all stakeholders are aligned 
-                            on the timeline and resource allocation for this migration. The SolarWinds Observability platform 
-                            will provide comprehensive monitoring capabilities across our entire infrastructure stack, including 
-                            application performance monitoring, infrastructure monitoring, log management, and real-time analytics.
-                            <br /><br />
-                            This migration will enable us to consolidate our current monitoring tools and provide better visibility 
-                            into system performance and potential issues. The platform supports hybrid cloud environments and offers 
-                            advanced features such as automated anomaly detection, intelligent alerting, and customizable dashboards 
-                            that will significantly improve our operational efficiency.
-                            <br /><br />
-                            Please review the technical requirements and provide your feedback on the proposed implementation timeline. 
-                            We should also schedule a meeting with all department heads to discuss the training requirements and ensure 
-                            a smooth transition. The estimated completion date is within Q2 2026, pending approval and resource availability.
+                            {thread.escalateFull}
                           </>
                         ) : (
                           <>
-                            Forwarding to the infrastructure team for review and approval. Please prioritize this request 
-                            as it impacts multiple production environments. We need to ensure all stakeholders are aligned 
-                            on the timeline and resource allocation for this migration. The SolarWinds Observability platform 
-                            will provide comprehensive monitoring capabilities...{' '}
+                            {thread.escalateShort}{' '}
                             <button 
                               onClick={() => setShowFullForwardText(!showFullForwardText)}
                               className="text-xs text-[#3D8BD0] hover:text-[#2E6BA4] inline"
@@ -3315,14 +4015,12 @@ export function ReleaseDrawer({
                       {showForwardedMessage && (
                         <div className="border-l-2 border-[#DFE5ED] pl-4 mt-3">
                           <div className="text-xs text-[#7B8FA5] mb-2">
-                            <div><span className="font-medium">From:</span> Sarah Chen</div>
+                            <div><span className="font-medium">From:</span> {thread.origFrom}</div>
                             <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
                           </div>
                           <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
                             <p className="text-sm text-[#364658] leading-relaxed">
-                              Hi team, we need to migrate our current monitoring setup to SolarWinds Observability. 
-                              This change will provide better visibility across our infrastructure and improve our 
-                              incident response times. Please review and advise on the implementation timeline.
+                              {thread.origMsg}
                             </p>
                           </div>
                         </div>
@@ -3380,7 +4078,7 @@ export function ReleaseDrawer({
                     onClose={() => setReplyingToConversation(null)}
                     conversationAuthor="Arnav Desai"
                     conversationTime="2 days ago"
-                    conversationText="Thanks for reaching out! I've reviewed your requirements and prepared a migration plan. The attached documents outline the implementation steps and timeline."
+                    conversationText={thread.reply}
                     onDeleteQuotedText={() => setReplyingToConversation(null)}
                   />
                 ) : (
@@ -3405,34 +4103,33 @@ export function ReleaseDrawer({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                            <div>Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,...</div>
+                            <div>Replied to {thread.to[0]}, {thread.to[1]}, Cc: saahil.pandya@motadata.com,...</div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="text-xs">
                             <div className="mb-2">
-                              <div className="font-medium">To: sarah.chen@motadata.com</div>
-                              <div className="ml-4">ops.team@motadata.com</div>
+                              <div className="font-medium">To: {thread.to[0]}</div>
+                              <div className="ml-4">{thread.to[1]}</div>
                             </div>
                             <div>
-                              <div className="font-medium">Cc: infrastructure.team@motadata.com</div>
+                              <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
                               <div className="ml-4">keertan@motadata.com</div>
-                              <div className="ml-4">saahil.pandya@motadata.com</div>
+                              <div className="ml-4">{thread.to[1]}</div>
                             </div>
                           </div>
                         </TooltipContent>
                       </Tooltip>
                       <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
                         <p className="text-sm text-[#364658] leading-relaxed">
-                          Thanks for reaching out! I've reviewed your requirements and prepared a migration plan. 
-                          The attached documents outline the implementation steps and timeline.
+                          {thread.reply}
                         </p>
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
                           <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
                           <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">task-changes.doc</span>
+                            <span className="text-xs text-[#364658] font-medium">{thread.file1}</span>
                             <span className="text-[10px] text-[#7B8FA5]">674 KB</span>
                           </div>
                           {/* Hover Actions */}
@@ -3448,7 +4145,7 @@ export function ReleaseDrawer({
                         <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
                           <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
                           <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">network-diagnosis.pdf</span>
+                            <span className="text-xs text-[#364658] font-medium">{thread.file2}</span>
                             <span className="text-[10px] text-[#7B8FA5]">2 MB</span>
                           </div>
                           {/* Hover Actions */}
@@ -3533,8 +4230,7 @@ export function ReleaseDrawer({
                     </div>
                     <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
                       <p className="text-sm text-[#364658] leading-relaxed">
-                        Migration testing scheduled for this weekend. Will update the requester once we complete 
-                        the initial deployment phase.
+                        {thread.note}
                       </p>
                     </div>
                   </div>
@@ -3571,7 +4267,7 @@ export function ReleaseDrawer({
                     onClose={() => setReplyingToConversation(null)}
                     conversationAuthor="Arnav Desai"
                     conversationTime="8 hours ago"
-                    conversationText="Initial deployment completed successfully. I've attached the post-deployment report and monitoring dashboard access credentials. Please review and let me know if you need any adjustments."
+                    conversationText={thread.today}
                     onDeleteQuotedText={() => setReplyingToConversation(null)}
                   />
                 ) : (
@@ -3594,20 +4290,19 @@ export function ReleaseDrawer({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,...</div>
+                          <div>Replied to {thread.to[0]}, {thread.to[1]}, Cc: saahil.pandya@motadata.com,...</div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="font-medium">To: {thread.to[0]}</div>
+                            <div className="ml-4">{thread.to[1]}</div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: database.team@motadata.com</div>
-                            <div className="ml-4">kenil.patel@motadata.com</div>
-                            <div className="ml-4">ronak.patel@motadata.com</div>
-                            <div className="ml-4">saahil.pandya@motadata.com</div>
+                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
+                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="ml-4">network.ops@motadata.com</div>
                             <div className="ml-4">nirav.bhatt@motadata.com</div>
                           </div>
                         </div>
@@ -3615,8 +4310,7 @@ export function ReleaseDrawer({
                     </Tooltip>
                     <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
                       <p className="text-sm text-[#364658] leading-relaxed">
-                        Initial deployment completed successfully. I've attached the post-deployment report and 
-                        monitoring dashboard access credentials. Please review and let me know if you need any adjustments.
+                        {thread.today}
                       </p>
                     </div>
                   </div>
@@ -3644,7 +4338,7 @@ export function ReleaseDrawer({
                 )}
                 
                 {/* Sent Conversations - shown after Today's messages */}
-                {sentConversations.filter(c => c.ticketId === activeReleaseId).map((conversation) => (
+                {sentConversations.filter(c => c.ticketId === activeChangeId).map((conversation) => (
                   <div key={conversation.id} className="flex gap-3 group relative">
                     <div className="flex flex-col items-center">
                       <div 
@@ -3814,7 +4508,7 @@ export function ReleaseDrawer({
                   showFormattingMenu={showFormattingMenu}
                   setShowFormattingMenu={setShowFormattingMenu}
                   formattingMenuRef={formattingMenuRef}
-                  requesterEmail={activeRelease ? `${activeRelease.requester.toLowerCase().replace(/ /g, '.')}@motadata.com` : undefined}
+                  requesterEmail={activeChange ? `${activeChange.requester.toLowerCase().replace(/ /g, '.')}@motadata.com` : undefined}
                   showKbArticles={showKbArticles}
                   kbArticles={kbArticles}
                   setKbArticles={setKbArticles}
@@ -3881,7 +4575,7 @@ export function ReleaseDrawer({
                           type="text"
                           className="flex-1 text-[#364658] focus:outline-none bg-transparent"
                           style={{ fontSize: '12px', pointerEvents: 'auto' }}
-                          defaultValue="Fwd: SR-6001 - Switching to SolarWinds Observability"
+                          defaultValue={`Fwd: ${activeChange?.id || ''} - ${activeChange?.subject || ''}`}
                           readOnly={false}
                         />
                       </div>
@@ -3932,12 +4626,11 @@ export function ReleaseDrawer({
                         </div>
                         <div className="text-xs">
                           <span className="text-[#7B8FA5]">Subject:</span>
-                          <span className="text-[#364658] ml-1">SR-6001 - Switching to SolarWinds Observability</span>
+                          <span className="text-[#364658] ml-1">{activeChange?.id || ''} - {activeChange?.subject || ''}</span>
                         </div>
                       </div>
                       <div className="text-sm text-[#364658]">
-                        Need urgent assistance with switching to SolarWinds Observability platform. 
-                        Current monitoring solution is not meeting our requirements.
+                        {thread.origMsg}
                       </div>
                     </div>
 
@@ -4690,20 +5383,17 @@ export function ReleaseDrawer({
 
             {/* Approvals Tab Content */}
             {activeMainTab === 'approvals' && (
-              <ApprovalsTabContent 
-                ticketId={activeRelease?.id}
+              <ApprovalsTabContent
+                ticketId={activeChange?.id}
+                approvalSubjects={[thread.approval1, thread.approval2]}
                 showCreateApprovalPopup={showCreateApprovalPopup}
                 onCloseApprovalPopup={() => setShowCreateApprovalPopup(false)}
                 onOpenApprovalPopup={() => setShowCreateApprovalPopup(true)}
                 onApprove={() => {
                   // Create a new task when user approves
-                  const taskSubject = activeRelease?.id === 'REL-37'
-                    ? 'Purchase and allocate Apple MacBook Pro 16-inch'
-                    : `Process approval for ${activeRelease?.subject || 'request'}`;
+                  const taskSubject = `Implement change and verify rollout for: ${activeChange?.subject || 'change'}`;
 
-                  const taskDescription = activeRelease?.id === 'REL-37'
-                    ? 'Procure Apple MacBook Pro 16-inch with required specifications, configure standard development licenses, and allocate to the requester.'
-                    : `Task created automatically after approval for: ${activeRelease?.subject || 'request'}`;
+                  const taskDescription = `Execute the approved implementation steps for "${activeChange?.subject || 'change'}" and confirm successful completion with the rollback plan verified.`;
 
                   const newTask = {
                     id: `TASK-${tasks.length + 1}`,
@@ -4728,174 +5418,91 @@ export function ReleaseDrawer({
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
               <RelationsTabContent 
-                ticketId={activeRelease?.id} 
-                externalRelations={activeRelease?.id ? ticketRelations[activeRelease.id] : undefined}
+                ticketId={activeChange?.id} 
+                externalRelations={activeChange?.id ? ticketRelations[activeChange.id] : undefined}
               />
             )}
 
             {/* Audit Trails Tab Content */}
-            {activeMainTab === 'audit' && <AuditTrailsTabContent ticketId={activeRelease?.id} />}
+            {activeMainTab === 'audit' && <AuditTrailsTabContent ticketId={activeChange?.id} />}
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
-              <div className="px-6 py-6 space-y-6">
-                {/* Analysis Section */}
+              <div className="px-6 py-6 space-y-8">
+                {/* Change Schedule Section */}
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Stethoscope className="size-4 text-[#3D8BD0]" />
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Analysis</h3>
+                    <Calendar className="size-4 text-[#3D8BD0] flex-shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Release Schedule</h3>
                   </div>
-                  <p className="text-[12px] text-[#7B8FA5] mb-3">Document the root cause analysis for this release.</p>
-                  <div className={drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}>
-                    <AnalysisField
-                      label="Root Cause"
-                      value={analysis.rootCause}
-                      placeholder="No root cause defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, rootCause: v }))}
-                    />
-                    <AnalysisField
-                      label="Symptoms"
-                      value={analysis.symptoms}
-                      placeholder="No symptoms defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, symptoms: v }))}
-                    />
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Set the overall change schedule and its impact.</p>
+
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={changeScheduleStart} onChange={setChangeScheduleStart} />
+                    <ScheduleDateField label="End Date" value={changeScheduleEnd} onChange={setChangeScheduleEnd} />
+                  </div>
+
+                  <div className={`mt-4 ${drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}`}>
                     <AnalysisField
                       label="Impact"
                       value={analysis.impact}
                       placeholder="No impact defined yet. Click the edit button to add details."
                       onSave={(v) => setAnalysis((a) => ({ ...a, impact: v }))}
                     />
-                    <AnalysisField
-                      label="Work Around"
-                      value={analysis.workaround}
-                      placeholder="No work around defined yet. Click the edit button to add details."
-                      onSave={(v) => setAnalysis((a) => ({ ...a, workaround: v }))}
-                    />
                   </div>
                 </div>
 
-                {/* Solution Section */}
+                <div className="border-t border-[#DFE5ED]" />
+
+                {/* Rollout Plan Section */}
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Lightbulb className="size-4 text-[#3D8BD0]" />
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Solution</h3>
+                    <ClipboardList className="size-4 text-[#3D8BD0] flex-shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Rollout Plan</h3>
                   </div>
-                  <p className="text-[12px] text-[#7B8FA5] mb-3">Record the implementation details and outcome of this release.</p>
+                  <p className="text-[12px] text-[#7B8FA5] mb-3">Plan the rollout window, backout plan and any downtime for this release.</p>
 
-                  {solutionData ? (
-                    <SolutionCard
-                      content={solutionData.content}
-                      timestamp={solutionData.timestamp}
-                      onEdit={() => {
-                        setSolutionText(solutionData.content);
-                        setHasSolution(true);
-                        setSolutionData(null);
-                      }}
-                      onDelete={() => {
-                        setSolutionData(null);
-                      }}
+                  {/* Planned Rollout */}
+                  <div className="text-[13px] font-semibold text-[#364658] mb-2">Planned Rollout</div>
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={plannedRolloutStart} onChange={setPlannedRolloutStart} />
+                    <ScheduleDateField label="End Date" value={plannedRolloutEnd} onChange={setPlannedRolloutEnd} />
+                  </div>
+
+                  {/* Actual Rollout */}
+                  <div className="text-[13px] font-semibold text-[#364658] mt-5 mb-2">Actual Rollout</div>
+                  <div className={`grid grid-cols-2 ${drawerWidth > 1080 ? 'gap-6' : 'gap-3'}`}>
+                    <ScheduleDateField label="Start Date" value={actualRolloutStart} onChange={setActualRolloutStart} />
+                    <ScheduleDateField label="End Date" value={actualRolloutEnd} onChange={setActualRolloutEnd} />
+                  </div>
+
+                  <div className={`mt-5 ${drawerWidth > 1080 ? 'grid grid-cols-2 gap-6 items-start' : 'space-y-3'}`}>
+                    <AnalysisField
+                      label="Rollout Plan"
+                      value={analysis.rolloutPlan}
+                      placeholder="No rollout plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, rolloutPlan: v }))}
                     />
-                  ) : hasSolution ? (
-                    <div className="w-full border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
-                      <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
-                        <button
-                          className="text-[#7B8FA5] hover:text-[#364658]"
-                          onClick={() => { setHasSolution(false); setSolutionText(''); }}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                      <div className="p-4">
-                        <div className="mb-4">
-                          <textarea
-                            value={solutionText}
-                            onChange={(e) => setSolutionText(e.target.value)}
-                            placeholder="Add your solution..."
-                            className="w-full h-40 text-sm text-[#364658] focus:outline-none bg-transparent resize-none"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <div className="relative" ref={aiAssistMenuSolutionRef}>
-                              <button
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
-                                onClick={() => setShowAIAssistMenuSolution(!showAIAssistMenuSolution)}
-                              >
-                                <Sparkles size={14} className="text-[#3D8BD0]" />
-                                <span>AI Assist</span>
-                                <ChevronDown size={12} className="text-[#7B8FA5]" />
-                              </button>
-                              {showAIAssistMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 w-[200px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 py-2">
-                                  <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">Refine</div>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <RefreshCw size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Rephrase</span>
-                                  </button>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <TextCursorInput size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Make longer</span>
-                                  </button>
-                                  <button
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
-                                    onClick={() => setShowAIAssistMenuSolution(false)}
-                                  >
-                                    <Minimize2 size={14} className="text-[#364658]" />
-                                    <span className="text-xs text-[#364658]">Make shorter</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                              <Paperclip size={16} />
-                            </button>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                              <Image size={16} />
-                            </button>
-                            <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                              <Link2 size={16} />
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => {
-                              if (solutionText.trim()) {
-                                setSolutionData({
-                                  content: solutionText,
-                                  timestamp: new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
-                                });
-                                setSolutionText('');
-                                setHasSolution(false);
-                              }
-                            }}
-                            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setHasSolution(true)}
-                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                    >
-                      <Lightbulb className="size-4" />
-                      Add Solution
-                    </button>
-                  )}
+                    <AnalysisField
+                      label="Backout Plan"
+                      value={analysis.backoutPlan}
+                      placeholder="No backout plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, backoutPlan: v }))}
+                    />
+                  </div>
+
+                  <div className="border-t border-[#DFE5ED] mt-8" />
+
+                  {/* Rollout additions (Down Time / Custom) */}
+                  <div className="mt-8">
+                    <DownTimesSection drawerWidth={drawerWidth} onScheduleEntriesChange={setExtraScheduleEntries} />
+                  </div>
                 </div>
+
               </div>
             )}
 
-            {/* Service Request Tab Content */}
+                        {/* Service Request Tab Content */}
             {activeMainTab === 'service-request' && (
               <div className="px-6 py-6">
                 <div className="space-y-4">
@@ -5136,75 +5743,12 @@ export function ReleaseDrawer({
                 }}
               >
                 <div className="flex items-center gap-2 p-2">
-                  {/* Profile Icon Button */}
-                  <button 
+                  {/* Profile Icon */}
+                  <button
                     className="size-6 rounded overflow-hidden border border-[#DEE5ED] hover:border-[#3D8BD0] transition-colors flex-shrink-0"
                     style={{ borderRadius: '4px' }}
                   >
-                    <div className="flex flex-col items-center">
-                    <div className="size-[24px] rounded bg-[#3D8BD0] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">SJ</div>
-                  </div>
-                  </button>
-
-                  {/* Reply with AI - Primary Action with Dropdown */}
-                  <div className="relative" ref={aiDropdownRef}>
-                    <button 
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{
-                        background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                        border: '2px solid transparent',
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAiDropdown(!showAiDropdown);
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-                        <defs>
-                          <linearGradient id="sparkle-gradient-icon" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#4CB1FE" />
-                            <stop offset="20.44%" stopColor="#731EFB" />
-                            <stop offset="99.68%" stopColor="#F911E3" />
-                          </linearGradient>
-                        </defs>
-                        <path fill="url(#sparkle-gradient-icon)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
-                      </svg>
-                      <span>Reply with AI</span>
-                      <ChevronDown size={12} className={`text-[#7B8FA5] transition-transform ${showAiDropdown ? '' : 'rotate-180'}`} />
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    {showAiDropdown && (
-                      <div className="absolute bottom-full left-0 mb-2 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
-                        {aiOptions.map((option, index) => (
-                          <button
-                            key={index}
-                            className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAiDropdown(false);
-                              handleReplyWithAI(option.label);
-                            }}
-                          >
-                            <option.icon size={16} className={`${option.color} flex-shrink-0 mt-0.5`} />
-                            <span className="text-sm text-[#364658] whitespace-pre-line">{option.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Secondary Actions */}
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
-                          onClick={handleReply}>
-                    <Reply size={14} className="text-[#7B8FA5]" />
-                    <span>Reply</span>
-                  </button>
-
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
-                          onClick={handleForward}>
-                    <Forward size={14} className="text-[#7B8FA5]" />
-                    <span>Forward</span>
+                    <div className="size-[24px] rounded bg-[#3D8BD0] flex items-center justify-center text-white text-xs font-semibold">SJ</div>
                   </button>
 
                   <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
@@ -5213,7 +5757,7 @@ export function ReleaseDrawer({
                     <span>Collaborate</span>
                   </button>
 
-                  <button 
+                  <button
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                     onClick={handleNote}
                   >
@@ -5228,8 +5772,19 @@ export function ReleaseDrawer({
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
-            ticketId={activeRelease?.id}
-            requesterName={activeRelease?.requester}
+            ticketId={activeChange?.id}
+            requesterName={activeChange?.requester}
+            showChangeCalendar={true}
+            changeCalendarTitle="Release Calendar"
+            changeCalendarEvents={[
+              ...(changeScheduleStart ? [{ start: changeScheduleStart, id: `${activeChange?.id || 'chg'}-cs-s`, group: 'Release Schedule', label: 'Scheduled start', description: analysis.impact, color: '#3D8BD0' }] : []),
+              ...(changeScheduleEnd ? [{ start: changeScheduleEnd, id: `${activeChange?.id || 'chg'}-cs-e`, group: 'Release Schedule', label: 'Scheduled end', description: analysis.impact, color: '#3D8BD0' }] : []),
+              ...(plannedRolloutStart ? [{ start: plannedRolloutStart, id: `${activeChange?.id || 'chg'}-pr-s`, group: 'Planned Rollout', label: 'Rollout start', description: analysis.rolloutPlan, color: '#22A06B' }] : []),
+              ...(plannedRolloutEnd ? [{ start: plannedRolloutEnd, id: `${activeChange?.id || 'chg'}-pr-e`, group: 'Planned Rollout', label: 'Rollout end', description: analysis.rolloutPlan, color: '#22A06B' }] : []),
+              ...(actualRolloutStart ? [{ start: actualRolloutStart, id: `${activeChange?.id || 'chg'}-ar-s`, group: 'Actual Rollout', label: 'Rollout start', description: analysis.rolloutPlan, color: '#0EA5E9' }] : []),
+              ...(actualRolloutEnd ? [{ start: actualRolloutEnd, id: `${activeChange?.id || 'chg'}-ar-e`, group: 'Actual Rollout', label: 'Rollout end', description: analysis.rolloutPlan, color: '#0EA5E9' }] : []),
+              ...extraScheduleEntries,
+            ]}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {
@@ -5365,7 +5920,8 @@ export function ReleaseDrawer({
             handleDeleteAttachment={handleDeleteAttachment}
             handleLinkTicket={handleLinkTicket}
             openManualWorkLog={openManualWorkLog}
-            statusOptions={statusOptions}
+            statusOptions={changeStageStatus.options}
+            statusGroupLabel={changeStageStatus.label}
             priorityOptions={priorityOptions}
             assigneeOptions={assigneeOptions}
             techGroupOptions={techGroupOptions}
