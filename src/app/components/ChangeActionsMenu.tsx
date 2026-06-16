@@ -58,82 +58,7 @@ export function ChangeActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
       </button>
 
       {showActionsMenu && (
-        <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
-
-          {/* Group 1 */}
-          <Item
-            onClick={onOpenApprovalPopup}
-            label="Ask for Approval"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <polyline points="16 11 18 13 22 9" />
-              </svg>
-            }
-          />
-
-          <Divider />
-
-          {/* Group 2 */}
-          <Item
-            label="Add Watcher"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" />
-                <line x1="22" y1="11" x2="16" y2="11" />
-              </svg>
-            }
-          />
-          <Item
-            label="Ask for Feedback"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                <path d="M12 7v.01M12 11v.01" />
-              </svg>
-            }
-          />
-
-          <Divider />
-
-          {/* Group 3 */}
-          <Item
-            label="Scenario"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                <path d="m15 5 4 4" />
-              </svg>
-            }
-          />
-          <Item
-            label="Status Transition"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                <path d="M8 16H3v5" />
-              </svg>
-            }
-          />
-          <Item
-            label="Assignment Transition"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <polyline points="14 15 17 18 22 13" />
-              </svg>
-            }
-          />
-
-          <Divider />
-
-          {/* Group 4 */}
+        <div className="absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item
             label="Archive"
             icon={
@@ -155,22 +80,6 @@ export function ChangeActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
               </svg>
             }
           />
-
-          <Divider />
-
-          {/* Group 5 */}
-          <Item
-            onClick={onRestartOnboarding}
-            label="In-App User Guide"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-            }
-            badge={<span className="w-2 h-2 rounded-full bg-[#3D8BD0] flex-shrink-0" />}
-          />
-
         </div>
       )}
     </div>

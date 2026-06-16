@@ -15,6 +15,59 @@ import {
   IconTask,
   IconMyTeam,
 } from './SidebarIcons';
+import { Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart } from 'lucide-react';
+
+// Asset sub-modules surfaced in the hover flyout (grouped with dividers).
+const ASSET_GROUPS: { icon: React.ReactNode; label: string }[][] = [
+  [
+    { icon: <Cpu size={16} />, label: 'Hardware Assets' },
+    { icon: <AppWindow size={16} />, label: 'Software Assets' },
+    { icon: <Boxes size={16} />, label: 'Non-IT Assets' },
+    { icon: <Recycle size={16} />, label: 'Consumable Assets' },
+  ],
+  [
+    { icon: <KeyRound size={16} />, label: 'Software Licenses' },
+    { icon: <Gauge size={16} />, label: 'Software Meter' },
+  ],
+  [
+    { icon: <FileText size={16} />, label: 'Contracts' },
+    { icon: <ShoppingCart size={16} />, label: 'Purchases' },
+  ],
+];
+
+/** Assets nav item with a hover flyout listing the asset sub-modules. */
+function AssetsNavItem({ active, onNavigate }: { active?: boolean; onNavigate?: (page: string) => void }) {
+  // Map flyout labels to a navigable page (only Hardware Assets is wired for now).
+  const pageFor = (label: string): string | undefined => (label === 'Hardware Assets' ? 'hardware-assets' : undefined);
+  return (
+    <div className="relative group">
+      <NavItem icon={<IconAssets size={20} />} active={active} title="Assets" />
+      {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
+      <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
+        <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+          {ASSET_GROUPS.map((group, gi) => (
+            <div key={gi}>
+              {gi > 0 && <div className="my-1 border-t border-[#F0F2F5]" />}
+              {group.map((item) => {
+                const page = pageFor(item.label);
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => page && onNavigate?.(page)}
+                    className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F5F7FA] text-[#364658] transition-colors flex items-center gap-2.5"
+                  >
+                    <span className="text-[#6B7280] flex-shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -76,7 +129,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           title="Release"
           onClick={() => onNavigate?.('release')}
         />
-        <NavItem icon={<IconAssets size={20} />} title="Assets" />
+        <AssetsNavItem active={activePage === 'hardware-assets'} onNavigate={onNavigate} />
         <NavItem icon={<IconCMDB size={20} />} title="CMDB" />
         <NavItem icon={<IconPatch size={20} />} title="Patch" />
         <NavItem icon={<IconPackage size={20} />} title="Package" />
