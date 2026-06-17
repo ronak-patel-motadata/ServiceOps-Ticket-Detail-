@@ -5786,6 +5786,7 @@ export function ReleaseDrawer({
           <TicketPropertiesPanel
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
+            fieldsTitle="Release Fields"
             showChangeCalendar={true}
             changeCalendarTitle="Release Calendar"
             changeCalendarEvents={[

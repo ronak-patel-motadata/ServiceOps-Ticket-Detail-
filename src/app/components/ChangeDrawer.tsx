@@ -5770,6 +5770,7 @@ export function ChangeDrawer({
           <TicketPropertiesPanel
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
+            fieldsTitle="Change Fields"
             showChangeCalendar={true}
             changeCalendarEvents={[
               ...(changeScheduleStart ? [{ start: changeScheduleStart, id: `${activeChange?.id || 'chg'}-cs-s`, group: 'Change Schedule', label: 'Scheduled start', description: analysis.impact, color: '#3D8BD0' }] : []),
