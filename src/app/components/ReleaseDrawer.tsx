@@ -650,7 +650,7 @@ export function ReleaseDrawer({
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
-  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '' });
+  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '', buildPlan: '', testPlan: '' });
   // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
   const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
   const [changeScheduleEnd, setChangeScheduleEnd] = useState('');
@@ -5488,6 +5488,18 @@ export function ReleaseDrawer({
                       value={analysis.backoutPlan}
                       placeholder="No backout plan defined yet. Click the edit button to add details."
                       onSave={(v) => setAnalysis((a) => ({ ...a, backoutPlan: v }))}
+                    />
+                    <AnalysisField
+                      label="Build Plan"
+                      value={analysis.buildPlan}
+                      placeholder="No build plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, buildPlan: v }))}
+                    />
+                    <AnalysisField
+                      label="Test Plan"
+                      value={analysis.testPlan}
+                      placeholder="No test plan defined yet. Click the edit button to add details."
+                      onSave={(v) => setAnalysis((a) => ({ ...a, testPlan: v }))}
                     />
                   </div>
 
