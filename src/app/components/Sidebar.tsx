@@ -36,12 +36,13 @@ const ASSET_GROUPS: { icon: React.ReactNode; label: string }[][] = [
 ];
 
 /** Assets nav item with a hover flyout listing the asset sub-modules. */
-function AssetsNavItem({ active, onNavigate }: { active?: boolean; onNavigate?: (page: string) => void }) {
+function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
   // Map flyout labels to a navigable page (only Hardware Assets is wired for now).
   const pageFor = (label: string): string | undefined => (label === 'Hardware Assets' ? 'hardware-assets' : undefined);
+  const sectionActive = activePage === 'hardware-assets';
   return (
     <div className="relative group">
-      <NavItem icon={<IconAssets size={20} />} active={active} title="Assets" />
+      <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
         <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
@@ -50,13 +51,16 @@ function AssetsNavItem({ active, onNavigate }: { active?: boolean; onNavigate?: 
               {gi > 0 && <div className="my-1 border-t border-[#F0F2F5]" />}
               {group.map((item) => {
                 const page = pageFor(item.label);
+                const isActive = !!page && page === activePage;
                 return (
                   <button
                     key={item.label}
                     onClick={() => page && onNavigate?.(page)}
-                    className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F5F7FA] text-[#364658] transition-colors flex items-center gap-2.5"
+                    className={`w-full px-3 py-2 text-[13px] text-left transition-colors flex items-center gap-2.5 ${
+                      isActive ? 'bg-[#3D8BD0] text-white' : 'hover:bg-[#F5F7FA] text-[#364658]'
+                    }`}
                   >
-                    <span className="text-[#6B7280] flex-shrink-0">{item.icon}</span>
+                    <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-[#6B7280]'}`}>{item.icon}</span>
                     <span>{item.label}</span>
                   </button>
                 );
@@ -129,7 +133,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           title="Release"
           onClick={() => onNavigate?.('release')}
         />
-        <AssetsNavItem active={activePage === 'hardware-assets'} onNavigate={onNavigate} />
+        <AssetsNavItem activePage={activePage} onNavigate={onNavigate} />
         <NavItem icon={<IconCMDB size={20} />} title="CMDB" />
         <NavItem icon={<IconPatch size={20} />} title="Patch" />
         <NavItem icon={<IconPackage size={20} />} title="Package" />
