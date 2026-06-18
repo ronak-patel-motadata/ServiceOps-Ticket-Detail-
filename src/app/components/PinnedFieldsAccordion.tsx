@@ -1,7 +1,12 @@
 import { ChevronDown, ChevronRight, Pin as PinIcon, PinOff } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { AssetValueDisplay } from './AssetFields';
+import type { AssetFieldState } from './AssetFields';
 
 interface PinnedFieldsAccordionProps {
+  // Render pinned Hardware Asset field values instead of ticket field values
+  assetMode?: boolean;
+  assetState?: AssetFieldState;
   pinnedFieldsExpanded: boolean;
   setPinnedFieldsExpanded: (expanded: boolean) => void;
   pinnedFields: string[];
@@ -37,6 +42,8 @@ interface PinnedFieldsAccordionProps {
 
 export function PinnedFieldsAccordion(props: PinnedFieldsAccordionProps) {
   const {
+    assetMode = false,
+    assetState,
     pinnedFieldsExpanded,
     setPinnedFieldsExpanded,
     pinnedFields,
@@ -101,6 +108,10 @@ export function PinnedFieldsAccordion(props: PinnedFieldsAccordionProps) {
 
   // Render field value with appropriate icon/indicator
   const renderFieldValue = (field: string) => {
+    if (assetMode && assetState) {
+      return <AssetValueDisplay field={field} state={assetState} />;
+    }
+
     const value = getFieldValue(field);
 
     switch (field) {

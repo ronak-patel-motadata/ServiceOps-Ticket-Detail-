@@ -2,6 +2,7 @@ import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, Calenda
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
+import type { AssetFieldState, AgentInfo } from './AssetFields';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
@@ -15,6 +16,13 @@ interface TicketPropertiesPanelProps {
   showProblemFields?: boolean;
   // Optional header shown above the Status dropdown options (e.g. the current lifecycle stage)
   statusGroupLabel?: string;
+  // Show the SLA Status card (hidden on the Hardware Asset detail page)
+  showSla?: boolean;
+  // Render the Hardware Asset field set in the fields accordion instead of ticket fields
+  assetMode?: boolean;
+  assetState?: AssetFieldState;
+  // Values for the Agent Information block (asset page replaces Requester Information)
+  agentInfo?: AgentInfo;
   // Show the Change Calendar (Change detail page only), rendered under SLA Status
   showChangeCalendar?: boolean;
   // Schedule entries for the change currently open (shown in the Change Calendar)
@@ -289,6 +297,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
     statusGroupLabel,
+    showSla = true,
+    assetMode = false,
+    assetState,
+    agentInfo,
     showChangeCalendar = false,
     changeCalendarEvents,
     changeCalendarTitle = 'Change Calendar',
@@ -1150,6 +1162,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         
         {/* Pinned Fields Accordion */}
         <PinnedFieldsAccordion
+          assetMode={assetMode}
+          assetState={assetState}
           pinnedFieldsExpanded={pinnedFieldsExpanded}
           setPinnedFieldsExpanded={setPinnedFieldsExpanded}
           pinnedFields={pinnedFields}
@@ -1175,7 +1189,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           togglePinField={togglePinField}
         />
         
-        {hasSLAMatch() && (
+        {showSla && hasSLAMatch() && (
         <div className="border border-[#DFE5ED] rounded-lg" ref={slaStatusRef}>
           <div 
             className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -1326,6 +1340,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           fieldsTitle={fieldsTitle}
           showProblemFields={showProblemFields}
           statusGroupLabel={statusGroupLabel}
+          assetMode={assetMode}
+          assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
           showMoreFields={showMoreFields}
@@ -1425,6 +1441,58 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           vendorOptions={vendorOptions}
           supportLevelOptions={supportLevelOptions}
         />
+            );
+          } else if (section === 'Requester Information' && hasRequesterInfoMatch() && assetMode) {
+            return (
+        <div key="agent-info" className="border border-[#DFE5ED] rounded-lg" ref={requesterInfoRef}>
+          <button
+            onClick={() => setRequesterInfoExpanded(!requesterInfoExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <User size={16} className="text-[#364658]" />
+              <h3 className="text-[13px] font-semibold text-[#364658]">Agent Information</h3>
+            </div>
+            {requesterInfoExpanded ? (
+              <ChevronDown size={16} className="text-[#7B8FA5]" />
+            ) : (
+              <ChevronRight size={16} className="text-[#7B8FA5]" />
+            )}
+          </button>
+
+          {(requesterInfoExpanded || propertiesSearchQuery) && (
+            <div className="px-4 pb-4">
+              <div className="space-y-3">
+                {[
+                  { label: 'ID', value: agentInfo?.id || '---' },
+                  { label: 'Host Name', value: agentInfo?.hostName || '---', dot: agentInfo?.hostStatusColor },
+                  { label: 'IP Address', value: agentInfo?.ipAddress || '---' },
+                  { label: 'Poller', value: agentInfo?.poller || '---' },
+                  { label: 'OS', value: agentInfo?.os || '---' },
+                  { label: 'Version', value: agentInfo?.version || '---' },
+                  { label: 'Domain Name', value: agentInfo?.domainName || '---' },
+                  { label: 'Agent Last Sync Date', value: agentInfo?.lastSyncDate || '---' },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">{row.label}</div>
+                    <div className="flex-1 text-[13px] font-medium text-[#364658] break-all flex items-center gap-2">
+                      {row.dot && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.dot }} />}
+                      <span>{row.value}</span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* View more details link */}
+                <div className="pt-1">
+                  <button className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center">
+                    <User size={14} />
+                    View more details
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
             );
           } else if (section === 'Requester Information' && hasRequesterInfoMatch()) {
             return (
@@ -3065,7 +3133,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       ) : (
                         <Tag size={16} className="text-[#364658]" />
                       )}
-                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section === 'Change Calendar' ? changeCalendarTitle : section}</span>
+                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section === 'Change Calendar' ? changeCalendarTitle : (assetMode && section === 'Requester Information') ? 'Agent Information' : section}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button

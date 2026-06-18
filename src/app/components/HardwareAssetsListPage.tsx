@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { HardwareAssetsTable } from './HardwareAssetsTable';
 import { Pagination } from './Pagination';
+import { HardwareAssetDrawer } from './HardwareAssetDrawer';
 
 export type AssetType = 'Hardware' | 'Mac Laptop' | 'Windows Laptop' | 'HyperV Server' | 'UNIX Server' | 'Windows Desktop';
 export type AssetStatus = 'In Store' | 'Available' | 'In Use';
@@ -55,8 +56,29 @@ export function HardwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
   const [sortColumn, setSortColumn] = useState<keyof HardwareAsset | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openAssets, setOpenAssets] = useState<HardwareAsset[]>([]);
+  const [activeAssetId, setActiveAssetId] = useState<string | null>(null);
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+
+  const handleOpenAsset = (asset: HardwareAsset) => {
+    if (!openAssets.find(a => a.id === asset.id)) {
+      setOpenAssets([...openAssets, asset]);
+    }
+    setActiveAssetId(asset.id);
+  };
+
+  const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
+
+  const handleCloseTab = (assetId: string) => {
+    const updated = openAssets.filter(a => a.id !== assetId);
+    setOpenAssets(updated);
+    if (activeAssetId === assetId) {
+      setActiveAssetId(updated.length > 0 ? updated[updated.length - 1].id : null);
+    }
+  };
+
+  const handleTabChange = (assetId: string) => setActiveAssetId(assetId);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -127,6 +149,7 @@ export function HardwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
               onSort={handleSort}
               sortColumn={sortColumn}
               sortDirection={sortDirection}
+              onAssetClick={handleOpenAsset}
             />
             <Pagination
               currentPage={currentPage}
@@ -139,6 +162,13 @@ export function HardwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
           </div>
         </main>
       </div>
+      <HardwareAssetDrawer
+        openAssets={openAssets}
+        activeAssetId={activeAssetId}
+        onClose={handleCloseDrawer}
+        onCloseTab={handleCloseTab}
+        onTabChange={handleTabChange}
+      />
     </div>
   );
 }

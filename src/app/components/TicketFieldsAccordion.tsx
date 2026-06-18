@@ -1,4 +1,6 @@
 import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search } from 'lucide-react';
+import { AssetFields } from './AssetFields';
+import type { AssetFieldState } from './AssetFields';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { useEffect, useState, useRef } from 'react';
 
@@ -6,6 +8,9 @@ interface TicketFieldsAccordionProps {
   fieldsTitle?: string;
   showProblemFields?: boolean;
   statusGroupLabel?: string;
+  // When true, render the Hardware Asset field set instead of the ticket fields.
+  assetMode?: boolean;
+  assetState?: AssetFieldState;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -180,6 +185,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     fieldsTitle = 'Ticket Fields',
     showProblemFields = false,
     statusGroupLabel,
+    assetMode = false,
+    assetState,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -412,7 +419,17 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
         )}
       </button>
 
-      {(ticketFieldsExpanded || propertiesSearchQuery) && (
+      {/* Asset Fields — Hardware Asset detail page */}
+      {assetMode && assetState && (ticketFieldsExpanded || propertiesSearchQuery) && (
+        <AssetFields
+          state={assetState}
+          pinnedFields={pinnedFields}
+          togglePinField={togglePinField}
+          propertiesSearchQuery={propertiesSearchQuery}
+        />
+      )}
+
+      {!assetMode && (ticketFieldsExpanded || propertiesSearchQuery) && (
         <div className="px-4 pb-4 space-y-2">
           {/* Current Stage (shown above Status when a stage is provided) */}
           {getFilteredTicketFields().includes('Status') && statusGroupLabel && (

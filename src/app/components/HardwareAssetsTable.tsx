@@ -10,6 +10,7 @@ interface HardwareAssetsTableProps {
   onSort: (column: keyof HardwareAsset) => void;
   sortColumn: keyof HardwareAsset | null;
   sortDirection: 'asc' | 'desc';
+  onAssetClick?: (asset: HardwareAsset) => void;
 }
 
 const typeIcon = (t: AssetType) => {
@@ -41,6 +42,7 @@ export function HardwareAssetsTable({
   onSort,
   sortColumn,
   sortDirection,
+  onAssetClick,
 }: HardwareAssetsTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -81,17 +83,25 @@ export function HardwareAssetsTable({
 
               {/* ID */}
               <td className="px-4 py-3">
-                <span className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => onAssetClick?.(a)}
+                  className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
+                >
                   {a.id}
-                </span>
+                </button>
               </td>
 
               {/* Name */}
               <td className="px-4 py-3 text-[12px] text-[#364658]">
-                <span className="inline-flex items-center gap-1.5 max-w-[320px]">
+                <button
+                  type="button"
+                  onClick={() => onAssetClick?.(a)}
+                  className="inline-flex items-center gap-1.5 max-w-[320px] text-left hover:text-[#3D8BD0] transition-colors"
+                >
                   {a.flagged && <span className="size-1.5 rounded-full bg-[#F59E0B] flex-shrink-0" />}
                   <span className="truncate">{a.name}</span>
-                </span>
+                </button>
               </td>
 
               {/* Asset Type */}
