@@ -1,38 +1,30 @@
-# Handoff — 2026-06-18 17:14
+# Handoff — 2026-06-18 18:50
 
 ## Read first
-See CLAUDE.md, especially **Key context** — the Hardware Asset detail page is a clone of `TicketDrawer` and all asset-specific UI is gated behind an `assetMode` prop threaded through the shared panels. Understand that pattern before touching shared components.
+See CLAUDE.md, especially **Key context** — the Hardware Asset detail page is a clone of `TicketDrawer` and all asset-specific UI is gated behind an `assetMode` prop threaded through the shared panels. This session continued polishing that asset page.
 
 ## What we worked on this session
-Built the **Hardware Asset detail page** (new `HardwareAssetDrawer`) by cloning the ticket detail page, then customized its right-side properties panel to be asset-specific (Asset Fields, Agent Information) without affecting Tickets/Changes/Releases. Also shipped two small Release-page tweaks earlier in the session.
+Refinements to the **Hardware Asset** list + detail page: cleaned up the Agent Information block and Customize Layout, renamed asset IDs, and aligned the list Name styling with other modules.
 
 ## Completed
-- **Release rollout planning**: added "Build Plan" and "Test Plan" cards next to Rollout/Backout Plan (`ReleaseDrawer.tsx`). (Pushed live.)
-- **Sidebar**: active-item highlight in the Assets flyout (`Sidebar.tsx`). (Pushed live.)
-- **Hardware Asset detail page**: clicking a row (ID or Name) in `HardwareAssetsListPage` opens a full `HardwareAssetDrawer` (clone of `TicketDrawer`, opens/manages tabs like `ChangeListPage`).
-- Renamed panel labels on the asset page only: "Ticket Properties" → **Asset Properties**, "Ticket Fields" → **Asset Fields**.
-- Removed the **SLA Status** card on the asset page (`showSla={false}`).
-- **Asset Fields** accordion: replaced ticket fields with 5 editable dropdowns — Asset Type (searchable tree), Status, Impact, Managed By Group, Managed By (searchable + avatars) — in new `AssetFields.tsx`, matching ticket-field dropdown styling/behavior.
-- Asset fields are **pinnable and searchable** exactly like ticket fields (pin icon on hover → moves to shared Pinned Fields section; "Search fields…" filters them).
-- **Agent Information** block replaces "Requester Information" on the asset page, with fields ID / Host Name / IP Address / Poller / OS / Version / Domain Name / Agent Last Sync Date.
-- Verified with `npm run build` after each change (passes).
+- **Agent Information** block: removed the "View more details" button — scoped to asset mode only (`TicketPropertiesPanel`, the `assetMode` branch); the ticket Requester Information block keeps its button.
+- **Customize Layout (asset page)**: removed the stray "Change Calendar" section. The asset page now uses its own layout storage key (`assetPropertiesSectionOrder`), and "Change Calendar" is stripped from any loaded order unless `showChangeCalendar` is true (Change page only). See `TicketPropertiesPanel.tsx` ~line 531.
+- **Asset IDs** renamed to `AST-001` … `AST-021` (`HardwareAssetsListPage.tsx` mock data); flows through to the list ID badge and the detail Agent Information → ID.
+- **List Name styling**: asset Name now matches other tables' Subject (`text-[12px]` + `font-medium`) in `HardwareAssetsTable.tsx`.
+- All verified with `npm run build` (passes).
 
 ## In progress
-Nothing mid-flight. Last build is green.
+Nothing mid-flight. Last build is green. These three files are **modified but not yet committed/pushed**: `HardwareAssetsListPage.tsx`, `HardwareAssetsTable.tsx`, `TicketPropertiesPanel.tsx` (plus CLAUDE.md/HANDOFF.md). Publish to deploy.
 
 ## Next steps
-- Decide whether the **Agent Information** fields should be editable/pinnable (currently read-only display) — was offered at end of session, awaiting direction.
-- Replace the asset detail's remaining ticket-cloned tabs/sections (Conversation, Tasks, etc.) with real asset content as designs are provided.
-- Real data: OS / Version / Domain Name / Last Sync / Poller in Agent Information are representative samples; Impact defaults to "Low" (HardwareAsset has no impact field). Wire to real values when available.
-- Consider persisting asset field selections (currently reset when switching asset tabs, since each asset re-seeds its values).
+- Decide whether the **Agent Information** fields should be editable/pinnable (currently read-only display).
+- Replace the asset detail's remaining ticket-cloned tabs/sections (Conversation, Tasks, etc.) with real asset content as designs arrive.
+- Real data: OS / Version / Domain Name / Last Sync / Poller in Agent Information are sample values; Impact defaults to "Low" (HardwareAsset has no impact field). Wire to real values when available.
 
 ## Decisions made
-- **Clone, don't share-and-branch**: `HardwareAssetDrawer` is a full clone of `TicketDrawer` (per the user's request to keep it separate so details can diverge later). An internal `assetToTicket` adapter maps the asset onto the `Ticket` shape so the 6.5k-line body compiles unchanged.
-- **`assetMode` flag**: asset-specific changes to shared panels (`TicketPropertiesPanel`, `TicketFieldsAccordion`, `PinnedFieldsAccordion`) are all opt-in via an `assetMode`/`showSla`/`fieldsTitle`-style prop with safe defaults, so other modules are untouched.
-- Asset field values are **lifted into `HardwareAssetDrawer`** (not local to `AssetFields`) so the shared Pinned Fields section can read/display them.
+- Kept every asset change gated on `assetMode` (and per-module localStorage keys) so Tickets/Changes/Releases are never affected — consistent with the established pattern.
 
 ## Gotchas & notes
+- **UTF-8 em-dashes**: asset names contain `—`. A PowerShell `Get-Content`/`Set-Content` round-trip corrupted them to `â€”` this session; fixed by `git checkout` + redoing the edit with `[System.IO.File]::ReadAllText/WriteAllText` (UTF-8, no BOM). Prefer the normal edit tools for these files.
 - No standalone typecheck — validate with `npm run build`. TypeScript isn't installed globally (`npx tsc` won't work).
-- The asset list-page statuses (`In Store`/`Available`/`In Use`) differ from the detail status options (`In Stock`/`In Use`/`Missing`/`Retired`); the drawer maps them when seeding.
 - Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` to `main` and require explicit user approval.
-- This session's Hardware Asset work is **uncommitted** (working-tree changes + new files `AssetFields.tsx`, `HardwareAssetDrawer.tsx`) and **not yet deployed**. Only the Release/Sidebar commits earlier in the session were pushed. Publish (Step 5 / `/publish`) to commit, push, and deploy.

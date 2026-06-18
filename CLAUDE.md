@@ -30,7 +30,9 @@ A high-fidelity UI prototype of the Motadata ServiceOps ITSM product — list pa
 - **`HardwareAssetDrawer` uses an adapter** (`assetToTicket`) to map a `HardwareAsset` onto the `Ticket` shape so the cloned body compiles unchanged. Asset-specific UI is toggled with an `assetMode` prop threaded through the shared panels — keep asset changes gated on `assetMode` so tickets/changes/releases are unaffected.
 - Shared-component customization pattern: add an optional prop (e.g. `showSla`, `fieldsTitle`, `assetMode`) with a default that preserves existing behavior, then opt-in from the specific drawer.
 - All data is mock/in-component. Selections in detail drawers are local React state (prototype behavior), not persisted.
-- Verify changes with `npm run build` (no standalone typecheck script; TypeScript isn't installed globally).
+- Hardware asset IDs are `AST-001`, `AST-002`, … (mock data in `HardwareAssetsListPage`).
+- The Customize Layout section order persists in `localStorage` under a per-module key (`ticketPropertiesSectionOrder` / `changePropertiesSectionOrder` / `assetPropertiesSectionOrder`) so layouts don't leak across modules.
+- Verify changes with `npm run build` (no standalone typecheck script; TypeScript isn't installed globally). Note: edit files with the proper tools — a PowerShell `Get-Content`/`Set-Content` round-trip can corrupt the UTF-8 em-dashes (—) in asset names.
 - `main` is the deploy branch — pushing to it auto-deploys via GitHub Actions to the live URL.
 
 ## Deployment

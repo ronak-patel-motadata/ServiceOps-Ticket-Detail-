@@ -528,8 +528,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [isChatbotClosing, setIsChatbotClosing] = useState(false); // Track closing animation
   const [isChatbotOpening, setIsChatbotOpening] = useState(false); // Track opening animation
   const [showCustomizeModal, setShowCustomizeModal] = useState(false); // Track customize layout modal
-  // Change detail page gets its own order (with the Change Calendar) so it doesn't leak to other modules
-  const sectionStorageKey = showChangeCalendar ? 'changePropertiesSectionOrder' : 'ticketPropertiesSectionOrder';
+  // Each module gets its own stored order so layouts don't leak across modules.
+  // Only the Change detail page includes the Change Calendar section.
+  const sectionStorageKey = assetMode
+    ? 'assetPropertiesSectionOrder'
+    : showChangeCalendar
+      ? 'changePropertiesSectionOrder'
+      : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = showChangeCalendar
     ? ['Change Calendar', 'Ticket Fields', 'Requester Information', 'Additional Fields']
     : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
@@ -541,7 +546,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         try {
           const parsed: string[] = JSON.parse(saved);
           if (showChangeCalendar && !parsed.includes('Change Calendar')) parsed.unshift('Change Calendar');
-          return parsed;
+          // Change Calendar only ever belongs to the Change detail page.
+          return showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
         } catch (e) {
           return defaultSectionOrder;
         }
@@ -1481,14 +1487,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     </div>
                   </div>
                 ))}
-
-                {/* View more details link */}
-                <div className="pt-1">
-                  <button className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center">
-                    <User size={14} />
-                    View more details
-                  </button>
-                </div>
               </div>
             </div>
           )}

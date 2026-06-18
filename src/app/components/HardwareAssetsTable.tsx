@@ -100,7 +100,7 @@ export function HardwareAssetsTable({
                   className="inline-flex items-center gap-1.5 max-w-[320px] text-left hover:text-[#3D8BD0] transition-colors"
                 >
                   {a.flagged && <span className="size-1.5 rounded-full bg-[#F59E0B] flex-shrink-0" />}
-                  <span className="truncate">{a.name}</span>
+                  <span className="truncate font-medium">{a.name}</span>
                 </button>
               </td>
 
