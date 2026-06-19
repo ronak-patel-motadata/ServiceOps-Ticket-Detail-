@@ -295,6 +295,8 @@ export const getGroupTitle = (activeGroup: string) => {
   if (activeGroup === 'properties') return 'Ticket Properties';
   if (activeGroup === 'activity') return 'Activity & Resources';
   if (activeGroup === 'chatbot') return 'ServiceOps AI';
+  if (activeGroup === 'users') return 'Users';
+  if (activeGroup === 'notes') return 'Notes';
   return 'AI Suggestions';
 };
 

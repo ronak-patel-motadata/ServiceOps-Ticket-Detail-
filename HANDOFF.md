@@ -1,30 +1,34 @@
-# Handoff — 2026-06-18 18:50
+# Handoff — 2026-06-20 01:43
 
 ## Read first
-See CLAUDE.md, especially **Key context** — the Hardware Asset detail page is a clone of `TicketDrawer` and all asset-specific UI is gated behind an `assetMode` prop threaded through the shared panels. This session continued polishing that asset page.
+See CLAUDE.md **Key context** — this session was all about the Hardware Asset detail page (`HardwareAssetDrawer`) and its right panel (`TicketPropertiesPanel`). The asset drawer is a clone of `TicketDrawer` gated by `assetMode`; tab order lives in the `calculateTabOverflow` effect.
 
 ## What we worked on this session
-Refinements to the **Hardware Asset** list + detail page: cleaned up the Agent Information block and Customize Layout, renamed asset IDs, and aligned the list Name styling with other modules.
+Built out and refined the Hardware Asset detail page: a new **Overview** dashboard tab, **Hardware** and **Software** tabs, header/menu/label cleanups, and a detailed **Users** group + **Notes**-style hover actions in the right panel.
 
 ## Completed
-- **Agent Information** block: removed the "View more details" button — scoped to asset mode only (`TicketPropertiesPanel`, the `assetMode` branch); the ticket Requester Information block keeps its button.
-- **Customize Layout (asset page)**: removed the stray "Change Calendar" section. The asset page now uses its own layout storage key (`assetPropertiesSectionOrder`), and "Change Calendar" is stripped from any loaded order unless `showChangeCalendar` is true (Change page only). See `TicketPropertiesPanel.tsx` ~line 531.
-- **Asset IDs** renamed to `AST-001` … `AST-021` (`HardwareAssetsListPage.tsx` mock data); flows through to the list ID badge and the detail Agent Information → ID.
-- **List Name styling**: asset Name now matches other tables' Subject (`text-[12px]` + `font-medium`) in `HardwareAssetsTable.tsx`.
-- All verified with `npm run build` (passes).
+- **Tabs**: asset drawer now shows Overview (default) · Properties · Hardware · Software · Approvals · Audit Trails. Removed Conversation, Tasks, Resolution. Fixed Approvals landing first (now anchored after Software). Overflow uses the shared "More ▾" dropdown.
+- **Overview tab**: Health & compliance (single 4×2 gray grid, 8 cells incl. Requests + Approvals indicators), Users / Hardware snapshot / Software snapshot in one equal-height row (`items-stretch`), Financial snapshot (left) + Lifecycle & warranty (right). Snapshot cards have a top-right "View more ›" that switches tabs; values left-aligned.
+- **Hardware tab**: all sections stacked full-width with icons, a sticky toolbar (jump-to-section icon left + search right) that pins below the main tab bar (`top-[45px]`), responsive jump list (inline column wide / overlay dropdown narrow, closes on click), per-section/record hover edit+delete, empty-state with "Add" to restore.
+- **Software tab**: inventory table (plain listing style, no box), search + blue "+" add + **column show/hide** menu (`Columns3`), Tasks-style empty state when no rows.
+- **Header/menu**: removed Close Request; renamed tooltips to "Share Asset" / "Copy Asset URL"; new `HardwareAssetActionsMenu` (Ask for Approval, Add Barcode, Print Qrcode, Sync Warranty, Scan Now, Lock, Restart, ShutDown, Sleep, Wake Up Now, Exclude From Scan, Remote Desktop, RDP/Reconcile/Used By/Location/Action History, Archive, Print).
+- **Top area**: removed AI Summary card and the requester name/avatar; kept description (with attachment count + attachments on expand); moved "Created at" under the title.
+- **Right panel Users group**: detailed user cards (avatar, name, Active/Disabled badge, Account Type · Domain, SID, last login/description), gray bg (no border), hover edit/delete icons, top-right blue "+" add. Notes card date now shifts left on hover so it doesn't overlap the edit/delete icons.
+- Verified with `npm run build` after each change (passes).
 
 ## In progress
-Nothing mid-flight. Last build is green. These three files are **modified but not yet committed/pushed**: `HardwareAssetsListPage.tsx`, `HardwareAssetsTable.tsx`, `TicketPropertiesPanel.tsx` (plus CLAUDE.md/HANDOFF.md). Publish to deploy.
+Nothing mid-flight; last build is green. **Uncommitted** files: `HardwareAssetDrawer.tsx`, `HardwareAssetsTable.tsx`, `TicketDrawerUtils.tsx`, `TicketPropertiesPanel.tsx`, new `HardwareAssetActionsMenu.tsx` (+ CLAUDE.md/HANDOFF.md). Not yet pushed/deployed.
 
 ## Next steps
-- Decide whether the **Agent Information** fields should be editable/pinnable (currently read-only display).
-- Replace the asset detail's remaining ticket-cloned tabs/sections (Conversation, Tasks, etc.) with real asset content as designs arrive.
-- Real data: OS / Version / Domain Name / Last Sync / Poller in Agent Information are sample values; Impact defaults to "Low" (HardwareAsset has no impact field). Wire to real values when available.
+- Wire the prototype affordances to real behavior when data is available: edit/delete on Users & Hardware records, the "+" add buttons (asset/user/software), and Overview counts (Requests/Approvals, snapshot numbers) are currently static.
+- Confirm there isn't a stray duplicate `activeGroup === 'users'` block in `TicketPropertiesPanel` (saw two earlier; the rendered one is the detailed cards with email/last-login — verify only one renders).
 
 ## Decisions made
-- Kept every asset change gated on `assetMode` (and per-module localStorage keys) so Tickets/Changes/Releases are never affected — consistent with the established pattern.
+- Keep all asset changes gated behind `assetMode` / asset-only branches so Tickets/Changes/Releases stay untouched.
+- Overview Users card stays the compact pill view; the **detailed** user list lives in the right-panel `users` group (per the reference), not the Overview card.
+- Snapshot/overview cards use the app's existing tokens (gray `#F9FAFB` cells, blue `#3D8BD0`, amber/red for warn/bad) for consistency.
 
 ## Gotchas & notes
-- **UTF-8 em-dashes**: asset names contain `—`. A PowerShell `Get-Content`/`Set-Content` round-trip corrupted them to `â€”` this session; fixed by `git checkout` + redoing the edit with `[System.IO.File]::ReadAllText/WriteAllText` (UTF-8, no BOM). Prefer the normal edit tools for these files.
-- No standalone typecheck — validate with `npm run build`. TypeScript isn't installed globally (`npx tsc` won't work).
-- Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` to `main` and require explicit user approval.
+- Tab order is computed in `calculateTabOverflow` (`HardwareAssetDrawer`); the approvals/relations inserts anchor off `software` now (previously `tasks`, which was removed) — re-check anchors if you change tabs again.
+- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` round-trips on these files (corrupts UTF-8 em-dashes); use the editor tools or `[System.IO.File]::ReadAllText/WriteAllText` UTF-8.
+- Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` to `main` and need explicit approval.

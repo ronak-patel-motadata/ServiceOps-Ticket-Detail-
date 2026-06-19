@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -30,8 +30,8 @@ interface TicketPropertiesPanelProps {
   // Calendar section title (e.g. "Change Calendar" or "Release Calendar")
   changeCalendarTitle?: string;
   // State
-  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot';
-  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot') => void;
+  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes';
+  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes') => void;
   pinnedFields: string[];
   setPinnedFields: (fields: string[]) => void;
   showPropertiesSearch: boolean;
@@ -520,6 +520,48 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ id: number; text: string; isUser: boolean; timestamp: string; isTyping?: boolean; fullText?: string; displayedText?: string; followUpActions?: string[] }>>([]);
   const [previousGroup, setPreviousGroup] = useState<'properties' | 'activity' | 'suggestions'>('suggestions');
+  // Asset-only Notes group
+  const [assetNotes, setAssetNotes] = useState<{ id: number; name: string; author: string; initials: string; color: string; time: string; text: string }[]>([
+    { id: 1, name: 'Reassignment', author: 'A. Kumar', initials: 'AK', color: '#10B981', time: '12 Jun 2026, 10:24 AM', text: 'Reassigned to the End User Computing pool after the Sales handover.' },
+    { id: 2, name: 'RAM Upgrade', author: 'Riya Shah', initials: 'RS', color: '#6366F1', time: '02 Feb 2026, 04:10 PM', text: 'RAM upgraded from 16 GB to 40 GB. Verified boot and ran hardware diagnostics — all passed.' },
+  ]);
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [noteName, setNoteName] = useState('');
+  const [noteDesc, setNoteDesc] = useState('');
+  const openAddNote = () => {
+    setEditingNoteId(null);
+    setNoteName('');
+    setNoteDesc('');
+    setShowAddNote(true);
+  };
+  const openEditNote = (n: { id: number; name: string; text: string }) => {
+    setEditingNoteId(n.id);
+    setNoteName(n.name);
+    setNoteDesc(n.text);
+    setShowAddNote(true);
+  };
+  const saveAssetNote = () => {
+    const name = noteName.trim();
+    const text = noteDesc.trim();
+    if (!name || !text) return;
+    if (editingNoteId != null) {
+      setAssetNotes((prev) => prev.map((n) => (n.id === editingNoteId ? { ...n, name, text } : n)));
+    } else {
+      setAssetNotes((prev) => [{ id: Date.now(), name, author: 'You', initials: 'YO', color: '#3D8BD0', time: 'Just now', text }, ...prev]);
+    }
+    setNoteName('');
+    setNoteDesc('');
+    setEditingNoteId(null);
+    setShowAddNote(false);
+  };
+  const deleteAssetNote = (id: number) => setAssetNotes((prev) => prev.filter((n) => n.id !== id));
+  const cancelAddNote = () => {
+    setNoteName('');
+    setNoteDesc('');
+    setEditingNoteId(null);
+    setShowAddNote(false);
+  };
   const [showAISummaryMenu, setShowAISummaryMenu] = useState(false);
   const [hasNewConversations, setHasNewConversations] = useState(true); // Track if new conversations have been added
   const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false); // Track regeneration animation
@@ -1076,6 +1118,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }}
               >
                 <ChevronDown size={16} className="text-[#7B8FA5]" />
+              </button>
+            )}
+            {activeGroup === 'users' && (
+              <button title="Add User" className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                <Plus size={15} />
+              </button>
+            )}
+            {activeGroup === 'notes' && (
+              <button title="Add Note" onClick={openAddNote} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                <Plus size={15} />
               </button>
             )}
           </div>
@@ -1931,6 +1983,68 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </div>
         )}
 
+        {/* Users Group Content (asset only) */}
+        {activeGroup === 'users' && (
+          <div className="space-y-2">
+              {[
+                { name: 'J. Doe', initials: 'JD', color: '#6366F1', dept: 'Sales', email: 'j.doe@motadata.com', lastLogin: '19 Jun 2026, 09:12 AM', disabled: false },
+                { name: 'A. Kumar', initials: 'AK', color: '#10B981', dept: 'IT Operations', email: 'a.kumar@motadata.com', lastLogin: '18 Jun 2026, 06:45 PM', disabled: false },
+                { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0', dept: 'End User Computing', email: 'tabrez.khan@motadata.com', lastLogin: '17 Jun 2026, 02:30 PM', disabled: false },
+                { name: 'Priya Sharma', initials: 'PS', color: '#F59E0B', dept: 'Human Resources', email: 'priya.sharma@motadata.com', lastLogin: '19 Jun 2026, 08:05 AM', disabled: false },
+                { name: 'Rahul Mehta', initials: 'RM', color: '#EC4899', dept: 'Finance', email: 'rahul.mehta@motadata.com', lastLogin: '16 Jun 2026, 05:20 PM', disabled: false },
+                { name: 'Sara Williams', initials: 'SW', color: '#8B5CF6', dept: 'Marketing', email: 'sara.williams@motadata.com', lastLogin: '15 Jun 2026, 11:48 AM', disabled: false },
+                { name: 'Vikram Singh', initials: 'VS', color: '#EF4444', dept: 'Operations', email: 'vikram.singh@motadata.com', lastLogin: '02 May 2026, 06:12 PM', disabled: true },
+                { name: 'Neha Gupta', initials: 'NG', color: '#0EA5E9', dept: 'Customer Support', email: 'neha.gupta@motadata.com', lastLogin: '18 Jun 2026, 09:55 AM', disabled: false },
+              ].map((u) => (
+                <div key={u.name} className="group relative px-3 py-2.5 rounded-[10px] bg-[#F9FAFB]">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-8 items-center justify-center rounded-md text-[11px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 group-hover:pr-14 transition-[padding] duration-150">
+                        <span className="text-[13px] font-medium text-[#364658] truncate">{u.name}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${u.disabled ? 'bg-[#FDECEC] text-[#DC2626]' : 'bg-[#E7F6EE] text-[#22A06B]'}`}>{u.disabled ? 'Disabled' : 'Active'}</span>
+                      </div>
+                      <div className="text-[12px] text-[#7B8FA5] truncate">{u.dept}</div>
+                      <div className="text-[11px] text-[#9CA3AF] truncate">{u.email}</div>
+                      <div className="text-[11px] text-[#9CA3AF] truncate">Last login: {u.lastLogin}</div>
+                    </div>
+                  </div>
+                  {/* Hover actions */}
+                  <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-[#F9FAFB] rounded">
+                    <button title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Pencil size={13} /></button>
+                    <button title="Delete" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+        )}
+
+        {/* Notes Group Content (asset only) */}
+        {activeGroup === 'notes' && (
+          <div className="space-y-3">
+            {assetNotes.map((n) => (
+              <div key={n.id} className="group relative bg-white rounded-[10px] border border-[#DFE5ED] p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="flex size-6 items-center justify-center rounded-md text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: n.color }}>{n.initials}</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{n.author}</span>
+                  <span className="text-[11px] text-[#9CA3AF] ml-auto group-hover:mr-14 transition-[margin] duration-150">{n.time}</span>
+                </div>
+                {n.name && <div className="text-[13px] font-semibold text-[#364658] mb-0.5 pr-12">{n.name}</div>}
+                <p className="text-[13px] text-[#364658] leading-relaxed whitespace-pre-wrap break-words">{n.text}</p>
+                {/* Hover actions */}
+                <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-white rounded">
+                  <button onClick={() => openEditNote(n)} title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F1F5F9] transition-colors">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => deleteAssetNote(n.id)} title="Delete" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* AI Suggestions Group Content */}
         {activeGroup === 'suggestions' && (
           <div className="space-y-3">
@@ -2255,7 +2369,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
                   {/* Description */}
                   <p className="text-[14px] text-[#6B7280] text-center max-w-md mb-8">
-                    Ask ServiceOps AI anything about this ticket or get assistance with troubleshooting and resolution.
+                    {assetMode
+                      ? 'Ask ServiceOps AI anything about this asset or get assistance with its configuration, warranty and compliance.'
+                      : 'Ask ServiceOps AI anything about this ticket or get assistance with troubleshooting and resolution.'}
                   </p>
 
                   {/* Suggested Prompts */}
@@ -2264,16 +2380,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => handleQuickAction('Suggest a solution for this issue')}
+                          onClick={() => handleQuickAction(assetMode ? 'Summarize this asset' : 'Suggest a solution for this issue')}
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
                           className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
                         >
                           <Lightbulb size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>Suggest Solution</span>
+                          <span>{assetMode ? 'Summarize Asset' : 'Suggest Solution'}</span>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Get AI-powered solution recommendations for this issue
+                        {assetMode ? "Get an AI summary of this asset's configuration and health" : 'Get AI-powered solution recommendations for this issue'}
                       </TooltipContent>
                     </Tooltip>
 
@@ -2281,16 +2397,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => handleQuickAction('Find similar resolved tickets')}
+                          onClick={() => handleQuickAction(assetMode ? 'Find similar assets' : 'Find similar resolved tickets')}
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
                           className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
                         >
                           <SearchIcon size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>Find Similar Tickets</span>
+                          <span>{assetMode ? 'Find Similar Assets' : 'Find Similar Tickets'}</span>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Search for similar resolved tickets in the system
+                        {assetMode ? 'Search for similar assets in the inventory' : 'Search for similar resolved tickets in the system'}
                       </TooltipContent>
                     </Tooltip>
 
@@ -2307,7 +2423,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Find relevant knowledge base articles for resolution
+                        {assetMode ? 'Find relevant knowledge base articles for this asset' : 'Find relevant knowledge base articles for resolution'}
                       </TooltipContent>
                     </Tooltip>
 
@@ -2315,16 +2431,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => handleQuickAction('Root Cause')}
+                          onClick={() => handleQuickAction(assetMode ? 'Check warranty and compliance' : 'Root Cause')}
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
                           className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
                         >
                           <Brain size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>Analyze Root Cause</span>
+                          <span>{assetMode ? 'Check Warranty & Compliance' : 'Analyze Root Cause'}</span>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="right" className="text-xs">
-                        Identify potential root causes of this issue
+                        {assetMode ? 'Check warranty status and software compliance for this asset' : 'Identify potential root causes of this issue'}
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -2728,7 +2844,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs">
-                        Show AI-generated summary of this ticket
+                        {assetMode ? 'Show AI-generated summary of this asset' : 'Show AI-generated summary of this ticket'}
                       </TooltipContent>
                     </Tooltip>
 
@@ -2741,11 +2857,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           onClick={() => handleQuickAction('Find Similar Tickets')}
                         >
                           <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>Find Similar Tickets</span>
+                          <span>{assetMode ? 'Find Similar Assets' : 'Find Similar Tickets'}</span>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs">
-                        Search for similar tickets in the system
+                        {assetMode ? 'Search for similar assets in the inventory' : 'Search for similar tickets in the system'}
                       </TooltipContent>
                     </Tooltip>
 
@@ -3007,8 +3123,55 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <FileText size={16} className={activeGroup === 'properties' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Ticket Properties</TooltipContent>
+          <TooltipContent>{assetMode ? 'Asset Properties' : 'Ticket Properties'}</TooltipContent>
         </Tooltip>
+
+        {/* Asset-only groups: Users + Notes (ordered between Properties and Activity) */}
+        {assetMode && (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  if (isAccordionCollapsed) {
+                    expandAccordion();
+                  }
+                  setActiveGroup('users');
+                }}
+                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                  activeGroup === 'users'
+                    ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+                }`}
+              >
+                <Users size={16} className={activeGroup === 'users' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Users</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  if (isAccordionCollapsed) {
+                    expandAccordion();
+                  }
+                  setActiveGroup('notes');
+                }}
+                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                  activeGroup === 'notes'
+                    ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+                }`}
+              >
+                <StickyNote size={16} className={activeGroup === 'notes' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Notes</TooltipContent>
+          </Tooltip>
+        </>
+        )}
 
         {/* Group 2: Activity and Resources Icon */}
         <Tooltip>
@@ -3032,7 +3195,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipContent>Activity and Resources</TooltipContent>
         </Tooltip>
 
-        {/* Group 3: AI Suggestions Icon */}
+        {/* Group 3: AI Suggestions Icon (hidden for hardware assets) */}
+        {!assetMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -3057,7 +3221,74 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </TooltipTrigger>
           <TooltipContent>AI Suggestions</TooltipContent>
         </Tooltip>
+        )}
       </div>
+
+      {/* Add Note — side drawer (asset Notes group) */}
+      {showAddNote && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300"
+            onClick={cancelAddNote}
+          />
+          {/* Side Drawer */}
+          <div
+            className="fixed top-0 right-0 h-full w-[460px] max-w-[92vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
+            style={{ transform: showAddNote ? 'translateX(0)' : 'translateX(100%)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[18px] font-semibold text-[#111827]">{editingNoteId != null ? 'Edit Note' : 'Add Note'}</h2>
+              <button onClick={cancelAddNote} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">
+                  Name <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={noteName}
+                  onChange={(e) => setNoteName(e.target.value)}
+                  placeholder="Name"
+                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">
+                  Description <span className="text-[#DC2626]">*</span>
+                </label>
+                <textarea
+                  value={noteDesc}
+                  onChange={(e) => setNoteDesc(e.target.value)}
+                  placeholder="Description"
+                  className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                />
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+              <button
+                onClick={saveAssetNote}
+                disabled={!noteName.trim() || !noteDesc.trim()}
+                className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {editingNoteId != null ? 'Save' : 'Add'}
+              </button>
+              <button
+                onClick={cancelAddNote}
+                className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Customize Layout Modal */}
       {showCustomizeModal && (

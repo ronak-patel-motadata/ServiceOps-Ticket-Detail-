@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -89,6 +89,7 @@ import {
   getFilteredAdditionalFields
 } from './TicketDrawerUtils';
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
+import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
@@ -183,7 +184,26 @@ export function HardwareAssetDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  // Deleted Software rows (Software tab), keyed by row index.
+  const [removedSoftware, setRemovedSoftware] = useState<Set<number>>(new Set());
+  // Search across the Software inventory table.
+  const [softwareSearch, setSoftwareSearch] = useState('');
+  // Software table column visibility (important columns shown by default).
+  const [visibleSoftwareCols, setVisibleSoftwareCols] = useState<Set<string>>(
+    new Set(['name', 'manufacturer', 'version', 'installedDate', 'installedLocation', 'actions'])
+  );
+  const [showSoftwareColsMenu, setShowSoftwareColsMenu] = useState(false);
+  // Search across all Properties tab sections (Hardware Asset detail page).
+  const [propertiesSearch, setPropertiesSearch] = useState('');
+  const [showLocationMap, setShowLocationMap] = useState(false);
+  const [showLocationHistory, setShowLocationHistory] = useState(false);
+  // Whether the Hardware tab's jump-to-section list is open.
+  const [hardwareNavOpen, setHardwareNavOpen] = useState(false);
+  // Common search across all Hardware tab sections.
+  const [hardwareSearch, setHardwareSearch] = useState('');
+  // Deleted Hardware record cards, keyed as `${categoryId}:${index}`.
+  const [removedHardwareItems, setRemovedHardwareItems] = useState<Set<string>>(new Set());
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -287,7 +307,7 @@ export function HardwareAssetDrawer({
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -298,7 +318,7 @@ export function HardwareAssetDrawer({
   const [pinnedFieldsExpanded, setPinnedFieldsExpanded] = useState(true);
   const [slaStatusExpanded, setSlaStatusExpanded] = useState(true);
   const [ticketFieldsExpanded, setTicketFieldsExpanded] = useState(true);
-  const [requesterInfoExpanded, setRequesterInfoExpanded] = useState(false);
+  const [requesterInfoExpanded, setRequesterInfoExpanded] = useState(true);
   const [additionalFieldsExpanded, setAdditionalFieldsExpanded] = useState(false);
   const [workTrackerExpanded, setWorkTrackerExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
@@ -808,8 +828,8 @@ export function HardwareAssetDrawer({
       if (!tabContainerRef.current) return;
 
       // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['conversation', 'tasks', 'audit', 'resolution'];
-      const baseTabsForINC35 = ['service-request', 'conversation', 'tasks', 'audit', 'resolution'];
+      const baseTabsForOthers = ['overview', 'properties', 'hardware', 'software', 'audit'];
+      const baseTabsForINC35 = ['overview', 'properties', 'hardware', 'software', 'service-request', 'audit'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -820,32 +840,20 @@ export function HardwareAssetDrawer({
         allTabs = [...baseTabsForOthers];
       }
       
-      // Add Approvals tab if not INC-32
+      // Add Approvals tab after Software (if not INC-32)
       if (activeTicket?.id !== 'INC-32') {
-        // Insert approvals after tasks
-        const tasksIndex = allTabs.indexOf('tasks');
-        allTabs.splice(tasksIndex + 1, 0, 'approvals');
-      }
-      
-      // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
-      const shouldShowRelations = activeTicket?.id !== 'INC-32' || 
-                                  (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
-      if (shouldShowRelations) {
-        // Insert relations after approvals (if exists) or tasks
-        const approvalsIndex = allTabs.indexOf('approvals');
-        if (approvalsIndex !== -1) {
-          allTabs.splice(approvalsIndex + 1, 0, 'relations');
-        } else {
-          const tasksIndex = allTabs.indexOf('tasks');
-          allTabs.splice(tasksIndex + 1, 0, 'relations');
-        }
+        const softwareIndex = allTabs.indexOf('software');
+        allTabs.splice(softwareIndex + 1, 0, 'approvals');
       }
 
-      // Only apply overflow detection for INC-35
-      if (activeTicket?.id !== 'INC-35') {
-        setVisibleTabs(allTabs);
-        setOverflowTabs([]);
-        return;
+      // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
+      const shouldShowRelations = activeTicket?.id !== 'INC-32' ||
+                                  (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
+      if (shouldShowRelations) {
+        // Insert relations after approvals (if exists) or software
+        const approvalsIndex = allTabs.indexOf('approvals');
+        const anchorIndex = approvalsIndex !== -1 ? approvalsIndex : allTabs.indexOf('software');
+        allTabs.splice(anchorIndex + 1, 0, 'relations');
       }
 
       const containerWidth = tabContainerRef.current.offsetWidth;
@@ -856,6 +864,10 @@ export function HardwareAssetDrawer({
       
       // Approximate widths for each tab (in pixels)
       const tabWidths: Record<string, number> = {
+        'overview': 80,
+        'properties': 85,
+        'hardware': 85,
+        'software': 80,
         'service-request': 130,
         'conversation': 105,
         'tasks': 60,
@@ -1060,25 +1072,10 @@ export function HardwareAssetDrawer({
     }
   }, [showBadgeAssigneeDropdown]);
 
-  // Set default tab based on ticket type
+  // Asset detail page opens on the Overview tab by default.
   useEffect(() => {
-    if (activeTicket?.id === 'INC-35') {
-      setActiveMainTab('service-request');
-    } else if (activeTicket?.id === 'INC-39') {
-      // INC-39 is a closed ticket, open to Resolution tab with pre-filled data
-      setActiveMainTab('resolution');
-      setDiagnosisData({
-        content: 'After thorough investigation, the root cause has been identified as a network configuration issue affecting the user\'s connectivity. The DNS settings were incorrectly configured, preventing proper domain resolution.',
-        timestamp: new Date(2022, 3, 18, 14, 30).toISOString()
-      });
-      setSolutionData({
-        content: 'Updated the DNS configuration with the correct primary and secondary DNS servers. Flushed the DNS cache and verified connectivity. The user confirmed that all services are now accessible and functioning properly.',
-        timestamp: new Date(2022, 3, 18, 15, 45).toISOString()
-      });
-    } else if (activeTicket) {
-      setActiveMainTab('conversation');
-    }
-  }, [activeTicket?.id]);
+    if (activeAsset) setActiveMainTab('overview');
+  }, [activeAssetId]);
 
   // Update ticket fields when active ticket changes
   useEffect(() => {
@@ -1860,9 +1857,12 @@ export function HardwareAssetDrawer({
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-[18px] font-semibold text-[#364658]">
-            {activeTicket.subject}
-          </h1>
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-semibold text-[#364658] truncate">
+              {activeTicket.subject}
+            </h1>
+            <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
+          </div>
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1871,7 +1871,7 @@ export function HardwareAssetDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Copy Ticket URL
+                Copy Asset URL
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -1881,7 +1881,7 @@ export function HardwareAssetDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Share Ticket
+                Share Asset
               </TooltipContent>
             </Tooltip>
             <div className="relative">
@@ -1963,37 +1963,10 @@ export function HardwareAssetDrawer({
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                if (selectedStatus === 'Closed') {
-                  setSelectedStatus('Open');
-                } else {
-                  // Check if solution exists before closing
-                  if (!solutionData) {
-                    toast('Please add a solution in the Resolution tab before closing the request', {
-                      icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
-                    });
-                    setActiveMainTab('resolution');
-                  } else {
-                    setSelectedStatus('Closed');
-                  }
-                }
-              }}
-              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2d7bc0]"
-            >
-              {selectedStatus === 'Closed' ? 'Reopen Request' : 'Close Request'}
-            </button>
-            <TicketActionsMenu
-              ticketId={activeTicket?.id}
+            <HardwareAssetActionsMenu
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
-              }}
-              onRestartOnboarding={() => {
-                sessionStorage.removeItem('hasSeenTicketDetailsOnboarding');
-                setOnboardingStep(0);
-                setShowOnboarding(true);
-                setActiveGroup('properties'); // Open ticket properties for onboarding
               }}
             />
           </div>
@@ -2290,108 +2263,37 @@ export function HardwareAssetDrawer({
                 </Tooltip>
               </div>
             </div>
-            
-            {/* Description Section with Requester Info */}
+
+            {/* Description Section (requester name/avatar removed for assets) */}
             <div className="px-6 py-4 bg-white">
               <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-[#E67E22] text-[12px] font-medium text-white">
-                  {activeTicket?.id === 'INC-35' ? 'AD' : activeTicket.requester.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[14px] font-semibold text-[#364658]">{activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket.requester}</span>
-                    <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
-                    <div
-                      onClick={() => {
-                        setIsDescriptionExpanded(true);
-                        setAttachmentsExpanded(true);
-                        setHighlightAttachments(true);
-                        setTimeout(() => {
-                          const attachmentsSection = document.getElementById('attachments-section');
-                          if (attachmentsSection) {
-                            attachmentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }, 100);
-                        setTimeout(() => {
-                          setHighlightAttachments(false);
-                        }, 3000);
-                      }}
-                      className="flex items-center gap-1 text-[12px] text-[#6b7280] ml-auto cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                      style={{ display: activeTicket?.id === 'INC-35' ? 'none' : 'flex' }}
-                    >
-                      <Paperclip size={12} />
-                      <span>2</span>
-                    </div>
-                  </div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {activeTicket?.id === 'INC-35' ? (
-                      // Description for INC-35: Request for Apple MacBook Pro Allocation
-                      isDescriptionExpanded ? (
-                        <>
-                          I am requesting an Apple MacBook Pro 16-inch for my role as a Senior Software Developer in the Engineering team. The current laptop assigned to me is experiencing performance issues and is unable to handle the resource-intensive development tools and virtual machines required for my daily work.
-                          <br /><br />
-                          The MacBook Pro would significantly improve my productivity by providing better performance for running multiple Docker containers, IDEs, and testing environments simultaneously. This device would support my work on cross-platform development projects and ensure seamless integration with our existing Apple ecosystem. I would also need the standard software licenses and access permissions configured for development purposes.
-                        </>
-                      ) : (
-                        <>
-                          I am requesting an Apple MacBook Pro 16-inch for my role as a Senior Software Developer in the Engineering team. The current laptop assigned to me is experiencing performance issues and is unable to handle the resource-intensive development tools and virtual machines required for my daily work.{' '}
-                          <button
-                            onClick={() => setIsDescriptionExpanded(true)}
-                            className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                          >
-                            View more
-                            <ChevronDown size={14} />
-                          </button>
-                        </>
-                      )
-                    ) : activeTicket?.id === 'INC-32' ? (
-                      // Description for INC-32: My Internet Down
-                      isDescriptionExpanded ? (
-                        <>
-                          I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.
-                          <br /><br />
-                          This is significantly impacting my ability to work as I cannot access emails, cloud applications, or collaborate with my team. I've checked with colleagues nearby and they don't seem to be experiencing any connectivity issues. I need urgent assistance to resolve this problem as I have several critical tasks and meetings scheduled today that require internet access.
-                        </>
-                      ) : (
-                        <>
-                          I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.{' '}
-                          <button
-                            onClick={() => setIsDescriptionExpanded(true)}
-                            className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                          >
-                            View more
-                            <ChevronDown size={14} />
-                          </button>
-                        </>
-                      )
+                    {isDescriptionExpanded ? (
+                      <>
+                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
+                        <br /><br />
+                        Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
+                        ensuring proper authentication with domain controllers and restoring access to shared network drives. The
+                        process includes verification of network adapter settings, validation of proxy configurations, and testing
+                        connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
+                        network-dependent services are functioning optimally after the refresh is complete.
+                      </>
                     ) : (
-                      // Default description for other tickets
-                      isDescriptionExpanded ? (
-                        <>
-                          To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                          <br /><br />
-                          Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                          ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                          process includes verification of network adapter settings, validation of proxy configurations, and testing
-                          connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                          network-dependent services are functioning optimally after the refresh is complete.
-                        </>
-                      ) : (
-                        <>
-                          To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                          <button
-                            onClick={() => setIsDescriptionExpanded(true)}
-                            className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                          >
-                            View more
-                            <ChevronDown size={14} />
-                          </button>
-                        </>
-                      )
+                      <>
+                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
+                        <button
+                          onClick={() => setIsDescriptionExpanded(true)}
+                          className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
+                        >
+                          View more
+                          <ChevronDown size={14} />
+                        </button>
+                      </>
                     )}
                   </p>
                   {isDescriptionExpanded && (
-                    <button 
+                    <button
                       onClick={() => setIsDescriptionExpanded(false)}
                       className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
                     >
@@ -2399,368 +2301,48 @@ export function HardwareAssetDrawer({
                       <ChevronUp size={14} />
                     </button>
                   )}
-                  
-                  {/* Attachments */}
-                  {isDescriptionExpanded && activeTicket?.id !== 'INC-35' && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                      highlightAttachments 
-                        ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
-                        : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                    }`}>
-                      <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#364658] font-medium">task-changes.doc</span>
-                        <span className="text-[10px] text-[#7B8FA5]">674 KB</span>
-                      </div>
-                      {/* Hover Actions */}
-                      <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                        <button className="p-1 hover:bg-white rounded" title="Download">
-                          <Download className="size-3.5 text-[#7B8FA5]" />
-                        </button>
-                        <button className="p-1 hover:bg-white rounded" title="Delete">
-                          <Trash2 className="size-3.5 text-[#EF4444]" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                      highlightAttachments 
-                        ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
-                        : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                    }`}>
-                      <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#364658] font-medium">network-diagnosis.pdf</span>
-                        <span className="text-[10px] text-[#7B8FA5]">2 MB</span>
-                      </div>
-                      {/* Hover Actions */}
-                      <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                        <button className="p-1 hover:bg-white rounded" title="Download">
-                          <Download className="size-3.5 text-[#7B8FA5]" />
-                        </button>
-                        <button className="p-1 hover:bg-white rounded" title="Delete">
-                          <Trash2 className="size-3.5 text-[#EF4444]" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {/* AI Summary Accordion */}
-            <div className="border border-[#DFE5ED] rounded-lg relative mx-[24px] mt-[0px] mb-[12px]" style={{ position: 'relative' }}>
-              {/* Gradient Background Layer */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: 0.03,
-                  background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)',
-                  borderRadius: '0.5rem',
-                  pointerEvents: 'none',
-                  zIndex: 0
-                }}
-              />
-              <div className="w-full px-6 py-3 rounded-lg transition-colors flex items-center justify-between relative z-9999">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setAiSummaryExpanded(!aiSummaryExpanded)}>
-                  <svg width="18" height="18" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-                        <defs>
-                          <linearGradient id="sparkle-gradient-icon" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#4CB1FE" />
-                            <stop offset="20.44%" stopColor="#731EFB" />
-                            <stop offset="99.68%" stopColor="#F911E3" />
-                          </linearGradient>
-                        </defs>
-                        <path fill="url(#sparkle-gradient-icon)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
-                      </svg>
-                  <span className="text-[14px] font-semibold text-[#364658]">{isRefreshingAiSummary ? 'Generating Summary...' : 'AI Summary'}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-[#9CA3AF]">New conversations have been added</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsRefreshingAiSummary(true);
-                      setTimeout(() => {
-                        setIsRefreshingAiSummary(false);
-                      }, 2000);
-                    }}
-                    className="p-1 hover:bg-[#E5E7EB] rounded transition-colors"
-                    title="Refresh AI Summary"
-                    disabled={isRefreshingAiSummary}
-                  >
-                    <RefreshCw size={14} className={`text-[#7B8FA5] transition-transform ${isRefreshingAiSummary ? 'animate-spin' : ''}`} />
-                  </button>
-                  <div className="relative z-[99999]" ref={aiSummaryMenuRef}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAiSummaryMenu(!showAiSummaryMenu);
-                      }}
-                      className="p-1 hover:bg-[#E5E7EB] rounded transition-colors"
-                      title="More options"
-                    >
-                      <MoreVertical size={14} className="text-[#7B8FA5]" />
-                    </button>
-                    {showAiSummaryMenu && (
-                      <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[99999] min-w-[200px]">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            const aiSummaryText = getAiSummaryText();
-                            setNoteContent(aiSummaryText);
-                            setActiveMainTab('conversation');
-                            setShowNoteEditor(true);
-                            setTimeout(() => {
-                              noteFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                            }, 100);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
-                        >
-                          <StickyNote size={16} className="text-[#7B8FA5]" />
-                          <span className="text-[13px] text-[#364658]">Add as Note</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            toast.success('Added as Collaborate');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
-                        >
-                          <User size={16} className="text-[#7B8FA5]" />
-                          <span className="text-[13px] text-[#364658]">Add as Collaborate</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            toast.success('Reply opened');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
-                        >
-                          <Reply size={16} className="text-[#7B8FA5]" />
-                          <span className="text-[13px] text-[#364658]">Reply</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            toast.success('Forward opened');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
-                        >
-                          <Forward size={16} className="text-[#7B8FA5]" />
-                          <span className="text-[13px] text-[#364658]">Forward</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            toast.success('Edit mode enabled');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
-                        >
-                          <Edit size={16} className="text-[#7B8FA5]" />
-                          <span className="text-[13px] text-[#364658]">Edit</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowAiSummaryMenu(false);
-                            toast.error('AI Summary deleted');
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#FEF2F2] text-left transition-colors"
-                        >
-                          <Trash2 size={16} className="text-[#EF4444]" />
-                          <span className="text-[13px] text-[#EF4444]">Delete</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="cursor-pointer" onClick={() => setAiSummaryExpanded(!aiSummaryExpanded)}>
-                    {aiSummaryExpanded ? (
-                      <ChevronUp size={16} className="text-[#7B8FA5]" />
-                    ) : (
-                      <ChevronDown size={16} className="text-[#7B8FA5]" />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {aiSummaryExpanded && (
-                <div className="rounded-lg relative z-10 px-[24px] pt-[8px] pb-[16px]">
-                  {isRefreshingAiSummary && (
-                    <>
-                      <div
-                        className="h-[8px] opacity-10 mb-2 overflow-hidden w-full"
-                        style={{
-                          borderRadius: '1.25rem'
-                        }}
-                      >
+                  {/* Attachments — shown when description is expanded */}
+                  {isDescriptionExpanded && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {[
+                        { name: 'task-changes.doc', size: '674 KB' },
+                        { name: 'network-diagnosis.pdf', size: '2 MB' },
+                      ].map((f) => (
                         <div
-                          style={{
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'gradientSlide 2s linear infinite'
-                          }}
-                        />
-                      </div>
-                      <div
-                        className="h-[8px] opacity-10 overflow-hidden"
-                        style={{
-                          borderRadius: '1.25rem',
-                          width: '75%'
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'gradientSlide 2s linear infinite'
-                          }}
-                        />
-                      </div>
-                      <style>{`
-                        @keyframes gradientSlide {
-                          0% {
-                            background-position: 200% 0%;
-                          }
-                          100% {
-                            background-position: 0% 0%;
-                          }
-                        }
-                      `}</style>
-                    </>
-                  )}
-                  {!isRefreshingAiSummary && (
-                  <>
-                  <div className="text-[13px] text-[#364658] leading-relaxed mb-4">
-                    {activeTicket?.id === 'INC-32' ? (
-                      <>
-                        User reporting complete internet outage on work laptop despite showing Wi-Fi connection. Unable to access websites or company resources since morning. Urgent assistance needed for business-critical work and scheduled meetings.
-                      </>
-                    ) : activeTicket?.id === 'INC-35' ? (
-                      <>
-                        The user is requesting an Apple MacBook Pro 16-inch for development work. The current laptop is experiencing performance issues and cannot handle resource-intensive development tools and virtual machines required for daily work in the Engineering team.
-                      </>
-                    ) : (
-                      <>
-                        User reporting complete internet outage on work laptop despite showing Wi-Fi connection. Unable to access websites or company resources since morning. Urgent assistance needed for business-critical work and scheduled meetings.
-                      </>
-                    )}
-                  </div>
-
-                  <div className="mb-3">
-                    <h4 className="text-[11px] font-semibold text-[#7B8FA5] mb-2">KEY POINTS</h4>
-                    <ul className="space-y-1.5">
-                      {activeTicket?.id === 'INC-32' ? (
-                        <>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
-                            <span>No internet access despite Wi-Fi showing as connected</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
-                            <span>Impacting ability to access emails and cloud applications</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
-                            <span>Requires network diagnostics and connectivity troubleshooting</span>
-                          </li>
-                        </>
-                      ) : activeTicket?.id === 'INC-35' ? (
-                        <>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>Hardware request for MacBook Pro 16-inch</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>Current laptop has performance issues with development tools</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>Required for running Docker containers and virtual machines</span>
-                          </li>
-                        </>
-                      ) : (
-                        <>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>No internet access despite Wi-Fi showing as connected</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>Impacting ability to access emails and cloud applications</span>
-                          </li>
-                          <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
-                            <span>Requires network diagnostics and connectivity troubleshooting</span>
-                          </li>
-                        </>
-                      )}
-                    </ul>
-                  </div>
-
-                  <div className="text-[11px] text-[#9CA3AF] mb-4">
-                    Generated by Rakesh Rathod at 24/02/2025 17:10
-                  </div>
-
-                  {/* Action Bar */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => {
-                        if (quickActionHandlerRef.current) {
-                          quickActionHandlerRef.current('Root Cause');
-                        }
-                      }}
-                      style={{
-                        background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                        border: '1px solid transparent'
-                      }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
-                    >
-                      <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                      <span>Investigate with AI</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (quickActionHandlerRef.current) {
-                          quickActionHandlerRef.current('Find Similar Tickets');
-                        }
-                      }}
-                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
-                    >
-                      <Search size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                      <span>Find similar tickets</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (quickActionHandlerRef.current) {
-                          quickActionHandlerRef.current('Suggest KB');
-                        }
-                      }}
-                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
-                    >
-                      <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                      <span>Suggest KB</span>
-                    </button>
-                  </div>
-                  </>
+                          key={f.name}
+                          className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
+                            highlightAttachments ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
+                          }`}
+                        >
+                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="text-xs text-[#364658] font-medium">{f.name}</span>
+                            <span className="text-[10px] text-[#7B8FA5]">{f.size}</span>
+                          </div>
+                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
+                            <button className="p-1 hover:bg-white rounded" title="Download"><Download className="size-3.5 text-[#7B8FA5]" /></button>
+                            <button className="p-1 hover:bg-white rounded" title="Delete"><Trash2 className="size-3.5 text-[#EF4444]" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              )}
+
+                {/* Attachment count — expands description + highlights attachments */}
+                <button
+                  onClick={() => {
+                    setIsDescriptionExpanded(true);
+                    setHighlightAttachments(true);
+                    setTimeout(() => setHighlightAttachments(false), 3000);
+                  }}
+                  className="flex items-center gap-1 text-[12px] text-[#6b7280] flex-shrink-0 cursor-pointer hover:text-[#3D8BD0] transition-colors"
+                >
+                  <Paperclip size={12} />
+                  <span>2</span>
+                </button>
+              </div>
             </div>
 
             {/* Tabs: Conversation, Task, etc. */}
@@ -2768,13 +2350,14 @@ export function HardwareAssetDrawer({
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
                   const tabConfig = [
+                    { id: 'overview', label: 'Overview' },
+                    { id: 'properties', label: 'Properties' },
+                    { id: 'hardware', label: 'Hardware' },
+                    { id: 'software', label: 'Software' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
-                    { id: 'conversation', label: 'Conversation' },
-                    { id: 'tasks', label: 'Tasks' },
                     { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
                     { id: 'audit', label: 'Audit Trails' },
-                    { id: 'resolution', label: 'Resolution' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -2782,13 +2365,14 @@ export function HardwareAssetDrawer({
                   const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
+                    'overview': 'Overview',
+                    'properties': 'Properties',
+                    'hardware': 'Hardware',
+                    'software': 'Software',
                     'service-request': 'Service Request',
-                    'conversation': 'Conversation',
-                    'tasks': 'Tasks',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'audit': 'Audit Trails',
-                    'resolution': 'Resolution'
+                    'audit': 'Audit Trails'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -2856,6 +2440,930 @@ export function HardwareAssetDrawer({
             </div>
 
             {/* Tab Content */}
+            {activeMainTab === 'overview' && (
+            <div className="px-6 py-6 space-y-4">
+              {/* Health & compliance */}
+              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">Health &amp; compliance</h3>                </div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                  {[
+                    { label: 'Agent', value: 'Healthy', color: '#22A06B', dot: true },
+                    { label: 'Antivirus', value: 'Active', color: '#22A06B' },
+                    { label: 'Patches', value: '2 missing', color: '#D97706' },
+                    { label: 'Encryption', value: 'On', color: '#22A06B' },
+                    { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
+                    { label: 'Compliance', value: 'At risk', color: '#DC2626' },
+                    { label: 'Requests', value: '2 open', color: '#3D8BD0', dot: true },
+                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
+                  ].map((c) => (
+                    <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
+                      <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+                        {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+                        {c.label}
+                      </div>
+                      <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Users + Hardware + Software snapshots — one row */}
+              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
+              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">Users</h3>                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { name: 'J. Doe', dept: 'Sales', initials: 'JD', color: '#6366F1' },
+                    { name: 'A. Kumar', dept: 'IT Operations', initials: 'AK', color: '#10B981' },
+                    { name: 'Tabrez Khan', dept: 'End User Computing', initials: 'TK', color: '#3D8BD0' },
+                  ].map((u) => (
+                    <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
+                      <span className="flex size-7 items-center justify-center rounded-md text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
+                        <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => { setIsAccordionCollapsed(false); setActiveGroup('users'); }}
+                    className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-[#F9FAFB] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EFF3F8] transition-colors min-w-0"
+                  >
+                    +15 more
+                  </button>
+                </div>
+              </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Hardware snapshot</h3>
+                    <button onClick={() => setActiveMainTab('hardware')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['Processor', 'Intel Core i5-8365U · 4 cores'],
+                      ['Memory', '40.00 GB'],
+                      ['Storage', '238.47 GB SSD'],
+                      ['Model', 'LENOVO 20NRS08A00'],
+                    ].map(([l, v]) => (
+                      <div key={l} className="flex items-start gap-3">
+                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
+                        <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Software snapshot</h3>
+                    <button onClick={() => setActiveMainTab('software')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['Total', '142', '#364658'],
+                      ['Prohibited', '1', '#DC2626'],
+                      ['Excluded', '2', '#364658'],
+                      ['Expired', '3', '#D97706'],
+                    ].map(([l, v, color]) => (
+                      <div key={l} className="flex items-start gap-3">
+                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
+                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial + Lifecycle */}
+              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
+                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                        <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
+                    <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">Name</span>
+                      <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">Ahmedabad (India)</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowLocationMap(true)}
+                    className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EAF3FB] hover:border-[#3D8BD0] transition-colors"
+                  >
+                    <MapPin size={14} />
+                    View on Map
+                  </button>
+                </div>
+              </div>
+
+            </div>
+            )}
+
+            {/* Current Location — map popup */}
+            {showLocationMap && (
+              <div
+                className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
+                onClick={() => setShowLocationMap(false)}
+              >
+                <div
+                  className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={16} className="text-[#3D8BD0]" />
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Current Location — Ahmedabad (India)</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowLocationMap(false)}
+                      className="text-[#7B8FA5] hover:text-[#364658] hover:bg-[#F3F4F6] rounded p-1 transition-colors"
+                      title="Close"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="p-5">
+                    <iframe
+                      title="Asset location map"
+                      className="w-full h-[420px] rounded-lg border border-[#E5E7EB]"
+                      loading="lazy"
+                      src="https://www.openstreetmap.org/export/embed.html?bbox=44%2C-2%2C128%2C46&layer=mapnik&marker=23.0225%2C72.5714"
+                    />
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-[12px] text-[#64748B]">Ahmedabad, Gujarat, India · 23.0225° N, 72.5714° E</span>
+                      <a
+                        href="https://www.openstreetmap.org/?mlat=23.0225&mlon=72.5714#map=12/23.0225/72.5714"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] font-medium text-[#3D8BD0] hover:underline"
+                      >
+                        Open in OpenStreetMap
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Current Location — history side drawer (same pattern as SLA History) */}
+            {showLocationHistory && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300"
+                  onClick={() => setShowLocationHistory(false)}
+                />
+                {/* Side Drawer */}
+                <div
+                  className="fixed top-0 right-0 h-full w-[440px] max-w-[90vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
+                  style={{ transform: showLocationHistory ? 'translateX(0)' : 'translateX(100%)' }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={18} className="text-[#3D8BD0]" />
+                      <h2 className="text-[18px] font-semibold text-[#111827]">Location History</h2>
+                    </div>
+                    <button
+                      onClick={() => setShowLocationHistory(false)}
+                      className="text-[#6B7280] hover:text-[#111827] transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  {/* Timeline */}
+                  <div className="flex-1 overflow-auto px-6 py-5">
+                    <div className="space-y-0">
+                      {[
+                        { name: 'Ahmedabad (India)', period: 'Since 12 Jan 2026', by: 'Riya Shah', current: true },
+                        { name: 'Mumbai (India)', period: '04 Aug 2024 – 12 Jan 2026', by: 'Karan Mehta', current: false },
+                        { name: 'Pune (India)', period: '17 Mar 2023 – 04 Aug 2024', by: 'Amit Verma', current: false },
+                        { name: 'Bengaluru (India)', period: '02 Sep 2022 – 17 Mar 2023', by: 'System (provisioning)', current: false },
+                      ].map((h, i, arr) => (
+                        <div key={h.name + h.period} className="flex gap-3">
+                          {/* timeline rail */}
+                          <div className="flex flex-col items-center">
+                            <span className={`mt-1 size-2.5 rounded-full flex-shrink-0 ${h.current ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`} />
+                            {i < arr.length - 1 && <span className="w-px flex-1 bg-[#E5E7EB]" />}
+                          </div>
+                          <div className={`min-w-0 ${i < arr.length - 1 ? 'pb-4' : ''}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-medium text-[#364658]">{h.name}</span>
+                              {h.current && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF3FB] text-[#3D8BD0]">Current</span>
+                              )}
+                            </div>
+                            <div className="text-[12px] text-[#64748B] mt-0.5">{h.period}</div>
+                            <div className="text-[11px] text-[#9CA3AF] mt-0.5">Updated by {h.by}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeMainTab === 'properties' && (
+            <div className="px-6 py-6">
+              {/* Common field search across all property sections */}
+              <div className="relative mb-5 max-w-[360px]">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  type="text"
+                  placeholder="Search fields..."
+                  value={propertiesSearch}
+                  onChange={(e) => setPropertiesSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                />
+              </div>
+              {(() => {
+                const q = propertiesSearch.trim().toLowerCase();
+                const sections = [
+                {
+                  title: 'Hardware Properties',
+                  icon: <HardDrive className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                  fields: [
+                    ['Serial Number', activeAsset?.serialNumber || '---'],
+                    ['Manufacturer', 'LENOVO'],
+                    ['Warranty Start Date', '---'],
+                    ['Warranty Expiration Date', '---'],
+                    ['Warranty Last Sync Date', '---'],
+                    ['Audit Date', '---'],
+                    ['New Text Input', '---'],
+                    ['E-Fatura', '---'],
+                  ] as [string, string][],
+                },
+                {
+                  title: 'Computer Properties',
+                  icon: <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                  fields: [
+                    ['OS Name', 'Microsoft Windows 11 Pro'],
+                    ['OS Version', '10.0.26100'],
+                    ['Service Pack Name', '---'],
+                    ['OS License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
+                    ['OS Manufacturer', 'Microsoft Corporation'],
+                    ['OS Architecture', '64 BIT'],
+                    ['Boot Up State', 'Normal boot'],
+                    ['Memory Size', '8.00 GB'],
+                    ['Disk Size', '238.47 GB'],
+                    ['CPU Speed', '1.90 GHz'],
+                    ['CPU Core Count', '4'],
+                    ['Part Of Domain', 'No'],
+                    ['Domain Name', 'WORKGROUP'],
+                    ['Number Of Logical Processors', '8'],
+                    ['Number Of Processors', '1'],
+                    ['PC System Type', 'Mobile'],
+                    ['Last Logged In User', 'DESKTOP-7ABJPOF\\j.doe'],
+                    ['Activation Status', 'Licensed'],
+                    ['Parent VM Host', '---'],
+                    ['Chassis Type', 'Notebook'],
+                    ['Display Version', '24H2'],
+                    ['Build No', '26100.6899'],
+                    ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
+                  ] as [string, string][],
+                },
+                ];
+                const filtered = sections
+                  .map((s) => ({
+                    ...s,
+                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
+                  }))
+                  .filter((s) => s.fields.length > 0);
+                if (filtered.length === 0) {
+                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
+                }
+                return (
+                  <div className="space-y-6">
+                  {filtered.map((section) => (
+                <div key={section.title} className="group/section">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      {section.icon}
+                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
+                    </div>
+                    <button
+                      title={`Edit ${section.title}`}
+                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
+                    >
+                      <Edit size={15} />
+                    </button>
+                  </div>
+                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
+                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                      {section.fields.map(([label, value]) => (
+                        <div key={label} className="min-w-0">
+                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
+                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                  ))}
+                  </div>
+                );
+              })()}
+            </div>
+            )}
+
+            {activeMainTab === 'hardware' && (() => {
+              type Rec = [string, string][];
+              const hardwareCategories: { id: string; label: string; addable?: boolean; summary?: [string, string][]; items: Rec[] }[] = [
+                { id: 'computer-system', label: 'Computer System', items: [[
+                  ['Name', 'DESKTOP-7ABJPOF'],
+                  ['Domain Name', 'WORKGROUP'],
+                  ['Manufacturer', 'LENOVO'],
+                  ['Model Name', '20NRS08A00'],
+                  ['System Family', 'ThinkPad L390'],
+                  ['System Type', 'x64-based PC'],
+                  ['PC System Type', 'Mobile'],
+                  ['UUID', '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093'],
+                  ['Boot Up State', 'Normal boot'],
+                  ['Number Of Logical Processors', '8'],
+                  ['Number Of Processors', '1'],
+                  ['Device Status', 'Ok'],
+                  ['Part Of Domain', 'No'],
+                  ['User Name', 'DESKTOP-7ABJPOF\\j.doe'],
+                  ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
+                  ['Description', 'AT/AT COMPATIBLE'],
+                  ['Asset Replacement', '---'],
+                ]] },
+                { id: 'os', label: 'OS', items: [[
+                  ['Manufacturer', 'Microsoft Corporation'],
+                  ['OS Name', 'Microsoft Windows 11 Pro'],
+                  ['OS Version', '10.0.26100'],
+                  ['OS Architecture', '64 BIT'],
+                  ['Product Key', '00330-52522-70557-AAOEM'],
+                  ['License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
+                  ['Activation Status', 'Licensed'],
+                  ['Installed Date', 'Thu, Sep 18, 2025 05:30 AM'],
+                  ['Display Version', '24H2'],
+                  ['Build No', '26100.6899'],
+                  ['End Of Active Support Date', '13/10/2026'],
+                  ['End Of Life Date', '13/10/2026'],
+                ]] },
+                { id: 'bios', label: 'BIOS', items: [[
+                  ['Name', 'R10ET62W (1.47 )'],
+                  ['Manufacturer', 'LENOVO'],
+                  ['SM BIOS Version', 'R10ET62W (1.47 )'],
+                  ['Release Date', '16/04/2024'],
+                  ['Device Status', 'Ok'],
+                  ['Version', 'LENOVO - 1470'],
+                  ['Serial Number', 'R90X70MP'],
+                  ['Description', 'R10ET62W (1.47 )'],
+                ]] },
+                { id: 'ram', label: 'RAM', addable: true,
+                  summary: [
+                    ['Total slots', '1'],
+                    ['Free slots', '0'],
+                    ['Occupied slots', '1'],
+                    ['Total RAM Size (GB)', '40.00'],
+                  ],
+                  items: [
+                    [
+                      ['Serial Number', 'reqwewer'],
+                      ['Manufacturer', 'Musarubra US LLC'],
+                      ['Size', '32.00 GB'],
+                      ['Memory Type', 'RAM'],
+                      ['Width', '64 Bit'],
+                      ['Clock Speed', '2400.00 MHz'],
+                      ['Bank Locater', 'channal A'],
+                    ],
+                    [
+                      ['Serial Number', '34F2A4B5'],
+                      ['Manufacturer', 'Samsung'],
+                      ['Size', '8.00 GB'],
+                      ['Memory Type', 'Unknown'],
+                      ['Width', '64 Bit'],
+                      ['Clock Speed', '2400.00 MHz'],
+                      ['Bank Locater', 'ChannelA-DIMM0'],
+                    ],
+                  ] },
+                { id: 'processor', label: 'Processor', addable: true, items: [[
+                  ['Manufacturer', 'GenuineIntel'],
+                  ['Processor Name', 'Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz'],
+                  ['Width', '64 Bit'],
+                  ['CPU Speed', '1.90 GHz'],
+                  ['Core Count', '4'],
+                  ['External Clock', '100.00 MHz'],
+                  ['L1 Cache Size', '0.25 MB'],
+                  ['L2 Cache Size', '1.00 MB'],
+                  ['L3 Cache Size', '6.00 MB'],
+                  ['Family', 'Intel(R) Core(TM) i5 processor'],
+                  ['Description', 'Intel64 Family 6 Model 142 Stepping 12'],
+                  ['Device Id', 'CPU0'],
+                  ['Socket Designation', 'U3E1'],
+                ]] },
+                { id: 'network-adapter', label: 'Network Adapter', addable: true, items: [
+                  [
+                    ['Manufacturer', 'Microsoft'],
+                    ['MAC Address', 'C8:09:A8:65:58:EB'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', '---'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', '---'],
+                    ['DNS Server Search Orders', '---'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '---'],
+                    ['Default IP Gateway', '---'],
+                    ['IP Subnet', '---'],
+                    ['Connection Status', 'Media Disconnected'],
+                    ['Description', 'Bluetooth Device (Personal Area Network)'],
+                  ],
+                  [
+                    ['Manufacturer', 'Intel Corporation'],
+                    ['MAC Address', 'C8:09:A8:65:58:E7'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', 'fe80::99a9:9659:da7e:60ad, 192.168.1.60'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', 'DESKTOP-7ABJPOF'],
+                    ['DNS Server Search Orders', '192.168.1.1'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '192.168.1.1'],
+                    ['Default IP Gateway', '192.168.1.1'],
+                    ['IP Subnet', '255.255.255.0, ffff:ffff:ffff:ffff::'],
+                    ['Connection Status', 'Connected'],
+                    ['Description', 'Intel(R) Wireless-AC 9560 160MHz'],
+                  ],
+                  [
+                    ['Manufacturer', 'Intel'],
+                    ['MAC Address', '48:2A:E3:71:82:95'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', '---'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', '---'],
+                    ['DNS Server Search Orders', '---'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '---'],
+                    ['Default IP Gateway', '---'],
+                    ['IP Subnet', '---'],
+                    ['Connection Status', 'Media Disconnected'],
+                    ['Description', 'Intel(R) Ethernet Connection (6) I219-LM'],
+                  ],
+                ] },
+                { id: 'motherboard', label: 'Motherboard', items: [[
+                  ['Manufacturer', 'LENOVO'],
+                  ['Serial Number', 'W1KS9CT102C'],
+                  ['Version', 'SDK0J40697 WIN'],
+                  ['Installed Date', '---'],
+                  ['Part Number', '---'],
+                  ['Primary Bus Type', 'PCI'],
+                  ['Secondary Bus Type', 'ISA'],
+                  ['Device Status', 'Ok'],
+                ]] },
+                { id: 'physical-disk', label: 'Physical Disk', addable: true, items: [[
+                  ['Name', '\\\\.\\PHYSICALDRIVE0'],
+                  ['Manufacturer', '(Standard disk drives)'],
+                  ['Size', '238.47 GB'],
+                  ['Installed Date', '---'],
+                  ['Device Status', 'Ok'],
+                  ['Partition', '3'],
+                  ['Media Type', 'Fixed hard disk media'],
+                  ['Model', 'INTEL SSDPEKKF256G8L'],
+                  ['Interface Type', 'SCSI'],
+                  ['Serial Number', '5CD2_E42C_91A0_59CD.'],
+                  ['PNP Device ID', 'SCSI\\DISK&VEN_NVME&PROD_INTEL_SSDPEKKF2...'],
+                  ['Description', 'Disk drive'],
+                  ['Storage Device Type', 'SSD'],
+                ]] },
+                { id: 'logical-disk', label: 'Logical Disk', addable: true, items: [[
+                  ['Name', 'C:'],
+                  ['File System Type', 'NTFS'],
+                  ['Drive Type', 'Local Disk'],
+                  ['Serial Number', 'F091C280'],
+                  ['Device Status', 'Unknown'],
+                  ['Size', '237.44 GB'],
+                  ['Free Space', '138.29 GB'],
+                  ['Description', 'Local Fixed Disk'],
+                ]] },
+                { id: 'monitor', label: 'Monitor', addable: true, items: [[
+                  ['Manufacturer', 'LEN'],
+                  ['Monitor Type', '---'],
+                  ['Size', '13.23'],
+                  ['Device Status', '---'],
+                  ['Serial Number', '0'],
+                  ['Installed Date', '---'],
+                  ['PNP Device ID', '---'],
+                  ['Screen Height', '17'],
+                  ['Screen Width', '29'],
+                  ['Week of Manufacture', '20'],
+                  ['Year of Manufacture', '2017'],
+                  ['Description', '---'],
+                  ['Monitor Tag', '---'],
+                ]] },
+                { id: 'keyboard', label: 'Keyboard', addable: true, items: [[
+                  ['Name', 'Enhanced (101- or 102-key)'],
+                  ['Manufacturer', '---'],
+                  ['Installed Date', '---'],
+                  ['PNP Device ID', 'ACPI\\LEN0071\\4&254DEA5B&0'],
+                  ['Device Status', 'Ok'],
+                  ['Description', 'Standard PS/2 Keyboard'],
+                  ['Keyboard Tag', 'Keyboard Serial No'],
+                ]] },
+                { id: 'pointing-device', label: 'Pointing Device', addable: true, items: [
+                  [
+                    ['Manufacturer', 'ELAN'],
+                    ['Number Of Buttons', '---'],
+                    ['Pointing Type', 'Unknown'],
+                    ['Device Status', 'Ok'],
+                    ['PNP Device ID', 'ACPI\\LEN2137\\4&254DEA5B&0'],
+                    ['Description', 'ELAN Input Device For WDF'],
+                    ['Mouse Tag', '---'],
+                  ],
+                  [
+                    ['Manufacturer', 'Microsoft'],
+                    ['Number Of Buttons', '---'],
+                    ['Pointing Type', 'Unknown'],
+                    ['Device Status', 'Ok'],
+                    ['PNP Device ID', 'HID\\VID_04F3&PID_0000&COL01\\6&BE95B37&0...'],
+                    ['Description', 'HID-compliant mouse'],
+                    ['Mouse Tag', '---'],
+                  ],
+                ] },
+                { id: 'shared-folder', label: 'Shared Folder', items: [] },
+                { id: 'usb-hub', label: 'USB Hub', addable: true, items: [
+                  [
+                    ['Name', 'USB Root Hub (USB 3.0)'],
+                    ['Device Status', 'Ok'],
+                    ['Device Status Information', '---'],
+                    ['Device ID', 'USB\\ROOT_HUB30\\4&1CA724C0&0&0'],
+                    ['Description', 'USB Root Hub (USB 3.0)'],
+                  ],
+                  [
+                    ['Name', 'USB Composite Device'],
+                    ['Device Status', 'Ok'],
+                    ['Device Status Information', '---'],
+                    ['Device ID', 'USB\\VID_04CA&PID_7070\\5&21EED693&0&5'],
+                    ['Description', 'USB Composite Device'],
+                  ],
+                ] },
+                { id: 'usb-controller', label: 'USB Controller', addable: true, items: [[
+                  ['Name', '---'],
+                  ['Manufacturer', '---'],
+                  ['Device Status', '---'],
+                  ['Device Status Information', '---'],
+                  ['Device ID', '---'],
+                  ['Description', '---'],
+                ]] },
+              ];
+              const iconFor: Record<string, JSX.Element> = {
+                'computer-system': <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'os': <Disc className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'bios': <CircuitBoard className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'ram': <MemoryStick className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'processor': <Cpu className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'network-adapter': <Network className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'motherboard': <CircuitBoard className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'physical-disk': <HardDrive className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'logical-disk': <HardDrive className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'monitor': <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'keyboard': <Keyboard className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'pointing-device': <Mouse className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'shared-folder': <Folder className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'usb-hub': <Usb className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                'usb-controller': <Usb className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+              };
+              const isWide = drawerWidth > 1080;
+              const navList = hardwareCategories.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    if (!isWide) setHardwareNavOpen(false);
+                    if (typeof document !== 'undefined') {
+                      document.getElementById(`hw-section-${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  className="w-full flex items-center gap-2 text-left px-4 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors"
+                >
+                  {iconFor[c.id]}
+                  {c.label}
+                </button>
+              ));
+              const q = hardwareSearch.trim().toLowerCase();
+              const sectionsToRender = hardwareCategories
+                .map((section) => {
+                  const nonRemoved = section.items
+                    .map((fields, i) => ({ fields, i }))
+                    .filter(({ i }) => !removedHardwareItems.has(`${section.id}:${i}`));
+                  const labelMatch = !q || section.label.toLowerCase().includes(q);
+                  const matched = nonRemoved
+                    .map(({ fields, i }) => ({ i, fields: q && !labelMatch ? fields.filter(([l, v]) => l.toLowerCase().includes(q) || v.toLowerCase().includes(q)) : fields }))
+                    .filter(({ fields }) => fields.length > 0);
+                  return { section, nonRemoved, matched };
+                })
+                .filter(({ matched }) => !q || matched.length > 0);
+              return (
+                <div className="px-6 py-6">
+                  {/* Sticky toolbar: jump-to-section + search (sits just below the main tab bar) */}
+                  <div className="sticky top-[45px] z-10 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setHardwareNavOpen((o) => !o)}
+                          title="Jump to section"
+                          className="size-9 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                        >
+                          <List size={16} />
+                        </button>
+                        {/* Narrow view: overlay dropdown anchored to the icon (no reserved space) */}
+                        {hardwareNavOpen && !isWide && (
+                          <div className="absolute top-full left-0 mt-1 z-50 w-[220px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 max-h-[70vh] overflow-y-auto">
+                            {navList}
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative flex-1 max-w-[360px]">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        <input
+                          type="text"
+                          placeholder="Search properties..."
+                          value={hardwareSearch}
+                          onChange={(e) => setHardwareSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-2">
+                    {/* Wide view: inline left column that reserves space */}
+                    {hardwareNavOpen && isWide && (
+                      <div className="flex-shrink-0 w-[210px]">
+                        <div className="sticky top-[124px] bg-white border border-[#E5E7EB] rounded-lg shadow-sm py-1 max-h-[70vh] overflow-y-auto">
+                          {navList}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      {/* All sections stacked, full width */}
+                      {q && sectionsToRender.length === 0 ? (
+                        <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No properties match your search.</div>
+                      ) : (
+                      <div className="space-y-8">
+                    {sectionsToRender.map(({ section, nonRemoved, matched }) => {
+                      const showEmptyState = !q && nonRemoved.length === 0;
+                      const itemsToShow = matched;
+                      return (
+                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px]">
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              {iconFor[section.id]}
+                              <h3 className="text-[14px] font-semibold text-[#364658]">{section.label}</h3>
+                            </div>
+                            {section.addable && (
+                              <button
+                                title={`Add ${section.label}`}
+                                className="size-8 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            )}
+                          </div>
+
+                          {!q && section.summary && (
+                            <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4 mb-4`}>
+                              {section.summary.map(([label, value]) => (
+                                <div key={label} className="border border-[#DFE5ED] rounded-lg p-4 bg-white">
+                                  <div className="text-[12px] text-[#7B8FA5] mb-1">{label}</div>
+                                  <div className="text-[15px] font-semibold text-[#364658]">{value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {showEmptyState ? (
+                            <div className="flex items-center justify-center min-h-[240px] rounded-lg bg-[#F9FAFB]">
+                              <div className="text-center">
+                                <div className="inline-flex items-center justify-center size-16 rounded-full bg-white mb-4">
+                                  {iconFor[section.id]}
+                                </div>
+                                <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No {section.label} Yet</h3>
+                                <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">
+                                  Get started by adding {section.label} details to this asset.
+                                </p>
+                                <button
+                                  onClick={() => setRemovedHardwareItems((prev) => {
+                                    const next = new Set(prev);
+                                    section.items.forEach((_, idx) => next.delete(`${section.id}:${idx}`));
+                                    return next;
+                                  })}
+                                  className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+                                >
+                                  <Plus size={16} />
+                                  Add {section.label}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {itemsToShow.map(({ fields, i }) => (
+                                <div key={i} className="group/hwcard relative rounded-lg p-5 bg-[#F9FAFB]">
+                                  <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover/hwcard:opacity-100 transition-opacity">
+                                    <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                    <button
+                                      title="Delete"
+                                      onClick={() => setRemovedHardwareItems((prev) => new Set(prev).add(`${section.id}:${i}`))}
+                                      className="text-[#7B8FA5] hover:text-[#EF4444]"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                                    {fields.map(([label, value]) => (
+                                      <div key={label} className="min-w-0">
+                                        <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
+                                        <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                      </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {activeMainTab === 'software' && (() => {
+              const softwareList: {
+                name: string; manufacturer: string; version: string;
+                installedDate?: string; installedLocation?: string; installedSize?: string;
+                licenseKey?: string; licenseType?: string; osCompatibility?: string;
+                description?: string; uninstall?: string; quiet?: string;
+              }[] = [
+                { name: 'Intel(R) PROSet/Wireless', manufacturer: 'Intel Corporation', version: '21.40.1.3406', installedDate: '11/11/2024', installedLocation: 'C:\\Program Files\\Intel', description: 'Intel(R) PROSet/Wireless Software' },
+                { name: 'Microsoft Visual C++ 2015-2022', manufacturer: 'Microsoft Corporation', version: '14.50.35719', installedDate: '02/03/2026', description: 'Microsoft Visual C++ Redistributable' },
+                { name: 'Microsoft Edge', manufacturer: 'Microsoft Corporation', version: '147.0.3912.98', installedDate: '02/05/2026', installedLocation: 'C:\\Program Files (x86)\\Microsoft\\Edge', uninstall: '"C:\\Program Files (x86)\\Microsoft\\Edge\\setup.exe"' },
+                { name: 'Microsoft.WindowsTerminal', manufacturer: 'Microsoft Corporation', version: '1000.25128.1000.0', installedLocation: 'C:\\Program Files\\WindowsApps', uninstall: 'Remove-AppxPackage' },
+                { name: 'Dolby Audio X2', manufacturer: 'Dolby Laboratories', version: '0.8.8.90', installedDate: '30/01/2026', installedLocation: 'C:\\Program Files\\Dolby', description: 'Dolby Audio X2 Software' },
+                { name: 'Check Point VPN', manufacturer: 'Check Point Software', version: '98.61.4017', installedDate: '16/01/2026', description: 'Check Point VPN' },
+              ];
+              const allColumns: { key: string; label: string; always?: boolean; cell: (s: typeof softwareList[number], i: number) => React.ReactNode }[] = [
+                { key: 'name', label: 'Software Name', always: true, cell: (s) => <button className="text-[12px] text-[#3D8BD0] hover:underline max-w-[180px] truncate inline-block align-bottom text-left">{s.name}</button> },
+                { key: 'manufacturer', label: 'Manufacturer', cell: (s) => <span className="max-w-[150px] truncate inline-block align-bottom">{s.manufacturer}</span> },
+                { key: 'version', label: 'Version', cell: (s) => s.version },
+                { key: 'installedDate', label: 'Installed Date', cell: (s) => s.installedDate || '' },
+                { key: 'installedLocation', label: 'Installed Location', cell: (s) => <span className="max-w-[180px] truncate inline-block align-bottom">{s.installedLocation || ''}</span> },
+                { key: 'installedSize', label: 'Installed Size', cell: (s) => s.installedSize || '' },
+                { key: 'licenseKey', label: 'License Key', cell: (s) => <span className="max-w-[160px] truncate inline-block align-bottom">{s.licenseKey || ''}</span> },
+                { key: 'licenseType', label: 'License Type', cell: (s) => s.licenseType || '' },
+                { key: 'osCompatibility', label: 'OS Compatibility', cell: (s) => s.osCompatibility || '' },
+                { key: 'description', label: 'Description', cell: (s) => <span className="max-w-[180px] truncate inline-block align-bottom">{s.description || ''}</span> },
+                { key: 'uninstall', label: 'Uninstall Command', cell: (s) => <span className="max-w-[180px] truncate inline-block align-bottom">{s.uninstall || ''}</span> },
+                { key: 'quiet', label: 'Quiet Uninstall String', cell: (s) => <span className="max-w-[180px] truncate inline-block align-bottom">{s.quiet || ''}</span> },
+                { key: 'actions', label: 'Actions', always: true, cell: (s, i) => (
+                  <div className="flex items-center gap-2">
+                    <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                    <button title="Delete" onClick={() => setRemovedSoftware((prev) => new Set(prev).add(i))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                  </div>
+                ) },
+              ];
+              const cols = allColumns.filter((c) => c.always || visibleSoftwareCols.has(c.key));
+              const toggleable = allColumns.filter((c) => !c.always);
+              const sq = softwareSearch.trim().toLowerCase();
+              const visible = softwareList
+                .map((s, i) => ({ s, i }))
+                .filter(({ i }) => !removedSoftware.has(i))
+                .filter(({ s }) => !sq || s.name.toLowerCase().includes(sq) || s.manufacturer.toLowerCase().includes(sq) || s.version.toLowerCase().includes(sq));
+
+              // No software at all → empty state (toolbar hidden), matching the Tasks tab.
+              const hasAnySoftware = softwareList.some((_, i) => !removedSoftware.has(i));
+              if (!hasAnySoftware) {
+                return (
+                  <div className="px-6 py-6">
+                    <div className="flex items-center justify-center min-h-[400px]">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
+                          <Package className="size-8 text-[#7B8FA5]" />
+                        </div>
+                        <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No Software Yet</h3>
+                        <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Get started by adding software to this asset.</p>
+                        <button
+                          onClick={() => setRemovedSoftware(new Set())}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+                        >
+                          <Plus size={16} />
+                          Add Software
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="px-6 py-6">
+                  {/* Toolbar: search (left) + columns + add (right) */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="relative flex-1 max-w-[360px]">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                      <input
+                        type="text"
+                        placeholder="Search software..."
+                        value={softwareSearch}
+                        onChange={(e) => setSoftwareSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Column visibility */}
+                    <div className="relative ml-auto">
+                      <button
+                        title="Show / hide columns"
+                        onClick={() => setShowSoftwareColsMenu((o) => !o)}
+                        className="size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                      >
+                        <Columns3 size={16} />
+                      </button>
+                      {showSoftwareColsMenu && (
+                        <div className="absolute top-full right-0 mt-1 z-50 w-[220px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 max-h-[320px] overflow-y-auto">
+                          <div className="px-3 py-1.5 text-[11px] font-semibold text-[#7B8FA5] uppercase tracking-wider">Show columns</div>
+                          {toggleable.map((c) => (
+                            <button
+                              key={c.key}
+                              onClick={() => setVisibleSoftwareCols((prev) => {
+                                const next = new Set(prev);
+                                next.has(c.key) ? next.delete(c.key) : next.add(c.key);
+                                return next;
+                              })}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors text-left"
+                            >
+                              <span className={`size-4 flex-shrink-0 rounded border flex items-center justify-center ${visibleSoftwareCols.has(c.key) ? 'bg-[#3D8BD0] border-[#3D8BD0]' : 'border-[#CBD5E1]'}`}>
+                                {visibleSoftwareCols.has(c.key) && <Check size={12} className="text-white" />}
+                              </span>
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      title="Add Software"
+                      className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>
+                          {cols.map((c) => (
+                            <th key={c.key} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{c.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {visible.length === 0 ? (
+                          <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-[#9CA3AF]">No software found.</td></tr>
+                        ) : visible.map(({ s, i }) => (
+                          <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                            {cols.map((c) => (
+                              <td key={c.key} className="px-4 py-3 whitespace-nowrap text-[#364658]">{c.cell(s, i)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
             {activeMainTab === 'conversation' && (
             <div className="px-6 pt-0">
               {isBlankTicket ? (
