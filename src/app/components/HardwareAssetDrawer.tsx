@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -142,6 +142,28 @@ export function HardwareAssetDrawer({
   const [assetImpact, setAssetImpact] = useState('Low');
   const [assetGroup, setAssetGroup] = useState('Unassigned');
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
+  const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
+    'Asset Group': 'Anblicks Group',
+    'Product': '',
+    'Used By': '',
+    'Location': 'KRISHNAPATNAM',
+    'Category': '',
+    'Department': '',
+    'Host Name': 'DESKTOP-7ABJPOF',
+    'Domain Name': 'WORKGROUP',
+    'UUID': '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093',
+    'IP Address': '192.168.1.60',
+    'MAC Address': 'C8:09:A8:65:58:E7',
+    'Subnet Mask': '255.255.255.0',
+    'Vendor': '',
+    'Asset Condition': 'Good',
+    'Movement Status': 'None',
+    'Under Change Control': 'Yes',
+    'Business Service': 'Core Banking',
+    'Origin': 'Agent',
+    'Acquisition Date': '',
+    'Assignment Date': '',
+  });
 
   // Seed the asset fields from the active asset whenever the open asset changes.
   useEffect(() => {
@@ -159,6 +181,8 @@ export function HardwareAssetDrawer({
     impact: assetImpact, setImpact: setAssetImpact,
     managedByGroup: assetGroup, setManagedByGroup: setAssetGroup,
     managedBy: assetManager, setManagedBy: setAssetManager,
+    ci: 'CI-778 192.168.1.60',
+    extra: assetExtra, setExtra: setAssetExtra,
   };
 
   // Agent Information shown in place of Requester Information on the asset page.
@@ -184,7 +208,29 @@ export function HardwareAssetDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  // Baseline attached to this asset (max one); Variance rows are empty by default.
+  const [baselines, setBaselines] = useState<{ id: string; name: string; createdOn: string; createdBy: string }[]>([
+    { id: 'BAS-31', name: 'New Base Line - 64 Bit', createdOn: 'Mon, Apr 27, 2026 11:44 AM', createdBy: 'System' },
+  ]);
+  // Add Baseline picker (side drawer): select one admin-created baseline to attach.
+  const [showAddBaseline, setShowAddBaseline] = useState(false);
+  const [baselineSearch, setBaselineSearch] = useState('');
+  const [selectedBaselineId, setSelectedBaselineId] = useState<string | null>(null);
+
+  // Financials tab
+  const [financialsSubTab, setFinancialsSubTab] = useState<'cost' | 'depreciation'>('cost');
+  const [costRecords, setCostRecords] = useState<{ id: number; date: string; amount: number; currency: string; factor: string; description: string }[]>([
+    { id: 1, date: 'Mon, Jun 22, 2026 03:06 PM', amount: 20, currency: 'ATS', factor: 'Purchase', description: 'fdsafdfda' },
+  ]);
+  const [showAddCost, setShowAddCost] = useState(false);
+  const [newCost, setNewCost] = useState({ factor: '', date: '', amount: '', currency: 'ATS', description: '' });
+  const [showConfigDepr, setShowConfigDepr] = useState(false);
+  const [deprConfig, setDeprConfig] = useState({ derivation: 'asset', method: '', type: 'useful', usefulLife: '', usefulLifeUnit: 'Month', salvageValue: '', currency: 'ATS' });
+
+  // History tab — selected category (replaces old left sub-nav).
+  const [historyCategory, setHistoryCategory] = useState('audit');
+  const [showHistoryMenu, setShowHistoryMenu] = useState(false);
   // Deleted Software rows (Software tab), keyed by row index.
   const [removedSoftware, setRemovedSoftware] = useState<Set<number>>(new Set());
   // Search across the Software inventory table.
@@ -194,6 +240,9 @@ export function HardwareAssetDrawer({
     new Set(['name', 'manufacturer', 'version', 'installedDate', 'installedLocation', 'actions'])
   );
   const [showSoftwareColsMenu, setShowSoftwareColsMenu] = useState(false);
+  const [softwareView, setSoftwareView] = useState<'list' | 'card'>('card');
+  // Number of baseline variances detected for this asset (0 = none, shows Encryption instead).
+  const baselineVarianceCount = 3;
   // Search across all Properties tab sections (Hardware Asset detail page).
   const [propertiesSearch, setPropertiesSearch] = useState('');
   const [showLocationMap, setShowLocationMap] = useState(false);
@@ -217,7 +266,11 @@ export function HardwareAssetDrawer({
   const [showCc, setShowCc] = useState(false);
   const [isWatching, setIsWatching] = useState(false);
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
-  
+  const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
+  const [showQrMenu, setShowQrMenu] = useState(false);
+  const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
+  const [addBarcodeValue, setAddBarcodeValue] = useState('');
+
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
   
@@ -828,8 +881,8 @@ export function HardwareAssetDrawer({
       if (!tabContainerRef.current) return;
 
       // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['overview', 'properties', 'hardware', 'software', 'audit'];
-      const baseTabsForINC35 = ['overview', 'properties', 'hardware', 'software', 'service-request', 'audit'];
+      const baseTabsForOthers = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'audit'];
+      const baseTabsForINC35 = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'service-request', 'audit'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -840,19 +893,21 @@ export function HardwareAssetDrawer({
         allTabs = [...baseTabsForOthers];
       }
       
-      // Add Approvals tab after Software (if not INC-32)
+      // Add Approvals tab after Relationship (if not INC-32)
       if (activeTicket?.id !== 'INC-32') {
-        const softwareIndex = allTabs.indexOf('software');
-        allTabs.splice(softwareIndex + 1, 0, 'approvals');
+        const anchor = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship')
+          : allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline')
+          : allTabs.indexOf('software');
+        allTabs.splice(anchor + 1, 0, 'approvals');
       }
 
       // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
       const shouldShowRelations = activeTicket?.id !== 'INC-32' ||
                                   (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
       if (shouldShowRelations) {
-        // Insert relations after approvals (if exists) or software
+        // Insert relations after approvals (if exists) or baseline/software
         const approvalsIndex = allTabs.indexOf('approvals');
-        const anchorIndex = approvalsIndex !== -1 ? approvalsIndex : allTabs.indexOf('software');
+        const anchorIndex = approvalsIndex !== -1 ? approvalsIndex : (allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline') : allTabs.indexOf('software'));
         allTabs.splice(anchorIndex + 1, 0, 'relations');
       }
 
@@ -868,6 +923,9 @@ export function HardwareAssetDrawer({
         'properties': 85,
         'hardware': 85,
         'software': 80,
+        'baseline': 80,
+        'relationship': 95,
+        'financials': 85,
         'service-request': 130,
         'conversation': 105,
         'tasks': 60,
@@ -1934,8 +1992,116 @@ export function HardwareAssetDrawer({
                 </div>
               )}
             </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setShowBarcodeMenu(true)}
+              onMouseLeave={() => setShowBarcodeMenu(false)}
+            >
+              <button
+                onClick={() => setShowBarcodeMenu((v) => !v)}
+                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+              >
+                <Barcode size={16} className="text-[#6b7280]" />
+              </button>
+
+              {showBarcodeMenu && (
+                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
+                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
+                  {/* Barcode preview */}
+                  <div className="px-4 pb-2 flex flex-col items-center">
+                    <div
+                      className="h-11 w-full rounded-sm"
+                      style={{
+                        background:
+                          'repeating-linear-gradient(90deg, #1F2937 0px, #1F2937 1px, #fff 1px, #fff 3px, #1F2937 3px, #1F2937 5px, #fff 5px, #fff 6px, #1F2937 6px, #1F2937 9px, #fff 9px, #fff 11px)',
+                      }}
+                    />
+                    <span className="text-[12px] tracking-[0.18em] text-[#364658] mt-1.5 font-medium">88t540565065</span>
+                  </div>
+
+                  <div className="my-1 border-t border-[#F0F2F5]" />
+
+                  {/* Options */}
+                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
+                    <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
+                    <span>Print Barcode</span>
+                  </button>
+                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
+                    <Copy size={15} className="text-[#6B7280] flex-shrink-0" />
+                    <span>Copy UPC Code</span>
+                  </button>
+                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
+                    <Settings2 size={15} className="text-[#6B7280] flex-shrink-0" />
+                    <span>Settings</span>
+                  </button>
+                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#DC2626] flex items-center gap-2.5">
+                    <Trash2 size={15} className="text-[#DC2626] flex-shrink-0" />
+                    <span>Remove Barcode</span>
+                  </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setShowQrMenu(true)}
+              onMouseLeave={() => setShowQrMenu(false)}
+            >
+              <button
+                onClick={() => setShowQrMenu((v) => !v)}
+                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+              >
+                <QrCode size={16} className="text-[#6b7280]" />
+              </button>
+
+              {showQrMenu && (
+                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
+                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
+                    {/* QR preview */}
+                    <div className="px-4 pb-2 flex flex-col items-center">
+                      <svg viewBox="0 0 33 33" className="w-32 h-32" shapeRendering="crispEdges">
+                        <rect width="33" height="33" fill="#fff" />
+                        {/* Finder patterns (3 corners) */}
+                        {[[0, 0], [26, 0], [0, 26]].map(([fx, fy], i) => (
+                          <g key={i}>
+                            <rect x={fx} y={fy} width="7" height="7" fill="#1F2937" />
+                            <rect x={fx + 1} y={fy + 1} width="5" height="5" fill="#fff" />
+                            <rect x={fx + 2} y={fy + 2} width="3" height="3" fill="#1F2937" />
+                          </g>
+                        ))}
+                        {/* Alignment pattern (bottom-right) */}
+                        <g>
+                          <rect x={24} y={24} width="5" height="5" fill="#1F2937" />
+                          <rect x={25} y={25} width="3" height="3" fill="#fff" />
+                          <rect x={26} y={26} width="1" height="1" fill="#1F2937" />
+                        </g>
+                        {/* Data modules (dense) */}
+                        {Array.from({ length: 33 * 33 }).map((_, idx) => {
+                          const x = idx % 33;
+                          const y = Math.floor(idx / 33);
+                          const inFinder = (x < 8 && y < 8) || (x > 24 && y < 8) || (x < 8 && y > 24);
+                          const inAlign = x >= 24 && x <= 28 && y >= 24 && y <= 28;
+                          if (inFinder || inAlign) return null;
+                          if (((x * 1103 + y * 2741 + x * y * 13 + 7) % 7) < 3)
+                            return <rect key={idx} x={x} y={y} width="1" height="1" fill="#1F2937" />;
+                          return null;
+                        })}
+                      </svg>
+                    </div>
+
+                    <div className="my-1 border-t border-[#F0F2F5]" />
+
+                    {/* Option */}
+                    <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
+                      <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
+                      <span>Print QR Code</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
                 className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
               >
@@ -1968,6 +2134,7 @@ export function HardwareAssetDrawer({
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
               }}
+              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
             />
           </div>
         </div>
@@ -2354,10 +2521,13 @@ export function HardwareAssetDrawer({
                     { id: 'properties', label: 'Properties' },
                     { id: 'hardware', label: 'Hardware' },
                     { id: 'software', label: 'Software' },
+                    { id: 'baseline', label: 'Baseline' },
+                    { id: 'relationship', label: 'Relationship' },
+                    { id: 'financials', label: 'Financials' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
                     { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
-                    { id: 'audit', label: 'Audit Trails' },
+                    { id: 'audit', label: 'History' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -2369,10 +2539,13 @@ export function HardwareAssetDrawer({
                     'properties': 'Properties',
                     'hardware': 'Hardware',
                     'software': 'Software',
+                    'baseline': 'Baseline',
+                    'relationship': 'Relationship',
+                    'financials': 'Financials',
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'audit': 'Audit Trails'
+                    'audit': 'History'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -2451,7 +2624,9 @@ export function HardwareAssetDrawer({
                     { label: 'Agent', value: 'Healthy', color: '#22A06B', dot: true },
                     { label: 'Antivirus', value: 'Active', color: '#22A06B' },
                     { label: 'Patches', value: '2 missing', color: '#D97706' },
-                    { label: 'Encryption', value: 'On', color: '#22A06B' },
+                    baselineVarianceCount > 0
+                      ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', dot: true }
+                      : { label: 'Encryption', value: 'On', color: '#22A06B' },
                     { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
                     { label: 'Compliance', value: 'At risk', color: '#DC2626' },
                     { label: 'Requests', value: '2 open', color: '#3D8BD0', dot: true },
@@ -2480,7 +2655,7 @@ export function HardwareAssetDrawer({
                     { name: 'Tabrez Khan', dept: 'End User Computing', initials: 'TK', color: '#3D8BD0' },
                   ].map((u) => (
                     <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
-                      <span className="flex size-7 items-center justify-center rounded-md text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
+                      <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
                       <div className="min-w-0">
                         <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
                         <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
@@ -2541,7 +2716,9 @@ export function HardwareAssetDrawer({
               <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>                  </div>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
+                    <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
                       <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
@@ -3284,7 +3461,7 @@ export function HardwareAssetDrawer({
               }
 
               return (
-                <div className="px-6 py-6">
+                <div className="px-6 py-6 @container">
                   {/* Toolbar: search (left) + columns + add (right) */}
                   <div className="flex items-center gap-3 mb-4">
                     <div className="relative flex-1 max-w-[360px]">
@@ -3298,46 +3475,61 @@ export function HardwareAssetDrawer({
                       />
                     </div>
 
-                    {/* Column visibility */}
-                    <div className="relative ml-auto">
+                    {/* Right controls: Columns · List/Card · Add */}
+                    <div className="ml-auto flex items-center gap-3">
+                      {/* Column visibility — list view only */}
+                      {softwareView === 'list' && (
+                      <div className="relative">
+                        <button
+                          title="Show / hide columns"
+                          onClick={() => setShowSoftwareColsMenu((o) => !o)}
+                          className="size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                        >
+                          <Columns3 size={16} />
+                        </button>
+                        {showSoftwareColsMenu && (
+                          <div className="absolute top-full right-0 mt-1 z-50 w-[220px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 max-h-[320px] overflow-y-auto">
+                            <div className="px-3 py-1.5 text-[11px] font-semibold text-[#7B8FA5] uppercase tracking-wider">Show columns</div>
+                            {toggleable.map((c) => (
+                              <button
+                                key={c.key}
+                                onClick={() => setVisibleSoftwareCols((prev) => {
+                                  const next = new Set(prev);
+                                  next.has(c.key) ? next.delete(c.key) : next.add(c.key);
+                                  return next;
+                                })}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors text-left"
+                              >
+                                <span className={`size-4 flex-shrink-0 rounded border flex items-center justify-center ${visibleSoftwareCols.has(c.key) ? 'bg-[#3D8BD0] border-[#3D8BD0]' : 'border-[#CBD5E1]'}`}>
+                                  {visibleSoftwareCols.has(c.key) && <Check size={12} className="text-white" />}
+                                </span>
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      )}
+
+                      {/* View toggle: list / card */}
                       <button
-                        title="Show / hide columns"
-                        onClick={() => setShowSoftwareColsMenu((o) => !o)}
+                        title={softwareView === 'list' ? 'Card view' : 'List view'}
+                        onClick={() => setSoftwareView((v) => (v === 'list' ? 'card' : 'list'))}
                         className="size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                       >
-                        <Columns3 size={16} />
+                        {softwareView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
                       </button>
-                      {showSoftwareColsMenu && (
-                        <div className="absolute top-full right-0 mt-1 z-50 w-[220px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 max-h-[320px] overflow-y-auto">
-                          <div className="px-3 py-1.5 text-[11px] font-semibold text-[#7B8FA5] uppercase tracking-wider">Show columns</div>
-                          {toggleable.map((c) => (
-                            <button
-                              key={c.key}
-                              onClick={() => setVisibleSoftwareCols((prev) => {
-                                const next = new Set(prev);
-                                next.has(c.key) ? next.delete(c.key) : next.add(c.key);
-                                return next;
-                              })}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors text-left"
-                            >
-                              <span className={`size-4 flex-shrink-0 rounded border flex items-center justify-center ${visibleSoftwareCols.has(c.key) ? 'bg-[#3D8BD0] border-[#3D8BD0]' : 'border-[#CBD5E1]'}`}>
-                                {visibleSoftwareCols.has(c.key) && <Check size={12} className="text-white" />}
-                              </span>
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
 
-                    <button
-                      title="Add Software"
-                      className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
-                    >
-                      <Plus size={16} />
-                    </button>
+                      <button
+                        title="Add Software"
+                        className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   </div>
 
+                  {softwareView === 'list' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-[12px]">
                       <thead className="bg-white border-b border-[#e5e7eb]">
@@ -3360,7 +3552,605 @@ export function HardwareAssetDrawer({
                       </tbody>
                     </table>
                   </div>
+                  ) : (
+                    /* Card view */
+                    visible.length === 0 ? (
+                      <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No software found.</div>
+                    ) : (
+                    <div className="grid gap-4 grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3">
+                      {visible.map(({ s, i }) => (
+                        <div
+                          key={i}
+                          className="group relative rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all"
+                        >
+                          {/* Hover actions */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button title="Edit" className="size-7 flex items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#3D8BD0] hover:border-[#3D8BD0]"><Edit size={14} /></button>
+                            <button title="Delete" onClick={() => setRemovedSoftware((prev) => new Set(prev).add(i))} className="size-7 flex items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#EF4444] hover:border-[#EF4444]"><Trash2 size={14} /></button>
+                          </div>
+
+                          {/* Header: icon + name + manufacturer */}
+                          <div className="flex items-start gap-3 pr-16">
+                            <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
+                              <Package size={20} />
+                            </span>
+                            <div className="min-w-0">
+                              <button className="block text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={s.name}>{s.name}</button>
+                              <div className="text-[12px] text-[#7B8FA5] truncate" title={s.manufacturer}>{s.manufacturer}</div>
+                            </div>
+                          </div>
+
+                          {/* Details */}
+                          <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
+                            <div className="min-w-0">
+                              <div className="text-[11px] text-[#9CA3AF]">Version</div>
+                              <div className="text-[12px] text-[#364658] truncate" title={s.version}>{s.version || '---'}</div>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[11px] text-[#9CA3AF]">Installed Date</div>
+                              <div className="text-[12px] text-[#364658] truncate">{s.installedDate || '---'}</div>
+                            </div>
+                            <div className="col-span-2 min-w-0">
+                              <div className="text-[11px] text-[#9CA3AF]">Installed Location</div>
+                              <div className="text-[12px] text-[#364658] truncate" title={s.installedLocation}>{s.installedLocation || '---'}</div>
+                            </div>
+                            {s.description && (
+                              <div className="col-span-2 min-w-0">
+                                <div className="text-[11px] text-[#9CA3AF]">Description</div>
+                                <div className="text-[12px] text-[#364658] truncate" title={s.description}>{s.description}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    )
+                  )}
                 </div>
+              );
+            })()}
+
+            {activeMainTab === 'baseline' && (
+              <div className="px-6 py-6 space-y-8">
+                {/* Baseline */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[14px] font-semibold text-[#3D8BD0]">Baseline</h3>
+                    <button
+                      title="Add Baseline"
+                      disabled={baselines.length >= 1}
+                      onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
+                      className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px]">
+                      <thead className="border-b border-[#e5e7eb]">
+                        <tr>
+                          {['ID', 'Name', 'Created On', 'Created By', 'Actions'].map((h) => (
+                            <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {baselines.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-10 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={16} /> No Data Found</span></td></tr>
+                        ) : baselines.map((b) => (
+                          <tr key={b.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.id}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdOn}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdBy}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button>
+                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Variance */}
+                <div>
+                  <h3 className="text-[14px] font-semibold text-[#3D8BD0] mb-3">Variance</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-[12px]">
+                      <thead className="border-b border-[#e5e7eb]">
+                        <tr>
+                          {['Created Date', 'Asset Component', 'Attribute Name', 'Expected Value', 'Current Value', 'Reference Rollback Request', 'Actions'].map((h) => (
+                            <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td colSpan={7} className="px-4 py-12 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={18} /> No Data Found</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeMainTab === 'relationship' && (() => {
+              const typeMeta: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+                user: { color: '#6366F1', icon: <User size={14} />, label: 'User' },
+                software: { color: '#10B981', icon: <Package size={14} />, label: 'Software' },
+                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Hardware' },
+                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'Asset' },
+              };
+              const nodes: { label: string; type: keyof typeof typeMeta }[] = [
+                { label: 'J. Doe', type: 'user' },
+                { label: 'Microsoft Edge', type: 'software' },
+                { label: 'Check Point VPN', type: 'software' },
+                { label: 'Intel i5-8365U', type: 'hardware' },
+                { label: '40 GB RAM', type: 'hardware' },
+                { label: 'DC1-SW-CORE-01', type: 'asset' },
+                { label: 'LG Monitor', type: 'asset' },
+              ];
+              const positioned = nodes.map((n, i) => {
+                const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
+                return { ...n, x: 50 + 36 * Math.cos(angle), y: 50 + 38 * Math.sin(angle) };
+              });
+              return (
+                <div className="px-6 py-6">
+                  {/* Legend */}
+                  <div className="flex flex-wrap items-center gap-4 mb-4">
+                    {Object.values(typeMeta).map((t) => (
+                      <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                        <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Topology */}
+                  <div className="relative w-full h-[520px] rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] overflow-hidden">
+                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                      {positioned.map((n) => (
+                        <line key={n.label} x1="50%" y1="50%" x2={`${n.x}%`} y2={`${n.y}%`} stroke="#CBD5E1" strokeWidth={1.5} />
+                      ))}
+                    </svg>
+
+                    {/* Center: this asset */}
+                    <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}>
+                      <div className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl bg-[#3D8BD0] text-white shadow-md max-w-[180px]">
+                        <Monitor size={20} />
+                        <span className="text-[12px] font-semibold text-center truncate max-w-[150px]">{activeAsset?.name || activeTicket?.subject || 'This Asset'}</span>
+                        <span className="text-[10px] opacity-90">{activeAsset?.id}</span>
+                      </div>
+                    </div>
+
+                    {/* Connected nodes */}
+                    {positioned.map((n) => {
+                      const m = typeMeta[n.type];
+                      return (
+                        <div key={n.label} className="absolute z-10" style={{ left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)' }}>
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
+                            <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                            <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+
+            {activeMainTab === 'financials' && (() => {
+              const num = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const byFactor = (f: string) => costRecords.filter((r) => r.factor === f).reduce((s, r) => s + r.amount, 0);
+              const totalCost = costRecords.reduce((s, r) => s + r.amount, 0);
+              const purchaseCost = byFactor('Purchase') || 0;
+              const salvage = parseFloat(deprConfig.salvageValue) || 0;
+              const configured = deprConfig.derivation === 'asset' && !!deprConfig.method;
+              const lifeMonths = deprConfig.type === 'useful' && deprConfig.usefulLife ? Math.max(parseInt(deprConfig.usefulLife) || 0, 1) : 48;
+              const elapsed = 12; // illustrative months in service
+              const base = purchaseCost || totalCost || 0;
+              const series = Array.from({ length: 13 }, (_, i) => Math.max(salvage, base - (base - salvage) * (i / 12)));
+              const maxBV = Math.max(base, 1);
+              const currentBV = Math.max(salvage, base - (base - salvage) * Math.min(elapsed / lifeMonths, 1));
+              const deprPct = base ? Math.round((1 - currentBV / base) * 100) : 0;
+              const W = 960, H = 180, padL = 60, padR = 20, padT = 14, padB = 42;
+              const plotW = W - padL - padR, plotH = H - padT - padB;
+              const px = (i: number) => padL + (i / (series.length - 1)) * plotW;
+              const py = (v: number) => padT + (1 - v / maxBV) * plotH;
+              const linePts = series.map((v, i) => `${px(i)},${py(v)}`).join(' ');
+              const areaPts = `${px(0)},${py(0)} ${linePts} ${px(series.length - 1)},${py(0)}`;
+              const fmtAxis = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toString());
+              const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => ({ y: py(maxBV * f), label: fmtAxis(maxBV * f) }));
+              const xTicks = [0, 3, 6, 9, 12].map((i) => ({ x: px(i), label: `${Math.round((i / 12) * lifeMonths)}` }));
+
+              const factors = [
+                { f: 'Purchase', c: '#3D8BD0' },
+                { f: 'Operation', c: '#10B981' },
+                { f: 'Repair', c: '#F59E0B' },
+                { f: 'Upgrade', c: '#8B5CF6' },
+                { f: 'Disposal', c: '#EF4444' },
+                { f: 'Other', c: '#64748B' },
+              ];
+              const maxFactor = Math.max(...factors.map((x) => byFactor(x.f)), 1);
+
+              // No costs yet → guide the user to add the first cost.
+              if (costRecords.length === 0) {
+                return (
+                  <div className="px-6 py-6">
+                    <div className="flex items-center justify-center min-h-[420px]">
+                      <div className="text-center">
+                        <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4"><FileText className="size-8 text-[#7B8FA5]" /></div>
+                        <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No financial records yet</h3>
+                        <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Add the purchase cost to start tracking total cost, book value and depreciation for this asset.</p>
+                        <button onClick={() => { setNewCost({ factor: 'Purchase', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="px-6 py-6 space-y-6">
+                  {/* Toolbar */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[15px] font-semibold text-[#364658]">Financials</h3>
+                    <button onClick={() => { setNewCost({ factor: '', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
+                  </div>
+                  {/* Hero metrics */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                    {[
+                      { label: 'Total Cost', value: `${num(totalCost)} ATS`, accent: '#364658' },
+                      { label: 'Purchase Cost', value: `${num(purchaseCost)} ATS`, accent: '#364658' },
+                      { label: 'Current Book Value', value: configured ? `${num(currentBV)} ATS` : '—', accent: '#3D8BD0' },
+                      { label: 'Depreciation', value: configured ? `${deprPct}%` : '—', accent: '#D97706' },
+                    ].map((m) => (
+                      <div key={m.label} className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+                        <div className="text-[12px] text-[#7B8FA5] mb-1.5">{m.label}</div>
+                        <div className="text-[20px] font-semibold leading-none" style={{ color: m.accent }}>{m.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Depreciation chart */}
+                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[14px] font-semibold text-[#364658]">Depreciation</h3>
+                        <span className="text-[11px] text-[#7B8FA5]">Book value over useful life</span>
+                      </div>
+                      <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                        <Settings2 size={14} /> Configure
+                      </button>
+                    </div>
+                    {base > 0 ? (
+                      <>
+                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+                          {/* Y gridlines + labels */}
+                          {yTicks.map((t) => (
+                            <g key={t.y}>
+                              <line x1={padL} y1={t.y} x2={W - padR} y2={t.y} stroke="#F0F2F5" strokeWidth={1} />
+                              <text x={padL - 8} y={t.y + 3} textAnchor="end" fontSize="10" fill="#9CA3AF">{t.label}</text>
+                            </g>
+                          ))}
+                          {/* Axes */}
+                          <line x1={padL} y1={padT} x2={padL} y2={py(0)} stroke="#E5E7EB" strokeWidth={1} />
+                          <line x1={padL} y1={py(0)} x2={W - padR} y2={py(0)} stroke="#E5E7EB" strokeWidth={1} />
+                          {/* X ticks + labels */}
+                          {xTicks.map((t) => (
+                            <g key={t.x}>
+                              <line x1={t.x} y1={py(0)} x2={t.x} y2={py(0) + 4} stroke="#CBD5E1" strokeWidth={1} />
+                              <text x={t.x} y={py(0) + 16} textAnchor="middle" fontSize="10" fill="#9CA3AF">{t.label}</text>
+                            </g>
+                          ))}
+                          {/* Axis titles */}
+                          <text x={padL + plotW / 2} y={H - 6} textAnchor="middle" fontSize="10" fill="#7B8FA5">Months in service</text>
+                          <text x={16} y={padT + plotH / 2} textAnchor="middle" fontSize="10" fill="#7B8FA5" transform={`rotate(-90 16 ${padT + plotH / 2})`}>Book Value (ATS)</text>
+                          {/* Series */}
+                          <polygon points={areaPts} fill="#3D8BD0" opacity={0.08} />
+                          <polyline points={linePts} fill="none" stroke="#3D8BD0" strokeWidth={2} />
+                          {configured && (
+                            <circle cx={px((elapsed / lifeMonths) * 12)} cy={py(currentBV)} r={4} fill="#3D8BD0" stroke="#fff" strokeWidth={2} />
+                          )}
+                        </svg>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {[
+                            ['Method', configured ? deprConfig.method : (deprConfig.derivation === 'none' ? 'Do Not Depreciate' : 'Not configured')],
+                            ['Purchase Cost', `${num(base)} ATS`],
+                            ['Salvage', deprConfig.salvageValue ? `${num(salvage)} ${deprConfig.currency}` : '—'],
+                            [deprConfig.type === 'useful' ? 'Useful Life' : 'Rate', deprConfig.usefulLife ? (deprConfig.type === 'useful' ? `${deprConfig.usefulLife} mo` : `${deprConfig.usefulLife}%`) : '—'],
+                          ].map(([l, v]) => (
+                            <span key={l} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F9FAFB] text-[12px]">
+                              <span className="text-[#7B8FA5]">{l}:</span>
+                              <span className="font-medium text-[#364658]">{v}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-10 text-center text-[13px] text-[#9CA3AF]">Add a purchase cost to see depreciation.</div>
+                    )}
+                  </div>
+
+                  {/* Cost breakdown */}
+                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
+                    <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Cost breakdown</h3>
+                    <div className="space-y-3">
+                      {factors.map(({ f, c }) => {
+                        const amt = byFactor(f);
+                        return (
+                          <div key={f} className="flex items-center gap-3">
+                            <span className="text-[12px] text-[#64748B] w-[90px] flex-shrink-0">{f}</span>
+                            <div className="flex-1 h-2.5 rounded-full bg-[#F0F2F5] overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${(amt / maxFactor) * 100}%`, backgroundColor: c }} />
+                            </div>
+                            <span className="text-[12px] font-medium text-[#364658] w-[90px] text-right flex-shrink-0">{num(amt)} ATS</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Cost records — timeline */}
+                  <div>
+                    <h3 className="text-[14px] font-semibold text-[#364658] mb-3">Cost Records</h3>
+                    {costRecords.length === 0 ? (
+                      <div className="rounded-lg bg-[#F9FAFB] py-10 text-center text-[13px] text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={16} /> No cost records yet.</span></div>
+                    ) : (
+                      <div className="space-y-2">
+                        {costRecords.map((r) => {
+                          const color = factors.find((x) => x.f === r.factor)?.c || '#64748B';
+                          return (
+                            <div key={r.id} className="group flex items-start gap-3 rounded-lg bg-[#F9FAFB] p-3">
+                              <span className="mt-0.5 size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[13px] font-semibold text-[#364658]">{num(r.amount)} {r.currency}</span>
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: `${color}1A`, color }}>{r.factor}</span>
+                                  <span className="text-[11px] text-[#9CA3AF] ml-auto">{r.date}</span>
+                                </div>
+                                {r.description && <div className="text-[12px] text-[#7B8FA5] mt-0.5 truncate">{r.description}</div>}
+                              </div>
+                              <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={14} /></button>
+                                <button title="Delete" onClick={() => setCostRecords((prev) => prev.filter((x) => x.id !== r.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Add Cost — side drawer */}
+            {showAddCost && (
+              <>
+                <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowAddCost(false)} />
+                <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <h2 className="text-[18px] font-semibold text-[#111827]">Add Cost</h2>
+                    <button onClick={() => setShowAddCost(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                  </div>
+                  <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+                    <div>
+                      <label className="block text-[13px] text-[#364658] mb-1.5">Cost Factor <span className="text-[#DC2626]">*</span></label>
+                      <select
+                        value={newCost.factor}
+                        onChange={(e) => setNewCost((c) => ({ ...c, factor: e.target.value }))}
+                        className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                      >
+                        <option value="">Select</option>
+                        {['Purchase', 'Operation', 'Disposal', 'Repair', 'Upgrade', 'Other'].map((f) => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[13px] text-[#364658] mb-1.5">Date <span className="text-[#DC2626]">*</span></label>
+                        <input
+                          type="date"
+                          value={newCost.date}
+                          onChange={(e) => setNewCost((c) => ({ ...c, date: e.target.value }))}
+                          onClick={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; el.showPicker?.(); }}
+                          onFocus={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; el.showPicker?.(); }}
+                          className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] text-[#364658] mb-1.5">Amount <span className="text-[#DC2626]">*</span></label>
+                        <div className="flex">
+                          <input type="number" value={newCost.amount} onChange={(e) => setNewCost((c) => ({ ...c, amount: e.target.value }))} placeholder="0.00" className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                          <select value={newCost.currency} onChange={(e) => setNewCost((c) => ({ ...c, currency: e.target.value }))} className="px-2 py-2 text-[13px] text-[#364658] border border-l-0 border-[#DFE5ED] rounded-r-md bg-white focus:outline-none">
+                            {['ATS', 'USD', 'EUR', 'INR', 'GBP'].map((c) => <option key={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
+                      <textarea value={newCost.description} onChange={(e) => setNewCost((c) => ({ ...c, description: e.target.value }))} placeholder="Description" className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                    <button
+                      disabled={!newCost.factor || !newCost.date || !newCost.amount}
+                      onClick={() => {
+                        setCostRecords((prev) => [{ id: Date.now(), date: newCost.date, amount: parseFloat(newCost.amount) || 0, currency: newCost.currency, factor: newCost.factor, description: newCost.description }, ...prev]);
+                        setShowAddCost(false);
+                      }}
+                      className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button onClick={() => setShowAddCost(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Configure Depreciation — side drawer */}
+            {showConfigDepr && (
+              <>
+                <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowConfigDepr(false)} />
+                <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <h2 className="text-[18px] font-semibold text-[#111827]">Configure Depreciation</h2>
+                    <button onClick={() => setShowConfigDepr(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                  </div>
+                  <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
+                    <div>
+                      <label className="block text-[13px] text-[#364658] mb-2">Depreciation Derivation <span className="text-[#DC2626]">*</span></label>
+                      <div className="flex flex-wrap items-center gap-5">
+                        {[{ v: 'product', l: 'Product Level' }, { v: 'asset', l: 'Asset Level' }, { v: 'none', l: 'Do Not Depreciate' }].map((o) => (
+                          <label key={o.v} className="inline-flex items-center gap-2 text-[13px] text-[#364658] cursor-pointer">
+                            <input type="radio" name="depr-derivation" checked={deprConfig.derivation === o.v} onChange={() => setDeprConfig((d) => ({ ...d, derivation: o.v }))} className="h-3.5 w-3.5 text-[#3D8BD0] focus:ring-[#3D8BD0]" />
+                            {o.l}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {deprConfig.derivation === 'product' && (
+                      <div className="px-4 py-3 rounded-md bg-[#FDECEC] text-[#DC2626] text-[13px] font-medium">No Product is associated with this asset.</div>
+                    )}
+
+                    {deprConfig.derivation === 'asset' && (
+                      <>
+                        <div>
+                          <label className="block text-[13px] text-[#364658] mb-1.5">Depreciation Method <span className="text-[#DC2626]">*</span></label>
+                          <select
+                            value={deprConfig.method}
+                            onChange={(e) => setDeprConfig((d) => ({ ...d, method: e.target.value }))}
+                            className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                          >
+                            <option value="">Select</option>
+                            {['Straight Line', 'Declining Balance', 'Sum Of The Years Digit', 'Double Declining Balance'].map((m) => <option key={m}>{m}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[13px] text-[#364658] mb-2">Depreciation Type</label>
+                          <div className="flex flex-wrap items-center gap-5">
+                            {[{ v: 'useful', l: 'Useful Life' }, { v: 'percentage', l: 'Depreciation Percentage' }].map((o) => (
+                              <label key={o.v} className="inline-flex items-center gap-2 text-[13px] text-[#364658] cursor-pointer">
+                                <input type="radio" name="depr-type" checked={deprConfig.type === o.v} onChange={() => setDeprConfig((d) => ({ ...d, type: o.v }))} className="h-3.5 w-3.5 text-[#3D8BD0] focus:ring-[#3D8BD0]" />
+                                {o.l}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[13px] text-[#364658] mb-1.5">{deprConfig.type === 'useful' ? 'Useful Life' : 'Depreciation Percentage'}</label>
+                            <div className="flex">
+                              <input type="number" value={deprConfig.usefulLife} onChange={(e) => setDeprConfig((d) => ({ ...d, usefulLife: e.target.value }))} placeholder="0" className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                              <span className="px-3 py-2 text-[13px] text-[#364658] border border-l-0 border-[#DFE5ED] rounded-r-md bg-[#F9FAFB]">{deprConfig.type === 'useful' ? 'Month' : '%'}</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[13px] text-[#364658] mb-1.5">Salvage Value</label>
+                            <div className="flex">
+                              <input type="number" value={deprConfig.salvageValue} onChange={(e) => setDeprConfig((d) => ({ ...d, salvageValue: e.target.value }))} placeholder="0.00" className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-l-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                              <select value={deprConfig.currency} onChange={(e) => setDeprConfig((d) => ({ ...d, currency: e.target.value }))} className="px-2 py-2 text-[13px] text-[#364658] border border-l-0 border-[#DFE5ED] rounded-r-md bg-white focus:outline-none">
+                                {['ATS', 'USD', 'EUR', 'INR', 'GBP'].map((c) => <option key={c}>{c}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
+                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Add Baseline — side drawer (pick one admin-created baseline) */}
+            {showAddBaseline && (() => {
+              const allBaselines = [
+                { id: 'BAS-31', name: 'New Base Line - 64 Bit', desc: '', by: 'dikshika', initials: 'DI', color: '#3D8BD0', created: 'Thu, Jan 22, 2026 11:20 AM', published: 'Thu, Jan 22, 2026 11:20 AM' },
+                { id: 'BAS-29', name: 'test-10', desc: '', by: 'Sakshi', initials: 'SA', color: '#10B981', created: 'Tue, Dec 02, 2025 04:10 PM', published: 'Tue, Dec 02, 2025 04:10 PM' },
+                { id: 'BAS-27', name: 'test-1', desc: '', by: 'Sakshi', initials: 'SA', color: '#10B981', created: 'Tue, Dec 02, 2025 03:55 PM', published: 'Tue, Dec 02, 2025 03:55 PM' },
+                { id: 'BAS-24', name: 'DEMO', desc: '', by: 'Nandini Patel', initials: 'NP', color: '#6366F1', created: 'Mon, Jun 09, 2025 10:30 AM', published: 'Mon, Jun 09, 2025 10:30 AM' },
+                { id: 'BAS-21', name: 'Test', desc: '', by: 'Thanushree', initials: 'TH', color: '#F59E0B', created: 'Tue, Mar 25, 2025 02:15 PM', published: 'Tue, Mar 25, 2025 02:15 PM' },
+                { id: 'BAS-18', name: 'Location Baseline', desc: '', by: 'Hetal Mori', initials: 'HM', color: '#EC4899', created: 'Fri, Aug 23, 2024 01:40 PM', published: 'Fri, Aug 23, 2024 01:40 PM' },
+                { id: 'BAS-17', name: 'Hostname_IP address', desc: '', by: 'Parita', initials: 'PA', color: '#8B5CF6', created: 'Fri, Apr 12, 2024 11:20 AM', published: 'Fri, Apr 12, 2024 11:20 AM' },
+                { id: 'BAS-16', name: 'Disk space Base line', desc: 'Disk space Base line', by: 'khushbu Vaniyc', initials: 'KV', color: '#0EA5E9', created: 'Thu, Nov 30, 2023 09:05 AM', published: 'Thu, Nov 30, 2023 09:05 AM' },
+                { id: 'BAS-14', name: 'Baselining for Akola', desc: '', by: 'Udit', initials: 'UD', color: '#14B8A6', created: 'Fri, Jun 02, 2023 01:30 PM', published: 'Fri, Jun 02, 2023 01:30 PM' },
+                { id: 'BAS-11', name: 'varsha base', desc: '', by: 'Ashish', initials: 'AS', color: '#EF4444', created: 'Tue, Nov 15, 2022 09:50 AM', published: 'Tue, Nov 15, 2022 09:50 AM' },
+              ];
+              const bq = baselineSearch.trim().toLowerCase();
+              const rows = allBaselines.filter((b) => !bq || b.id.toLowerCase().includes(bq) || b.name.toLowerCase().includes(bq) || b.by.toLowerCase().includes(bq));
+              const confirmAdd = () => {
+                const sel = allBaselines.find((b) => b.id === selectedBaselineId);
+                if (sel) setBaselines([{ id: sel.id, name: sel.name, createdOn: sel.created, createdBy: sel.by }]);
+                setShowAddBaseline(false);
+              };
+              return (
+                <>
+                  <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowAddBaseline(false)} />
+                  <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                      <h2 className="text-[18px] font-semibold text-[#111827]">Add Baseline</h2>
+                      <button onClick={() => setShowAddBaseline(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                    </div>
+                    <div className="px-6 py-4 flex-shrink-0">
+                      <div className="relative max-w-[320px]">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                        <input type="text" placeholder="Search" value={baselineSearch} onChange={(e) => setBaselineSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-auto px-6">
+                      <table className="w-full text-[12px]">
+                        <thead className="border-b border-[#e5e7eb]">
+                          <tr>
+                            <th className="w-[40px] px-2 py-2.5"></th>
+                            {['ID', 'Name', 'Description', 'Created By', 'Created Date', 'Published On'].map((h) => (
+                              <th key={h} className="px-3 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e7eb]">
+                          {rows.map((b) => (
+                            <tr key={b.id} className="hover:bg-[#F9FAFB] cursor-pointer" onClick={() => setSelectedBaselineId((cur) => (cur === b.id ? null : b.id))}>
+                              <td className="px-2 py-3">
+                                <input type="checkbox" checked={selectedBaselineId === b.id} onChange={() => setSelectedBaselineId((cur) => (cur === b.id ? null : b.id))} onClick={(e) => e.stopPropagation()} className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0]" />
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap text-[#3D8BD0] font-medium">{b.id}</td>
+                              <td className="px-3 py-3 whitespace-nowrap text-[#364658] max-w-[160px] truncate">{b.name}</td>
+                              <td className="px-3 py-3 whitespace-nowrap text-[#364658] max-w-[160px] truncate">{b.desc}</td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="flex size-5 items-center justify-center rounded-sm text-[9px] font-semibold text-white" style={{ backgroundColor: b.color }}>{b.initials}</span>
+                                  <span className="text-[#364658] max-w-[120px] truncate">{b.by}</span>
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap text-[#364658]">{b.created}</td>
+                              <td className="px-3 py-3 whitespace-nowrap text-[#364658]">{b.published}</td>
+                            </tr>
+                          ))}
+                          {rows.length === 0 && (
+                            <tr><td colSpan={7} className="px-4 py-10 text-center text-[#9CA3AF]">No baselines found.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="px-6 py-3 text-[12px] text-[#7B8FA5] border-t border-[#E5E7EB] flex-shrink-0">Showing 1-{rows.length} of {rows.length} items</div>
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                      <button onClick={confirmAdd} disabled={!selectedBaselineId} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
+                      <button onClick={() => setShowAddBaseline(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                    </div>
+                  </div>
+                </>
               );
             })()}
 
@@ -5068,7 +5858,239 @@ export function HardwareAssetDrawer({
             )}
 
             {/* Audit Trails Tab Content */}
-            {activeMainTab === 'audit' && <AuditTrailsTabContent ticketId={activeTicket?.id} />}
+            {activeMainTab === 'audit' && (() => {
+              const categories = [
+                { id: 'audit', label: 'Audit Trail' },
+                { id: 'change-logs', label: 'Change Logs' },
+                { id: 'scan', label: 'Scan History' },
+                { id: 'wol', label: 'WOL History' },
+                { id: 'movement', label: 'Movement History' },
+                { id: 'repair', label: 'Repair History' },
+                { id: 'utilization', label: 'Asset Utilization History' },
+                { id: 'baseline-history', label: 'Baseline History' },
+                { id: 'variance-history', label: 'Variance History' },
+              ];
+              const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
+
+              const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Method Changed', details: 'Changed Depreciation Method from "Sum Of The Years Digit" to "Double Declining Balance"', field: 'Method', from: 'Sum Of The Years Digit', to: 'Double Declining Balance', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Type Changed', details: 'Changed Depreciation Type from "Useful Life" to "Depreciation Percentage"', field: 'Type', from: 'Useful Life', to: 'Depreciation Percentage', time: 'Sat, Jun 20, 2026 04:38 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Useful Life Changed', details: 'Changed Useful Life from "200" to "12"', field: 'Useful Life', from: '200', to: '12', time: 'Sat, Jun 20, 2026 04:38 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Salvage Amount Changed', details: 'Changed Salvage Amount from "18" to "100"', field: 'Salvage', from: '18', to: '100', time: 'Sat, Jun 20, 2026 04:38 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Purchase Cost Added', details: 'Added the asset purchase cost', time: 'Sat, Jun 20, 2026 04:20 PM' },
+              ];
+              const changeLogs = [
+                { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
+                { text: 'USB Controller Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:31 PM' },
+                { text: 'OS Component has been Removed', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:29 PM' },
+                { text: 'RAM Component : Size (GB) Updated from 8 to 32', by: 'Rakesh Rathod', time: 'Wed, Jun 17, 2026 06:41 PM' },
+                { text: 'Computer System : User Name Updated from Constellation to leofan', by: 'Agent', time: 'Mon, May 18, 2026 11:27 AM' },
+                { text: 'Processor Component : Intel(R) Core(TM) i5-8365U has been Added', by: 'Agent', time: 'Mon, May 18, 2026 09:33 AM' },
+              ];
+              const scanHistory = [
+                'Mon, May 18, 2026 02:25 PM', 'Mon, May 18, 2026 01:25 PM', 'Mon, May 18, 2026 12:25 PM',
+                'Mon, May 18, 2026 11:26 AM', 'Mon, May 18, 2026 09:48 AM', 'Mon, May 18, 2026 09:29 AM',
+              ];
+              const utilization = [
+                ['Mon, May 18, 2026 11:23 AM', 'Mon, May 18, 2026 11:23 AM', '30 seconds', '51 minutes 3 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 10:28 AM', 'Mon, May 18, 2026 10:31 AM', '3 minutes 8 seconds', '45 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 10:27 AM', 'Mon, May 18, 2026 10:28 AM', '31 seconds', '12 minutes 54 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 09:43 AM', 'Mon, May 18, 2026 10:14 AM', '30 minutes 43 seconds', '---', 'Mon, May 18, 2026 10:27 AM'],
+              ];
+              const baselineHistory = [
+                { id: 'BAS-31', by: 'Rakesh Rathod', on: 'Fri, Jun 19, 2026 07:17 PM', reason: 'New Baseline Added', latest: 'Yes' },
+                { id: 'BAS-14', by: 'Rakesh Rathod', on: 'Wed, Jun 17, 2026 11:40 AM', reason: 'New Baseline Added', latest: 'No' },
+                { id: 'BAS-31', by: 'System', on: 'Mon, May 18, 2026 09:33 AM', reason: 'New Baseline Added', latest: 'No' },
+              ];
+
+              const emptyState = (cols: string[]) => (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px] text-[12px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr>{cols.map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
+                    </thead>
+                    <tbody><tr><td colSpan={cols.length} className="px-4 py-12 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={18} /> No Data Found</span></td></tr></tbody>
+                  </table>
+                </div>
+              );
+
+              return (
+                <div className="px-6 py-6">
+                  {/* Sticky toolbar: category dropdown (left) + date range / filter / download (right) */}
+                  <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
+                    <div className="relative">
+                      <button onClick={() => setShowHistoryMenu((o) => !o)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors min-w-[200px] justify-between">
+                        {activeCat.label}
+                        <ChevronDown size={14} className="text-[#7B8FA5]" />
+                      </button>
+                      {showHistoryMenu && (
+                        <div className="absolute top-full left-0 mt-1 z-50 w-[230px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1">
+                          {categories.map((c) => (
+                            <button key={c.id} onClick={() => { setHistoryCategory(c.id); setShowHistoryMenu(false); }} className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#F5F7FA] transition-colors ${historyCategory === c.id ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}>{c.label}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
+                      <button title="Filter" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Filter size={15} /></button>
+                      <button title="Download" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
+                    </div>
+                  </div>
+
+                  {/* Content per category */}
+                  <div className="mt-2">
+                    {historyCategory === 'audit' && (
+                      <div className="relative">
+                        {auditEntries.map((e, index, array) => (
+                          <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                            {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
+                            <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: e.color }}>{e.initials}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="py-1">
+                                <div className="flex items-start justify-between gap-3 mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-[13px] font-semibold text-[#364658]">{e.user}</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">•</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">{e.action}</span>
+                                    </div>
+                                    <p className="text-[13px] text-[#364658]">{e.details}</p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{e.time}</span></div>
+                                </div>
+                                {e.field && (
+                                  <div className="mt-2 space-y-1.5">
+                                    <div className="flex items-center gap-2 text-[12px]">
+                                      <span className="text-[#9CA3AF] min-w-[70px]">{e.field}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[#EF4444] line-through">{e.from}</span>
+                                        <span className="text-[#D1D5DB]">→</span>
+                                        <span className="text-[#10B981] font-medium">{e.to}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {historyCategory === 'change-logs' && (
+                      <div className="relative">
+                        {changeLogs.map((c, index, array) => {
+                          const ini = c.by === 'Agent' ? 'AG' : c.by.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+                          const color = c.by === 'Agent' ? '#10B981' : '#3D8BD0';
+                          return (
+                            <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                              {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
+                              <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: color }}>{ini}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="py-1">
+                                  <div className="flex items-start justify-between gap-3 mb-1">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-[13px] font-semibold text-[#364658]">{c.by}</span>
+                                        <span className="text-[12px] text-[#7B8FA5]">•</span>
+                                        <span className="text-[12px] text-[#7B8FA5]">Change Log</span>
+                                      </div>
+                                      <p className="text-[13px] text-[#364658]">{c.text}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{c.time}</span></div>
+                                  </div>
+                                  <button className="mt-1 text-[12px] text-[#3D8BD0] hover:underline font-medium">View Changes</button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {historyCategory === 'scan' && (
+                      <div className="relative">
+                        {scanHistory.map((t, index, array) => (
+                          <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                            {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
+                            <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: '#10B981' }}>AG</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="py-1">
+                                <div className="flex items-start justify-between gap-3 mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-[13px] font-semibold text-[#364658]">Agent Discovery</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">•</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">Scan</span>
+                                    </div>
+                                    <p className="text-[13px] text-[#364658]">{activeAsset?.id || 'Asset'} was scanned successfully</p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{t}</span></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {historyCategory === 'wol' && emptyState(['History Date', 'Source', 'WOL Status', 'WOL Remarks', 'Last Updated Date'])}
+                    {historyCategory === 'movement' && emptyState(['ID', 'Requester', 'Movement Date', 'Movement Type', 'Movement Status', 'From Location', 'To Location', 'From Department', 'To Department', 'Returnable/Transferable'])}
+                    {historyCategory === 'repair' && emptyState(['Requester', 'Reference No', 'Vendor', 'Sent Date', 'Expected Return', 'In Warranty', 'Return Date', 'Repair Type', 'Repair Cost', 'Warranty Cost', 'Replaced', 'Replaced By', 'Action'])}
+
+                    {historyCategory === 'utilization' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[800px] text-[12px]">
+                          <thead className="border-b border-[#e5e7eb]">
+                            <tr>{['From Time', 'To Time', 'Up Time Duration', 'Down Time Duration', 'Last Updated Date'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {utilization.map((row, i) => (
+                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                                {row.map((cell, j) => <td key={j} className={`px-4 py-3 whitespace-nowrap ${cell === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{cell}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {historyCategory === 'baseline-history' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1000px] text-[12px]">
+                          <thead className="border-b border-[#e5e7eb]">
+                            <tr>
+                              <th className="w-[40px] px-4 py-2.5"></th>
+                              {['ID', 'Created By', 'Created On', 'Reason', 'Change Id', 'Change Status', 'Request Id', 'Request Status', 'Latest', 'Actions'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {baselineHistory.map((b, i) => (
+                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                                <td className="px-4 py-3"><input type="checkbox" className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0]" /></td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0] font-medium">{b.id}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.by}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.on}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[160px] truncate">{b.reason}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.latest}</td>
+                                <td className="px-4 py-3 whitespace-nowrap"><button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {historyCategory === 'variance-history' && emptyState(['History Id', 'Detection Date', 'Asset Component', 'Attribute Name', 'Expected Value', 'Current Value', 'Approval Status', 'Approval By', 'Approval Date', 'Change Id', 'Request Id', 'Reference Rollback Request'])}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
@@ -6062,6 +7084,7 @@ export function HardwareAssetDrawer({
             assetMode={true}
             assetState={assetState}
             agentInfo={agentInfo}
+            warranty={{ daysLeft: 23, expiryDate: 'Jul 14, 2026' }}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {
@@ -6972,6 +7995,51 @@ export function HardwareAssetDrawer({
         />
       )}
       
+      {/* Add Barcode Popup */}
+      {showAddBarcodePopup && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
+          onClick={() => setShowAddBarcodePopup(false)}
+        >
+          <div
+            className="w-[340px] bg-white rounded-xl shadow-xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[15px] font-semibold text-[#364658] mb-4">Add Barcode</h3>
+
+            <button className="w-full py-2.5 border border-[#DFE5ED] rounded-lg text-[13px] font-medium text-[#364658] hover:bg-[#F9FAFB] transition-colors">
+              Generate New Barcode
+            </button>
+
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 border-t border-[#E5E7EB]" />
+              <span className="text-[12px] font-medium text-[#7B8FA5]">Or</span>
+              <div className="flex-1 border-t border-[#E5E7EB]" />
+            </div>
+
+            <label className="block text-[12px] font-medium text-[#364658] mb-1.5">
+              Associate a Barcode <span className="text-[#DC2626]">*</span>
+            </label>
+            <input
+              type="text"
+              value={addBarcodeValue}
+              onChange={(e) => setAddBarcodeValue(e.target.value)}
+              placeholder="Barcode"
+              className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+            />
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => { setShowAddBarcodePopup(false); setAddBarcodeValue(''); }}
+                className="px-5 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2F7AB8] transition-colors"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Properties Panel Add Relation Modal */}
       {showPropertiesRelationModal && (() => {
         const availableTickets = getPropertiesRelationMockTickets(propertiesRelationType);

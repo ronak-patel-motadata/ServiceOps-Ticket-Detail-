@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /** Asset detail values used to seed the editable asset field dropdowns. */
@@ -10,6 +10,7 @@ export interface AssetFieldValues {
   impact: string;
   managedByGroup: string;
   managedBy: { name: string; initials?: string; color?: string };
+  ci?: string;
 }
 
 /** Controlled state (values + setters) for the editable asset fields. */
@@ -20,10 +21,47 @@ export interface AssetFieldState {
   managedByGroup: string; setManagedByGroup: (v: string) => void;
   managedBy: { name: string; initials?: string; color?: string };
   setManagedBy: (v: { name: string; initials?: string; color?: string }) => void;
+  ci?: string;
+  // Values for the "View more" additional fields, keyed by field label.
+  extra?: Record<string, string>;
+  setExtra?: (v: Record<string, string>) => void;
 }
 
 /** Field labels in display order — also used for pinning and search matching. */
-export const ASSET_FIELD_LABELS = ['Asset Type', 'Status', 'Impact', 'Managed By Group', 'Managed By'];
+export const ASSET_FIELD_LABELS = [
+  'Asset Type', 'Status', 'Impact', 'Managed By Group', 'Managed By', 'CI',
+  'Asset Group', 'Product', 'Used By', 'Location', 'Category', 'Department',
+  'Host Name', 'Domain Name', 'UUID', 'IP Address', 'MAC Address', 'Subnet Mask',
+  'Vendor', 'Asset Condition', 'Movement Status', 'Under Change Control',
+  'Business Service', 'Origin', 'Acquisition Date', 'Assignment Date',
+];
+
+/** Labels rendered behind the "View more" toggle, with the input type to use for each. */
+export const ASSET_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'editable' | 'date' | 'location'; options?: string[] }[] = [
+  { label: 'Asset Group', type: 'static' },
+  { label: 'Product', type: 'static' },
+  { label: 'Used By', type: 'select', options: ['Hemal Patel', 'John Doe', 'Jane Smith', 'Ravi Kumar', 'Sara Lee'] },
+  { label: 'Location', type: 'location', options: ['KRISHNAPATNAM', 'AHMEDABAD', 'MUMBAI', 'DELHI', 'BANGALORE'] },
+  { label: 'Category', type: 'select', options: ['Hardware', 'Software', 'Network Device', 'Peripheral'] },
+  { label: 'Department', type: 'select', options: ['IT', 'HR', 'Finance', 'Operations', 'Sales'] },
+  { label: 'Host Name', type: 'editable' },
+  { label: 'Domain Name', type: 'editable' },
+  { label: 'UUID', type: 'editable' },
+  { label: 'IP Address', type: 'editable' },
+  { label: 'MAC Address', type: 'editable' },
+  { label: 'Subnet Mask', type: 'editable' },
+  { label: 'Vendor', type: 'select', options: ['Lenovo', 'Dell', 'HP', 'Apple', 'Microsoft'] },
+  { label: 'Asset Condition', type: 'select', options: ['Good', 'Fair', 'Poor', 'Damaged'] },
+  { label: 'Movement Status', type: 'select', options: ['None', 'In Transit', 'Delivered', 'Returned'] },
+  { label: 'Under Change Control', type: 'select', options: ['Yes', 'No'] },
+  { label: 'Business Service', type: 'select', options: ['Core Banking', 'Payments', 'CRM', 'ERP'] },
+  { label: 'Origin', type: 'static' },
+  { label: 'Acquisition Date', type: 'date' },
+  { label: 'Assignment Date', type: 'date' },
+];
+
+/** Labels whose label text is shown in red (required-style emphasis). */
+const ASSET_REQUIRED_LABELS = ['Under Change Control', 'Business Service'];
 
 /** Values shown in the Agent Information block (replaces Requester Information on the asset page). */
 export interface AgentInfo {
@@ -157,7 +195,17 @@ export function AssetValueDisplay({ field, state }: { field: string; state: Asse
           <span className="text-[13px] text-[#364658]">{state.managedBy.name}</span>
         </div>
       );
+    case 'CI':
+      return state.ci
+        ? <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline">{state.ci}</span>
+        : <span className="text-[13px] text-[#9CA3AF]">---</span>;
     default:
+      if (state.extra && field in state.extra) {
+        const v = state.extra[field];
+        return v
+          ? <span className="text-[13px] text-[#364658]">{v}</span>
+          : <span className="text-[13px] text-[#9CA3AF]">---</span>;
+      }
       return <span className="text-[13px] text-[#364658]">-</span>;
   }
 }
@@ -183,9 +231,9 @@ const SearchBox = ({ value, onChange }: { value: string; onChange: (v: string) =
 );
 
 /** Field row with a label + hover pin button (mirrors the ticket field rows). */
-const FieldRow = ({ label, pinned, onPin, children }: { label: string; pinned: boolean; onPin: () => void; children: React.ReactNode }) => (
+const FieldRow = ({ label, pinned, onPin, children, labelColor }: { label: string; pinned: boolean; onPin: () => void; children: React.ReactNode; labelColor?: string }) => (
   <div className="flex items-center justify-between gap-3">
-    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
+    <div className={`text-[12px] flex-shrink-0 w-[120px] group/label flex items-center gap-1 ${labelColor ? '' : 'text-[#4A5568]'}`} style={labelColor ? { color: labelColor } : undefined}>
       <span>{label}</span>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -200,7 +248,7 @@ const FieldRow = ({ label, pinned, onPin, children }: { label: string; pinned: b
   </div>
 );
 
-type Field = 'type' | 'status' | 'impact' | 'group' | 'manager' | null;
+type Field = string | null;
 
 interface AssetFieldsProps {
   state: AssetFieldState;
@@ -210,9 +258,13 @@ interface AssetFieldsProps {
 }
 
 export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery }: AssetFieldsProps) {
-  const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy } = state;
+  const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
+  const extra = state.extra ?? {};
+  const setExtra = state.setExtra ?? (() => {});
 
   const [open, setOpen] = useState<Field>(null);
+  const [showMore, setShowMore] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [typeSearch, setTypeSearch] = useState('');
   const [statusSearch, setStatusSearch] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
@@ -245,6 +297,90 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     (o) => o.name.toLowerCase().includes(managerSearch.toLowerCase()) || o.email.toLowerCase().includes(managerSearch.toLowerCase())
   );
   const typeQuery = typeSearch.trim().toLowerCase();
+
+  // --- "View more" additional-field renderers (label/input/dropdown match the core asset rows) ---
+  const updateExtra = (label: string, value: string) => setExtra({ ...extra, [label]: value });
+  const labelColorFor = (label: string) => (ASSET_REQUIRED_LABELS.includes(label) ? '#C0392B' : undefined);
+
+  const renderStatic = (label: string) => (
+    <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
+      <span className="text-[13px] text-[#364658] px-3 py-2 block truncate">{extra[label] || '---'}</span>
+    </FieldRow>
+  );
+
+  const renderEditable = (label: string) => (
+    <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
+      {editingField === label ? (
+        <input
+          autoFocus
+          value={extra[label] || ''}
+          onChange={(e) => updateExtra(label, e.target.value)}
+          onBlur={() => setEditingField(null)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }}
+          className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+        />
+      ) : (
+        <div className="group/edit relative flex items-center">
+          <span className="text-[13px] text-[#364658] px-3 py-2 truncate flex-1">{extra[label] || '---'}</span>
+          <button onClick={() => setEditingField(label)} className="absolute right-2 text-[#7B8FA5] opacity-0 group-hover/edit:opacity-100 transition-opacity">
+            <Edit size={14} />
+          </button>
+        </div>
+      )}
+    </FieldRow>
+  );
+
+  const renderSelect = (label: string, options: string[], showSubline = false) => (
+    <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
+      <div className="group relative">
+        <button className={`${triggerClass} pl-3`} title={extra[label]} onClick={() => toggle(label)}>
+          {extra[label] ? <span className="truncate">{extra[label]}</span> : <span className="text-[#9CA3AF]">Select</span>}
+        </button>
+        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+        {showSubline && extra[label] && <div className="text-[11px] text-[#3D8BD0] px-3 pt-0.5 truncate">{extra[label]}</div>}
+        {open === label && (
+          <div className={menuClass}>
+            <div className="max-h-[280px] overflow-y-auto">
+              {options.map((o) => (
+                <button key={o} className={optionClass} onClick={() => { updateExtra(label, o); setOpen(null); }}>
+                  <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                  {extra[label] === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </FieldRow>
+  );
+
+  const renderDate = (label: string) => (
+    <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
+      <div className="relative group">
+        <input
+          type="date"
+          value={extra[label] || ''}
+          onChange={(e) => updateExtra(label, e.target.value)}
+          onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+          className={`w-full pl-3 pr-8 py-2 text-[13px] bg-transparent border-none rounded-md hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${extra[label] ? 'text-[#364658]' : 'text-transparent'}`}
+        />
+        {!extra[label] && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
+        <CalendarIcon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+      </div>
+    </FieldRow>
+  );
+
+  const renderMoreField = (f: { label: string; type: string; options?: string[] }) => {
+    if (!show(f.label)) return null;
+    switch (f.type) {
+      case 'static': return renderStatic(f.label);
+      case 'editable': return renderEditable(f.label);
+      case 'select': return renderSelect(f.label, f.options || []);
+      case 'location': return renderSelect(f.label, f.options || [], true);
+      case 'date': return renderDate(f.label);
+      default: return null;
+    }
+  };
 
   return (
     <div className="px-4 pb-4 space-y-2" ref={ref}>
@@ -429,6 +565,33 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
           )}
         </div>
       </FieldRow>
+      )}
+
+      {/* CI */}
+      {show('CI') && (
+      <FieldRow label="CI" pinned={pinnedFields.includes('CI')} onPin={() => togglePinField('CI')}>
+        <div className="px-0 py-2">
+          {ci
+            ? <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline">{ci}</span>
+            : <span className="text-[13px] text-[#9CA3AF]">---</span>}
+        </div>
+      </FieldRow>
+      )}
+
+      {/* Additional fields behind "View more" */}
+      {(showMore || q) && ASSET_MORE_FIELDS.map(renderMoreField)}
+
+      {/* View more / View less toggle (hidden while searching) */}
+      {!q && (
+        <div className="pt-1">
+          <button
+            onClick={() => setShowMore((v) => !v)}
+            className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
+          >
+            {showMore ? 'View less' : 'View more'}
+            {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
       )}
     </div>
   );

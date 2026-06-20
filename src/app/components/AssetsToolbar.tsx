@@ -3,9 +3,11 @@ import { ChevronDown, X, Search, Barcode, QrCode, ScanLine, FileDown, Download, 
 interface AssetsToolbarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  title?: string;
+  viewLabel?: string;
 }
 
-export function AssetsToolbar({ searchQuery, setSearchQuery }: AssetsToolbarProps) {
+export function AssetsToolbar({ searchQuery, setSearchQuery, title = 'Hardware Assets', viewLabel = 'All Hardware IT Assets' }: AssetsToolbarProps) {
   const IconBtn = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <button className="flex h-[30px] w-[30px] items-center justify-center rounded text-[#6b7280] hover:bg-[#f3f4f6]" title={title}>
       {children}
@@ -17,9 +19,9 @@ export function AssetsToolbar({ searchQuery, setSearchQuery }: AssetsToolbarProp
       {/* First Row: Title + view dropdown + actions */}
       <div className="flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-[16px] font-semibold text-[#364658]">Hardware Assets</h1>
+          <h1 className="text-[16px] font-semibold text-[#364658]">{title}</h1>
           <button className="flex items-center gap-1 text-[14px] font-medium text-[#364658] hover:text-[#3D8BD0]">
-            <span>All Hardware IT Assets</span>
+            <span>{viewLabel}</span>
             <ChevronDown size={16} className="text-[#6b7280]" />
           </button>
         </div>

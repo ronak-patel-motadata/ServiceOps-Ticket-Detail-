@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  MoreVertical, UserCheck, QrCode, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
+  MoreVertical, UserCheck, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
   Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode,
 } from 'lucide-react';
 
 interface HardwareAssetActionsMenuProps {
   onOpenApprovalPopup?: () => void;
+  onOpenAddBarcode?: () => void;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -46,8 +47,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup }: HardwareAssetA
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           {/* Group 1 */}
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
-          <Item label="Add Barcode" icon={<Barcode size={15} />} />
-          <Item label="Print Qrcode" icon={<QrCode size={15} />} />
+          <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
           <Item label="Sync Warranty" icon={<RefreshCw size={15} />} />
           <Item label="Scan Now" icon={<ScanLine size={15} />} />
 

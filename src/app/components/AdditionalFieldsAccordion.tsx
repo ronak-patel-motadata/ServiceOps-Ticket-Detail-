@@ -57,6 +57,9 @@ interface AdditionalFieldsAccordionProps {
   
   // Pinned fields
   pinnedFields: string[];
+
+  // Render the asset-specific system fields instead of the ticket ones
+  assetMode?: boolean;
 }
 
 export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps) {
@@ -102,6 +105,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
     getCurrentCostCenterColor,
     getCurrentRequestChannelColor,
     pinnedFields,
+    assetMode = false,
   } = props;
 
   useEffect(() => {
@@ -457,6 +461,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               onToggleShowMore={() => setShowMoreSystemFields(!showMoreSystemFields)}
               pinnedFields={pinnedFields}
               onTogglePin={togglePinField}
+              assetMode={assetMode}
             />
           )}
         </div>

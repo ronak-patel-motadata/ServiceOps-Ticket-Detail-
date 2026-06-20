@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -7,7 +7,7 @@ import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
@@ -23,6 +23,8 @@ interface TicketPropertiesPanelProps {
   assetState?: AssetFieldState;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
+  // Warranty status pill shown at the top of the asset properties panel
+  warranty?: { daysLeft: number; expiryDate?: string };
   // Show the Change Calendar (Change detail page only), rendered under SLA Status
   showChangeCalendar?: boolean;
   // Schedule entries for the change currently open (shown in the Change Calendar)
@@ -301,6 +303,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     assetMode = false,
     assetState,
     agentInfo,
+    warranty,
     showChangeCalendar = false,
     changeCalendarEvents,
     changeCalendarTitle = 'Change Calendar',
@@ -562,6 +565,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     setEditingNoteId(null);
     setShowAddNote(false);
   };
+
+  // Add User side drawer (asset Users group)
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
+  const openAddUser = () => {
+    setNewUser({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
+    setShowAddUser(true);
+  };
+  const cancelAddUser = () => setShowAddUser(false);
+  const saveAddUser = () => setShowAddUser(false);
   const [showAISummaryMenu, setShowAISummaryMenu] = useState(false);
   const [hasNewConversations, setHasNewConversations] = useState(true); // Track if new conversations have been added
   const [isRegeneratingSummary, setIsRegeneratingSummary] = useState(false); // Track regeneration animation
@@ -573,13 +586,15 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Each module gets its own stored order so layouts don't leak across modules.
   // Only the Change detail page includes the Change Calendar section.
   const sectionStorageKey = assetMode
-    ? 'assetPropertiesSectionOrder'
+    ? 'assetPropertiesSectionOrderV3'
     : showChangeCalendar
       ? 'changePropertiesSectionOrder'
       : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = showChangeCalendar
     ? ['Change Calendar', 'Ticket Fields', 'Requester Information', 'Additional Fields']
-    : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+    : assetMode
+      ? ['Ticket Fields', 'Additional Fields']
+      : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
@@ -589,7 +604,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           const parsed: string[] = JSON.parse(saved);
           if (showChangeCalendar && !parsed.includes('Change Calendar')) parsed.unshift('Change Calendar');
           // Change Calendar only ever belongs to the Change detail page.
-          return showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
+          const cleaned = showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
+          // Agent Information is pinned at the top on the asset page — not a reorderable section.
+          return assetMode ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
         } catch (e) {
           return defaultSectionOrder;
         }
@@ -1121,7 +1138,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </button>
             )}
             {activeGroup === 'users' && (
-              <button title="Add User" className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
@@ -1217,7 +1234,52 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {activeGroup === 'properties' && (
           <div className="space-y-3">
         {/* The content will continue in a follow-up message due to size */}
-        
+
+        {/* Warranty status — pinned to the very top of the asset properties panel */}
+        {assetMode && warranty && (() => {
+          const expired = warranty.daysLeft < 0;
+          const soon = !expired && warranty.daysLeft <= 30;
+          const tone = expired
+            ? { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', Icon: ShieldX }
+            : soon
+              ? { bg: '#FFF7ED', border: '#FDE4C8', text: '#D97706', Icon: ShieldAlert }
+              : { bg: '#ECFDF5', border: '#C7EBD9', text: '#22A06B', Icon: ShieldCheck };
+          const label = expired
+            ? `Warranty expired ${Math.abs(warranty.daysLeft)} days ago`
+            : warranty.daysLeft === 0
+              ? 'Warranty expires today'
+              : `Warranty expires in ${warranty.daysLeft} day${warranty.daysLeft === 1 ? '' : 's'}`;
+          return (
+            <div
+              className="flex items-center gap-2 rounded border px-3 py-1.5"
+              style={{ backgroundColor: tone.bg, borderColor: tone.border }}
+              title={warranty.expiryDate ? `Warranty expiration: ${warranty.expiryDate}` : undefined}
+            >
+              <tone.Icon size={15} style={{ color: tone.text }} className="flex-shrink-0" />
+              <span className="text-[12px] font-semibold truncate" style={{ color: tone.text }}>{label}</span>
+            </div>
+          );
+        })()}
+
+        {/* Agent Information — pinned to the top of the asset properties panel */}
+        {assetMode && (agentInfo?.id || agentInfo?.lastSyncDate) && (
+          <div ref={requesterInfoRef}>
+            <div className="flex items-center gap-3 rounded-lg bg-[#F9FAFB] p-3">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><Bot size={20} /></span>
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Agent</div>
+                {agentInfo?.id && <div className="text-[13px] font-semibold text-[#364658] truncate">{agentInfo.id}</div>}
+                {agentInfo?.lastSyncDate && (
+                  <div className="text-[11px] text-[#7B8FA5] flex items-center gap-1.5 mt-0.5">
+                    <RefreshCw size={11} className="flex-shrink-0" />
+                    <span className="truncate">Last synced {agentInfo.lastSyncDate}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Pinned Fields Accordion */}
         <PinnedFieldsAccordion
           assetMode={assetMode}
@@ -1500,50 +1562,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           supportLevelOptions={supportLevelOptions}
         />
             );
-          } else if (section === 'Requester Information' && hasRequesterInfoMatch() && assetMode) {
-            return (
-        <div key="agent-info" className="border border-[#DFE5ED] rounded-lg" ref={requesterInfoRef}>
-          <button
-            onClick={() => setRequesterInfoExpanded(!requesterInfoExpanded)}
-            className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
-          >
-            <div className="flex items-center gap-2">
-              <User size={16} className="text-[#364658]" />
-              <h3 className="text-[13px] font-semibold text-[#364658]">Agent Information</h3>
-            </div>
-            {requesterInfoExpanded ? (
-              <ChevronDown size={16} className="text-[#7B8FA5]" />
-            ) : (
-              <ChevronRight size={16} className="text-[#7B8FA5]" />
-            )}
-          </button>
-
-          {(requesterInfoExpanded || propertiesSearchQuery) && (
-            <div className="px-4 pb-4">
-              <div className="space-y-3">
-                {[
-                  { label: 'ID', value: agentInfo?.id || '---' },
-                  { label: 'Host Name', value: agentInfo?.hostName || '---', dot: agentInfo?.hostStatusColor },
-                  { label: 'IP Address', value: agentInfo?.ipAddress || '---' },
-                  { label: 'Poller', value: agentInfo?.poller || '---' },
-                  { label: 'OS', value: agentInfo?.os || '---' },
-                  { label: 'Version', value: agentInfo?.version || '---' },
-                  { label: 'Domain Name', value: agentInfo?.domainName || '---' },
-                  { label: 'Agent Last Sync Date', value: agentInfo?.lastSyncDate || '---' },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-3">
-                    <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">{row.label}</div>
-                    <div className="flex-1 text-[13px] font-medium text-[#364658] break-all flex items-center gap-2">
-                      {row.dot && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.dot }} />}
-                      <span>{row.value}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-            );
+          } else if (section === 'Requester Information' && assetMode) {
+            // Agent Information is rendered explicitly at the top of the panel.
+            return null;
           } else if (section === 'Requester Information' && hasRequesterInfoMatch()) {
             return (
         <div key="requester-info" className="border border-[#DFE5ED] rounded-lg" ref={requesterInfoRef}>
@@ -1675,6 +1696,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           getCurrentCostCenterColor={getCurrentCostCenterColor}
           getCurrentRequestChannelColor={getCurrentRequestChannelColor}
           pinnedFields={pinnedFields}
+          assetMode={assetMode}
         />
             );
           }
@@ -1998,7 +2020,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               ].map((u) => (
                 <div key={u.name} className="group relative px-3 py-2.5 rounded-[10px] bg-[#F9FAFB]">
                   <div className="flex items-start gap-3">
-                    <span className="flex size-8 items-center justify-center rounded-md text-[11px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
+                    <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 group-hover:pr-14 transition-[padding] duration-150">
                         <span className="text-[13px] font-medium text-[#364658] truncate">{u.name}</span>
@@ -2011,7 +2033,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   </div>
                   {/* Hover actions */}
                   <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-[#F9FAFB] rounded">
-                    <button title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Pencil size={13} /></button>
+                    <button title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Edit size={13} /></button>
                     <button title="Delete" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
                   </div>
                 </div>
@@ -2023,18 +2045,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {activeGroup === 'notes' && (
           <div className="space-y-3">
             {assetNotes.map((n) => (
-              <div key={n.id} className="group relative bg-white rounded-[10px] border border-[#DFE5ED] p-3">
+              <div key={n.id} className="group relative bg-[#FFFBEB] rounded-[10px] p-3">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="flex size-6 items-center justify-center rounded-md text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: n.color }}>{n.initials}</span>
+                  <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: n.color }}>{n.initials}</span>
                   <span className="text-[12px] font-medium text-[#364658]">{n.author}</span>
                   <span className="text-[11px] text-[#9CA3AF] ml-auto group-hover:mr-14 transition-[margin] duration-150">{n.time}</span>
                 </div>
                 {n.name && <div className="text-[13px] font-semibold text-[#364658] mb-0.5 pr-12">{n.name}</div>}
                 <p className="text-[13px] text-[#364658] leading-relaxed whitespace-pre-wrap break-words">{n.text}</p>
                 {/* Hover actions */}
-                <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-white rounded">
-                  <button onClick={() => openEditNote(n)} title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F1F5F9] transition-colors">
-                    <Pencil size={13} />
+                <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-[#FFFBEB] rounded">
+                  <button onClick={() => openEditNote(n)} title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#FBEFC8] transition-colors">
+                    <Edit size={13} />
                   </button>
                   <button onClick={() => deleteAssetNote(n.id)} title="Delete" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors">
                     <Trash2 size={13} />
@@ -3281,6 +3303,108 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </button>
               <button
                 onClick={cancelAddNote}
+                className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Add User — side drawer (asset Users group) */}
+      {showAddUser && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={cancelAddUser} />
+          <div className="fixed top-0 right-0 h-full w-[680px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[18px] font-semibold text-[#111827]">Add User</h2>
+              <button onClick={cancelAddUser} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="flex-1 overflow-auto px-6 py-5">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">User Name</label>
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser((u) => ({ ...u, name: e.target.value }))}
+                    placeholder="User Name"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Account Type</label>
+                  <select
+                    value={newUser.accountType}
+                    onChange={(e) => setNewUser((u) => ({ ...u, accountType: e.target.value }))}
+                    className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.accountType ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                  >
+                    <option value="">Select</option>
+                    <option>Normal Account</option>
+                    <option>Administrator Account</option>
+                    <option>Service Account</option>
+                    <option>Guest Account</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Domain</label>
+                  <input
+                    type="text"
+                    value={newUser.domain}
+                    onChange={(e) => setNewUser((u) => ({ ...u, domain: e.target.value }))}
+                    placeholder="Domain"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Disabled</label>
+                  <select
+                    value={newUser.disabled}
+                    onChange={(e) => setNewUser((u) => ({ ...u, disabled: e.target.value }))}
+                    className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.disabled ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                  >
+                    <option value="">Select</option>
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Security ID</label>
+                  <input
+                    type="text"
+                    value={newUser.sid}
+                    onChange={(e) => setNewUser((u) => ({ ...u, sid: e.target.value }))}
+                    placeholder="Security ID"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
+                  <textarea
+                    value={newUser.description}
+                    onChange={(e) => setNewUser((u) => ({ ...u, description: e.target.value }))}
+                    placeholder="Description"
+                    className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+              <button
+                onClick={saveAddUser}
+                disabled={!newUser.name.trim()}
+                className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Add
+              </button>
+              <button
+                onClick={cancelAddUser}
                 className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
               >
                 Cancel

@@ -37,9 +37,14 @@ const ASSET_GROUPS: { icon: React.ReactNode; label: string }[][] = [
 
 /** Assets nav item with a hover flyout listing the asset sub-modules. */
 function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
-  // Map flyout labels to a navigable page (only Hardware Assets is wired for now).
-  const pageFor = (label: string): string | undefined => (label === 'Hardware Assets' ? 'hardware-assets' : undefined);
-  const sectionActive = activePage === 'hardware-assets';
+  // Map flyout labels to a navigable page.
+  const pageFor = (label: string): string | undefined =>
+    label === 'Hardware Assets' ? 'hardware-assets'
+      : label === 'Software Assets' ? 'software-assets'
+      : label === 'Non-IT Assets' ? 'non-it-assets'
+      : label === 'Consumable Assets' ? 'consumable-assets'
+      : undefined;
+  const sectionActive = activePage === 'hardware-assets' || activePage === 'software-assets' || activePage === 'non-it-assets' || activePage === 'consumable-assets';
   return (
     <div className="relative group">
       <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" />
