@@ -10,6 +10,7 @@ interface ConsumableAssetsTableProps {
   onSort: (column: keyof ConsumableAsset) => void;
   sortColumn: keyof ConsumableAsset | null;
   sortDirection: 'asc' | 'desc';
+  onAssetClick?: (asset: ConsumableAsset) => void;
 }
 
 const typeIcon = (t: string) => {
@@ -40,6 +41,7 @@ export function ConsumableAssetsTable({
   allSelected,
   onSelectAll,
   onSelect,
+  onAssetClick,
 }: ConsumableAssetsTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -82,14 +84,24 @@ export function ConsumableAssetsTable({
 
               {/* ID */}
               <td className="px-4 py-3">
-                <span className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">
+                <button
+                  type="button"
+                  onClick={() => onAssetClick?.(a)}
+                  className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
+                >
                   {a.id}
-                </span>
+                </button>
               </td>
 
               {/* Name */}
               <td className="px-4 py-3 text-[12px] text-[#364658]">
-                <span className="block max-w-[260px] truncate font-medium">{a.name}</span>
+                <button
+                  type="button"
+                  onClick={() => onAssetClick?.(a)}
+                  className="block max-w-[260px] truncate font-medium text-left hover:text-[#3D8BD0] transition-colors"
+                >
+                  {a.name}
+                </button>
               </td>
 
               {/* Asset Type */}

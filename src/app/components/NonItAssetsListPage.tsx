@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { NonItAssetsTable } from './NonItAssetsTable';
 import { Pagination } from './Pagination';
+import { NonItAssetDrawer } from './NonItAssetDrawer';
 
 export type NonItStatus = 'In Use' | 'In Stock' | 'In Store' | 'Not Working';
 
@@ -65,8 +66,29 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
   const [sortColumn, setSortColumn] = useState<keyof NonItAsset | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openAssets, setOpenAssets] = useState<NonItAsset[]>([]);
+  const [activeAssetId, setActiveAssetId] = useState<string | null>(null);
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+
+  const handleOpenAsset = (asset: NonItAsset) => {
+    if (!openAssets.find(a => a.id === asset.id)) {
+      setOpenAssets([...openAssets, asset]);
+    }
+    setActiveAssetId(asset.id);
+  };
+
+  const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
+
+  const handleCloseTab = (assetId: string) => {
+    const updated = openAssets.filter(a => a.id !== assetId);
+    setOpenAssets(updated);
+    if (activeAssetId === assetId) {
+      setActiveAssetId(updated.length > 0 ? updated[updated.length - 1].id : null);
+    }
+  };
+
+  const handleTabChange = (assetId: string) => setActiveAssetId(assetId);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -137,6 +159,7 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
               onSort={handleSort}
               sortColumn={sortColumn}
               sortDirection={sortDirection}
+              onAssetClick={handleOpenAsset}
             />
             <Pagination
               currentPage={currentPage}
@@ -149,6 +172,13 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
           </div>
         </main>
       </div>
+      <NonItAssetDrawer
+        openAssets={openAssets}
+        activeAssetId={activeAssetId}
+        onClose={handleCloseDrawer}
+        onCloseTab={handleCloseTab}
+        onTabChange={handleTabChange}
+      />
     </div>
   );
 }

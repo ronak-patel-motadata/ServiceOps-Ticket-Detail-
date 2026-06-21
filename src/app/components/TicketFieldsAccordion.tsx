@@ -11,6 +11,8 @@ interface TicketFieldsAccordionProps {
   // When true, render the Hardware Asset field set instead of the ticket fields.
   assetMode?: boolean;
   assetState?: AssetFieldState;
+  // When true (software assets), render the software field set (Software Type, no CI/View more).
+  softwareMode?: boolean;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -187,6 +189,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     statusGroupLabel,
     assetMode = false,
     assetState,
+    softwareMode = false,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -426,6 +429,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           pinnedFields={pinnedFields}
           togglePinField={togglePinField}
           propertiesSearchQuery={propertiesSearchQuery}
+          softwareMode={softwareMode}
         />
       )}
 

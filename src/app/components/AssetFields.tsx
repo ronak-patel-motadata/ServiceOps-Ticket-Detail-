@@ -22,10 +22,15 @@ export interface AssetFieldState {
   managedBy: { name: string; initials?: string; color?: string };
   setManagedBy: (v: { name: string; initials?: string; color?: string }) => void;
   ci?: string;
+  // Software-asset only: the Software Type field (Managed / Discovered / Unmanaged).
+  softwareType?: string;
+  setSoftwareType?: (v: string) => void;
   // Values for the "View more" additional fields, keyed by field label.
   extra?: Record<string, string>;
   setExtra?: (v: Record<string, string>) => void;
 }
+
+export const SOFTWARE_TYPE_OPTIONS = ['Managed', 'Discovered', 'Unmanaged'];
 
 /** Field labels in display order — also used for pinning and search matching. */
 export const ASSET_FIELD_LABELS = [
@@ -199,6 +204,8 @@ export function AssetValueDisplay({ field, state }: { field: string; state: Asse
       return state.ci
         ? <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline">{state.ci}</span>
         : <span className="text-[13px] text-[#9CA3AF]">---</span>;
+    case 'Software Type':
+      return <span className="text-[13px] text-[#364658]">{state.softwareType || '---'}</span>;
     default:
       if (state.extra && field in state.extra) {
         const v = state.extra[field];
@@ -255,10 +262,14 @@ interface AssetFieldsProps {
   pinnedFields: string[];
   togglePinField: (field: string) => void;
   propertiesSearchQuery: string;
+  // Software-asset variant: shows Software Type and hides CI / "View more" extras.
+  softwareMode?: boolean;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
+  const softwareType = state.softwareType ?? '';
+  const setSoftwareType = state.setSoftwareType ?? (() => {});
   const extra = state.extra ?? {};
   const setExtra = state.setExtra ?? (() => {});
 
@@ -482,6 +493,30 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       </FieldRow>
       )}
 
+      {/* Software Type (software assets only) */}
+      {softwareMode && show('Software Type') && (
+      <FieldRow label="Software Type" pinned={pinnedFields.includes('Software Type')} onPin={() => togglePinField('Software Type')}>
+        <div className="group relative">
+          <button className={`${triggerClass} pl-3`} title={softwareType} onClick={() => toggle('softwareType')}>
+            {softwareType ? <span className="truncate">{softwareType}</span> : <span className="text-[#9CA3AF]">Select</span>}
+          </button>
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          {open === 'softwareType' && (
+            <div className={menuClass}>
+              <div className="max-h-[280px] overflow-y-auto">
+                {SOFTWARE_TYPE_OPTIONS.map((o) => (
+                  <button key={o} className={optionClass} onClick={() => { setSoftwareType(o); setOpen(null); }}>
+                    <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                    {softwareType === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </FieldRow>
+      )}
+
       {/* Managed By Group */}
       {show('Managed By Group') && (
       <FieldRow label="Managed By Group" pinned={pinnedFields.includes('Managed By Group')} onPin={() => togglePinField('Managed By Group')}>
@@ -567,8 +602,8 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       </FieldRow>
       )}
 
-      {/* CI */}
-      {show('CI') && (
+      {/* CI (hardware assets only) */}
+      {!softwareMode && show('CI') && (
       <FieldRow label="CI" pinned={pinnedFields.includes('CI')} onPin={() => togglePinField('CI')}>
         <div className="px-0 py-2">
           {ci
@@ -578,11 +613,11 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       </FieldRow>
       )}
 
-      {/* Additional fields behind "View more" */}
-      {(showMore || q) && ASSET_MORE_FIELDS.map(renderMoreField)}
+      {/* Additional fields behind "View more" (hardware assets only) */}
+      {!softwareMode && (showMore || q) && ASSET_MORE_FIELDS.map(renderMoreField)}
 
-      {/* View more / View less toggle (hidden while searching) */}
-      {!q && (
+      {/* View more / View less toggle (hardware assets only; hidden while searching) */}
+      {!softwareMode && !q && (
         <div className="pt-1">
           <button
             onClick={() => setShowMore((v) => !v)}

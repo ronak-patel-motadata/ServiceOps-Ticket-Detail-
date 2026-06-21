@@ -7,7 +7,7 @@ import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck } from 'lucide-react';
 
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
@@ -21,10 +21,14 @@ interface TicketPropertiesPanelProps {
   // Render the Hardware Asset field set in the fields accordion instead of ticket fields
   assetMode?: boolean;
   assetState?: AssetFieldState;
+  // Software-asset variant of the asset field set (Software Type, no CI/View more)
+  softwareMode?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
   warranty?: { daysLeft: number; expiryDate?: string };
+  // License expiry pill shown at the top of the asset properties panel (software assets)
+  licenseExpiry?: { daysLeft: number; expiryDate?: string };
   // Show the Change Calendar (Change detail page only), rendered under SLA Status
   showChangeCalendar?: boolean;
   // Schedule entries for the change currently open (shown in the Change Calendar)
@@ -301,9 +305,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     statusGroupLabel,
     showSla = true,
     assetMode = false,
+    softwareMode = false,
     assetState,
     agentInfo,
     warranty,
+    licenseExpiry,
     showChangeCalendar = false,
     changeCalendarEvents,
     changeCalendarTitle = 'Change Calendar',
@@ -1261,6 +1267,34 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           );
         })()}
 
+        {/* License expiry status — pinned to the very top of the software asset panel */}
+        {assetMode && licenseExpiry && (() => {
+          const expired = licenseExpiry.daysLeft < 0;
+          const soon = !expired && licenseExpiry.daysLeft <= 30;
+          const tone = expired
+            ? { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', Icon: KeyRound }
+            : soon
+              ? { bg: '#FFF7ED', border: '#FDE4C8', text: '#D97706', Icon: KeyRound }
+              : { bg: '#ECFDF5', border: '#C7EBD9', text: '#22A06B', Icon: BadgeCheck };
+          const label = expired
+            ? `License expired ${Math.abs(licenseExpiry.daysLeft)} days ago`
+            : licenseExpiry.daysLeft === 0
+              ? 'License expires today'
+              : soon
+                ? `License expires in ${licenseExpiry.daysLeft} day${licenseExpiry.daysLeft === 1 ? '' : 's'}`
+                : `Licensed · ${licenseExpiry.daysLeft} days left`;
+          return (
+            <div
+              className="flex items-center gap-2 rounded border px-3 py-1.5"
+              style={{ backgroundColor: tone.bg, borderColor: tone.border }}
+              title={licenseExpiry.expiryDate ? `License expiration: ${licenseExpiry.expiryDate}` : undefined}
+            >
+              <tone.Icon size={15} style={{ color: tone.text }} className="flex-shrink-0" />
+              <span className="text-[12px] font-semibold truncate" style={{ color: tone.text }}>{label}</span>
+            </div>
+          );
+        })()}
+
         {/* Agent Information — pinned to the top of the asset properties panel */}
         {assetMode && (agentInfo?.id || agentInfo?.lastSyncDate) && (
           <div ref={requesterInfoRef}>
@@ -1461,6 +1495,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           showProblemFields={showProblemFields}
           statusGroupLabel={statusGroupLabel}
           assetMode={assetMode}
+          softwareMode={softwareMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -3151,6 +3186,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* Asset-only groups: Users + Notes (ordered between Properties and Activity) */}
         {assetMode && (
         <>
+          {/* Users group — hidden on software assets */}
+          {!softwareMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3171,6 +3208,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </TooltipTrigger>
             <TooltipContent>Users</TooltipContent>
           </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>

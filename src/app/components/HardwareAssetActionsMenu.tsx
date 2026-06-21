@@ -7,9 +7,13 @@ import {
 interface HardwareAssetActionsMenuProps {
   onOpenApprovalPopup?: () => void;
   onOpenAddBarcode?: () => void;
+  // Reduced menu (software assets): only Add Barcode, Archive, Print
+  minimal?: boolean;
+  // Non-IT asset menu: Ask for Approval, Add Barcode, Used By/Location History, Archive, Print
+  nonIt?: boolean;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -43,7 +47,27 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         <MoreVertical size={16} className="text-[#6b7280]" />
       </button>
 
-      {open && (
+      {open && minimal && (
+        <div className="absolute right-0 top-full mt-1 w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
+          <Item label="Archive" icon={<Archive size={15} />} />
+          <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
+        </div>
+      )}
+
+      {open && nonIt && (
+        <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
+          <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
+          <Item label="Used By History" icon={<History size={15} />} />
+          <Item label="Location History" icon={<History size={15} />} />
+          <Divider />
+          <Item label="Archive" icon={<Archive size={15} />} />
+          <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
+        </div>
+      )}
+
+      {open && !minimal && !nonIt && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           {/* Group 1 */}
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />

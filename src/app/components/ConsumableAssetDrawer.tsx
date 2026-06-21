@@ -1,20 +1,22 @@
 /**
- * HardwareAssetDrawer Component
+ * ConsumableAssetDrawer Component
  *
- * Cloned from TicketDrawer as the initial Hardware Asset detail page. It currently reuses the
- * full ticket-detail UI; an internal adapter (assetToTicket) maps a HardwareAsset onto the
- * Ticket shape the body expects, so this can be customized with asset-specific details later.
+ * Cloned from NonItAssetDrawer as the Consumable Asset detail page. It currently reuses the
+ * full asset-detail UI; an internal adapter (consumableToAssetShape) maps a ConsumableAsset onto
+ * the HardwareAsset shape the body expects, so this can be customized with consumable-specific
+ * details later. This is a SEPARATE file so Consumable changes stay isolated.
  *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
+import type { ConsumableAsset } from './ConsumableAssetsListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -93,8 +95,8 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-interface HardwareAssetDrawerProps {
-  openAssets: HardwareAsset[];
+interface ConsumableAssetDrawerProps {
+  openAssets: ConsumableAsset[];
   activeAssetId: string | null;
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
@@ -102,9 +104,28 @@ interface HardwareAssetDrawerProps {
 }
 
 /**
- * Adapts a HardwareAsset onto the Ticket shape the cloned ticket-detail body consumes.
- * This is a temporary bridge so the UI renders unchanged; replace with asset-specific
- * fields when the Hardware Asset detail page is customized.
+ * Adapts a ConsumableAsset onto the HardwareAsset shape the cloned asset-detail body consumes.
+ * Missing hardware-only fields (hostName/ipAddress/serialNumber/status/usedBy) are filled with
+ * placeholders so the UI renders unchanged; replace with consumable-specific fields when this
+ * page is customized.
+ */
+function consumableToAssetShape(s: ConsumableAsset): HardwareAsset {
+  return {
+    id: s.id,
+    name: s.name,
+    assetType: s.assetType as HardwareAsset['assetType'],
+    status: 'In Use',
+    hostName: '---',
+    ipAddress: '---',
+    usedBy: null,
+    managedByGroup: s.managedByGroup,
+    managedBy: s.managedBy,
+    serialNumber: '---',
+  };
+}
+
+/**
+ * Adapts the (already-adapted) asset onto the Ticket shape the cloned ticket-detail body consumes.
  */
 function assetToTicket(a: HardwareAsset): Ticket {
   const statusMap: Record<HardwareAsset['status'], Ticket['status']> = {
@@ -124,17 +145,18 @@ function assetToTicket(a: HardwareAsset): Ticket {
   };
 }
 
-export function HardwareAssetDrawer({
+export function ConsumableAssetDrawer({
   openAssets,
   activeAssetId,
   onClose,
   onCloseTab,
   onTabChange
-}: HardwareAssetDrawerProps) {
-  const openTickets = openAssets.map(assetToTicket);
+}: ConsumableAssetDrawerProps) {
+  const assetList = openAssets.map(consumableToAssetShape);
+  const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
-  const activeAsset = openAssets.find(a => a.id === activeAssetId);
+  const activeAsset = assetList.find(a => a.id === activeAssetId);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -142,6 +164,7 @@ export function HardwareAssetDrawer({
   const [assetImpact, setAssetImpact] = useState('Low');
   const [assetGroup, setAssetGroup] = useState('Unassigned');
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
+  const [softwareType, setSoftwareType] = useState('Managed');
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
     'Asset Group': 'Anblicks Group',
     'Product': '',
@@ -181,23 +204,12 @@ export function HardwareAssetDrawer({
     impact: assetImpact, setImpact: setAssetImpact,
     managedByGroup: assetGroup, setManagedByGroup: setAssetGroup,
     managedBy: assetManager, setManagedBy: setAssetManager,
-    ci: 'CI-778 192.168.1.60',
+    softwareType, setSoftwareType,
     extra: assetExtra, setExtra: setAssetExtra,
   };
 
   // Agent Information shown in place of Requester Information on the asset page.
   // Real values from the asset where available; the rest are representative samples for now.
-  const agentInfo = {
-    id: activeAsset?.id || '---',
-    hostName: activeAsset?.hostName || '---',
-    hostStatusColor: '#EAB308',
-    ipAddress: activeAsset?.ipAddress || '---',
-    poller: '---',
-    os: 'Microsoft Windows 11 Pro',
-    version: '8.7.404',
-    domainName: 'WORKGROUP',
-    lastSyncDate: 'Wed, May 06, 2026 12:54 PM',
-  };
   const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
@@ -208,7 +220,9 @@ export function HardwareAssetDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'allocation' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [installationSearch, setInstallationSearch] = useState('');
+  const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
   const [baselines, setBaselines] = useState<{ id: string; name: string; createdOn: string; createdBy: string }[]>([
     { id: 'BAS-31', name: 'New Base Line - 64 Bit', createdOn: 'Mon, Apr 27, 2026 11:44 AM', createdBy: 'System' },
@@ -880,34 +894,25 @@ export function HardwareAssetDrawer({
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'audit'];
-      const baseTabsForINC35 = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'service-request', 'audit'];
-      
+      // Software detail tabs (Hardware, Baseline, Approvals, Financials removed).
+      const baseTabsForOthers = ['properties', 'allocation', 'approvals', 'relationship', 'financials', 'audit'];
+      const baseTabsForINC35 = ['properties', 'allocation', 'approvals', 'relationship', 'financials', 'service-request', 'audit'];
+
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
-      
+
       if (activeTicket?.id === 'INC-35') {
         allTabs = [...baseTabsForINC35];
       } else {
         allTabs = [...baseTabsForOthers];
-      }
-      
-      // Add Approvals tab after Relationship (if not INC-32)
-      if (activeTicket?.id !== 'INC-32') {
-        const anchor = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship')
-          : allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline')
-          : allTabs.indexOf('software');
-        allTabs.splice(anchor + 1, 0, 'approvals');
       }
 
       // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
       const shouldShowRelations = activeTicket?.id !== 'INC-32' ||
                                   (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
       if (shouldShowRelations) {
-        // Insert relations after approvals (if exists) or baseline/software
-        const approvalsIndex = allTabs.indexOf('approvals');
-        const anchorIndex = approvalsIndex !== -1 ? approvalsIndex : (allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline') : allTabs.indexOf('software'));
+        // Insert relations after relationship/software
+        const anchorIndex = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship') : allTabs.indexOf('software');
         allTabs.splice(anchorIndex + 1, 0, 'relations');
       }
 
@@ -921,8 +926,12 @@ export function HardwareAssetDrawer({
       const tabWidths: Record<string, number> = {
         'overview': 80,
         'properties': 85,
+        'allocation': 90,
         'hardware': 85,
         'software': 80,
+        'consolidated': 165,
+        'installation': 100,
+        'meter': 70,
         'baseline': 80,
         'relationship': 95,
         'financials': 85,
@@ -1132,7 +1141,7 @@ export function HardwareAssetDrawer({
 
   // Asset detail page opens on the Overview tab by default.
   useEffect(() => {
-    if (activeAsset) setActiveMainTab('overview');
+    if (activeAsset) setActiveMainTab('properties');
   }, [activeAssetId]);
 
   // Update ticket fields when active ticket changes
@@ -2130,6 +2139,7 @@ export function HardwareAssetDrawer({
               )}
             </div>
             <HardwareAssetActionsMenu
+              nonIt
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
@@ -2517,15 +2527,12 @@ export function HardwareAssetDrawer({
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
                   const tabConfig = [
-                    { id: 'overview', label: 'Overview' },
                     { id: 'properties', label: 'Properties' },
-                    { id: 'hardware', label: 'Hardware' },
-                    { id: 'software', label: 'Software' },
-                    { id: 'baseline', label: 'Baseline' },
+                    { id: 'allocation', label: 'Allocation' },
+                    { id: 'approvals', label: 'Approvals' },
                     { id: 'relationship', label: 'Relationship' },
                     { id: 'financials', label: 'Financials' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
-                    { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
                     { id: 'audit', label: 'History' },
                   ].filter(tab => tab.condition !== false);
@@ -2537,8 +2544,12 @@ export function HardwareAssetDrawer({
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
                     'properties': 'Properties',
+                    'allocation': 'Allocation',
                     'hardware': 'Hardware',
                     'software': 'Software',
+                    'consolidated': 'Consolidated Software',
+                    'installation': 'Installation',
+                    'meter': 'Meter',
                     'baseline': 'Baseline',
                     'relationship': 'Relationship',
                     'financials': 'Financials',
@@ -2615,22 +2626,17 @@ export function HardwareAssetDrawer({
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
             <div className="px-6 py-6 space-y-4">
-              {/* Health & compliance */}
+              {/* License & compliance — the headline status for a software asset */}
               <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[14px] font-semibold text-[#364658]">Health &amp; compliance</h3>                </div>
+                  <h3 className="text-[14px] font-semibold text-[#364658]">License &amp; compliance</h3>
+                </div>
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
                   {[
-                    { label: 'Agent', value: 'Healthy', color: '#22A06B', dot: true },
-                    { label: 'Antivirus', value: 'Active', color: '#22A06B' },
-                    { label: 'Patches', value: '2 missing', color: '#D97706' },
-                    baselineVarianceCount > 0
-                      ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', dot: true }
-                      : { label: 'Encryption', value: 'On', color: '#22A06B' },
-                    { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
-                    { label: 'Compliance', value: 'At risk', color: '#DC2626' },
-                    { label: 'Requests', value: '2 open', color: '#3D8BD0', dot: true },
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
+                    { label: 'License', value: 'Active', color: '#22A06B', dot: true },
+                    { label: 'Compliance', value: 'Compliant', color: '#22A06B' },
+                    { label: 'Patch Status', value: 'Up to date', color: '#22A06B' },
+                    { label: 'Reclaimable Seats', value: '8 unused', color: '#D97706', dot: true },
                   ].map((c) => (
                     <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
                       <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
@@ -2643,49 +2649,22 @@ export function HardwareAssetDrawer({
                 </div>
               </div>
 
-              {/* Users + Hardware + Software snapshots — one row */}
+              {/* License + Installation + Versions snapshots — one row */}
               <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[14px] font-semibold text-[#364658]">Users</h3>                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { name: 'J. Doe', dept: 'Sales', initials: 'JD', color: '#6366F1' },
-                    { name: 'A. Kumar', dept: 'IT Operations', initials: 'AK', color: '#10B981' },
-                    { name: 'Tabrez Khan', dept: 'End User Computing', initials: 'TK', color: '#3D8BD0' },
-                  ].map((u) => (
-                    <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
-                      <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
-                        <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => { setIsAccordionCollapsed(false); setActiveGroup('users'); }}
-                    className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-[#F9FAFB] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EFF3F8] transition-colors min-w-0"
-                  >
-                    +15 more
-                  </button>
-                </div>
-              </div>
-
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Hardware snapshot</h3>
-                    <button onClick={() => setActiveMainTab('hardware')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">License snapshot</h3>
                   </div>
                   <div className="space-y-3">
                     {[
-                      ['Processor', 'Intel Core i5-8365U · 4 cores'],
-                      ['Memory', '40.00 GB'],
-                      ['Storage', '238.47 GB SSD'],
-                      ['Model', 'LENOVO 20NRS08A00'],
-                    ].map(([l, v]) => (
+                      ['Total Seats', '150', '#364658'],
+                      ['Used', '94', '#364658'],
+                      ['Available', '56', '#22A06B'],
+                      ['Expiry Date', 'Jul 14, 2026', '#D97706'],
+                    ].map(([l, v, color]) => (
                       <div key={l} className="flex items-start gap-3">
                         <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
-                        <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">{v}</span>
+                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -2693,15 +2672,35 @@ export function HardwareAssetDrawer({
 
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Software snapshot</h3>
-                    <button onClick={() => setActiveMainTab('software')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Installation snapshot</h3>
+                    <button onClick={() => setActiveMainTab('installation')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
                   <div className="space-y-3">
                     {[
-                      ['Total', '142', '#364658'],
+                      ['Total Installs', '42', '#364658'],
+                      ['Laptops', '28', '#364658'],
+                      ['Desktops', '11', '#364658'],
+                      ['Servers', '3', '#364658'],
+                    ].map(([l, v, color]) => (
+                      <div key={l} className="flex items-start gap-3">
+                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
+                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Versions snapshot</h3>
+                    <button onClick={() => setActiveMainTab('consolidated')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['Versions', '5', '#364658'],
+                      ['Latest', '150.1', '#22A06B'],
+                      ['Outdated', '12', '#D97706'],
                       ['Prohibited', '1', '#DC2626'],
-                      ['Excluded', '2', '#364658'],
-                      ['Expired', '3', '#D97706'],
                     ].map(([l, v, color]) => (
                       <div key={l} className="flex items-start gap-3">
                         <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
@@ -2712,15 +2711,14 @@ export function HardwareAssetDrawer({
                 </div>
               </div>
 
-              {/* Financial + Lifecycle */}
+              {/* Cost snapshot + Software details */}
               <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                    <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Cost snapshot</h3>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
+                    {[['Total Cost', '$12,400'], ['Cost / Seat', '$82'], ['Annual', '$4,200']].map(([l, v]) => (
                       <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
                         <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
                         <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
@@ -2731,22 +2729,24 @@ export function HardwareAssetDrawer({
 
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
-                    <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Software details</h3>
+                    <button onClick={() => setActiveMainTab('properties')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">Name</span>
-                      <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">Ahmedabad (India)</span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                    {[
+                      ['Publisher', 'Microsoft Corporation'],
+                      ['Category', 'Web Browser'],
+                      ['License Type', 'Subscription'],
+                      ['First Detected', 'May 18, 2026'],
+                      ['Last Audit', 'Jun 02, 2026'],
+                      ['Software Type', 'Managed'],
+                    ].map(([l, v]) => (
+                      <div key={l} className="min-w-0">
+                        <div className="text-[12px] text-[#64748B] mb-0.5">{l}</div>
+                        <div className="text-[13px] font-medium text-[#364658] break-words">{v}</div>
+                      </div>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => setShowLocationMap(true)}
-                    className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EAF3FB] hover:border-[#3D8BD0] transition-colors"
-                  >
-                    <MapPin size={14} />
-                    View on Map
-                  </button>
                 </div>
               </div>
 
@@ -2858,6 +2858,68 @@ export function HardwareAssetDrawer({
               </>
             )}
 
+            {/* Allocation — issuance of this consumable to users / assets */}
+            {activeMainTab === 'allocation' && (() => {
+              const rows = [
+                { issued: 'Tue, May 12, 2026', status: 'Allocated', qty: 2, to: 'Priya Nair', location: 'India', dept: 'Finance', target: 'User', asset: '---', desc: 'Replacement stock' },
+                { issued: 'Fri, Apr 10, 2026', status: 'Allocated', qty: 3, to: 'Karan Malhotra', location: 'India', dept: 'Engineering', target: 'User', asset: '---', desc: 'New hire kit' },
+                { issued: 'Sat, Mar 22, 2026', status: 'Allocated', qty: 1, to: 'AST-002', location: 'India', dept: 'Sales', target: 'Asset', asset: 'AST-002', desc: 'Installed on laptop' },
+                { issued: 'Mon, Apr 28, 2026', status: 'Returned', qty: 1, to: 'Arjun Patel', location: 'India', dept: 'Operations', target: 'User', asset: '---', desc: 'Returned unused' },
+              ];
+              const headers = ['Issued Date', 'Status', 'Quantity', 'Allocate To', 'Location', 'Department', 'Target Type', 'Asset', 'Description', 'Actions'];
+              const Cell = ({ v }: { v: string }) => (v === '---' ? <span className="text-[#9ca3af]">---</span> : <span>{v}</span>);
+              return (
+                <div className="px-6 py-6">
+                  {/* Toolbar: available quantity (left) + Allocate (right) */}
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="inline-flex items-center gap-2.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] pl-3 pr-2 py-1.5">
+                      <Package size={15} className="text-[#3D8BD0]" />
+                      <span className="text-[12px] text-[#7B8FA5]">Available Quantity</span>
+                      <span className="inline-flex items-center justify-center min-w-[24px] h-[20px] px-1.5 rounded-md bg-[#EAF7F0] text-[12px] font-semibold text-[#22A06B]">34</span>
+                    </div>
+                    <button title="Allocate" className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.length === 0 ? (
+                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No allocations yet.</td></tr>
+                        ) : rows.map((r, idx) => (
+                          <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.issued}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.status === 'Allocated' ? '#22C55E' : '#9CA3AF' }} />
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.qty}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.to}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.location}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.dept}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.target}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0]">{r.asset === '---' ? <span className="text-[#9ca3af]">---</span> : r.asset}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[180px] truncate"><Cell v={r.desc} /></td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                <button title="Delete" className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
               {/* Common field search across all property sections */}
@@ -2875,46 +2937,15 @@ export function HardwareAssetDrawer({
                 const q = propertiesSearch.trim().toLowerCase();
                 const sections = [
                 {
-                  title: 'Hardware Properties',
-                  icon: <HardDrive className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                  title: 'Non IT Property Group',
+                  icon: <Package className="size-4 text-[#3D8BD0] flex-shrink-0" />,
                   fields: [
-                    ['Serial Number', activeAsset?.serialNumber || '---'],
-                    ['Manufacturer', 'LENOVO'],
+                    ['Serial Number', '---'],
                     ['Warranty Start Date', '---'],
                     ['Warranty Expiration Date', '---'],
-                    ['Warranty Last Sync Date', '---'],
                     ['Audit Date', '---'],
-                    ['New Text Input', '---'],
-                    ['E-Fatura', '---'],
-                  ] as [string, string][],
-                },
-                {
-                  title: 'Computer Properties',
-                  icon: <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
-                  fields: [
-                    ['OS Name', 'Microsoft Windows 11 Pro'],
-                    ['OS Version', '10.0.26100'],
-                    ['Service Pack Name', '---'],
-                    ['OS License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
-                    ['OS Manufacturer', 'Microsoft Corporation'],
-                    ['OS Architecture', '64 BIT'],
-                    ['Boot Up State', 'Normal boot'],
-                    ['Memory Size', '8.00 GB'],
-                    ['Disk Size', '238.47 GB'],
-                    ['CPU Speed', '1.90 GHz'],
-                    ['CPU Core Count', '4'],
-                    ['Part Of Domain', 'No'],
-                    ['Domain Name', 'WORKGROUP'],
-                    ['Number Of Logical Processors', '8'],
-                    ['Number Of Processors', '1'],
-                    ['PC System Type', 'Mobile'],
-                    ['Last Logged In User', 'DESKTOP-7ABJPOF\\j.doe'],
-                    ['Activation Status', 'Licensed'],
-                    ['Parent VM Host', '---'],
-                    ['Chassis Type', 'Notebook'],
-                    ['Display Version', '24H2'],
-                    ['Build No', '26100.6899'],
-                    ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
+                    ['NON-IT Mac', '---'],
+                    ['asset type for nonit', '---'],
                   ] as [string, string][],
                 },
                 ];
@@ -3393,6 +3424,189 @@ export function HardwareAssetDrawer({
               );
             })()}
 
+            {/* Consolidated Software — common software consolidated from the Software Asset list */}
+            {activeMainTab === 'consolidated' && (() => {
+              const rows = [
+                { id: 'AST-353', name: 'Adobe Refresh Manager', version: '1.8.0', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Tue, Sep 23, 2025 01:45 PM' },
+                { id: 'AST-339', name: 'Adobe Acrobat (64-bit)', version: '---', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Mon, Sep 22, 2025 02:45 PM' },
+                { id: 'AST-318', name: 'Google Chrome', version: '149.0.7827.116', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Thu, Sep 18, 2025 10:12 AM' },
+                { id: 'AST-292', name: '7-Zip 24.09 (x64)', version: '24.09', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Fri, Sep 05, 2025 04:30 PM' },
+                { id: 'AST-274', name: 'Notepad++ (64-bit)', version: '8.7.5', group: 'IT Operations', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Wed, Aug 27, 2025 09:05 AM' },
+              ].map((r, i) => ({ ...r, i })).filter((r) => !removedConsolidated.has(r.i));
+              const headers = ['Name', 'Asset Type', 'Status', 'Version', 'Software Type', 'Managed By Group', 'Managed By', 'Created Date', 'Actions'];
+              return (
+                <div className="px-6 py-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.length === 0 ? (
+                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No consolidated software.</td></tr>
+                        ) : rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <button className="text-[12px] text-[#3D8BD0] hover:underline max-w-[170px] truncate text-left align-bottom">{r.name}</button>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><Package size={14} className="text-[#6B7280]" />Application</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.version}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center justify-between gap-2 min-w-[110px] rounded-md border border-[#DFE5ED] px-2.5 py-1.5 text-[#364658]">Managed<ChevronDown size={13} className="text-[#7B8FA5]" /></span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                {r.managedBy.initials ? (
+                                  <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
+                                ) : (
+                                  <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
+                                )}
+                                <span className="text-[#364658]">{r.managedBy.name}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <button title="Unconsolidate" onClick={() => setRemovedConsolidated((p) => new Set(p).add(r.i))} className="text-[#EF4444] hover:text-[#DC2626]"><Unlink size={15} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Installation — hardware assets where this software is installed */}
+            {activeMainTab === 'installation' && (() => {
+              const all = [
+                { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', type: 'Windows Laptop', ip: '10.190.44.202', group: 'Unassigned', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Tue, Apr 28, 2026 11:44 AM' },
+                { id: 'LAP-6712', host: 'FIN-LT-0188', type: 'Windows Laptop', ip: '10.20.22.188', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Mar 17, 2026 09:20 AM' },
+                { id: 'DSK-5521', host: 'OPS-DT-0211', type: 'Windows Desktop', ip: '10.20.21.211', group: 'IT Operations', managedBy: { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' }, created: 'Fri, Feb 06, 2026 02:10 PM' },
+                { id: 'LAP-6420', host: 'ENG-LT-0312', type: 'Windows Laptop', ip: '10.20.19.112', group: 'IT Operations', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jan 14, 2026 04:45 PM' },
+              ];
+              const q = installationSearch.trim().toLowerCase();
+              const rows = q ? all.filter((r) => r.id.toLowerCase().includes(q) || r.host.toLowerCase().includes(q) || r.ip.includes(q) || r.type.toLowerCase().includes(q)) : all;
+              const headers = ['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date'];
+              return (
+                <div className="px-6 py-6">
+                  <div className="relative mb-4">
+                    <input
+                      type="text"
+                      value={installationSearch}
+                      onChange={(e) => setInstallationSearch(e.target.value)}
+                      placeholder="Select field or enter a keyword to search..."
+                      className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                    />
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.length === 0 ? (
+                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No installations found.</td></tr>
+                        ) : rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <span className="text-[#364658] max-w-[150px] truncate inline-block align-bottom">{r.host}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><Laptop size={14} className="text-[#6B7280]" />{r.type}</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.host}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.ip}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[#9ca3af]">---<ChevronDown size={13} /></span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
+                                <span className="text-[#364658]">{r.managedBy.name}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-end mt-4 text-[12px] text-[#7B8FA5]">
+                    Showing 1-{rows.length} of {rows.length} items
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Meter — software usage metering across the assets it's installed on */}
+            {activeMainTab === 'meter' && (() => {
+              const rows = [
+                { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', user: 'Neha Raje', sessions: 218, hours: '342h 10m', last: 'Tue, Jun 17, 2026 09:12 AM', status: 'Active' },
+                { id: 'LAP-6712', host: 'FIN-LT-0188', user: 'Priya Nair', sessions: 176, hours: '288h 45m', last: 'Mon, Jun 16, 2026 06:40 PM', status: 'Active' },
+                { id: 'DSK-5521', host: 'OPS-DT-0211', user: 'Arjun Patel', sessions: 54, hours: '61h 20m', last: 'Fri, May 30, 2026 02:05 PM', status: 'Idle' },
+                { id: 'LAP-6420', host: 'ENG-LT-0312', user: 'Karan Malhotra', sessions: 12, hours: '8h 05m', last: 'Wed, Apr 02, 2026 11:18 AM', status: 'Idle' },
+              ];
+              const summary = [
+                ['Total Usage', '700h 20m', '#364658'],
+                ['Active Users (30d)', '2', '#22A06B'],
+                ['Avg Sessions / User', '115', '#364658'],
+                ['Idle Installs', '2', '#D97706'],
+              ] as [string, string, string][];
+              const headers = ['Name', 'Used By', 'Sessions', 'Total Usage', 'Last Used', 'Status'];
+              return (
+                <div className="px-6 py-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Gauge size={16} className="text-[#3D8BD0]" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Usage metering</h3>
+                  </div>
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                    {summary.map(([l, v, color]) => (
+                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                        <div className="text-[15px] font-semibold" style={{ color }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <span className="text-[#364658] max-w-[150px] truncate inline-block align-bottom">{r.host}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.user}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.sessions}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.hours}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.last}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.status === 'Active' ? '#22C55E' : '#D97706' }} />
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-end text-[12px] text-[#7B8FA5]">Showing 1-{rows.length} of {rows.length} items</div>
+                </div>
+              );
+            })()}
+
             {activeMainTab === 'software' && (() => {
               const softwareList: {
                 name: string; manufacturer: string; version: string;
@@ -3443,7 +3657,7 @@ export function HardwareAssetDrawer({
                     <div className="flex items-center justify-center min-h-[400px]">
                       <div className="text-center">
                         <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
-                          <AppWindow className="size-8 text-[#7B8FA5]" />
+                          <Package className="size-8 text-[#7B8FA5]" />
                         </div>
                         <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No Software Yet</h3>
                         <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Get started by adding software to this asset.</p>
@@ -3572,7 +3786,7 @@ export function HardwareAssetDrawer({
                           {/* Header: icon + name + manufacturer */}
                           <div className="flex items-start gap-3 pr-16">
                             <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
-                              <AppWindow size={20} />
+                              <Package size={20} />
                             </span>
                             <div className="min-w-0">
                               <button className="block text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={s.name}>{s.name}</button>
@@ -5861,14 +6075,8 @@ export function HardwareAssetDrawer({
             {activeMainTab === 'audit' && (() => {
               const categories = [
                 { id: 'audit', label: 'Audit Trail' },
-                { id: 'change-logs', label: 'Change Logs' },
-                { id: 'scan', label: 'Scan History' },
-                { id: 'wol', label: 'WOL History' },
                 { id: 'movement', label: 'Movement History' },
                 { id: 'repair', label: 'Repair History' },
-                { id: 'utilization', label: 'Asset Utilization History' },
-                { id: 'baseline-history', label: 'Baseline History' },
-                { id: 'variance-history', label: 'Variance History' },
               ];
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
@@ -7082,8 +7290,8 @@ export function HardwareAssetDrawer({
             showSla={false}
             fieldsTitle="Asset Fields"
             assetMode={true}
+            softwareMode={true}
             assetState={assetState}
-            agentInfo={agentInfo}
             warranty={{ daysLeft: 23, expiryDate: 'Jul 14, 2026' }}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -8206,4 +8414,4 @@ export function HardwareAssetDrawer({
   );
 }
 
-export default HardwareAssetDrawer;
+export default ConsumableAssetDrawer;

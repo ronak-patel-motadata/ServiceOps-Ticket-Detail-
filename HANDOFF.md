@@ -1,43 +1,38 @@
-# Handoff — 2026-06-21 02:58
+# Handoff — 2026-06-22 01:53
 
 ## Read first
-See CLAUDE.md **Key context** (right-panel asset behavior, asset header buttons, the new asset list pages, container-query note). This session worked across the Hardware Asset detail panel (`TicketPropertiesPanel`, `AssetFields`, `SystemFieldsRenderer`, `HardwareAssetDrawer`) and added three new asset list pages cloned from Hardware.
+See CLAUDE.md **Structure** (the drawer clone chain) and **Key context** (per-module drawer differences, `softwareMode`, the `AppWindow` icon). This session was all about giving Software, Non-IT, and Consumable assets their own detail drawers and tailoring each.
 
 ## What we worked on this session
-Polished the Hardware Asset right panel and Software tab, added asset header barcode/QR affordances, and stood up three new Asset modules as list pages (Software, Non-IT, Consumable) with realistic mock data.
+Built separate detail-drawer files for Software, Non-IT, and Consumable assets (each cloned from the previous, with its own data→HardwareAsset adapter), wired them to open from their list pages, and customized each module's tabs/fields/menus/icons.
 
 ## Completed
-- **Agent Information block** (`TicketPropertiesPanel`, `assetMode`): removed the "Agent Information" label + bordered card; now a minimal gray pill (Bot icon + "AGENT" caption + Agent ID + "Last synced …"). Pinned to the **top** of the panel (rendered explicitly, above pinned/asset fields) and **removed from Customize Layout** — dropped `Requester Information` from the asset section order, bumped storage key to `assetPropertiesSectionOrderV3`, and added a loader guard.
-- **Warranty pill** at the very top of the asset properties panel — tone adapts (amber ≤30d, green healthy, red expired); driven by a `warranty` prop on `TicketPropertiesPanel` (mock `{ daysLeft: 23, … }` from the drawer). Radius is `rounded` (sm).
-- **CI field** added under Managed By in Asset Fields (blue link `CI-778 192.168.1.60`).
-- **Asset Fields "View more"** toggle (mirrors ticket detail) revealing the extra fields from the reference (Asset Group, Product, Used By, Location w/ blue subline, Category, Department, Host/Domain/UUID/IP/MAC/Subnet editable, Vendor, Asset Condition, Movement Status, Under Change Control + Business Service in red labels, Origin, Acquisition/Assignment dates). Defined in `ASSET_MORE_FIELDS`; values stored in `assetState.extra`; pinnable (value resolves via `AssetValueDisplay` default → extra).
-- **Additional Fields → System Fields** now asset-specific via `SystemFieldsRenderer` `assetMode`: Last Barcode/QR Scan By, Last Barcode/QR Scan Date, Created Date, Last Updated Date, Created By (System), Last Updated By (Rakesh Rathod, blue).
-- **Asset header**: Barcode + QR Code buttons (bordered, left of Add Relation) with hover/click dropdowns (barcode preview + Print/Copy UPC/Settings/Remove; QR dense SVG + Print QR Code only). 3-dot menu: **Add Barcode** opens a small popup (Generate / Or / Associate input / Update); removed "Print Qrcode" from the menu.
-- **Software tab**: added card/list **view toggle** (icon order: Columns · List/Card · Plus; columns hidden in card view). Card view shows icon+name+manufacturer, version/installed date/location/description, hover Edit+Delete. Responsive via `@container` + `@xl/@4xl` (max 3 cols, down to 1). **Defaults to card view.**
-- **Overview → Health & compliance**: Encryption card is replaced by a **Baseline Variance** card when `baselineVarianceCount > 0` (mock 3, red).
-- **New asset list pages** (cloned from Hardware, wired in `App.tsx` + `Sidebar` flyout, titled via `AssetsToolbar` `title`/`viewLabel`):
-  - Software Assets (`SoftwareAssetsListPage`/`Table`) — columns per screenshot; realistic apps; ID `SWAST-#####`. (External-link arrow on Name was removed per request.)
-  - Non-IT Assets (`NonItAssetsListPage`/`Table`) — furniture/vehicles/office/safety/stationery; all IDs normalized to `NON-####`.
-  - Consumable Assets (`ConsumableAssetsListPage`/`Table`) — keyboards/mice/RAM/toner/cables/etc.; ID `CON-0000070##`; numeric Available Quantity sorts numerically.
+- **New detail drawers (separate files, open via `onAssetClick`):**
+  - `SoftwareAssetDrawer` (clone of Hardware) — adapter `softwareToAssetShape`. Tabs trimmed/added to: Overview · Properties · Consolidated Software · Installation · Meter · Software · Relationship · History. Removed Hardware/Baseline/Approvals/Financials. New tab content: **Consolidated Software** (table + red Unconsolidate), **Installation** (search + hosts table), **Meter** (usage summary + table). Properties = single "Software Properties" section. Overview redesigned software-centric (License & compliance status strip → License/Installation/Versions snapshots → Cost + Software details). Right panel uses `softwareMode`: Software Type field (no CI/View more), **license-expiry pill** instead of warranty, Users rail icon hidden, Agent block removed. 3-dot menu `minimal` = Add Barcode/Archive/Print.
+  - `NonItAssetDrawer` (clone of Software) — adapter `nonItToAssetShape`. Tabs = Properties · Approvals · Relationship · Financials · History (default Properties). Properties = one "Non IT Property Group" section (Serial Number, Warranty Start/Expiration Date, Audit Date, NON-IT Mac, asset type for nonit). History reduced to 3 categories (Audit Trail, Movement History, Repair History). Warranty pill (not license). 3-dot menu `nonIt` = Ask for Approval/Add Barcode/Used By History/Location History/Archive/Print.
+  - `ConsumableAssetDrawer` (clone of Non-IT) — adapter `consumableToAssetShape`. Adds an **Allocation tab** after Properties: a left stat chip ("Available Quantity: 34" green badge) + blue `+` Allocate icon button, and a table (Issued Date · Status · Quantity · Allocate To · Location · Department · Target Type · Asset · Description · Actions).
+- **List pages now open drawers**: `Software/NonIt/Consumable AssetsTable` got clickable ID+name via `onAssetClick`; list pages hold open/close/tab state and render their drawer.
+- **3-dot menu variants**: `HardwareAssetActionsMenu` now supports `minimal` (software) and `nonIt` props alongside the full hardware menu.
+- **Software icon**: swapped generic `Package` box → `AppWindow` everywhere it represents software (cards, empty states, "Software" relation type, Consolidated "Application", Software Properties header) across all drawers.
 - Every change verified with `npm run build` (green).
 
 ## In progress
-Nothing mid-flight; last build is green. **Uncommitted** — many modified/new files (see `git status`): `TicketPropertiesPanel.tsx`, `AssetFields.tsx`, `SystemFieldsRenderer.tsx`, `AdditionalFieldsAccordion.tsx`, `HardwareAssetDrawer.tsx`, `AssetsToolbar.tsx`, `App.tsx`, `Sidebar.tsx`, plus new `Software/NonIt/Consumable AssetsListPage.tsx` + `…Table.tsx`. Not yet pushed/deployed.
+Nothing mid-flight; last build is green. **Uncommitted** — new files `SoftwareAssetDrawer.tsx`, `NonItAssetDrawer.tsx`, `ConsumableAssetDrawer.tsx`, plus edits to the three list pages + tables, `HardwareAssetDrawer.tsx`, `AssetFields.tsx`, `TicketFieldsAccordion.tsx`, `TicketPropertiesPanel.tsx`, `HardwareAssetActionsMenu.tsx`, CLAUDE.md/HANDOFF.md. Not yet pushed/deployed.
 
 ## Next steps
-- If desired, build detail drawers for Software/Non-IT/Consumable assets (currently list-only; rows are not clickable into a drawer).
-- Wire prototype affordances to behavior when data exists: barcode/QR/Add Barcode actions, Add Software, card Edit/Delete, asset list row → detail.
-- Consider persisting the Software view toggle / making `baselineVarianceCount` and `warranty` data-driven.
+- Tailor each new drawer further as needed (the clones still carry inherited blocks — e.g. unreachable software-tab content remains in Non-IT/Consumable files; the Overview tab is removed from Non-IT/Consumable but its block still exists in-file).
+- Wire prototype affordances to behavior when data exists: Allocate button/popup, Consolidated Unconsolidate, Add Barcode, allocation Edit/Delete.
+- Consider extracting the huge shared drawer body to reduce 4× duplication (each drawer is ~8k lines); currently intentionally duplicated so modules can diverge.
 
 ## Decisions made
-- Agent Information and the warranty pill are **fixed at the top** (not reorderable) — simpler and avoids dependence on saved layout/HMR state; that's why the section-order key was bumped to V3.
-- New asset modules ship as **list pages only** (no detail drawer) — the Hardware drawer is hardware-specific; cloning it per module is a larger follow-up.
-- All asset changes stay gated behind `assetMode` / asset-only branches; new list pages reuse shared chrome (`Header`/`AssetsToolbar`/`Pagination`/`Sidebar`).
-- Mock data must read as **realistic** (no test/demo/placeholder names) per repeated user direction.
+- **Each asset module gets its own drawer file** (not a shared component with flags) because the user wants to freely diverge per module; the small cost is duplicated bodies. Clone chain: Ticket → Hardware → Software → Non-IT → Consumable.
+- Adapters (`XToAssetShape`) map each data type onto `HardwareAsset` so the cloned body compiles unchanged; missing fields are placeholdered.
+- Panel variations stay prop-gated (`assetMode`, `softwareMode`, `warranty`/`licenseExpiry`, menu `minimal`/`nonIt`) so shared components don't fork.
+- Removed tabs are dropped from `calculateTabOverflow` base arrays + `tabConfig`; their JSX content blocks are left in-file (unreachable, harmless) to keep diffs small.
 
 ## Gotchas & notes
-- IDE may flash transient TS errors (`react/jsx-runtime` "no declaration file", "implicitly has any") after edits to `HardwareAssetDrawer.tsx` — these are TS-server noise; trust `npm run build` (it's been clean).
-- Tab order is computed in `calculateTabOverflow` (`HardwareAssetDrawer`); approvals/relations inserts anchor off `software`/`baseline`/`relationship` — re-check anchors if tabs change.
-- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` round-trips on these files (corrupts UTF-8 em-dashes); use the editor tools.
-- Sidebar Assets flyout maps labels → pages in `pageFor`/`sectionActive` — add both when wiring a new module. Labels must match `ASSET_GROUPS` exactly (e.g. `Non-IT Assets`, `Consumable Assets`).
+- IDE flashes transient TS errors (`react/jsx-runtime` "no declaration file", "implicitly has any") after edits to the big drawer files — TS-server noise; trust `npm run build` (clean).
+- Tab order is computed in `calculateTabOverflow` per drawer (base arrays + approvals/relations insert anchors) AND mirrored in `tabConfig`/`tabLabels`/`tabWidths` — update all when changing tabs. Default `activeMainTab` + the per-asset reset effect must point at a tab that still exists (Non-IT/Consumable default to `properties`).
+- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` round-trips (corrupts UTF-8 em-dashes); use editor tools or `cp` for cloning files.
+- Sidebar Assets flyout maps labels → pages in `pageFor`/`sectionActive` — labels must match `ASSET_GROUPS` exactly.
 - Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` to `main` and need explicit approval.
