@@ -245,6 +245,7 @@ export function NonItAssetDrawer({
   const [showAddCost, setShowAddCost] = useState(false);
   const [newCost, setNewCost] = useState({ factor: '', date: '', amount: '', currency: 'ATS', description: '' });
   const [showConfigDepr, setShowConfigDepr] = useState(false);
+  const [showDeprLog, setShowDeprLog] = useState(false);
   const [deprConfig, setDeprConfig] = useState({ derivation: 'asset', method: '', type: 'useful', usefulLife: '', usefulLifeUnit: 'Month', salvageValue: '', currency: 'ATS' });
 
   // History tab — selected category (replaces old left sub-nav).
@@ -264,6 +265,8 @@ export function NonItAssetDrawer({
   const baselineVarianceCount = 3;
   // Search across all Properties tab sections (Hardware Asset detail page).
   const [propertiesSearch, setPropertiesSearch] = useState('');
+  // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
+  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLocationHistory, setShowLocationHistory] = useState(false);
   // Whether the Hardware tab's jump-to-section list is open.
@@ -2445,87 +2448,6 @@ export function NonItAssetDrawer({
               </div>
             </div>
 
-            {/* Description Section (requester name/avatar removed for assets) */}
-            <div className="px-6 py-4 bg-white">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {isDescriptionExpanded ? (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                        <br /><br />
-                        Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                        ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                        process includes verification of network adapter settings, validation of proxy configurations, and testing
-                        connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                        network-dependent services are functioning optimally after the refresh is complete.
-                      </>
-                    ) : (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                        <button
-                          onClick={() => setIsDescriptionExpanded(true)}
-                          className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                        >
-                          View more
-                          <ChevronDown size={14} />
-                        </button>
-                      </>
-                    )}
-                  </p>
-                  {isDescriptionExpanded && (
-                    <button
-                      onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
-                    >
-                      View less
-                      <ChevronUp size={14} />
-                    </button>
-                  )}
-
-                  {/* Attachments — shown when description is expanded */}
-                  {isDescriptionExpanded && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {[
-                        { name: 'task-changes.doc', size: '674 KB' },
-                        { name: 'network-diagnosis.pdf', size: '2 MB' },
-                      ].map((f) => (
-                        <div
-                          key={f.name}
-                          className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                            highlightAttachments ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                          }`}
-                        >
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">{f.name}</span>
-                            <span className="text-[10px] text-[#7B8FA5]">{f.size}</span>
-                          </div>
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download"><Download className="size-3.5 text-[#7B8FA5]" /></button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete"><Trash2 className="size-3.5 text-[#EF4444]" /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Attachment count — expands description + highlights attachments */}
-                <button
-                  onClick={() => {
-                    setIsDescriptionExpanded(true);
-                    setHighlightAttachments(true);
-                    setTimeout(() => setHighlightAttachments(false), 3000);
-                  }}
-                  className="flex items-center gap-1 text-[12px] text-[#6b7280] flex-shrink-0 cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                >
-                  <Paperclip size={12} />
-                  <span>2</span>
-                </button>
-              </div>
-            </div>
-
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
@@ -2546,7 +2468,7 @@ export function NonItAssetDrawer({
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
-                    'properties': 'Properties',
+                    'properties': 'Overview',
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
@@ -2862,23 +2784,12 @@ export function NonItAssetDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
-              {/* Common field search across all property sections */}
-              <div className="relative mb-5 max-w-[360px]">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  type="text"
-                  placeholder="Search fields..."
-                  value={propertiesSearch}
-                  onChange={(e) => setPropertiesSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                />
-              </div>
               {(() => {
                 const q = propertiesSearch.trim().toLowerCase();
-                const sections = [
+                const sections: { title: string; icon: JSX.Element | null; fields: [string, string][] }[] = [
                 {
                   title: 'Non IT Property Group',
-                  icon: <Package className="size-4 text-[#3D8BD0] flex-shrink-0" />,
+                  icon: null,
                   fields: [
                     ['Serial Number', '---'],
                     ['Warranty Start Date', '---'],
@@ -2886,7 +2797,7 @@ export function NonItAssetDrawer({
                     ['Audit Date', '---'],
                     ['NON-IT Mac', '---'],
                     ['asset type for nonit', '---'],
-                  ] as [string, string][],
+                  ],
                 },
                 ];
                 const filtered = sections
@@ -2929,6 +2840,80 @@ export function NonItAssetDrawer({
                   </div>
                 );
               })()}
+
+              {/* KPI strip — Warranty / Impact / Approval */}
+              <div className="mt-6 border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-3`}>
+                  {([
+                    { label: 'Warranty Expire', value: 'Expires in 23 days', color: '#D97706', dot: true },
+                    { label: 'Impact', color: '#3D8BD0', counts: [['Incident', 2], ['Problem', 1], ['Change', 1], ['Release', 0]] },
+                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
+                  ] as { label: string; value?: string; color: string; dot?: boolean; counts?: [string, number][] }[]).map((c) => (
+                    <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
+                      <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+                        {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+                        {c.label}
+                      </div>
+                      {c.counts ? (
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                          {c.counts.map(([l, n]) => (
+                            <button
+                              key={l}
+                              onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                              className="text-[12px] text-[#64748B] hover:text-[#3D8BD0] hover:underline transition-colors"
+                            >
+                              {l} <span className="font-semibold text-[#364658]">{n}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Group: Financials & Contracts */}
+              <div className="mt-6">
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
+                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
+                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
+                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
+                      ].map((c) => (
+                        <button
+                          key={c.label}
+                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
+                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
+                        >
+                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
+                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             )}
 
@@ -3971,6 +3956,8 @@ export function NonItAssetDrawer({
                     ))}
                   </div>
 
+                  {/* Depreciation + Cost breakdown — one row */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-start`}>
                   {/* Depreciation chart */}
                   <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -3978,9 +3965,14 @@ export function NonItAssetDrawer({
                         <h3 className="text-[14px] font-semibold text-[#364658]">Depreciation</h3>
                         <span className="text-[11px] text-[#7B8FA5]">Book value over useful life</span>
                       </div>
-                      <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
-                        <Settings2 size={14} /> Configure
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setShowDeprLog(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Clock size={14} /> Log
+                        </button>
+                        <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Settings2 size={14} /> Configure
+                        </button>
+                      </div>
                     </div>
                     {base > 0 ? (
                       <>
@@ -4048,6 +4040,7 @@ export function NonItAssetDrawer({
                         );
                       })}
                     </div>
+                  </div>
                   </div>
 
                   {/* Cost records — timeline */}
@@ -4223,6 +4216,48 @@ export function NonItAssetDrawer({
                   <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Depreciation Log — side drawer */}
+            {showDeprLog && (
+              <>
+                <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowDeprLog(false)} />
+                <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
+                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                  </div>
+                  <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                      Monthly <Filter size={14} className="text-[#7B8FA5]" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-white border-b border-[#E5E7EB] sticky top-0">
+                        <tr>{['Month/Year', 'Depreciation', 'Accumulated Depreciation', 'Book Value', 'Remaining Life'].map((h) => (
+                          <th key={h} className="px-6 py-3 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E5E7EB]">
+                        {[
+                          { my: 'Jan 2026', dep: '0.42 ATS', acc: '0.42 ATS', bv: '19.58 ATS', life: '47 months' },
+                          { my: 'Feb 2026', dep: '0.42 ATS', acc: '0.84 ATS', bv: '19.16 ATS', life: '46 months' },
+                          { my: 'Mar 2026', dep: '0.42 ATS', acc: '1.26 ATS', bv: '18.74 ATS', life: '45 months' },
+                        ].map((r) => (
+                          <tr key={r.my} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658] font-medium">{r.my}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.dep}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.acc}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.bv}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.life}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </>
@@ -6005,9 +6040,11 @@ export function NonItAssetDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeTicket?.id} 
+              <RelationsTabContent
+                ticketId={activeTicket?.id}
                 externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+                initialTypeFilter={relationsInitialFilter}
+                onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />
             )}
 

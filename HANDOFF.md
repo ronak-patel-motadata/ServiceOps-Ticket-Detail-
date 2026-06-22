@@ -1,38 +1,36 @@
-# Handoff — 2026-06-22 01:53
+# Handoff — 2026-06-23 01:05
 
 ## Read first
-See CLAUDE.md **Structure** (the drawer clone chain) and **Key context** (per-module drawer differences, `softwareMode`, the `AppWindow` icon). This session was all about giving Software, Non-IT, and Consumable assets their own detail drawers and tailoring each.
+See CLAUDE.md **Key context** — the bullets on per-module drawer differences, header-less Overview tabs, clickable Impact/Contracts KPIs, and the Users accordion. This session was all polish across the four asset detail drawers' Overview tabs + right panel.
 
 ## What we worked on this session
-Built separate detail-drawer files for Software, Non-IT, and Consumable assets (each cloned from the previous, with its own data→HardwareAsset adapter), wired them to open from their list pages, and customized each module's tabs/fields/menus/icons.
+Refined the Hardware/Software/Non-IT/Consumable asset detail Overview layouts (KPI strips, grouping, clickable relations), the right-panel Users accordion, and the Consumable Quantity/Allocation merge.
 
 ## Completed
-- **New detail drawers (separate files, open via `onAssetClick`):**
-  - `SoftwareAssetDrawer` (clone of Hardware) — adapter `softwareToAssetShape`. Tabs trimmed/added to: Overview · Properties · Consolidated Software · Installation · Meter · Software · Relationship · History. Removed Hardware/Baseline/Approvals/Financials. New tab content: **Consolidated Software** (table + red Unconsolidate), **Installation** (search + hosts table), **Meter** (usage summary + table). Properties = single "Software Properties" section. Overview redesigned software-centric (License & compliance status strip → License/Installation/Versions snapshots → Cost + Software details). Right panel uses `softwareMode`: Software Type field (no CI/View more), **license-expiry pill** instead of warranty, Users rail icon hidden, Agent block removed. 3-dot menu `minimal` = Add Barcode/Archive/Print.
-  - `NonItAssetDrawer` (clone of Software) — adapter `nonItToAssetShape`. Tabs = Properties · Approvals · Relationship · Financials · History (default Properties). Properties = one "Non IT Property Group" section (Serial Number, Warranty Start/Expiration Date, Audit Date, NON-IT Mac, asset type for nonit). History reduced to 3 categories (Audit Trail, Movement History, Repair History). Warranty pill (not license). 3-dot menu `nonIt` = Ask for Approval/Add Barcode/Used By History/Location History/Archive/Print.
-  - `ConsumableAssetDrawer` (clone of Non-IT) — adapter `consumableToAssetShape`. Adds an **Allocation tab** after Properties: a left stat chip ("Available Quantity: 34" green badge) + blue `+` Allocate icon button, and a table (Issued Date · Status · Quantity · Allocate To · Location · Department · Target Type · Asset · Description · Actions).
-- **List pages now open drawers**: `Software/NonIt/Consumable AssetsTable` got clickable ID+name via `onAssetClick`; list pages hold open/close/tab state and render their drawer.
-- **3-dot menu variants**: `HardwareAssetActionsMenu` now supports `minimal` (software) and `nonIt` props alongside the full hardware menu.
-- **Software icon**: swapped generic `Package` box → `AppWindow` everywhere it represents software (cards, empty states, "Software" relation type, Consolidated "Application", Software Properties header) across all drawers.
+- **Overview cleanup (all asset drawers):** removed the section **group titles** and removed the **description paragraph** above the tabs (tabs now sit under the header).
+- **Hardware Overview:** rebuilt as KPI strip + Configuration (Hardware/OS/Software snapshots) + Users/Current Location + Financial/Contracts rows. Agent KPI → **Warranty** KPI; warranty pill removed from right panel. **Impact** KPI (Incident/Problem/Change/Release counts) is clickable → Relations filtered. **Current Relation** renamed **Impact** (no dot). OS snapshot "View more" scrolls to Hardware → OS section. Current Location card redesigned (pin icon + name + "Since…" + View on Map, in a gray pill). Users card shows 2 users + "+15 more" link. Financial snapshot half-width + new **Contracts & Purchases** card; **Active Contracts/Active Purchases** clickable → Relations filtered (Contract/Purchase). Header title got a yellow status dot; created-date aligned under title.
+- **Software Overview:** added **License Expiry**, **Impact**, removed **Approvals**, **Utilization** KPI (color follows value: Over=red/Under=amber/Optimal=green) — strip is 4×2. Removed **Software** tab. Software Details card title moved inside the card with View more top-right; added **Software Cost** (replaced Edition) positioned in Category's slot. Installation snapshot has a **donut chart + legend**. Cost snapshot card removed. License pill removed from right panel (moved into KPI strip). "(30d)" dropped from Active Users.
+- **Non-IT Overview:** Properties→Overview content = "Non IT Property Group" + new **3-KPI card** (Warranty Expire / Impact / Approvals) + Financial snapshot/Contracts & Purchases; Impact + Contracts clickable.
+- **Consumable:** first tab renamed **Overview**; merged Quantity Details + Allocation into one **"Quantity & Allocation"** tab (segmented toggle, available-qty chip, Add/`Allocate` button — Allocate is text in allocations view, `+` icon in quantity view); Overview KPI strip (Stock Status/Total/Available/Allocated/Approvals) + Financials/Contracts; warranty pill removed from right panel; Impact + Contracts clickable.
+- **Right panel Users → accordion** (`TicketPropertiesPanel`): collapsed (avatar/name/status/department, hover Edit/Delete left of chevron) → expand (Account Type/Domain/Security ID/Description); realistic local-account names; expanded content left-aligned with avatar.
+- **Financials (Hardware/Non-IT/Consumable):** Depreciation + Cost breakdown now in one row; added a **Log** button (left of Configure) opening a **Depreciation Log** side drawer (Month/Year · Depreciation · Accumulated · Book Value · Remaining Life).
 - Every change verified with `npm run build` (green).
 
 ## In progress
-Nothing mid-flight; last build is green. **Uncommitted** — new files `SoftwareAssetDrawer.tsx`, `NonItAssetDrawer.tsx`, `ConsumableAssetDrawer.tsx`, plus edits to the three list pages + tables, `HardwareAssetDrawer.tsx`, `AssetFields.tsx`, `TicketFieldsAccordion.tsx`, `TicketPropertiesPanel.tsx`, `HardwareAssetActionsMenu.tsx`, CLAUDE.md/HANDOFF.md. Not yet pushed/deployed.
+Nothing mid-flight; last build is green. Everything committed previously plus this session's edits are **uncommitted** (right panel + 4 asset drawers + CLAUDE.md/HANDOFF.md). Not yet pushed.
 
 ## Next steps
-- Tailor each new drawer further as needed (the clones still carry inherited blocks — e.g. unreachable software-tab content remains in Non-IT/Consumable files; the Overview tab is removed from Non-IT/Consumable but its block still exists in-file).
-- Wire prototype affordances to behavior when data exists: Allocate button/popup, Consolidated Unconsolidate, Add Barcode, allocation Edit/Delete.
-- Consider extracting the huge shared drawer body to reduce 4× duplication (each drawer is ~8k lines); currently intentionally duplicated so modules can diverge.
+- Wire prototype affordances to real behavior (Allocate/Add Quantity, Add Barcode, allocation/quantity Edit/Delete, Log filter, snapshot "View more" targets).
+- Optional: extract the duplicated asset-drawer body (~8k lines × 4) into a shared component now that the per-module shapes are settling — currently intentionally duplicated.
 
 ## Decisions made
-- **Each asset module gets its own drawer file** (not a shared component with flags) because the user wants to freely diverge per module; the small cost is duplicated bodies. Clone chain: Ticket → Hardware → Software → Non-IT → Consumable.
-- Adapters (`XToAssetShape`) map each data type onto `HardwareAsset` so the cloned body compiles unchanged; missing fields are placeholdered.
-- Panel variations stay prop-gated (`assetMode`, `softwareMode`, `warranty`/`licenseExpiry`, menu `minimal`/`nonIt`) so shared components don't fork.
-- Removed tabs are dropped from `calculateTabOverflow` base arrays + `tabConfig`; their JSX content blocks are left in-file (unreachable, harmless) to keep diffs small.
+- Asset Overviews are uniform across all assets (the earlier AST-001 "2 options" experiment was reverted) — group titles and the description block are removed everywhere.
+- KPI strips stay one row: Hardware 4×2, Software 4×2, Consumable 5-up — adjust `grid-cols-N` when adding/removing KPIs.
+- Relations filtering reuses `RelationsTabContent`'s `initialTypeFilter`/`onClearTypeFilter`; each drawer holds a `relationsInitialFilter` state. Incident → relation type `Request`.
 
 ## Gotchas & notes
-- IDE flashes transient TS errors (`react/jsx-runtime` "no declaration file", "implicitly has any") after edits to the big drawer files — TS-server noise; trust `npm run build` (clean).
-- Tab order is computed in `calculateTabOverflow` per drawer (base arrays + approvals/relations insert anchors) AND mirrored in `tabConfig`/`tabLabels`/`tabWidths` — update all when changing tabs. Default `activeMainTab` + the per-asset reset effect must point at a tab that still exists (Non-IT/Consumable default to `properties`).
-- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` round-trips (corrupts UTF-8 em-dashes); use editor tools or `cp` for cloning files.
-- Sidebar Assets flyout maps labels → pages in `pageFor`/`sectionActive` — labels must match `ASSET_GROUPS` exactly.
-- Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` to `main` and need explicit approval.
+- IDE shows transient TS errors (`react/jsx-runtime`, "implicitly any") after editing the big drawer files — TS-server noise; trust `npm run build`.
+- The 4 asset drawers are clones — a change requested "everywhere" usually means editing all four (+ shared `TicketPropertiesPanel`). Grep the same anchor across files.
+- Tab changes need updating in 3 places per drawer: `calculateTabOverflow` base arrays, `tabConfig`, and `tabLabels`/`tabWidths`; default `activeMainTab` + per-asset reset must point at a surviving tab.
+- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` (corrupts em-dashes); use editor tools / `cp` for cloning.
+- Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` and need explicit approval.

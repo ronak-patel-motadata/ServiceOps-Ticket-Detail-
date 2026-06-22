@@ -221,6 +221,10 @@ export function ConsumableAssetDrawer({
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'allocation' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  // Merged Quantity & Allocation tab: which list is shown.
+  const [allocationView, setAllocationView] = useState<'quantity' | 'allocations'>('quantity');
+  // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
+  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -240,6 +244,7 @@ export function ConsumableAssetDrawer({
   const [showAddCost, setShowAddCost] = useState(false);
   const [newCost, setNewCost] = useState({ factor: '', date: '', amount: '', currency: 'ATS', description: '' });
   const [showConfigDepr, setShowConfigDepr] = useState(false);
+  const [showDeprLog, setShowDeprLog] = useState(false);
   const [deprConfig, setDeprConfig] = useState({ derivation: 'asset', method: '', type: 'useful', usefulLife: '', usefulLifeUnit: 'Month', salvageValue: '', currency: 'ATS' });
 
   // History tab — selected category (replaces old left sub-nav).
@@ -926,7 +931,7 @@ export function ConsumableAssetDrawer({
       const tabWidths: Record<string, number> = {
         'overview': 80,
         'properties': 85,
-        'allocation': 90,
+        'allocation': 165,
         'hardware': 85,
         'software': 80,
         'consolidated': 165,
@@ -2441,94 +2446,13 @@ export function ConsumableAssetDrawer({
               </div>
             </div>
 
-            {/* Description Section (requester name/avatar removed for assets) */}
-            <div className="px-6 py-4 bg-white">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {isDescriptionExpanded ? (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                        <br /><br />
-                        Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                        ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                        process includes verification of network adapter settings, validation of proxy configurations, and testing
-                        connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                        network-dependent services are functioning optimally after the refresh is complete.
-                      </>
-                    ) : (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                        <button
-                          onClick={() => setIsDescriptionExpanded(true)}
-                          className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                        >
-                          View more
-                          <ChevronDown size={14} />
-                        </button>
-                      </>
-                    )}
-                  </p>
-                  {isDescriptionExpanded && (
-                    <button
-                      onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
-                    >
-                      View less
-                      <ChevronUp size={14} />
-                    </button>
-                  )}
-
-                  {/* Attachments — shown when description is expanded */}
-                  {isDescriptionExpanded && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {[
-                        { name: 'task-changes.doc', size: '674 KB' },
-                        { name: 'network-diagnosis.pdf', size: '2 MB' },
-                      ].map((f) => (
-                        <div
-                          key={f.name}
-                          className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                            highlightAttachments ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                          }`}
-                        >
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">{f.name}</span>
-                            <span className="text-[10px] text-[#7B8FA5]">{f.size}</span>
-                          </div>
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download"><Download className="size-3.5 text-[#7B8FA5]" /></button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete"><Trash2 className="size-3.5 text-[#EF4444]" /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Attachment count — expands description + highlights attachments */}
-                <button
-                  onClick={() => {
-                    setIsDescriptionExpanded(true);
-                    setHighlightAttachments(true);
-                    setTimeout(() => setHighlightAttachments(false), 3000);
-                  }}
-                  className="flex items-center gap-1 text-[12px] text-[#6b7280] flex-shrink-0 cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                >
-                  <Paperclip size={12} />
-                  <span>2</span>
-                </button>
-              </div>
-            </div>
-
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
                   const tabConfig = [
-                    { id: 'properties', label: 'Properties' },
-                    { id: 'allocation', label: 'Allocation' },
+                    { id: 'properties', label: 'Overview' },
+                    { id: 'allocation', label: 'Quantity & Allocation' },
                     { id: 'approvals', label: 'Approvals' },
                     { id: 'relationship', label: 'Relationship' },
                     { id: 'financials', label: 'Financials' },
@@ -2543,8 +2467,8 @@ export function ConsumableAssetDrawer({
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
-                    'properties': 'Properties',
-                    'allocation': 'Allocation',
+                    'properties': 'Overview',
+                    'allocation': 'Quantity & Allocation',
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
@@ -2860,135 +2784,193 @@ export function ConsumableAssetDrawer({
 
             {/* Allocation — issuance of this consumable to users / assets */}
             {activeMainTab === 'allocation' && (() => {
-              const rows = [
+              const allocRows = [
                 { issued: 'Tue, May 12, 2026', status: 'Allocated', qty: 2, to: 'Priya Nair', location: 'India', dept: 'Finance', target: 'User', asset: '---', desc: 'Replacement stock' },
                 { issued: 'Fri, Apr 10, 2026', status: 'Allocated', qty: 3, to: 'Karan Malhotra', location: 'India', dept: 'Engineering', target: 'User', asset: '---', desc: 'New hire kit' },
                 { issued: 'Sat, Mar 22, 2026', status: 'Allocated', qty: 1, to: 'AST-002', location: 'India', dept: 'Sales', target: 'Asset', asset: 'AST-002', desc: 'Installed on laptop' },
                 { issued: 'Mon, Apr 28, 2026', status: 'Returned', qty: 1, to: 'Arjun Patel', location: 'India', dept: 'Operations', target: 'User', asset: '---', desc: 'Returned unused' },
               ];
-              const headers = ['Issued Date', 'Status', 'Quantity', 'Allocate To', 'Location', 'Department', 'Target Type', 'Asset', 'Description', 'Actions'];
+              const qtyRows = [
+                { qty: 20, cost: '$40.00', purchased: 'Jun 20, 2026', expiry: '---', vendor: 'Logitech Distributor', barcode: '8901234567', created: 'Mon, Jun 22, 2026 04:30 PM', by: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0' },
+                { qty: 10, cost: '$22.00', purchased: 'May 22, 2026', expiry: '---', vendor: 'Tech Supplies Co.', barcode: '---', created: 'Fri, May 22, 2026 12:00 PM', by: 'Dharti', initials: 'DH', color: '#6366F1' },
+              ];
               const Cell = ({ v }: { v: string }) => (v === '---' ? <span className="text-[#9ca3af]">---</span> : <span>{v}</span>);
+              const isQty = allocationView === 'quantity';
+              const seg = (id: 'quantity' | 'allocations', label: string) => (
+                <button
+                  onClick={() => setAllocationView(id)}
+                  className={`px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors ${allocationView === id ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}
+                >
+                  {label}
+                </button>
+              );
               return (
                 <div className="px-6 py-6">
-                  {/* Toolbar: available quantity (left) + Allocate (right) */}
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <div className="inline-flex items-center gap-2.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] pl-3 pr-2 py-1.5">
-                      <Package size={15} className="text-[#3D8BD0]" />
-                      <span className="text-[12px] text-[#7B8FA5]">Available Quantity</span>
-                      <span className="inline-flex items-center justify-center min-w-[24px] h-[20px] px-1.5 rounded-md bg-[#EAF7F0] text-[12px] font-semibold text-[#22A06B]">34</span>
+                  {/* Toolbar: segmented toggle (left) + available qty + add (right) */}
+                  <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                    <div className="inline-flex items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
+                      {seg('quantity', 'Quantity Details')}
+                      {seg('allocations', 'Allocations')}
                     </div>
-                    <button title="Allocate" className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
-                      <Plus size={16} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex items-center gap-2.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] pl-3 pr-2 py-1.5">
+                        <Package size={15} className="text-[#3D8BD0]" />
+                        <span className="text-[12px] text-[#7B8FA5]">Available Quantity</span>
+                        <span className="inline-flex items-center justify-center min-w-[24px] h-[20px] px-1.5 rounded-md bg-[#EAF7F0] text-[12px] font-semibold text-[#22A06B]">34</span>
+                      </div>
+                      {isQty ? (
+                        <button title="Add Quantity" className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                          <Plus size={16} />
+                        </button>
+                      ) : (
+                        <button className="px-4 py-1.5 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">Allocate</button>
+                      )}
+                    </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px] text-[12px]">
-                      <thead className="bg-white border-b border-[#e5e7eb]">
-                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                        {rows.length === 0 ? (
-                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No allocations yet.</td></tr>
-                        ) : rows.map((r, idx) => (
-                          <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.issued}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-1.5 text-[#364658]">
-                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.status === 'Allocated' ? '#22C55E' : '#9CA3AF' }} />
-                                {r.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.qty}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.to}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.location}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.dept}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.target}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0]">{r.asset === '---' ? <span className="text-[#9ca3af]">---</span> : r.asset}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[180px] truncate"><Cell v={r.desc} /></td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
-                                <button title="Delete" className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+
+                  {isQty ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1000px] text-[12px]">
+                        <thead className="bg-white border-b border-[#e5e7eb]">
+                          <tr>{['Quantity', 'Purchase Cost', 'Purchase Date', 'Expiry Date', 'Vendor', 'Barcode', 'Created Date', 'Created By', 'Actions'].map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                          {qtyRows.map((r, idx) => (
+                            <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.qty}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.cost} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.purchased} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.expiry} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.vendor} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.barcode} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.color }}>{r.initials}</span>
+                                  <span className="text-[#364658]">{r.by}</span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                  <button title="Delete" className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1100px] text-[12px]">
+                        <thead className="bg-white border-b border-[#e5e7eb]">
+                          <tr>{['Issued Date', 'Status', 'Quantity', 'Allocate To', 'Location', 'Department', 'Target Type', 'Asset', 'Description', 'Actions'].map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                          {allocRows.map((r, idx) => (
+                            <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.issued}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.status === 'Allocated' ? '#22C55E' : '#9CA3AF' }} />
+                                  {r.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.qty}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.to}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.location}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.dept}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.target}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0]">{r.asset === '---' ? <span className="text-[#9ca3af]">---</span> : r.asset}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[180px] truncate"><Cell v={r.desc} /></td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                  <button title="Delete" className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
             {activeMainTab === 'properties' && (
-            <div className="px-6 py-6">
-              {/* Common field search across all property sections */}
-              <div className="relative mb-5 max-w-[360px]">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  type="text"
-                  placeholder="Search fields..."
-                  value={propertiesSearch}
-                  onChange={(e) => setPropertiesSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                />
+            <div className="px-6 py-6 space-y-6">
+              {/* Group: Quantity & Allocation */}
+              <div>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-5' : 'grid-cols-2'} gap-3`}>
+                  {([
+                    { label: 'Stock Status', value: 'In Stock', color: '#22A06B', dot: true },
+                    { label: 'Total Quantity', value: '60', color: '#364658' },
+                    { label: 'Available', value: '34', color: '#22A06B' },
+                    { label: 'Allocated', value: '26', color: '#364658', tab: 'allocation' },
+                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
+                  ] as { label: string; value: string; color: string; dot?: boolean; tab?: string }[]).map((c) => {
+                    const inner = (
+                      <>
+                        <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+                          {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+                          {c.label}
+                        </div>
+                        <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+                      </>
+                    );
+                    return c.tab ? (
+                      <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors">{inner}</button>
+                    ) : (
+                      <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">{inner}</div>
+                    );
+                  })}
+                </div>
+                </div>
               </div>
-              {(() => {
-                const q = propertiesSearch.trim().toLowerCase();
-                const sections = [
-                {
-                  title: 'Non IT Property Group',
-                  icon: <Package className="size-4 text-[#3D8BD0] flex-shrink-0" />,
-                  fields: [
-                    ['Serial Number', '---'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Audit Date', '---'],
-                    ['NON-IT Mac', '---'],
-                    ['asset type for nonit', '---'],
-                  ] as [string, string][],
-                },
-                ];
-                const filtered = sections
-                  .map((s) => ({
-                    ...s,
-                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
-                  }))
-                  .filter((s) => s.fields.length > 0);
-                if (filtered.length === 0) {
-                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
-                }
-                return (
-                  <div className="space-y-6">
-                  {filtered.map((section) => (
-                <div key={section.title} className="group/section">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      {section.icon}
-                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
+
+              {/* Group: Financials & Contracts */}
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
+                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                     </div>
-                    <button
-                      title={`Edit ${section.title}`}
-                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
-                    >
-                      <Edit size={15} />
-                    </button>
-                  </div>
-                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                      {section.fields.map(([label, value]) => (
-                        <div key={label} className="min-w-0">
-                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
-                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[['Total Cost', '$1,240'], ['Cost / Unit', '$22'], ['Annual Spend', '$3,600']].map(([l, v]) => (
+                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
-                  ))}
+                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
+                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
+                      ].map((c) => (
+                        <button
+                          key={c.label}
+                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
+                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
+                        >
+                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
+                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                );
-              })()}
+                </div>
+              </div>
             </div>
             )}
 
@@ -4031,6 +4013,8 @@ export function ConsumableAssetDrawer({
                     ))}
                   </div>
 
+                  {/* Depreciation + Cost breakdown — one row */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-start`}>
                   {/* Depreciation chart */}
                   <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -4038,9 +4022,14 @@ export function ConsumableAssetDrawer({
                         <h3 className="text-[14px] font-semibold text-[#364658]">Depreciation</h3>
                         <span className="text-[11px] text-[#7B8FA5]">Book value over useful life</span>
                       </div>
-                      <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
-                        <Settings2 size={14} /> Configure
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setShowDeprLog(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Clock size={14} /> Log
+                        </button>
+                        <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Settings2 size={14} /> Configure
+                        </button>
+                      </div>
                     </div>
                     {base > 0 ? (
                       <>
@@ -4108,6 +4097,7 @@ export function ConsumableAssetDrawer({
                         );
                       })}
                     </div>
+                  </div>
                   </div>
 
                   {/* Cost records — timeline */}
@@ -4283,6 +4273,48 @@ export function ConsumableAssetDrawer({
                   <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Depreciation Log — side drawer */}
+            {showDeprLog && (
+              <>
+                <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowDeprLog(false)} />
+                <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
+                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                  </div>
+                  <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                      Monthly <Filter size={14} className="text-[#7B8FA5]" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-white border-b border-[#E5E7EB] sticky top-0">
+                        <tr>{['Month/Year', 'Depreciation', 'Accumulated Depreciation', 'Book Value', 'Remaining Life'].map((h) => (
+                          <th key={h} className="px-6 py-3 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E5E7EB]">
+                        {[
+                          { my: 'Jan 2026', dep: '0.42 ATS', acc: '0.42 ATS', bv: '19.58 ATS', life: '47 months' },
+                          { my: 'Feb 2026', dep: '0.42 ATS', acc: '0.84 ATS', bv: '19.16 ATS', life: '46 months' },
+                          { my: 'Mar 2026', dep: '0.42 ATS', acc: '1.26 ATS', bv: '18.74 ATS', life: '45 months' },
+                        ].map((r) => (
+                          <tr key={r.my} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658] font-medium">{r.my}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.dep}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.acc}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.bv}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.life}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </>
@@ -6065,9 +6097,11 @@ export function ConsumableAssetDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeTicket?.id} 
+              <RelationsTabContent
+                ticketId={activeTicket?.id}
                 externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+                initialTypeFilter={relationsInitialFilter}
+                onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />
             )}
 
@@ -7292,7 +7326,6 @@ export function ConsumableAssetDrawer({
             assetMode={true}
             softwareMode={true}
             assetState={assetState}
-            warranty={{ daysLeft: 23, expiryDate: 'Jul 14, 2026' }}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

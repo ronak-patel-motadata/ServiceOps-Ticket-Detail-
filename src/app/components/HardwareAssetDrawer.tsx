@@ -226,6 +226,7 @@ export function HardwareAssetDrawer({
   const [showAddCost, setShowAddCost] = useState(false);
   const [newCost, setNewCost] = useState({ factor: '', date: '', amount: '', currency: 'ATS', description: '' });
   const [showConfigDepr, setShowConfigDepr] = useState(false);
+  const [showDeprLog, setShowDeprLog] = useState(false);
   const [deprConfig, setDeprConfig] = useState({ derivation: 'asset', method: '', type: 'useful', usefulLife: '', usefulLifeUnit: 'Month', salvageValue: '', currency: 'ATS' });
 
   // History tab — selected category (replaces old left sub-nav).
@@ -270,6 +271,48 @@ export function HardwareAssetDrawer({
   const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
+  // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
+  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
+
+  // Health & compliance KPI grid — reused in the Overview (AST-001) and at the top (other assets).
+  const healthComplianceGrid = (
+    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+      {([
+        { label: 'Warranty', value: 'Expires in 23 days', color: '#D97706', dot: true },
+        { label: 'Antivirus', value: 'Active', color: '#22A06B' },
+        { label: 'Patches', value: '2 missing', color: '#D97706' },
+        baselineVarianceCount > 0
+          ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', dot: true }
+          : { label: 'Encryption', value: 'On', color: '#22A06B' },
+        { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
+        { label: 'Compliance', value: 'At risk', color: '#DC2626' },
+        { label: 'Impact', color: '#3D8BD0', counts: [['Incident', 2], ['Problem', 1], ['Change', 1], ['Release', 0]] },
+        { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
+      ] as { label: string; value?: string; color: string; dot?: boolean; counts?: [string, number][] }[]).map((c) => (
+        <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
+          <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+            {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+            {c.label}
+          </div>
+          {c.counts ? (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {c.counts.map(([l, n]) => (
+                <button
+                  key={l}
+                  onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                  className="text-[12px] text-[#64748B] hover:text-[#3D8BD0] hover:underline transition-colors"
+                >
+                  {l} <span className="font-semibold text-[#364658]">{n}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
@@ -1916,10 +1959,16 @@ export function HardwareAssetDrawer({
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div className="min-w-0">
-            <h1 className="text-[18px] font-semibold text-[#364658] truncate">
-              {activeTicket.subject}
+            <h1 className="text-[18px] font-semibold text-[#364658] truncate flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
+                </TooltipTrigger>
+                <TooltipContent>Agent installed</TooltipContent>
+              </Tooltip>
+              <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
+            <span className="text-[12px] text-[#6b7280] block mt-0.5 pl-[18px]">Created at 26/02/2025 15:02 (6 days ago)</span>
           </div>
           <div className="flex items-center gap-2">
             <Tooltip>
@@ -2431,87 +2480,6 @@ export function HardwareAssetDrawer({
               </div>
             </div>
 
-            {/* Description Section (requester name/avatar removed for assets) */}
-            <div className="px-6 py-4 bg-white">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {isDescriptionExpanded ? (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                        <br /><br />
-                        Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                        ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                        process includes verification of network adapter settings, validation of proxy configurations, and testing
-                        connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                        network-dependent services are functioning optimally after the refresh is complete.
-                      </>
-                    ) : (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                        <button
-                          onClick={() => setIsDescriptionExpanded(true)}
-                          className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                        >
-                          View more
-                          <ChevronDown size={14} />
-                        </button>
-                      </>
-                    )}
-                  </p>
-                  {isDescriptionExpanded && (
-                    <button
-                      onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
-                    >
-                      View less
-                      <ChevronUp size={14} />
-                    </button>
-                  )}
-
-                  {/* Attachments — shown when description is expanded */}
-                  {isDescriptionExpanded && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {[
-                        { name: 'task-changes.doc', size: '674 KB' },
-                        { name: 'network-diagnosis.pdf', size: '2 MB' },
-                      ].map((f) => (
-                        <div
-                          key={f.name}
-                          className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                            highlightAttachments ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                          }`}
-                        >
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">{f.name}</span>
-                            <span className="text-[10px] text-[#7B8FA5]">{f.size}</span>
-                          </div>
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download"><Download className="size-3.5 text-[#7B8FA5]" /></button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete"><Trash2 className="size-3.5 text-[#EF4444]" /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Attachment count — expands description + highlights attachments */}
-                <button
-                  onClick={() => {
-                    setIsDescriptionExpanded(true);
-                    setHighlightAttachments(true);
-                    setTimeout(() => setHighlightAttachments(false), 3000);
-                  }}
-                  className="flex items-center gap-1 text-[12px] text-[#6b7280] flex-shrink-0 cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                >
-                  <Paperclip size={12} />
-                  <span>2</span>
-                </button>
-              </div>
-            </div>
-
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
@@ -2614,63 +2582,17 @@ export function HardwareAssetDrawer({
 
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
-            <div className="px-6 py-6 space-y-4">
-              {/* Health & compliance */}
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[14px] font-semibold text-[#364658]">Health &amp; compliance</h3>                </div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
-                  {[
-                    { label: 'Agent', value: 'Healthy', color: '#22A06B', dot: true },
-                    { label: 'Antivirus', value: 'Active', color: '#22A06B' },
-                    { label: 'Patches', value: '2 missing', color: '#D97706' },
-                    baselineVarianceCount > 0
-                      ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', dot: true }
-                      : { label: 'Encryption', value: 'On', color: '#22A06B' },
-                    { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
-                    { label: 'Compliance', value: 'At risk', color: '#DC2626' },
-                    { label: 'Requests', value: '2 open', color: '#3D8BD0', dot: true },
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
-                  ].map((c) => (
-                    <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
-                      <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
-                        {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
-                        {c.label}
-                      </div>
-                      <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
-                    </div>
-                  ))}
+            <div className="px-6 py-6 space-y-6">
+              {/* Group: Health & Compliance */}
+              <div>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  {healthComplianceGrid}
                 </div>
               </div>
 
-              {/* Users + Hardware + Software snapshots — one row */}
-              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[14px] font-semibold text-[#364658]">Users</h3>                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { name: 'J. Doe', dept: 'Sales', initials: 'JD', color: '#6366F1' },
-                    { name: 'A. Kumar', dept: 'IT Operations', initials: 'AK', color: '#10B981' },
-                    { name: 'Tabrez Khan', dept: 'End User Computing', initials: 'TK', color: '#3D8BD0' },
-                  ].map((u) => (
-                    <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
-                      <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
-                        <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => { setIsAccordionCollapsed(false); setActiveGroup('users'); }}
-                    className="flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-[#F9FAFB] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EFF3F8] transition-colors min-w-0"
-                  >
-                    +15 more
-                  </button>
-                </div>
-              </div>
-
+              {/* Group: Configuration */}
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[14px] font-semibold text-[#364658]">Hardware snapshot</h3>
@@ -2686,6 +2608,34 @@ export function HardwareAssetDrawer({
                       <div key={l} className="flex items-start gap-3">
                         <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
                         <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">OS snapshot</h3>
+                    <button
+                      onClick={() => {
+                        setActiveMainTab('hardware');
+                        setTimeout(() => {
+                          document.getElementById('hw-section-os')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 120);
+                      }}
+                      className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1"
+                    >View more<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['OS Name', 'Microsoft Windows 11 Pro', '#364658'],
+                      ['Activation', 'Licensed', '#22A06B'],
+                      ['Display Version', '24H2', '#364658'],
+                      ['End of Life', '13/10/2026', '#D97706'],
+                    ].map(([l, v, color]) => (
+                      <div key={l} className="flex items-start gap-3">
+                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
+                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -2711,9 +2661,64 @@ export function HardwareAssetDrawer({
                   </div>
                 </div>
               </div>
+              </div>
 
-              {/* Financial + Lifecycle */}
-              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+              {/* Group: Assignment & Location */}
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Users</h3>
+                    <button
+                      onClick={() => { setIsAccordionCollapsed(false); setActiveGroup('users'); }}
+                      className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1"
+                    >
+                      +15 more<ChevronRight size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { name: 'J. Doe', dept: 'Sales', initials: 'JD', color: '#6366F1' },
+                      { name: 'A. Kumar', dept: 'IT Operations', initials: 'AK', color: '#10B981' },
+                    ].map((u) => (
+                      <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
+                        <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
+                        <div className="min-w-0">
+                          <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
+                          <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
+                    <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="flex-1 flex items-center">
+                    <div className="w-full flex items-center gap-3 rounded-lg bg-[#F9FAFB] px-3 py-2.5">
+                      <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium text-[#364658] truncate">Ahmedabad (India)</div>
+                        <div className="text-[12px] text-[#7B8FA5]">Since 12 Jan 2026</div>
+                      </div>
+                      <button
+                        onClick={() => setShowLocationMap(true)}
+                        className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex-shrink-0"
+                      >
+                        View on Map
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </div>
+
+              {/* Group: Financials & Contracts */}
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
@@ -2731,23 +2736,25 @@ export function HardwareAssetDrawer({
 
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
-                    <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">Name</span>
-                      <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">Ahmedabad (India)</span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Active Contracts', value: '3', filter: 'Contract' },
+                      { label: 'Active Purchases', value: '2', filter: 'Purchase' },
+                    ].map((c) => (
+                      <button
+                        key={c.label}
+                        onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
+                        className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
+                      >
+                        <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
+                        <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => setShowLocationMap(true)}
-                    className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#3D8BD0] hover:bg-[#EAF3FB] hover:border-[#3D8BD0] transition-colors"
-                  >
-                    <MapPin size={14} />
-                    View on Map
-                  </button>
                 </div>
+              </div>
               </div>
 
             </div>
@@ -3817,6 +3824,8 @@ export function HardwareAssetDrawer({
                     ))}
                   </div>
 
+                  {/* Depreciation + Cost breakdown — one row */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-start`}>
                   {/* Depreciation chart */}
                   <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -3824,9 +3833,14 @@ export function HardwareAssetDrawer({
                         <h3 className="text-[14px] font-semibold text-[#364658]">Depreciation</h3>
                         <span className="text-[11px] text-[#7B8FA5]">Book value over useful life</span>
                       </div>
-                      <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
-                        <Settings2 size={14} /> Configure
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setShowDeprLog(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Clock size={14} /> Log
+                        </button>
+                        <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                          <Settings2 size={14} /> Configure
+                        </button>
+                      </div>
                     </div>
                     {base > 0 ? (
                       <>
@@ -3894,6 +3908,7 @@ export function HardwareAssetDrawer({
                         );
                       })}
                     </div>
+                  </div>
                   </div>
 
                   {/* Cost records — timeline */}
@@ -4069,6 +4084,48 @@ export function HardwareAssetDrawer({
                   <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
                     <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Depreciation Log — side drawer */}
+            {showDeprLog && (
+              <>
+                <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowDeprLog(false)} />
+                <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
+                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                  </div>
+                  <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                      Monthly <Filter size={14} className="text-[#7B8FA5]" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-white border-b border-[#E5E7EB] sticky top-0">
+                        <tr>{['Month/Year', 'Depreciation', 'Accumulated Depreciation', 'Book Value', 'Remaining Life'].map((h) => (
+                          <th key={h} className="px-6 py-3 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E5E7EB]">
+                        {[
+                          { my: 'Jan 2026', dep: '0.42 ATS', acc: '0.42 ATS', bv: '19.58 ATS', life: '47 months' },
+                          { my: 'Feb 2026', dep: '0.42 ATS', acc: '0.84 ATS', bv: '19.16 ATS', life: '46 months' },
+                          { my: 'Mar 2026', dep: '0.42 ATS', acc: '1.26 ATS', bv: '18.74 ATS', life: '45 months' },
+                        ].map((r) => (
+                          <tr key={r.my} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658] font-medium">{r.my}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.dep}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.acc}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.bv}</td>
+                            <td className="px-6 py-3 whitespace-nowrap text-[#364658]">{r.life}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </>
@@ -5851,9 +5908,11 @@ export function HardwareAssetDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeTicket?.id} 
+              <RelationsTabContent
+                ticketId={activeTicket?.id}
                 externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+                initialTypeFilter={relationsInitialFilter}
+                onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />
             )}
 
@@ -7084,7 +7143,6 @@ export function HardwareAssetDrawer({
             assetMode={true}
             assetState={assetState}
             agentInfo={agentInfo}
-            warranty={{ daysLeft: 23, expiryDate: 'Jul 14, 2026' }}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

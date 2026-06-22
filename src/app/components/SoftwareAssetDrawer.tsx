@@ -262,6 +262,15 @@ export function SoftwareAssetDrawer({
   const [softwareView, setSoftwareView] = useState<'list' | 'card'>('card');
   // Number of baseline variances detected for this asset (0 = none, shows Encryption instead).
   const baselineVarianceCount = 3;
+  // Pre-applied relation type filter when navigating from the Impact KPI.
+  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
+  // Utilization KPI — color follows the value: Over = red, Under = amber, Optimal = green.
+  const utilizationStatus = 'Over-utilized';
+  const utilizationColor = utilizationStatus.startsWith('Over')
+    ? '#DC2626'
+    : utilizationStatus.startsWith('Under')
+      ? '#D97706'
+      : '#22A06B';
   // Search across all Properties tab sections (Hardware Asset detail page).
   const [propertiesSearch, setPropertiesSearch] = useState('');
   const [showLocationMap, setShowLocationMap] = useState(false);
@@ -900,8 +909,8 @@ export function SoftwareAssetDrawer({
       if (!tabContainerRef.current) return;
 
       // Software detail tabs (Hardware, Baseline, Approvals, Financials removed).
-      const baseTabsForOthers = ['overview', 'properties', 'consolidated', 'installation', 'meter', 'software', 'relationship', 'audit'];
-      const baseTabsForINC35 = ['overview', 'properties', 'consolidated', 'installation', 'meter', 'software', 'relationship', 'service-request', 'audit'];
+      const baseTabsForOthers = ['overview', 'properties', 'consolidated', 'installation', 'meter', 'relationship', 'audit'];
+      const baseTabsForINC35 = ['overview', 'properties', 'consolidated', 'installation', 'meter', 'relationship', 'service-request', 'audit'];
 
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -2441,87 +2450,6 @@ export function SoftwareAssetDrawer({
               </div>
             </div>
 
-            {/* Description Section (requester name/avatar removed for assets) */}
-            <div className="px-6 py-4 bg-white">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] text-[#364658] leading-relaxed">
-                    {isDescriptionExpanded ? (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                        <br /><br />
-                        Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                        ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                        process includes verification of network adapter settings, validation of proxy configurations, and testing
-                        connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                        network-dependent services are functioning optimally after the refresh is complete.
-                      </>
-                    ) : (
-                      <>
-                        To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                        <button
-                          onClick={() => setIsDescriptionExpanded(true)}
-                          className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                        >
-                          View more
-                          <ChevronDown size={14} />
-                        </button>
-                      </>
-                    )}
-                  </p>
-                  {isDescriptionExpanded && (
-                    <button
-                      onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
-                    >
-                      View less
-                      <ChevronUp size={14} />
-                    </button>
-                  )}
-
-                  {/* Attachments — shown when description is expanded */}
-                  {isDescriptionExpanded && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {[
-                        { name: 'task-changes.doc', size: '674 KB' },
-                        { name: 'network-diagnosis.pdf', size: '2 MB' },
-                      ].map((f) => (
-                        <div
-                          key={f.name}
-                          className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                            highlightAttachments ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                          }`}
-                        >
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">{f.name}</span>
-                            <span className="text-[10px] text-[#7B8FA5]">{f.size}</span>
-                          </div>
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download"><Download className="size-3.5 text-[#7B8FA5]" /></button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete"><Trash2 className="size-3.5 text-[#EF4444]" /></button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Attachment count — expands description + highlights attachments */}
-                <button
-                  onClick={() => {
-                    setIsDescriptionExpanded(true);
-                    setHighlightAttachments(true);
-                    setTimeout(() => setHighlightAttachments(false), 3000);
-                  }}
-                  className="flex items-center gap-1 text-[12px] text-[#6b7280] flex-shrink-0 cursor-pointer hover:text-[#3D8BD0] transition-colors"
-                >
-                  <Paperclip size={12} />
-                  <span>2</span>
-                </button>
-              </div>
-            </div>
-
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
@@ -2532,7 +2460,6 @@ export function SoftwareAssetDrawer({
                     { id: 'consolidated', label: 'Consolidated Software' },
                     { id: 'installation', label: 'Installation' },
                     { id: 'meter', label: 'Meter' },
-                    { id: 'software', label: 'Software' },
                     { id: 'relationship', label: 'Relationship' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
@@ -2626,46 +2553,97 @@ export function SoftwareAssetDrawer({
 
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
-            <div className="px-6 py-6 space-y-4">
-              {/* License & compliance — the headline status for a software asset */}
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[14px] font-semibold text-[#364658]">License &amp; compliance</h3>
-                </div>
+            <div className="px-6 py-6 space-y-6">
+              {/* Group: License & Compliance */}
+              <div>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
-                  {[
+                  {([
                     { label: 'License', value: 'Active', color: '#22A06B', dot: true },
+                    { label: 'License Expiry', value: 'Expires in 23 days', color: '#D97706', dot: true },
                     { label: 'Compliance', value: 'Compliant', color: '#22A06B' },
                     { label: 'Patch Status', value: 'Up to date', color: '#22A06B' },
-                    { label: 'Reclaimable Seats', value: '8 unused', color: '#D97706', dot: true },
-                  ].map((c) => (
-                    <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
-                      <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
-                        {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
-                        {c.label}
-                      </div>
-                      <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
-                    </div>
-                  ))}
+                    { label: 'Utilization', value: utilizationStatus, color: utilizationColor, dot: true },
+                    { label: 'Consolidated Software', value: '5', color: '#3D8BD0', dot: true, tab: 'consolidated' },
+                    { label: 'Impact', color: '#3D8BD0', counts: [['Incident', 2], ['Problem', 1], ['Change', 1], ['Release', 0]] },
+                  ] as { label: string; value?: string; color: string; dot?: boolean; tab?: string; counts?: [string, number][] }[]).map((c) => {
+                    const inner = (
+                      <>
+                        <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+                          {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+                          {c.label}
+                        </div>
+                        {c.counts ? (
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            {c.counts.map(([l, n]) => (
+                              <button
+                                key={l}
+                                onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                                className="text-[12px] text-[#64748B] hover:text-[#3D8BD0] hover:underline transition-colors"
+                              >
+                                {l} <span className="font-semibold text-[#364658]">{n}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+                        )}
+                      </>
+                    );
+                    return c.tab ? (
+                      <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors">{inner}</button>
+                    ) : (
+                      <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">{inner}</div>
+                    );
+                  })}
+                </div>
                 </div>
               </div>
 
-              {/* License + Installation + Versions snapshots — one row */}
-              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
+              {/* Group: Software Details */}
+              <div>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">Software Details</h3>
+                  <button onClick={() => setActiveMainTab('properties')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                </div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-3`}>
+                  {[
+                    ['Publisher', 'Microsoft Corporation'],
+                    ['Software Cost', '$12,400'],
+                    ['License Type', 'Subscription'],
+                    ['Latest Version', '150.1'],
+                    ['First Detected', 'May 18, 2026'],
+                    ['Last Audit', 'Jun 02, 2026'],
+                    ['Software Type', 'Managed'],
+                    ['Category', 'Web Browser'],
+                  ].map(([l, v]) => (
+                    <div key={l} className="min-w-0">
+                      <div className="text-[12px] text-[#64748B] mb-0.5">{l}</div>
+                      <div className="text-[13px] font-medium text-[#364658] break-words">{v}</div>
+                    </div>
+                  ))}
+                </div>
+                </div>
+              </div>
+
+              {/* Group: Usage & Installation */}
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">License snapshot</h3>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Software Meter</h3>
+                    <button onClick={() => setActiveMainTab('meter')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {[
-                      ['Total Seats', '150', '#364658'],
-                      ['Used', '94', '#364658'],
-                      ['Available', '56', '#22A06B'],
-                      ['Expiry Date', 'Jul 14, 2026', '#D97706'],
+                      ['Total Usage', '700h 20m', '#364658'],
+                      ['Active Users', '2', '#22A06B'],
+                      ['Idle Installs', '2', '#D97706'],
                     ].map(([l, v, color]) => (
-                      <div key={l} className="flex items-start gap-3">
-                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
-                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
+                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                        <div className="text-[15px] font-semibold" style={{ color }}>{v}</div>
                       </div>
                     ))}
                   </div>
@@ -2676,78 +2654,77 @@ export function SoftwareAssetDrawer({
                     <h3 className="text-[14px] font-semibold text-[#364658]">Installation snapshot</h3>
                     <button onClick={() => setActiveMainTab('installation')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
-                  <div className="space-y-3">
-                    {[
-                      ['Total Installs', '42', '#364658'],
-                      ['Laptops', '28', '#364658'],
-                      ['Desktops', '11', '#364658'],
-                      ['Servers', '3', '#364658'],
-                    ].map(([l, v, color]) => (
-                      <div key={l} className="flex items-start gap-3">
-                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
-                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
+                  {(() => {
+                    const segs = [
+                      { label: 'Laptops', value: 28, color: '#3D8BD0' },
+                      { label: 'Desktops', value: 11, color: '#22A06B' },
+                      { label: 'Servers', value: 3, color: '#D97706' },
+                    ];
+                    const total = segs.reduce((s, x) => s + x.value, 0);
+                    const C = 2 * Math.PI * 40;
+                    let acc = 0;
+                    return (
+                      <div className="flex items-center gap-5">
+                        <div className="relative flex-shrink-0">
+                          <svg viewBox="0 0 100 100" className="size-[120px] -rotate-90">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+                            {segs.map((s) => {
+                              const len = (s.value / total) * C;
+                              const off = -(acc / total) * C;
+                              acc += s.value;
+                              return (
+                                <circle
+                                  key={s.label}
+                                  cx="50" cy="50" r="40" fill="none"
+                                  stroke={s.color} strokeWidth="16"
+                                  strokeDasharray={`${len} ${C - len}`}
+                                  strokeDashoffset={off}
+                                />
+                              );
+                            })}
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-[18px] font-semibold text-[#364658] leading-none">{total}</span>
+                            <span className="text-[10px] text-[#7B8FA5] mt-0.5">Total</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-2.5">
+                          {segs.map((s) => (
+                            <div key={s.label} className="flex items-center">
+                              <span className="flex items-center gap-2 text-[12px] text-[#64748B] w-20 flex-shrink-0">
+                                <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                {s.label}
+                              </span>
+                              <span className="text-[13px] font-semibold text-[#364658]">{s.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Versions snapshot</h3>
-                    <button onClick={() => setActiveMainTab('consolidated')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      ['Versions', '5', '#364658'],
-                      ['Latest', '150.1', '#22A06B'],
-                      ['Outdated', '12', '#D97706'],
-                      ['Prohibited', '1', '#DC2626'],
-                    ].map(([l, v, color]) => (
-                      <div key={l} className="flex items-start gap-3">
-                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
-                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
+              </div>
 
-              {/* Cost snapshot + Software details */}
-              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Cost snapshot</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[['Total Cost', '$12,400'], ['Cost / Seat', '$82'], ['Annual', '$4,200']].map(([l, v]) => (
-                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                        <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                      </div>
-                    ))}
-                  </div>
+              {/* Group: Contracts & Purchases */}
+              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
                 </div>
-
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Software details</h3>
-                    <button onClick={() => setActiveMainTab('properties')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                    {[
-                      ['Publisher', 'Microsoft Corporation'],
-                      ['Category', 'Web Browser'],
-                      ['License Type', 'Subscription'],
-                      ['First Detected', 'May 18, 2026'],
-                      ['Last Audit', 'Jun 02, 2026'],
-                      ['Software Type', 'Managed'],
-                    ].map(([l, v]) => (
-                      <div key={l} className="min-w-0">
-                        <div className="text-[12px] text-[#64748B] mb-0.5">{l}</div>
-                        <div className="text-[13px] font-medium text-[#364658] break-words">{v}</div>
-                      </div>
-                    ))}
-                  </div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                  {[
+                    { label: 'Active Contracts', value: '3', filter: 'Contract' },
+                    { label: 'Active Purchases', value: '2', filter: 'Purchase' },
+                  ].map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
+                      className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
+                    >
+                      <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
+                      <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -3492,7 +3469,7 @@ export function SoftwareAssetDrawer({
               ];
               const summary = [
                 ['Total Usage', '700h 20m', '#364658'],
-                ['Active Users (30d)', '2', '#22A06B'],
+                ['Active Users', '2', '#22A06B'],
                 ['Avg Sessions / User', '115', '#364658'],
                 ['Idle Installs', '2', '#D97706'],
               ] as [string, string, string][];
@@ -6003,9 +5980,11 @@ export function SoftwareAssetDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeTicket?.id} 
+              <RelationsTabContent
+                ticketId={activeTicket?.id}
                 externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+                initialTypeFilter={relationsInitialFilter}
+                onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />
             )}
 
@@ -7236,7 +7215,6 @@ export function SoftwareAssetDrawer({
             assetMode={true}
             softwareMode={true}
             assetState={assetState}
-            licenseExpiry={{ daysLeft: 23, expiryDate: 'Jul 14, 2026' }}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {

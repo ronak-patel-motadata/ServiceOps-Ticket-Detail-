@@ -7,7 +7,7 @@ import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine } from 'lucide-react';
 
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
@@ -575,6 +575,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Add User side drawer (asset Users group)
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
+  // Accordion: which asset users are expanded (showing account type / domain / SID / description)
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const openAddUser = () => {
     setNewUser({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
     setShowAddUser(true);
@@ -1298,11 +1300,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* Agent Information — pinned to the top of the asset properties panel */}
         {assetMode && (agentInfo?.id || agentInfo?.lastSyncDate) && (
           <div ref={requesterInfoRef}>
-            <div className="flex items-center gap-3 rounded-lg bg-[#F9FAFB] p-3">
+            <div className="group relative flex items-center gap-3 rounded-lg bg-[#F9FAFB] p-3">
+              <button
+                title="Scan now"
+                className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md border border-[#DFE5ED] bg-white px-2 py-1 text-[11px] font-medium text-[#3D8BD0] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#EAF3FB] hover:border-[#3D8BD0]"
+              >
+                <ScanLine size={12} />
+                Scan now
+              </button>
               <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><Bot size={20} /></span>
               <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Agent</div>
-                {agentInfo?.id && <div className="text-[13px] font-semibold text-[#364658] truncate">{agentInfo.id}</div>}
+                {agentInfo?.id && (
+                  <div className="text-[13px] font-semibold text-[#364658] truncate flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
+                    {agentInfo.id}
+                  </div>
+                )}
                 {agentInfo?.lastSyncDate && (
                   <div className="text-[11px] text-[#7B8FA5] flex items-center gap-1.5 mt-0.5">
                     <RefreshCw size={11} className="flex-shrink-0" />
@@ -2044,35 +2057,55 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {activeGroup === 'users' && (
           <div className="space-y-2">
               {[
-                { name: 'J. Doe', initials: 'JD', color: '#6366F1', dept: 'Sales', email: 'j.doe@motadata.com', lastLogin: '19 Jun 2026, 09:12 AM', disabled: false },
-                { name: 'A. Kumar', initials: 'AK', color: '#10B981', dept: 'IT Operations', email: 'a.kumar@motadata.com', lastLogin: '18 Jun 2026, 06:45 PM', disabled: false },
-                { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0', dept: 'End User Computing', email: 'tabrez.khan@motadata.com', lastLogin: '17 Jun 2026, 02:30 PM', disabled: false },
-                { name: 'Priya Sharma', initials: 'PS', color: '#F59E0B', dept: 'Human Resources', email: 'priya.sharma@motadata.com', lastLogin: '19 Jun 2026, 08:05 AM', disabled: false },
-                { name: 'Rahul Mehta', initials: 'RM', color: '#EC4899', dept: 'Finance', email: 'rahul.mehta@motadata.com', lastLogin: '16 Jun 2026, 05:20 PM', disabled: false },
-                { name: 'Sara Williams', initials: 'SW', color: '#8B5CF6', dept: 'Marketing', email: 'sara.williams@motadata.com', lastLogin: '15 Jun 2026, 11:48 AM', disabled: false },
-                { name: 'Vikram Singh', initials: 'VS', color: '#EF4444', dept: 'Operations', email: 'vikram.singh@motadata.com', lastLogin: '02 May 2026, 06:12 PM', disabled: true },
-                { name: 'Neha Gupta', initials: 'NG', color: '#0EA5E9', dept: 'Customer Support', email: 'neha.gupta@motadata.com', lastLogin: '18 Jun 2026, 09:55 AM', disabled: false },
-              ].map((u) => (
-                <div key={u.name} className="group relative px-3 py-2.5 rounded-[10px] bg-[#F9FAFB]">
-                  <div className="flex items-start gap-3">
+                { name: 'Karan Malhotra', initials: 'KM', color: '#6366F1', dept: 'IT Operations', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-504', disabled: true, description: 'Local user account for Karan Malhotra.' },
+                { name: 'Aarav Sharma', initials: 'AS', color: '#10B981', dept: 'Sales', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-1009', disabled: false, description: 'Local user account for Aarav Sharma.' },
+                { name: 'Daniel Cooper', initials: 'DC', color: '#3D8BD0', dept: 'Engineering', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-1001', disabled: false, description: 'Local user account for Daniel Cooper.' },
+                { name: 'Emily Watson', initials: 'EW', color: '#F59E0B', dept: 'Marketing', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-1002', disabled: false, description: 'Local user account for Emily Watson.' },
+                { name: 'Rahul Verma', initials: 'RV', color: '#EC4899', dept: 'Customer Support', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-501', disabled: true, description: 'Local user account for Rahul Verma.' },
+                { name: 'Sara Williams', initials: 'SW', color: '#8B5CF6', dept: 'Finance', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-503', disabled: true, description: 'Local user account for Sara Williams.' },
+                { name: 'Vikram Singh', initials: 'VS', color: '#EF4444', dept: 'Operations', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-500', disabled: true, description: 'Local user account for Vikram Singh.' },
+              ].map((u) => {
+                const open = expandedUsers.has(u.name);
+                return (
+                <div key={u.name} className="group relative rounded-[10px] bg-[#F9FAFB]">
+                  <div
+                    onClick={() => setExpandedUsers((prev) => { const n = new Set(prev); n.has(u.name) ? n.delete(u.name) : n.add(u.name); return n; })}
+                    className="w-full text-left px-3 py-2.5 flex items-center gap-3 cursor-pointer"
+                  >
                     <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 group-hover:pr-14 transition-[padding] duration-150">
+                      <div className="flex items-center gap-2">
                         <span className="text-[13px] font-medium text-[#364658] truncate">{u.name}</span>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${u.disabled ? 'bg-[#FDECEC] text-[#DC2626]' : 'bg-[#E7F6EE] text-[#22A06B]'}`}>{u.disabled ? 'Disabled' : 'Active'}</span>
+                        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                          <span className="hidden group-hover:flex items-center gap-0.5">
+                            <button title="Edit" onClick={(e) => e.stopPropagation()} className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Edit size={13} /></button>
+                            <button title="Delete" onClick={(e) => e.stopPropagation()} className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
+                          </span>
+                          <span className="text-[#9CA3AF]">{open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
+                        </div>
                       </div>
                       <div className="text-[12px] text-[#7B8FA5] truncate">{u.dept}</div>
-                      <div className="text-[11px] text-[#9CA3AF] truncate">{u.email}</div>
-                      <div className="text-[11px] text-[#9CA3AF] truncate">Last login: {u.lastLogin}</div>
                     </div>
                   </div>
-                  {/* Hover actions */}
-                  <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-[#F9FAFB] rounded">
-                    <button title="Edit" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Edit size={13} /></button>
-                    <button title="Delete" className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
-                  </div>
+                  {open && (
+                    <div className="px-3 pb-3 space-y-2 border-t border-[#EEF1F4] pt-2.5">
+                      {[
+                        ['Account Type', u.accountType],
+                        ['Domain', u.domain],
+                        ['Security ID', u.sid],
+                        ['Description', u.description || '---'],
+                      ].map(([l, v]) => (
+                        <div key={l} className="flex items-start gap-3">
+                          <span className="text-[11px] text-[#7B8FA5] flex-shrink-0 w-[90px]">{l}</span>
+                          <span className={`text-[12px] flex-1 min-w-0 break-words ${v === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
         )}
 
