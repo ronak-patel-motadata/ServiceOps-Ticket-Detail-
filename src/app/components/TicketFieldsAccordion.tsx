@@ -13,6 +13,7 @@ interface TicketFieldsAccordionProps {
   assetState?: AssetFieldState;
   // When true (software assets), render the software field set (Software Type, no CI/View more).
   softwareMode?: boolean;
+  licenseMode?: boolean;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -190,6 +191,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     assetMode = false,
     assetState,
     softwareMode = false,
+    licenseMode = false,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -430,6 +432,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           togglePinField={togglePinField}
           propertiesSearchQuery={propertiesSearchQuery}
           softwareMode={softwareMode}
+          licenseMode={licenseMode}
         />
       )}
 

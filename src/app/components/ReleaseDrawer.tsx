@@ -5906,6 +5906,7 @@ export function ReleaseDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
+            propertiesTitle="Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

@@ -5584,6 +5584,7 @@ export function TicketDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
+            propertiesTitle="Ticket Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

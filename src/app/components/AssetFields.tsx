@@ -25,12 +25,22 @@ export interface AssetFieldState {
   // Software-asset only: the Software Type field (Managed / Discovered / Unmanaged).
   softwareType?: string;
   setSoftwareType?: (v: string) => void;
+  // Software-license only: Product (read-only) + License Type (editable dropdown).
+  product?: string;
+  licenseType?: string;
+  setLicenseType?: (v: string) => void;
   // Values for the "View more" additional fields, keyed by field label.
   extra?: Record<string, string>;
   setExtra?: (v: Record<string, string>) => void;
 }
 
 export const SOFTWARE_TYPE_OPTIONS = ['Managed', 'Discovered', 'Unmanaged'];
+
+export const LICENSE_TYPE_OPTIONS = [
+  'Single Machine', 'Multiple Machines', 'Unlimited Machines', 'Node Locked',
+  'Single User', 'Volume Users', 'Unlimited Users', 'Enterprise-Perpetual',
+  'OEM', 'Free License', 'Enterprise Subscription',
+];
 
 /** Field labels in display order — also used for pinning and search matching. */
 export const ASSET_FIELD_LABELS = [
@@ -264,12 +274,16 @@ interface AssetFieldsProps {
   propertiesSearchQuery: string;
   // Software-asset variant: shows Software Type and hides CI / "View more" extras.
   softwareMode?: boolean;
+  // Software-license variant: shows ONLY Product (read-only) + License Type (dropdown).
+  licenseMode?: boolean;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, licenseMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
+  const licenseType = state.licenseType ?? '';
+  const setLicenseType = state.setLicenseType ?? (() => {});
   const extra = state.extra ?? {};
   const setExtra = state.setExtra ?? (() => {});
 
@@ -280,6 +294,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
   const [statusSearch, setStatusSearch] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
+  const [licenseTypeSearch, setLicenseTypeSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['Hardware']));
 
   const ref = useRef<HTMLDivElement>(null);
@@ -392,6 +407,52 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       default: return null;
     }
   };
+
+  // Software-license variant: only Product (read-only) + License Type (dropdown).
+  if (licenseMode) {
+    const filteredLicenseTypes = LICENSE_TYPE_OPTIONS.filter((o) => o.toLowerCase().includes(licenseTypeSearch.toLowerCase()));
+    return (
+      <div className="px-4 pb-4 space-y-2" ref={ref}>
+        {/* Product (read-only) */}
+        {(!q || 'product'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Product</div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[13px] text-[#364658] px-3 py-2 block truncate">{state.product || '---'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* License Type (dropdown) */}
+        {(!q || 'license type'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">License Type</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <button className={`${triggerClass} pl-3`} title={licenseType} onClick={() => toggle('licenseType')}>
+                  {licenseType ? <span className="truncate">{licenseType}</span> : <span className="text-[#9CA3AF]">Select</span>}
+                </button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'licenseType' && (
+                  <div className={menuClass}>
+                    <SearchBox value={licenseTypeSearch} onChange={setLicenseTypeSearch} />
+                    <div className="max-h-[280px] overflow-y-auto">
+                      {filteredLicenseTypes.map((o) => (
+                        <button key={o} className={optionClass} onClick={() => { setLicenseType(o); setOpen(null); setLicenseTypeSearch(''); }}>
+                          <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                          {licenseType === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 pb-4 space-y-2" ref={ref}>

@@ -11,7 +11,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -409,7 +409,7 @@ export function SoftwareAssetDrawer({
   const [isRefreshingAiSummary, setIsRefreshingAiSummary] = useState(false);
   const [showAiSummaryMenu, setShowAiSummaryMenu] = useState(false);
   const aiSummaryMenuRef = useRef<HTMLDivElement>(null);
-  const quickActionHandlerRef = useRef<((actionType: string) => void) | null>(null);
+  const quickActionHandlerRef = useRef<((actionType: string, customResponse?: string) => void) | null>(null);
 
   // Additional Fields Tab
   const [additionalFieldsTab, setAdditionalFieldsTab] = useState<'form' | 'system'>('form');
@@ -673,7 +673,7 @@ export function SoftwareAssetDrawer({
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -2558,42 +2558,97 @@ export function SoftwareAssetDrawer({
               <div>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
-                  {([
-                    { label: 'License', value: 'Active', color: '#22A06B', dot: true },
-                    { label: 'License Expiry', value: 'Expires in 23 days', color: '#D97706', dot: true },
-                    { label: 'Compliance', value: 'Compliant', color: '#22A06B' },
-                    { label: 'Patch Status', value: 'Up to date', color: '#22A06B' },
-                    { label: 'Utilization', value: utilizationStatus, color: utilizationColor, dot: true },
-                    { label: 'Consolidated Software', value: '5', color: '#3D8BD0', dot: true, tab: 'consolidated' },
-                    { label: 'Impact', color: '#3D8BD0', counts: [['Incident', 2], ['Problem', 1], ['Change', 1], ['Release', 0]] },
-                  ] as { label: string; value?: string; color: string; dot?: boolean; tab?: string; counts?: [string, number][] }[]).map((c) => {
+                  {(() => {
+                    const patchesMissing = 2;
+                    const impactSeed = [...(activeAssetId ?? 'SWAST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+                    const impactCounts: [string, number][] = [
+                      ['Incident', impactSeed % 4],
+                      ['Problem', Math.floor(impactSeed / 4) % 3],
+                      ['Change', Math.floor(impactSeed / 7) % 3],
+                      ['Release', Math.floor(impactSeed / 11) % 2],
+                    ];
+                    const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
+                    return [
+                    { label: 'License', value: 'Active', color: '#22A06B', icon: BadgeCheck,
+                      ai: { action: 'Manage license', q: 'Show the license details and renewal status for this software',
+                        a: "**License:** Active — 250 seats, Subscription (annual).\n**Assigned:** 250 / 250 seats in use.\n\n**Recommended next steps:**\n• Review seat allocation for inactive users\n• Confirm auto-renewal settings with the vendor\n\nWould you like a breakdown of seat assignments?" } },
+                    { label: 'License Expiry', value: 'Expires in 23 days', color: '#D97706', icon: Clock,
+                      ai: { action: 'Renew license', q: 'When does this software license expire and how do I renew it?',
+                        a: "**License expiry:** Renews in **23 days** (Jul 11, 2026).\n**Term:** Annual subscription.\n\n**Recommended next steps:**\n• Confirm the renewal budget with the software owner\n• Validate the seat count before renewal to right-size the order\n\nShall I draft a renewal request to the vendor?" } },
+                    { label: 'Compliance', value: 'Compliant', color: '#22A06B', icon: ShieldCheck,
+                      ai: { action: 'Check compliance', q: 'Is this software compliant and what should I monitor?',
+                        a: "**Compliance:** Compliant — entitlements cover current installs.\n**Installs:** 250 · **Entitled:** 250.\n\n**Recommended next steps:**\n• Keep monitoring installs vs entitlements\n• Schedule the next true-up review\n\nWant me to set a reminder for the next compliance review?" } },
+                    ...(patchesMissing > 0 ? [{ label: 'Patch Status', value: `${patchesMissing} patches missing`, color: '#D97706', icon: Download,
+                      ai: { action: 'Deploy patches', q: 'Which patches are missing for this software and how do I deploy them?',
+                        a: "**Patch status:** **2 patches missing** for this software.\n\n**Missing:**\n• Security patch 150.1.2 (Critical)\n• Maintenance update 150.1.1 (Important)\n\n**Recommended next steps:**\n• Deploy the critical patch in the next window\n• Validate the version after install\n\nWould you like me to schedule these patches?" } }] : []),
+                    { label: 'Utilization', value: utilizationStatus, color: utilizationColor, icon: Gauge,
+                      ai: { action: 'Optimize seats', q: 'Why is this software over-utilized and how do I optimize license seats?',
+                        a: "**Utilization:** Over-utilized — installs exceed comfortable headroom.\n**Usage:** 250 / 250 seats (100%).\n\n**Recommended next steps:**\n• Purchase additional seats, or\n• Reclaim seats from inactive users (12 idle > 30 days)\n\nShall I list the inactive users to reclaim seats from?" } },
+                    { label: 'Consolidated Software', value: '5', color: '#3D8BD0', icon: Package, tab: 'consolidated' },
+                    ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
+                  ] as { label: string; value?: string; color: string; icon: typeof Activity; tab?: string; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
+                    const Icon = c.icon;
+                    if (c.counts) {
+                      const visible = c.counts.filter(([, n]) => n > 0);
+                      return (
+                        <div key={c.label} className={`${visible.length >= 4 ? 'col-span-2' : ''} bg-[#F9FAFB] rounded-xl p-3.5 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={15} /></span>
+                            <div className="text-[12px] text-[#7B8FA5]">Open related records for this asset</div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {visible.map(([l, n]) => {
+                              const m = ({
+                                Incident: { icon: TicketIcon, color: '#DC2626' },
+                                Problem: { icon: Stethoscope, color: '#D97706' },
+                                Change: { icon: RefreshCw, color: '#8B5CF6' },
+                                Release: { icon: Package, color: '#22A06B' },
+                              } as Record<string, { icon: typeof TicketIcon; color: string }>)[l];
+                              const Ic = m.icon;
+                              return (
+                                <button
+                                  key={l}
+                                  onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                                  className="group/imp flex items-center gap-1.5 rounded-lg bg-white border border-[#E5E7EB] pl-1.5 pr-2 py-1 hover:shadow-sm transition-all"
+                                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
+                                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                                >
+                                  <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
+                                  <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
+                                  <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
                     const inner = (
                       <>
-                        <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
-                          {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
-                          {c.label}
+                        <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
+                          <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
                         </div>
-                        {c.counts ? (
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                            {c.counts.map(([l, n]) => (
-                              <button
-                                key={l}
-                                onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                className="text-[12px] text-[#64748B] hover:text-[#3D8BD0] hover:underline transition-colors"
-                              >
-                                {l} <span className="font-semibold text-[#364658]">{n}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
-                        )}
                       </>
                     );
                     return c.tab ? (
-                      <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors">{inner}</button>
+                      <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 text-left border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">{inner}</button>
                     ) : (
-                      <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">{inner}</div>
+                      <div key={c.label} className="group relative bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
+                        {inner}
+                        {c.ai && (
+                          <button
+                            onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
+                            title={`Ask ServiceOps AI — ${c.ai.action}`}
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                            className="group/ai absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
+                          >
+                            <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
+                            <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -7323,6 +7378,7 @@ export function SoftwareAssetDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
+            propertiesTitle="Asset Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

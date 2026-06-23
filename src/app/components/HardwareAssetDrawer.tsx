@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -275,42 +275,96 @@ export function HardwareAssetDrawer({
   const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
 
   // Health & compliance KPI grid — reused in the Overview (AST-001) and at the top (other assets).
+  // Per-asset impact counts: deterministically derived from the asset id so each
+  // asset consistently shows a different number of pills (1–4) when opened.
+  const impactSeed = [...(activeAssetId ?? 'AST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  const impactItems: { label: string; n: number; color: string; icon: typeof Shield; filter: string }[] = [
+    { label: 'Incidents', n: impactSeed % 4, color: '#DC2626', icon: TicketIcon, filter: 'Request' },
+    { label: 'Problems', n: Math.floor(impactSeed / 4) % 3, color: '#D97706', icon: Stethoscope, filter: 'Problem' },
+    { label: 'Changes', n: Math.floor(impactSeed / 7) % 3, color: '#8B5CF6', icon: RefreshCw, filter: 'Change' },
+    { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: Package, filter: 'Release' },
+  ];
+  const impactVisible = impactItems.filter((it) => it.n > 0);
   const healthComplianceGrid = (
-    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
       {([
-        { label: 'Warranty', value: 'Expires in 23 days', color: '#D97706', dot: true },
-        { label: 'Antivirus', value: 'Active', color: '#22A06B' },
-        { label: 'Patches', value: '2 missing', color: '#D97706' },
+        { label: 'Warranty', value: 'Expires in 23 days', color: '#D97706', icon: ShieldCheck,
+          ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
+            a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Dell ProSupport Plus — onsite next-business-day.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term (1 yr / 3 yr) with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
+        { label: 'Antivirus', value: 'Active', color: '#22A06B', icon: Shield,
+          ai: { action: 'Run a scan', q: 'Run a security scan on this asset',
+            a: "**Antivirus:** Active — CrowdStrike Falcon, definitions updated 4 hours ago.\n**Last full scan:** 2 days ago — 0 threats found.\n\n**Recommended next steps:**\n• Trigger an on-demand full scan now\n• Verify real-time protection is enabled\n• Review the quarantine log for the last 30 days\n\nShall I trigger an on-demand scan and notify the asset owner?" } },
+        { label: 'Patches', value: '2 missing', color: '#D97706', icon: Download,
+          ai: { action: 'Deploy patches', q: 'Which patches are missing on this asset and how do I deploy them?',
+            a: "**Patch status:** **2 missing** updates.\n\n**Missing:**\n• KB5034441 — Security Update (Critical)\n• KB5034123 — Cumulative Update (Important)\n\n**Recommended next steps:**\n• Schedule deployment in the next maintenance window\n• A reboot is required after KB5034441\n• Re-validate against the patch baseline after install\n\nWould you like me to schedule these patches for the next window?" } },
         baselineVarianceCount > 0
-          ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', dot: true }
-          : { label: 'Encryption', value: 'On', color: '#22A06B' },
-        { label: 'Software', value: '1 unauthorized', color: '#DC2626' },
-        { label: 'Compliance', value: 'At risk', color: '#DC2626' },
-        { label: 'Impact', color: '#3D8BD0', counts: [['Incident', 2], ['Problem', 1], ['Change', 1], ['Release', 0]] },
-        { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
-      ] as { label: string; value?: string; color: string; dot?: boolean; counts?: [string, number][] }[]).map((c) => (
-        <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
-          <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
-            {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
-            {c.label}
-          </div>
-          {c.counts ? (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-              {c.counts.map(([l, n]) => (
-                <button
-                  key={l}
-                  onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                  className="text-[12px] text-[#64748B] hover:text-[#3D8BD0] hover:underline transition-colors"
-                >
-                  {l} <span className="font-semibold text-[#364658]">{n}</span>
-                </button>
-              ))}
+          ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', icon: ShieldAlert,
+              ai: { action: 'Investigate drift', q: 'What baseline variances were detected on this asset?',
+                a: "**Baseline variance:** **3 deviations** from the approved Gold baseline.\n\n**Detected changes:**\n• Unapproved service enabled: Remote Registry\n• Firewall rule modified: inbound 3389 (RDP) opened\n• Local admin group: 1 unexpected member added\n\n**Recommended next steps:**\n• Review each deviation and revert unauthorized changes\n• Confirm with the asset owner whether changes were intentional\n• Re-run the baseline scan to clear resolved items\n\nWant me to open a change to remediate these deviations?" } }
+          : { label: 'Encryption', value: 'On', color: '#22A06B', icon: Lock,
+              ai: { action: 'Verify encryption', q: 'Is this asset encrypted and is the recovery key escrowed?',
+                a: "**Encryption:** On — BitLocker (XTS-AES 256).\n**Recovery key:** Escrowed in AD on May 30, 2026.\n\n**Recommended next steps:**\n• Confirm the key is recoverable from the directory\n• Verify the TPM is healthy and owned\n\nWant me to validate the recovery key escrow?" } },
+        { label: 'Software', value: '1 unauthorized', color: '#DC2626', icon: AppWindow,
+          ai: { action: 'Review software', q: 'Which unauthorized software is installed on this asset?',
+            a: "**Unauthorized software:** **1 application** flagged against policy.\n\n**Flagged:**\n• uTorrent 3.6 — prohibited (P2P category)\n\n**Recommended next steps:**\n• Uninstall via software deployment\n• Notify the user of the policy violation\n• Add to the blocklist to prevent reinstall\n\nShall I queue an uninstall and notify the user?" } },
+        { label: 'Compliance', value: 'At risk', color: '#DC2626', icon: BadgeCheck,
+          ai: { action: 'Fix compliance', q: "Why is this asset's compliance at risk and how do I fix it?",
+            a: "**Compliance:** **At risk** — 3 of 12 controls failing.\n\n**Failing controls:**\n• Disk encryption not enforced (BitLocker off)\n• 2 missing security patches\n• 1 unauthorized application present\n\n**Recommended next steps:**\n• Enable BitLocker and escrow the recovery key\n• Deploy the 2 missing patches\n• Remove the unauthorized application\n\nWould you like me to bundle these into a single remediation plan?" } },
+        ...(impactVisible.length > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, impact: true }] : []),
+        { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
+      ] as { label: string; value?: string; color: string; icon: typeof Shield; impact?: boolean; ai?: { action: string; q: string; a: string } }[]).map((c) => {
+        const Icon = c.icon;
+        if (c.impact) {
+          return (
+            <div key={c.label} className={`${impactVisible.length >= 4 ? 'col-span-2' : ''} bg-[#F9FAFB] rounded-xl p-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={15} /></span>
+                <div className="text-[12px] text-[#7B8FA5]">Open related records for this asset</div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {impactVisible.map((it) => {
+                  const ItIcon = it.icon;
+                  return (
+                    <button
+                      key={it.label}
+                      onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }}
+                      className="group/imp flex items-center gap-1.5 rounded-lg bg-white border border-[#E5E7EB] pl-2 pr-2.5 py-1.5 hover:shadow-sm transition-all"
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = it.color)}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                    >
+                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${it.color}1A`, color: it.color }}><ItIcon size={12} /></span>
+                      <span className="text-[15px] font-bold leading-none" style={{ color: it.color }}>{it.n}</span>
+                      <span className="text-[12px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{it.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ) : (
-            <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+          );
+        }
+        return (
+        <div key={c.label} className="group relative bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
+          <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}>
+            <Icon size={17} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
+            <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
+          </div>
+          {c.ai && (
+            <button
+              onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
+              title={`Ask ServiceOps AI — ${c.ai.action}`}
+              style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+              className="group/ai absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
+            >
+              <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
+              <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
+            </button>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -424,7 +478,7 @@ export function HardwareAssetDrawer({
   const [isRefreshingAiSummary, setIsRefreshingAiSummary] = useState(false);
   const [showAiSummaryMenu, setShowAiSummaryMenu] = useState(false);
   const aiSummaryMenuRef = useRef<HTMLDivElement>(null);
-  const quickActionHandlerRef = useRef<((actionType: string) => void) | null>(null);
+  const quickActionHandlerRef = useRef<((actionType: string, customResponse?: string) => void) | null>(null);
 
   // Additional Fields Tab
   const [additionalFieldsTab, setAdditionalFieldsTab] = useState<'form' | 'system'>('form');
@@ -688,7 +742,7 @@ export function HardwareAssetDrawer({
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -7251,6 +7305,7 @@ export function HardwareAssetDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
+            propertiesTitle="Asset Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

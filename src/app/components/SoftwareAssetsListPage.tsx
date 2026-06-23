@@ -63,7 +63,7 @@ const mockAssets: SoftwareAsset[] = [
   { id: 'SWAST-26911', name: 'AnyDesk', assetType: 'Application', status: 'Retired', version: '8.1.0', softwareType: 'Discovered', managedByGroup: 'Unassigned', managedBy: U, impact: 'On Users', softwareCategory: 'Remote Access' },
 ];
 
-export function SoftwareAssetsListPage({ onNavigate }: { onNavigate: (page: string) => void }) {
+export function SoftwareAssetsListPage({ onNavigate, initialOpenId, onInitialOpenConsumed }: { onNavigate: (page: string) => void; initialOpenId?: string | null; onInitialOpenConsumed?: () => void }) {
   const [assets] = useState<SoftwareAsset[]>(mockAssets);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +94,15 @@ export function SoftwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
   };
 
   const handleTabChange = (assetId: string) => setActiveAssetId(assetId);
+
+  // Auto-open a specific asset when navigated here from elsewhere (e.g. a Software License's Managed Softwares card).
+  useEffect(() => {
+    if (!initialOpenId) return;
+    const asset = assets.find(a => a.id === initialOpenId);
+    if (asset) handleOpenAsset(asset);
+    onInitialOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenId]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

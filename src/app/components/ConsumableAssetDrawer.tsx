@@ -11,7 +11,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Bell, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, Layers, AlertTriangle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -289,6 +289,11 @@ export function ConsumableAssetDrawer({
   const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
+  const [showNotifyMenu, setShowNotifyMenu] = useState(false);
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
+  const [notifyMinQty, setNotifyMinQty] = useState('0');
+  const [notifyUnit, setNotifyUnit] = useState<'Unit' | 'Percentage'>('Unit');
+  const [showNotifyUnitDropdown, setShowNotifyUnitDropdown] = useState(false);
 
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
@@ -664,7 +669,7 @@ export function ConsumableAssetDrawer({
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -2006,6 +2011,85 @@ export function ConsumableAssetDrawer({
                 </div>
               )}
             </div>
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifyMenu((v) => !v)}
+                className={`p-1.5 bg-white border rounded hover:bg-[#F5F7FA] ${showNotifyMenu ? 'border-[#3D8BD0]' : 'border-[#DFE5ED]'}`}
+                title="Notification Settings"
+              >
+                <Bell size={16} className="text-[#6b7280]" />
+              </button>
+
+              {showNotifyMenu && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => { setShowNotifyMenu(false); setShowNotifyUnitDropdown(false); }} />
+                  <div className="absolute top-full right-0 pt-1 z-[9999] w-[280px]">
+                    <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Notification Settings</h3>
+
+                      {/* Enable toggle */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Enabled</div>
+                        <button
+                          onClick={() => setNotifyEnabled((v) => !v)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${notifyEnabled ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`}
+                        >
+                          <span className={`inline-block size-4 transform rounded-full bg-white shadow transition-transform ${notifyEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </button>
+                      </div>
+
+                      {/* Minimum quantity */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Minimum Quantity <span className="text-[#DC2626]">*</span></div>
+                        <div className="flex items-stretch gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={notifyMinQty}
+                            onChange={(e) => setNotifyMinQty(e.target.value)}
+                            disabled={!notifyEnabled}
+                            className="flex-1 min-w-0 rounded-md border border-[#DFE5ED] px-3 py-2 text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0] disabled:bg-[#F5F7FA] disabled:text-[#9ca3af]"
+                          />
+                          <div className="relative">
+                            <button
+                              onClick={() => setShowNotifyUnitDropdown((v) => !v)}
+                              disabled={!notifyEnabled}
+                              className="h-full flex items-center gap-1.5 rounded-md border border-[#DFE5ED] px-2.5 text-[13px] text-[#364658] hover:bg-[#F5F7FA] disabled:bg-[#F5F7FA] disabled:text-[#9ca3af]"
+                            >
+                              {notifyUnit}
+                              <ChevronDown size={14} className="text-[#7B8FA5]" />
+                            </button>
+                            {showNotifyUnitDropdown && notifyEnabled && (
+                              <div className="absolute top-full right-0 mt-1 z-[10000] w-[130px] bg-white rounded-md shadow-lg border border-[#DFE5ED] py-1">
+                                {(['Unit', 'Percentage'] as const).map((u) => (
+                                  <button
+                                    key={u}
+                                    onClick={() => { setNotifyUnit(u); setShowNotifyUnitDropdown(false); }}
+                                    className={`w-full px-3 py-1.5 text-left text-[13px] hover:bg-[#F9FAFB] ${notifyUnit === u ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}
+                                  >
+                                    {u}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Update */}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => { setShowNotifyMenu(false); setShowNotifyUnitDropdown(false); }}
+                          className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#357fbd]"
+                        >
+                          Update
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <div
               className="relative"
               onMouseEnter={() => setShowBarcodeMenu(true)}
@@ -2905,30 +2989,59 @@ export function ConsumableAssetDrawer({
               {/* Group: Quantity & Allocation */}
               <div>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-5' : 'grid-cols-2'} gap-3`}>
-                  {([
-                    { label: 'Stock Status', value: 'In Stock', color: '#22A06B', dot: true },
-                    { label: 'Total Quantity', value: '60', color: '#364658' },
-                    { label: 'Available', value: '34', color: '#22A06B' },
-                    { label: 'Allocated', value: '26', color: '#364658', tab: 'allocation' },
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', dot: true },
-                  ] as { label: string; value: string; color: string; dot?: boolean; tab?: string }[]).map((c) => {
+                {(() => {
+                  const totalQty = 60;
+                  const allocatedQty = 54;
+                  const availableQty = totalQty - allocatedQty;
+                  const reorderLevel = 10;
+                  const lowStock = availableQty <= reorderLevel;
+                  type Card = { label: string; value: string; color: string; tab?: string; addStock?: boolean; icon: typeof Package };
+                  const renderCard = (c: Card) => {
+                    const Icon = c.icon;
                     const inner = (
                       <>
-                        <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
-                          {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
-                          {c.label}
+                        <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
+                          <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
                         </div>
-                        <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
                       </>
                     );
-                    return c.tab ? (
-                      <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors">{inner}</button>
-                    ) : (
-                      <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">{inner}</div>
+                    if (c.tab) {
+                      return (
+                        <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 text-left border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">{inner}</button>
+                      );
+                    }
+                    return (
+                      <div key={c.label} className={`bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all ${c.addStock ? 'group relative' : ''}`}>
+                        {inner}
+                        {c.addStock && (
+                          <button
+                            onClick={() => { setActiveMainTab('allocation' as any); setAllocationView('quantity'); }}
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center gap-1 rounded-md bg-[#3D8BD0] text-white pl-1.5 pr-2 py-1 text-[11px] font-medium hover:bg-[#2F7AB8]"
+                          >
+                            <Plus size={12} className="flex-shrink-0" /> Add stock
+                          </button>
+                        )}
+                      </div>
                     );
-                  })}
-                </div>
+                  };
+                  const row1: Card[] = [
+                    { label: 'Stock Status', value: lowStock ? `Low Stock ~ ${availableQty}` : 'In Stock', color: lowStock ? '#D97706' : '#22A06B', icon: lowStock ? AlertTriangle : Package, addStock: lowStock },
+                    { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
+                  ];
+                  const row2: Card[] = [
+                    { label: 'Total Quantity', value: String(totalQty), color: '#364658', icon: Layers },
+                    { label: 'Available', value: String(availableQty), color: lowStock ? '#DC2626' : '#22A06B', icon: CheckCircle },
+                    { label: 'Allocated', value: String(allocatedQty), color: '#364658', tab: 'allocation', icon: Share2 },
+                  ];
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">{row1.map(renderCard)}</div>
+                      <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>{row2.map(renderCard)}</div>
+                    </div>
+                  );
+                })()}
                 </div>
               </div>
 
@@ -7434,6 +7547,7 @@ export function ConsumableAssetDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
+            propertiesTitle="Asset Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

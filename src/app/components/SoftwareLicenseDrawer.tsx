@@ -1,22 +1,22 @@
 /**
- * NonItAssetDrawer Component
+ * SoftwareLicenseDrawer Component
  *
- * Cloned from SoftwareAssetDrawer as the Non-IT Asset detail page. It currently reuses the
- * full asset-detail UI; an internal adapter (nonItToAssetShape) maps a NonItAsset onto the
- * HardwareAsset shape the body expects, so this can be customized with non-IT-specific details
- * later. This is a SEPARATE file so Non-IT changes stay isolated.
+ * Cloned from NonItAssetDrawer as the Software License detail page. It currently reuses the
+ * full asset-detail UI; an internal adapter (licenseToAssetShape) maps a SoftwareLicense onto the
+ * HardwareAsset shape the body expects, so this can be customized with license-specific details
+ * later. This is a SEPARATE file so Software License changes stay isolated.
  *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Upload, Bell } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
-import type { NonItAsset } from './NonItAssetsListPage';
+import type { SoftwareLicense } from './SoftwareLicensesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -95,36 +95,32 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-interface NonItAssetDrawerProps {
-  openAssets: NonItAsset[];
+interface SoftwareLicenseDrawerProps {
+  openAssets: SoftwareLicense[];
   activeAssetId: string | null;
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
   onTabChange: (assetId: string) => void;
+  /** Open a managed software asset's detail page (redirects to the Software Assets module). */
+  onOpenSoftwareAsset?: (softwareAssetId: string) => void;
 }
 
 /**
- * Adapts a NonItAsset onto the HardwareAsset shape the cloned asset-detail body consumes.
- * Missing hardware-only fields (hostName/ipAddress/serialNumber) are filled with placeholders
- * so the UI renders unchanged; replace with non-IT-specific fields when this page is customized.
+ * Adapts a SoftwareLicense onto the HardwareAsset shape the cloned asset-detail body consumes.
+ * Hardware-only fields (hostName/ipAddress/serialNumber/managedBy) are filled with placeholders
+ * so the UI renders unchanged; replace with license-specific fields when this page is customized.
  */
-function nonItToAssetShape(s: NonItAsset): HardwareAsset {
-  const statusMap: Record<NonItAsset['status'], HardwareAsset['status']> = {
-    'In Use': 'In Use',
-    'In Store': 'In Store',
-    'In Stock': 'Available',
-    'Not Working': 'Available',
-  };
+function licenseToAssetShape(s: SoftwareLicense): HardwareAsset {
   return {
     id: s.id,
     name: s.name,
-    assetType: s.assetType as HardwareAsset['assetType'],
-    status: statusMap[s.status] ?? 'In Use',
+    assetType: 'Software License' as HardwareAsset['assetType'],
+    status: 'In Use',
     hostName: '---',
     ipAddress: '---',
-    usedBy: s.usedBy ? { label: s.usedBy } : null,
-    managedByGroup: s.managedByGroup,
-    managedBy: s.managedBy,
+    usedBy: null,
+    managedByGroup: '---',
+    managedBy: { name: '—' },
     serialNumber: '---',
   };
 }
@@ -150,18 +146,68 @@ function assetToTicket(a: HardwareAsset): Ticket {
   };
 }
 
-export function NonItAssetDrawer({
+// --- Software License "Allocation" tab mock data ---
+type LicenseAssetRow = {
+  id: string; name: string; assetType: string; status: 'In Use' | 'In Store';
+  host: string; ip: string; usedBy: string; group: string;
+  managedBy: { name: string; initials?: string; color?: string }; created: string;
+};
+
+// Assets the license has been allocated to (machine licenses).
+const LICENSE_ALLOCATIONS: LicenseAssetRow[] = [
+  { id: 'DT-4821', name: 'Finance Workstation 01', assetType: 'Windows Desktop', status: 'In Use', host: 'DESKTOP-FN01', ip: '192.168.1.24', usedBy: 'Rohan Mehta', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Jun 09, 2026 10:12 AM' },
+  { id: 'LAP-3390', name: 'CAD Workstation', assetType: 'Windows Laptop', status: 'In Use', host: 'DESKTOP-CAD3', ip: '192.168.1.88', usedBy: 'Neha Raje', group: 'Engineering', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jun 04, 2026 09:40 AM' },
+  { id: 'LAP-2207', name: 'Design Laptop 07', assetType: 'Windows Laptop', status: 'In Store', host: '---', ip: '---', usedBy: '---', group: 'IT Operations', managedBy: { name: 'Unassigned' }, created: 'Fri, Jun 12, 2026 11:35 AM' },
+];
+
+// Assets that have actually installed the software (subset of allocations).
+const LICENSE_INSTALLATIONS: LicenseAssetRow[] = [
+  { id: 'DT-4821', name: 'Finance Workstation 01', assetType: 'Windows Desktop', status: 'In Use', host: 'DESKTOP-FN01', ip: '192.168.1.24', usedBy: 'Rohan Mehta', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Jun 09, 2026 10:30 AM' },
+  { id: 'LAP-3390', name: 'CAD Workstation', assetType: 'Windows Laptop', status: 'In Use', host: 'DESKTOP-CAD3', ip: '192.168.1.88', usedBy: 'Neha Raje', group: 'Engineering', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jun 04, 2026 10:05 AM' },
+];
+
+// Software assets managed under this license (id + name from the Software Assets list).
+const MANAGED_SOFTWARES: { id: string; name: string }[] = [
+  { id: 'SWAST-26945', name: 'Microsoft Edge WebView2 Runtime' },
+  { id: 'SWAST-26944', name: 'Microsoft Edge' },
+  { id: 'SWAST-26940', name: 'Google Chrome' },
+  { id: 'SWAST-26922', name: 'Adobe Acrobat Reader' },
+  { id: 'SWAST-26914', name: 'Visual Studio Code' },
+  { id: 'SWAST-26913', name: 'CrowdStrike Falcon Sensor' },
+  { id: 'SWAST-26925', name: 'Zoom Workplace' },
+  { id: 'SWAST-26939', name: 'FortiClient VPN' },
+];
+
+// License attachments shown in the Attachment tab grid.
+type LicenseAttachment = { name: string; type: 'License File' | 'Invoice' | 'Purchase Order'; date: string; uploadedBy: string; uploadedOn: string };
+const LICENSE_ATTACHMENTS: LicenseAttachment[] = [
+  { name: 'License_Certificate.pdf', type: 'License File', date: '---', uploadedBy: 'Tabrez Khan', uploadedOn: 'Mon, Jun 09, 2026' },
+  { name: 'Invoice_INV-20451.pdf', type: 'Invoice', date: '05/06/2026', uploadedBy: 'Priya Nair', uploadedOn: 'Fri, Jun 06, 2026' },
+  { name: 'PurchaseOrder_PO-4471.pdf', type: 'Purchase Order', date: '28/05/2026', uploadedBy: 'Karan Malhotra', uploadedOn: 'Wed, May 28, 2026' },
+];
+
+// Users the license has been allocated to (user licenses).
+const LICENSE_USER_ALLOCATIONS: { name: string; email: string; logon: string; dept: string; location: string }[] = [
+  { name: 'Aarav Sharma', email: 'aarav.sharma@motadata.com', logon: 'aarav.sharma', dept: 'Engineering', location: 'India' },
+  { name: 'Karan Malhotra', email: 'karan.malhotra@motadata.com', logon: 'karan.malhotra', dept: 'Finance', location: 'India' },
+  { name: 'Priya Nair', email: 'priya.nair@motadata.com', logon: 'priya.nair', dept: 'Sales', location: 'United States' },
+  { name: 'Daniel Cooper', email: 'daniel.cooper@motadata.com', logon: 'daniel.cooper', dept: 'IT Operations', location: 'United States' },
+];
+
+export function SoftwareLicenseDrawer({
   openAssets,
   activeAssetId,
   onClose,
   onCloseTab,
-  onTabChange
-}: NonItAssetDrawerProps) {
-  const assetList = openAssets.map(nonItToAssetShape);
+  onTabChange,
+  onOpenSoftwareAsset,
+}: SoftwareLicenseDrawerProps) {
+  const assetList = openAssets.map(licenseToAssetShape);
   const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
+  const activeLicense = openAssets.find((l) => l.id === activeAssetId);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -170,6 +216,10 @@ export function NonItAssetDrawer({
   const [assetGroup, setAssetGroup] = useState('Unassigned');
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
   const [softwareType, setSoftwareType] = useState('Managed');
+  const [licenseType, setLicenseType] = useState(activeLicense?.licenseType ?? '');
+  // Only Single/Volume/Unlimited User licenses show the single "User Allocation" listing;
+  // every other license type shows the Allocation + Installation two-listing view.
+  const isUserLicense = ['Single User', 'Volume Users', 'Unlimited Users'].includes(licenseType);
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
     'Asset Group': 'Anblicks Group',
     'Product': '',
@@ -201,6 +251,7 @@ export function NonItAssetDrawer({
     setAssetImpact('Low');
     setAssetGroup(activeAsset.managedByGroup || 'Unassigned');
     setAssetManager(activeAsset.managedBy);
+    setLicenseType(activeLicense?.licenseType ?? '');
   }, [activeAssetId]);
 
   const assetState = {
@@ -210,6 +261,8 @@ export function NonItAssetDrawer({
     managedByGroup: assetGroup, setManagedByGroup: setAssetGroup,
     managedBy: assetManager, setManagedBy: setAssetManager,
     softwareType, setSoftwareType,
+    licenseType, setLicenseType,
+    product: activeLicense?.product ?? '',
     extra: assetExtra, setExtra: setAssetExtra,
   };
 
@@ -225,7 +278,15 @@ export function NonItAssetDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'allocation' | 'attachment'>('properties');
+  // Software License "Allocation" tab: machine licenses toggle Allocation/Installation; user licenses show only User Allocation.
+  const [licenseAllocView, setLicenseAllocView] = useState<'allocation' | 'installation'>('allocation');
+  // Attachment tab: add-attachment side drawer.
+  const [showAttachmentDrawer, setShowAttachmentDrawer] = useState(false);
+  const [attachmentType, setAttachmentType] = useState<'License File' | 'Invoice' | 'Purchase Order'>('License File');
+  const [attachmentDate, setAttachmentDate] = useState('');
+  const [attachmentFilter, setAttachmentFilter] = useState<'All' | 'License File' | 'Invoice' | 'Purchase Order'>('All');
+  const [showAttachmentFilter, setShowAttachmentFilter] = useState(false);
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -289,6 +350,11 @@ export function NonItAssetDrawer({
   const [isWatching, setIsWatching] = useState(false);
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
+  // Compliance Settings popup (the only header action on the license page).
+  const [showComplianceSettings, setShowComplianceSettings] = useState(false);
+  const [complianceEnabled, setComplianceEnabled] = useState(true);
+  const [underUtilLimit, setUnderUtilLimit] = useState('0');
+  const [overUtilLimit, setOverUtilLimit] = useState('0');
   const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
@@ -667,7 +733,7 @@ export function NonItAssetDrawer({
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'License Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -902,27 +968,8 @@ export function NonItAssetDrawer({
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Software detail tabs (Hardware, Baseline, Approvals, Financials removed).
-      const baseTabsForOthers = ['properties', 'approvals', 'relationship', 'financials', 'audit'];
-      const baseTabsForINC35 = ['properties', 'approvals', 'relationship', 'financials', 'service-request', 'audit'];
-
-      // Build tabs list dynamically based on conditions
-      let allTabs: string[] = [];
-
-      if (activeTicket?.id === 'INC-35') {
-        allTabs = [...baseTabsForINC35];
-      } else {
-        allTabs = [...baseTabsForOthers];
-      }
-
-      // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
-      const shouldShowRelations = activeTicket?.id !== 'INC-32' ||
-                                  (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
-      if (shouldShowRelations) {
-        // Insert relations after relationship/software
-        const anchorIndex = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship') : allTabs.indexOf('software');
-        allTabs.splice(anchorIndex + 1, 0, 'relations');
-      }
+      // Software License detail tabs: Overview · Allocation · Attachment · History.
+      const allTabs: string[] = ['properties', 'allocation', 'attachment', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1938,221 +1985,68 @@ export function NonItAssetDrawer({
             <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
           </div>
           <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Copy Asset URL
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Share2 size={16} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Share Asset
-              </TooltipContent>
-            </Tooltip>
+            {/* Compliance Settings — the only header action on the license page */}
             <div className="relative">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    className="p-1.5 hover:bg-[#f9fafb] rounded" 
-                    onClick={() => setIsWatching(!isWatching)}
-                    onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
-                    onMouseLeave={() => setShowWatchersDropdown(false)}
-                  >
-                    {isWatching ? (
-                      <EyeOff size={16} className="text-[#6b7280]" />
-                    ) : (
-                      <Eye size={16} className="text-[#6b7280]" />
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isWatching ? 'Unwatch' : 'Watch'}
-                </TooltipContent>
-              </Tooltip>
-              
-              {/* Watchers Dropdown */}
-              {showWatchersDropdown && isWatching && (
-                <div 
-                  className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
-                  onMouseEnter={() => setShowWatchersDropdown(true)}
-                  onMouseLeave={() => setShowWatchersDropdown(false)}
-                >
-                  <div className="px-3 py-2 border-b border-[#e5e7eb]">
-                    <div className="text-[13px] font-medium text-[#111827]">Watchers ({watchers.length})</div>
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {watchers.map((watcher) => (
-                      <div 
-                        key={watcher.id} 
-                        className="px-3 py-2 hover:bg-[#f9fafb] cursor-pointer flex items-center gap-2"
-                      >
-                        <div className="w-6 h-6 rounded bg-[#3D8BD0] text-white flex items-center justify-center text-[11px] font-medium">
-                          {watcher.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#111827] truncate leading-tight">{watcher.name}</div>
-                          <div className="text-[11px] text-[#6b7280] truncate mt-0.5">{watcher.email}</div>
-                        </div>
+              <button
+                onClick={() => setShowComplianceSettings((v) => !v)}
+                className={`p-1.5 bg-white border rounded hover:bg-[#F5F7FA] ${showComplianceSettings ? 'border-[#3D8BD0]' : 'border-[#DFE5ED]'}`}
+                title="Compliance Settings"
+              >
+                <Bell size={16} className="text-[#6b7280]" />
+              </button>
+
+              {showComplianceSettings && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowComplianceSettings(false)} />
+                  <div className="absolute top-full right-0 pt-1 z-[9999] w-[300px]">
+                    <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Compliance Settings</h3>
+
+                      {/* Enabled toggle */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Enabled</div>
+                        <button
+                          onClick={() => setComplianceEnabled((v) => !v)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${complianceEnabled ? 'bg-[#22C55E]' : 'bg-[#CBD5E1]'}`}
+                        >
+                          <span className={`inline-block size-4 transform rounded-full bg-white shadow transition-transform ${complianceEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowBarcodeMenu(true)}
-              onMouseLeave={() => setShowBarcodeMenu(false)}
-            >
-              <button
-                onClick={() => setShowBarcodeMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <Barcode size={16} className="text-[#6b7280]" />
-              </button>
 
-              {showBarcodeMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                  {/* Barcode preview */}
-                  <div className="px-4 pb-2 flex flex-col items-center">
-                    <div
-                      className="h-11 w-full rounded-sm"
-                      style={{
-                        background:
-                          'repeating-linear-gradient(90deg, #1F2937 0px, #1F2937 1px, #fff 1px, #fff 3px, #1F2937 3px, #1F2937 5px, #fff 5px, #fff 6px, #1F2937 6px, #1F2937 9px, #fff 9px, #fff 11px)',
-                      }}
-                    />
-                    <span className="text-[12px] tracking-[0.18em] text-[#364658] mt-1.5 font-medium">88t540565065</span>
-                  </div>
+                      {/* Under Utilization Limit */}
+                      <div className="mb-3">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Under Utilization Limit</div>
+                        <input
+                          type="number"
+                          min={0}
+                          value={underUtilLimit}
+                          onChange={(e) => setUnderUtilLimit(e.target.value)}
+                          disabled={!complianceEnabled}
+                          className="w-full h-[38px] rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none disabled:bg-[#F5F7FA] disabled:text-[#9ca3af]"
+                        />
+                      </div>
 
-                  <div className="my-1 border-t border-[#F0F2F5]" />
+                      {/* Over Utilization Limit */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Over Utilization Limit</div>
+                        <input
+                          type="number"
+                          min={0}
+                          value={overUtilLimit}
+                          onChange={(e) => setOverUtilLimit(e.target.value)}
+                          disabled={!complianceEnabled}
+                          className="w-full h-[38px] rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none disabled:bg-[#F5F7FA] disabled:text-[#9ca3af]"
+                        />
+                      </div>
 
-                  {/* Options */}
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Print Barcode</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Copy size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Copy UPC Code</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Settings2 size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Settings</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#DC2626] flex items-center gap-2.5">
-                    <Trash2 size={15} className="text-[#DC2626] flex-shrink-0" />
-                    <span>Remove Barcode</span>
-                  </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowQrMenu(true)}
-              onMouseLeave={() => setShowQrMenu(false)}
-            >
-              <button
-                onClick={() => setShowQrMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <QrCode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showQrMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                    {/* QR preview */}
-                    <div className="px-4 pb-2 flex flex-col items-center">
-                      <svg viewBox="0 0 33 33" className="w-32 h-32" shapeRendering="crispEdges">
-                        <rect width="33" height="33" fill="#fff" />
-                        {/* Finder patterns (3 corners) */}
-                        {[[0, 0], [26, 0], [0, 26]].map(([fx, fy], i) => (
-                          <g key={i}>
-                            <rect x={fx} y={fy} width="7" height="7" fill="#1F2937" />
-                            <rect x={fx + 1} y={fy + 1} width="5" height="5" fill="#fff" />
-                            <rect x={fx + 2} y={fy + 2} width="3" height="3" fill="#1F2937" />
-                          </g>
-                        ))}
-                        {/* Alignment pattern (bottom-right) */}
-                        <g>
-                          <rect x={24} y={24} width="5" height="5" fill="#1F2937" />
-                          <rect x={25} y={25} width="3" height="3" fill="#fff" />
-                          <rect x={26} y={26} width="1" height="1" fill="#1F2937" />
-                        </g>
-                        {/* Data modules (dense) */}
-                        {Array.from({ length: 33 * 33 }).map((_, idx) => {
-                          const x = idx % 33;
-                          const y = Math.floor(idx / 33);
-                          const inFinder = (x < 8 && y < 8) || (x > 24 && y < 8) || (x < 8 && y > 24);
-                          const inAlign = x >= 24 && x <= 28 && y >= 24 && y <= 28;
-                          if (inFinder || inAlign) return null;
-                          if (((x * 1103 + y * 2741 + x * y * 13 + 7) % 7) < 3)
-                            return <rect key={idx} x={x} y={y} width="1" height="1" fill="#1F2937" />;
-                          return null;
-                        })}
-                      </svg>
+                      <div className="flex justify-end">
+                        <button onClick={() => setShowComplianceSettings(false)} className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Update</button>
+                      </div>
                     </div>
-
-                    <div className="my-1 border-t border-[#F0F2F5]" />
-
-                    {/* Option */}
-                    <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                      <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                      <span>Print QR Code</span>
-                    </button>
                   </div>
-                </div>
+                </>
               )}
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
-                className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
-              >
-                Add Relation
-              </button>
-              
-              {showPropertiesRelationDropdown && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[160px]"
-                  ref={propertiesRelationDropdownRef}
-                >
-                  {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setPropertiesRelationType(type);
-                        setShowPropertiesRelationDropdown(false);
-                        setShowPropertiesRelationModal(true);
-                      }}
-                      className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <HardwareAssetActionsMenu
-              nonIt
-              onOpenApprovalPopup={() => {
-                setShowCreateApprovalPopup(true);
-                setActiveMainTab('approvals');
-              }}
-              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
-            />
           </div>
         </div>
 
@@ -2453,14 +2347,11 @@ export function NonItAssetDrawer({
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
                   const tabConfig = [
-                    { id: 'properties', label: 'Properties' },
-                    { id: 'approvals', label: 'Approvals' },
-                    { id: 'relationship', label: 'Relationship' },
-                    { id: 'financials', label: 'Financials' },
-                    { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
-                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
+                    { id: 'properties', label: 'Overview' },
+                    { id: 'allocation', label: 'Allocation' },
+                    { id: 'attachment', label: 'Attachment' },
                     { id: 'audit', label: 'History' },
-                  ].filter(tab => tab.condition !== false);
+                  ].filter(tab => (tab as any).condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
                   const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
@@ -2480,6 +2371,8 @@ export function NonItAssetDrawer({
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
+                    'allocation': 'Allocation',
+                    'attachment': 'Attachment',
                     'audit': 'History'
                   };
 
@@ -2786,139 +2679,73 @@ export function NonItAssetDrawer({
             <div className="px-6 py-6">
               {/* KPI strip — Warranty / Impact / Approval */}
               <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-3`}>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-5' : 'grid-cols-2'} gap-3`}>
                   {(() => {
-                    const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-                    const impactCounts: [string, number][] = [
-                      ['Incident', impactSeed % 4],
-                      ['Problem', Math.floor(impactSeed / 4) % 3],
-                      ['Change', Math.floor(impactSeed / 7) % 3],
-                      ['Release', Math.floor(impactSeed / 11) % 2],
-                    ];
-                    const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
+                    const purchased = activeLicense?.purchaseCount ?? 0;
+                    const allocated = activeLicense?.allocationCount ?? 0;
+                    const installed = activeLicense?.installationCount ?? 0;
+                    const available = Math.max(purchased - allocated, 0);       // purchased but not yet allocated
+                    const pendingInstall = Math.max(allocated - installed, 0);  // allocated but not yet installed
                     return [
-                    { label: 'Warranty Expire', value: 'Expires in 23 days', color: '#D97706', icon: ShieldCheck,
-                      ai: { action: 'Renew warranty', q: 'When does this asset\'s warranty expire and how do I renew it?',
-                        a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Manufacturer warranty — onsite service.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
-                    ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
-                  ] as { label: string; value?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
+                      { label: 'Purchase Count', value: String(purchased), color: '#3D8BD0', icon: Package },
+                      { label: 'Allocation Count', value: String(allocated), color: '#8B5CF6', icon: Share2 },
+                      { label: 'Installation Count', value: String(installed), color: '#14B8A6', icon: Download },
+                      { label: 'Available', value: String(available), color: '#22A06B', icon: CheckCircle },
+                      { label: 'Pending Install', value: String(pendingInstall), color: '#D97706', icon: Clock },
+                    ] as { label: string; value: string; color: string; icon: typeof Package }[];
+                  })().map((c) => {
                     const Icon = c.icon;
-                    if (c.counts) {
-                      const visible = c.counts.filter(([, n]) => n > 0);
-                      return (
-                        <div key={c.label} className={`${visible.length >= 4 ? 'col-span-2' : ''} bg-[#F9FAFB] rounded-xl p-3.5 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={15} /></span>
-                            <div className="text-[12px] text-[#7B8FA5]">Open related records for this asset</div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {visible.map(([l, n]) => {
-                              const m = ({
-                                Incident: { icon: TicketIcon, color: '#DC2626' },
-                                Problem: { icon: Stethoscope, color: '#D97706' },
-                                Change: { icon: RefreshCw, color: '#8B5CF6' },
-                                Release: { icon: Package, color: '#22A06B' },
-                              } as Record<string, { icon: typeof TicketIcon; color: string }>)[l];
-                              const Ic = m.icon;
-                              return (
-                                <button
-                                  key={l}
-                                  onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                  className="group/imp flex items-center gap-1.5 rounded-lg bg-white border border-[#E5E7EB] pl-1.5 pr-2 py-1 hover:shadow-sm transition-all"
-                                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
-                                >
-                                  <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
-                                  <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
-                                  <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
                     return (
-                      <div key={c.label} className="group relative bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
+                      <div key={c.label} className="bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
                         <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
                         <div className="min-w-0 flex-1">
                           <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
                           <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
                         </div>
-                        {c.ai && (
-                          <button
-                            onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
-                            title={`Ask ServiceOps AI — ${c.ai.action}`}
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                            className="group/ai absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
-                          >
-                            <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
-                            <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
-                          </button>
-                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Group: Financials & Contracts */}
+              {/* Group: Managed Softwares */}
               <div className="mt-6">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
-                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                        </div>
-                      ))}
-                    </div>
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Managed Softwares</h3>
+                    <span className="text-[12px] text-[#7B8FA5]">{MANAGED_SOFTWARES.length} software</span>
                   </div>
-
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                      ].map((c) => (
-                        <button
-                          key={c.label}
-                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                        >
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    {MANAGED_SOFTWARES.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => onOpenSoftwareAsset?.(s.id)}
+                        title={`Open ${s.id} — ${s.name}`}
+                        className="group/sw inline-flex items-center gap-2 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] pl-1.5 pr-3 py-1.5 hover:border-[#3D8BD0] hover:bg-white transition-all"
+                      >
+                        <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{s.id}</span>
+                        <span className="text-[12px] text-[#364658] group-hover/sw:text-[#3D8BD0] transition-colors">{s.name}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Non IT Property Group — shown last */}
+              {/* License Info — shown last */}
               <div className="mt-6">
               {(() => {
                 const q = propertiesSearch.trim().toLowerCase();
                 const sections: { title: string; icon: JSX.Element | null; fields: [string, string][] }[] = [
                 {
-                  title: 'Non IT Property Group',
+                  title: 'License Info',
                   icon: null,
                   fields: [
-                    ['Serial Number', '---'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Audit Date', '---'],
-                    ['NON-IT Mac', '---'],
-                    ['asset type for nonit', '---'],
+                    ['Purchase Date', 'Mon, Jun 01, 2026 12:00 AM'],
+                    ['Expiry Date', 'Tue, Jun 30, 2026 11:59 PM'],
+                    ['Cost (ATS)', '10000.00'],
+                    ['Purchase Count', '5'],
+                    ['Version', '---'],
+                    ['License Key', '---'],
                   ],
                 },
                 ];
@@ -6097,6 +5924,203 @@ export function NonItAssetDrawer({
               />
             )}
 
+            {/* Allocation Tab Content — machine licenses toggle Allocation/Installation; user licenses show User Allocation only */}
+            {activeMainTab === 'allocation' && (
+              <div className="px-6 py-6">
+                {!isUserLicense ? (
+                  <>
+                    {/* Segmented toggle */}
+                    <div className="inline-flex items-center gap-1 rounded-lg bg-[#F1F5F9] p-1 mb-5">
+                      {([['allocation', 'Allocation'], ['installation', 'Installation']] as const).map(([id, label]) => (
+                        <button
+                          key={id}
+                          onClick={() => setLicenseAllocView(id)}
+                          className={`px-3.5 py-1.5 text-[13px] font-medium rounded-md transition-colors ${licenseAllocView === id ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Header row */}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[15px] font-semibold text-[#3D8BD0]">{licenseAllocView === 'allocation' ? 'Allocation' : 'Installation'}</h3>
+                      {licenseAllocView === 'allocation' ? (
+                        <button className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate</button>
+                      ) : (
+                        <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">All <Filter size={14} className="text-[#7B8FA5]" /></button>
+                      )}
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative mb-4">
+                      <input placeholder="Select field or enter a keyword to search..." className="h-[38px] w-full rounded-md border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
+                    </div>
+
+                    {/* Asset table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[1100px]">
+                        <thead className="border-b border-[#E5E7EB]">
+                          <tr>
+                            {['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date', ...(licenseAllocView === 'allocation' ? ['Actions'] : [])].map((h) => (
+                              <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E5E7EB]">
+                          {(licenseAllocView === 'allocation' ? LICENSE_ALLOCATIONS : LICENSE_INSTALLATIONS).map((r) => (
+                            <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-2 text-[12px]">
+                                  <span className="rounded bg-[#e8f4fd] px-2 py-0.5 font-semibold text-[#3D8BD0]">{r.id}</span>
+                                  <span className="text-[#364658]">{r.name}</span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="inline-flex items-center gap-1.5"><Laptop size={14} className="text-[#6B7280]" />{r.assetType}</span></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: r.status === 'In Use' ? '#22C55E' : '#3D8BD0' }} />{r.status}</span></td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.host === '---' ? <span className="text-[#9ca3af]">---</span> : r.host}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.ip === '---' ? <span className="text-[#9ca3af]">---</span> : r.ip}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.usedBy === '---' ? <span className="text-[#9ca3af]">---</span> : r.usedBy}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.group}</td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-2">
+                                  {r.managedBy.initials ? (
+                                    <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color || '#9CA3AF' }}>{r.managedBy.initials}</span>
+                                  ) : (
+                                    <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
+                                  )}
+                                  <span className="text-[12px] text-[#364658]">{r.managedBy.name}</span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.created}</td>
+                              {licenseAllocView === 'allocation' && (
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <button className="text-[#DC2626] hover:text-[#b91c1c] transition-colors" title="Remove allocation"><Unlink size={15} /></button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {(licenseAllocView === 'allocation' ? LICENSE_ALLOCATIONS : LICENSE_INSTALLATIONS).length === 0 && (
+                        <div className="py-10 text-center text-[13px] text-[#9ca3af]">No records found</div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* User Allocation */}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[15px] font-semibold text-[#3D8BD0]">User Allocation</h3>
+                      <button className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate License User</button>
+                    </div>
+                    <div className="relative mb-4">
+                      <input placeholder="Select field to search..." className="h-[38px] w-full rounded-md border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[800px]">
+                        <thead className="border-b border-[#E5E7EB]">
+                          <tr>
+                            {['Name', 'Email', 'Logon Name', 'Department', 'Location', 'Action'].map((h) => (
+                              <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E5E7EB]">
+                          {LICENSE_USER_ALLOCATIONS.map((u) => (
+                            <tr key={u.email} className="hover:bg-[#f9fafb] transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{u.name}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{u.email}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{u.logon}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{u.dept === '---' ? <span className="text-[#9ca3af]">---</span> : u.dept}</td>
+                              <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{u.location === '---' ? <span className="text-[#9ca3af]">---</span> : u.location}</td>
+                              <td className="px-4 py-3 whitespace-nowrap"><button className="text-[#DC2626] hover:text-[#b91c1c] transition-colors" title="Remove user"><Unlink size={15} /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Attachment Tab Content — grid of attachments + Add (side drawer) */}
+            {activeMainTab === 'attachment' && (
+              <div className="px-6 py-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Attachments</h3>
+                  <div className="flex items-center gap-2">
+                    {/* Type filter */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowAttachmentFilter((v) => !v)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors"
+                      >
+                        {attachmentFilter} <Filter size={14} className="text-[#7B8FA5]" />
+                      </button>
+                      {showAttachmentFilter && (
+                        <>
+                          <div className="fixed inset-0 z-[40]" onClick={() => setShowAttachmentFilter(false)} />
+                          <div className="absolute top-full right-0 mt-1 z-[50] w-[180px] bg-white rounded-md shadow-lg border border-[#DFE5ED] py-1">
+                            {(['All', 'License File', 'Invoice', 'Purchase Order'] as const).map((t) => (
+                              <button
+                                key={t}
+                                onClick={() => { setAttachmentFilter(t); setShowAttachmentFilter(false); }}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-[13px] hover:bg-[#F9FAFB] ${attachmentFilter === t ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}
+                              >
+                                {t}
+                                {attachmentFilter === t && <Check size={14} className="text-[#3D8BD0]" />}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setAttachmentType('License File'); setAttachmentDate(''); setShowAttachmentDrawer(true); }}
+                      className="flex size-8 items-center justify-center rounded-md bg-[#3D8BD0] text-white hover:bg-[#2F7AB8] transition-colors"
+                      title="Add Attachment"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr className="bg-white">
+                        {['File Name', 'Type', 'Invoice / Purchase Order Date', 'Uploaded By', 'Uploaded On', 'Action'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                      {LICENSE_ATTACHMENTS.filter((att) => attachmentFilter === 'All' || att.type === attachmentFilter).map((att) => (
+                        <tr key={att.name} className="group hover:bg-[#f9fafb] transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <button className="inline-flex items-center gap-2 text-[12px] font-medium text-[#3D8BD0] hover:underline">
+                              <Paperclip size={14} className="text-[#6B7280]" />{att.name}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.type}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.date === '---' ? <span className="text-[#9ca3af]">---</span> : att.date}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.uploadedBy}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.uploadedOn}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <button className="text-[#6B7280] hover:text-[#3D8BD0] transition-colors" title="Download"><Download size={15} /></button>
+                              <button className="text-[#DC2626] hover:text-[#b91c1c] transition-colors" title="Delete"><Trash2 size={15} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && (() => {
               const categories = [
@@ -7314,9 +7338,10 @@ export function NonItAssetDrawer({
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Asset Fields"
+            fieldsTitle="License Fields"
             assetMode={true}
             softwareMode={true}
+            licenseMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7426,7 +7451,7 @@ export function NonItAssetDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Asset Properties"
+            propertiesTitle="License Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -8229,6 +8254,68 @@ export function NonItAssetDrawer({
         />
       )}
       
+      {/* Add Attachment — side drawer */}
+      {showAttachmentDrawer && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={() => setShowAttachmentDrawer(false)} />
+          <div className="fixed top-0 right-0 h-full w-[440px] bg-white z-[10001] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[18px] font-semibold text-[#111827]">Add Attachment</h2>
+              <button onClick={() => setShowAttachmentDrawer(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
+              {/* Attachment type selector */}
+              <div>
+                <div className="text-[13px] text-[#7B8FA5] mb-1.5">Attachment Type</div>
+                <div className="inline-flex items-center gap-1 rounded-lg bg-[#F1F5F9] p-1 w-full">
+                  {(['License File', 'Invoice', 'Purchase Order'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setAttachmentType(t)}
+                      className={`flex-1 px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${attachmentType === t ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date field — Invoice / Purchase Order only */}
+              {attachmentType !== 'License File' && (
+                <div>
+                  <div className="text-[13px] text-[#7B8FA5] mb-1.5">{attachmentType === 'Invoice' ? 'Invoice Date' : 'Purchase Order Date'}</div>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={attachmentDate}
+                      onChange={(e) => setAttachmentDate(e.target.value)}
+                      onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                      className={`w-full h-[40px] pl-3 pr-9 text-[13px] rounded-md border border-[#DFE5ED] focus:border-[#3D8BD0] focus:outline-none cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${attachmentDate ? 'text-[#364658]' : 'text-transparent'}`}
+                    />
+                    {!attachmentDate && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
+                    <Clock size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+                  </div>
+                </div>
+              )}
+
+              {/* File upload */}
+              <div>
+                <div className="text-[13px] text-[#7B8FA5] mb-1.5">{attachmentType === 'License File' ? 'License File' : attachmentType === 'Invoice' ? 'Invoice File' : 'Purchase Order File'}</div>
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">
+                  <Upload size={15} /> Attach Files
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+              <button onClick={() => setShowAttachmentDrawer(false)} className="px-4 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">Cancel</button>
+              <button onClick={() => setShowAttachmentDrawer(false)} className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">Update</button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Add Barcode Popup */}
       {showAddBarcodePopup && (
         <div
@@ -8440,4 +8527,4 @@ export function NonItAssetDrawer({
   );
 }
 
-export default NonItAssetDrawer;
+export default SoftwareLicenseDrawer;

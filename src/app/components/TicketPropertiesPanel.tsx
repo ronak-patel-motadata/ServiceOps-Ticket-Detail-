@@ -23,6 +23,8 @@ interface TicketPropertiesPanelProps {
   assetState?: AssetFieldState;
   // Software-asset variant of the asset field set (Software Type, no CI/View more)
   softwareMode?: boolean;
+  // Software-license variant of the asset field set (Product + License Type only)
+  licenseMode?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
@@ -184,12 +186,14 @@ interface TicketPropertiesPanelProps {
   newlyLinkedTickets: any[];
   
   // Callback to expose quick action handler
-  onQuickActionReady?: (handler: (actionType: string) => void) => void;
+  onQuickActionReady?: (handler: (actionType: string, customResponse?: string) => void) => void;
 
   // Helper Functions
   togglePinField: (field: string) => void;
   getFilteredPinnedFields: () => string[];
   getGroupTitle: () => string;
+  // Title shown on the Properties group icon tooltip (matches the properties group header).
+  propertiesTitle?: string;
   getCurrentStatusColor: () => string;
   getCurrentPriorityColor: () => string;
   getCurrentAssigneeColor: () => string;
@@ -306,6 +310,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     showSla = true,
     assetMode = false,
     softwareMode = false,
+    licenseMode = false,
     assetState,
     agentInfo,
     warranty,
@@ -351,6 +356,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     togglePinField,
     getFilteredPinnedFields,
     getGroupTitle,
+    propertiesTitle,
     getCurrentStatusColor,
     getCurrentPriorityColor,
     getCurrentAssigneeColor,
@@ -741,7 +747,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     }
   };
 
-  const handleQuickAction = (actionType: string) => {
+  const handleQuickAction = (actionType: string, customResponse?: string) => {
     // Open chatbot if not already open
     if (activeGroup !== 'chatbot') {
       setPreviousGroup(activeGroup as 'properties' | 'activity' | 'suggestions');
@@ -849,8 +855,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     // Add AI response after a short delay
     setTimeout(() => {
       const response = aiResponses[actionType];
-      const responseText = response?.text || "I've processed your request. How else can I assist you with this ticket?";
-      
+      const responseText = customResponse || response?.text || "I've processed your request. How else can I assist you with this ticket?";
+
       const aiMessage = {
         id: Date.now() + 1,
         text: '',
@@ -860,11 +866,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         isTyping: true,
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       };
-      
+
       setChatMessages(prev => [...prev, aiMessage]);
 
       // Add follow-up actions after AI response completes
-      if (response?.followUpActions) {
+      if (!customResponse && response?.followUpActions) {
         setTimeout(() => {
           const followUpMessage = {
             id: Date.now() + 2,
@@ -1509,6 +1515,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           statusGroupLabel={statusGroupLabel}
           assetMode={assetMode}
           softwareMode={softwareMode}
+          licenseMode={licenseMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -1799,8 +1806,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* Activity and Resources Group Content */}
         {activeGroup === 'activity' && (
           <div className="space-y-3">
-        {/* Work Tracker Accordion */}
-        {hasWorkTrackerMatch() && (
+        {/* Work Tracker Accordion (hidden on asset/license pages) */}
+        {!assetMode && hasWorkTrackerMatch() && (
         <div className="border border-[#DFE5ED] rounded-lg">
           <button
             onClick={() => setWorkTrackerExpanded(!workTrackerExpanded)}
@@ -3213,7 +3220,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <FileText size={16} className={activeGroup === 'properties' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
             </button>
           </TooltipTrigger>
-          <TooltipContent>{assetMode ? 'Asset Properties' : 'Ticket Properties'}</TooltipContent>
+          <TooltipContent>{propertiesTitle ?? (assetMode ? 'Asset Properties' : 'Ticket Properties')}</TooltipContent>
         </Tooltip>
 
         {/* Asset-only groups: Users + Notes (ordered between Properties and Activity) */}
@@ -3282,10 +3289,12 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
               }`}
             >
-              <Activity size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              {assetMode
+                ? <Paperclip size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+                : <Activity size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />}
             </button>
           </TooltipTrigger>
-          <TooltipContent>Activity and Resources</TooltipContent>
+          <TooltipContent>{assetMode ? 'Attachments' : 'Activity and Resources'}</TooltipContent>
         </Tooltip>
 
         {/* Group 3: AI Suggestions Icon (hidden for hardware assets) */}

@@ -1,36 +1,42 @@
-# Handoff — 2026-06-23 01:05
+# Handoff — 2026-06-24 00:56
 
 ## Read first
-See CLAUDE.md **Key context** — the bullets on per-module drawer differences, header-less Overview tabs, clickable Impact/Contracts KPIs, and the Users accordion. This session was all polish across the four asset detail drawers' Overview tabs + right panel.
+See CLAUDE.md **Key context** — especially the new **Software License detail page** bullet, the **"Activity & Resources" → "Attachments"** bullet, the **per-asset Impact KPI** bullet, and the **AI-suggested actions on KPI cards** bullet. This session built the whole Software Licenses module and polished KPIs/Attachments across the asset drawers.
 
 ## What we worked on this session
-Refined the Hardware/Software/Non-IT/Consumable asset detail Overview layouts (KPI strips, grouping, clickable relations), the right-panel Users accordion, and the Consumable Quantity/Allocation merge.
+Built a new **Software Licenses** list + detail module (cloned from Non-IT), refined the asset Overview **Impact** KPIs and added **AI-suggested actions** on KPI cards, ported the attractive icon-badge KPI style everywhere, and renamed/cleaned the right-panel **Attachments** group.
 
 ## Completed
-- **Overview cleanup (all asset drawers):** removed the section **group titles** and removed the **description paragraph** above the tabs (tabs now sit under the header).
-- **Hardware Overview:** rebuilt as KPI strip + Configuration (Hardware/OS/Software snapshots) + Users/Current Location + Financial/Contracts rows. Agent KPI → **Warranty** KPI; warranty pill removed from right panel. **Impact** KPI (Incident/Problem/Change/Release counts) is clickable → Relations filtered. **Current Relation** renamed **Impact** (no dot). OS snapshot "View more" scrolls to Hardware → OS section. Current Location card redesigned (pin icon + name + "Since…" + View on Map, in a gray pill). Users card shows 2 users + "+15 more" link. Financial snapshot half-width + new **Contracts & Purchases** card; **Active Contracts/Active Purchases** clickable → Relations filtered (Contract/Purchase). Header title got a yellow status dot; created-date aligned under title.
-- **Software Overview:** added **License Expiry**, **Impact**, removed **Approvals**, **Utilization** KPI (color follows value: Over=red/Under=amber/Optimal=green) — strip is 4×2. Removed **Software** tab. Software Details card title moved inside the card with View more top-right; added **Software Cost** (replaced Edition) positioned in Category's slot. Installation snapshot has a **donut chart + legend**. Cost snapshot card removed. License pill removed from right panel (moved into KPI strip). "(30d)" dropped from Active Users.
-- **Non-IT Overview:** Properties→Overview content = "Non IT Property Group" + new **3-KPI card** (Warranty Expire / Impact / Approvals) + Financial snapshot/Contracts & Purchases; Impact + Contracts clickable.
-- **Consumable:** first tab renamed **Overview**; merged Quantity Details + Allocation into one **"Quantity & Allocation"** tab (segmented toggle, available-qty chip, Add/`Allocate` button — Allocate is text in allocations view, `+` icon in quantity view); Overview KPI strip (Stock Status/Total/Available/Allocated/Approvals) + Financials/Contracts; warranty pill removed from right panel; Impact + Contracts clickable.
-- **Right panel Users → accordion** (`TicketPropertiesPanel`): collapsed (avatar/name/status/department, hover Edit/Delete left of chevron) → expand (Account Type/Domain/Security ID/Description); realistic local-account names; expanded content left-aligned with avatar.
-- **Financials (Hardware/Non-IT/Consumable):** Depreciation + Cost breakdown now in one row; added a **Log** button (left of Configure) opening a **Depreciation Log** side drawer (Month/Year · Depreciation · Accumulated · Book Value · Remaining Life).
-- Every change verified with `npm run build` (green).
+- **Software Licenses module:** `SoftwareLicensesListPage` + `SoftwareLicensesTable` + `SoftwareLicenseDrawer` (new files); wired into `App.tsx` (`software-licenses` page) and the Sidebar Assets flyout. Realistic license data (no test/demo).
+- **Software License detail page** (cloned from Non-IT, separate file):
+  - Tabs trimmed to **Overview · Allocation · Attachment · History**.
+  - **Allocation tab** driven by License Type: Single/Volume/Unlimited User → **User Allocation** listing; else **Allocation + Installation** segmented toggle. Installation filter is a bordered "All" pill (matches Depreciation-Log style).
+  - **Attachment tab:** grid (download + delete actions, restyled to match other grids) + `All`-type filter pill + **+** Add side drawer (License File / Invoice / Purchase Order with conditional date + file). Date column labeled "Invoice / Purchase Order Date".
+  - **Overview:** 5 colored KPIs (Purchase/Allocation/Installation Count + Available + Pending Install) → full-width **Managed Softwares** card (clickable pills deep-link to the software asset's drawer) → **License Info** section.
+  - Header reduced to a **single bell** → **Compliance Settings** popup (Enabled / Under / Over Utilization Limit / Update).
+  - Right panel: **License Properties** title, **License Fields** = Product (read-only) + License Type (dropdown) via new `licenseMode` prop.
+- **Per-asset Impact KPI** (Hardware/Software/Non-IT): hash-of-id counts, hide-zero, hide-empty-card, responsive 2-col span; compact clickable pills.
+- **Icon-badge KPI style** ported to Software/Non-IT/Consumable Overviews; Consumable strip reorganized (Stock Status + Reorder Alert merged with hover "Add stock"; rows 2-then-3).
+- **AI-suggested actions** on Overview KPI cards (Hardware, Software, Non-IT) — gradient hover pill opens ServiceOps AI with a custom answer (`handleQuickAction` now takes `customResponse`).
+- **Right panel:** "Activity & Resources" → **"Attachments"** + Work Tracker hidden on the 5 asset pages (gated on `assetMode`); rail icon → paperclip; Properties-icon tooltip now matches each module's group title via `propertiesTitle`.
 
 ## In progress
-Nothing mid-flight; last build is green. Everything committed previously plus this session's edits are **uncommitted** (right panel + 4 asset drawers + CLAUDE.md/HANDOFF.md). Not yet pushed.
+Nothing mid-flight; last `npm run build` is green. All changes are **uncommitted / not pushed**.
 
 ## Next steps
-- Wire prototype affordances to real behavior (Allocate/Add Quantity, Add Barcode, allocation/quantity Edit/Delete, Log filter, snapshot "View more" targets).
-- Optional: extract the duplicated asset-drawer body (~8k lines × 4) into a shared component now that the per-module shapes are settling — currently intentionally duplicated.
+- Wire prototype affordances to real behavior on the license page: Compliance Settings save, Attachment add/download/delete, Allocate / Allocate License User, license-type ↔ Allocation-tab sync from the panel dropdown (currently the panel dropdown is local state and doesn't re-drive the tab; the tab reads the row's `licenseType`).
+- Optional: give `SoftwareLicenseDrawer` its own History categories (still shows the Non-IT/asset set).
+- Consider extracting the duplicated ~8k-line asset-drawer body now that 6 clones exist.
 
 ## Decisions made
-- Asset Overviews are uniform across all assets (the earlier AST-001 "2 options" experiment was reverted) — group titles and the description block are removed everywhere.
-- KPI strips stay one row: Hardware 4×2, Software 4×2, Consumable 5-up — adjust `grid-cols-N` when adding/removing KPIs.
-- Relations filtering reuses `RelationsTabContent`'s `initialTypeFilter`/`onClearTypeFilter`; each drawer holds a `relationsInitialFilter` state. Incident → relation type `Request`.
+- Software License detail is a **clone of Non-IT** in a separate file (`SoftwareLicenseDrawer`), per the project's per-module-divergence pattern; uses a `licenseToAssetShape` adapter onto `HardwareAsset`.
+- New right-panel variant gated on a **`licenseMode`** prop (like `assetMode`/`softwareMode`) so other modules are untouched.
+- "Available" = purchased − allocated; "Pending Install" = allocated − installed (clamped ≥ 0).
+- Managed Softwares deep-link uses App-level `pendingSoftwareAssetId` consumed by `SoftwareAssetsListPage.initialOpenId` (cross-page open).
 
 ## Gotchas & notes
-- IDE shows transient TS errors (`react/jsx-runtime`, "implicitly any") after editing the big drawer files — TS-server noise; trust `npm run build`.
-- The 4 asset drawers are clones — a change requested "everywhere" usually means editing all four (+ shared `TicketPropertiesPanel`). Grep the same anchor across files.
-- Tab changes need updating in 3 places per drawer: `calculateTabOverflow` base arrays, `tabConfig`, and `tabLabels`/`tabWidths`; default `activeMainTab` + per-asset reset must point at a surviving tab.
-- No standalone typecheck — validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` (corrupts em-dashes); use editor tools / `cp` for cloning.
+- The 6 asset/license drawers are clones — a change requested "everywhere" usually means editing all of them (+ shared `TicketPropertiesPanel`/`TicketFieldsAccordion`/`AssetFields`). Grep the same anchor across files.
+- Tab changes need 3 spots per drawer: `calculateTabOverflow` `allTabs`, `tabConfig`, and `tabLabels`; default `activeMainTab` + per-asset reset must point at a surviving tab.
+- IDE shows transient TS "implicitly any"/`react/jsx-runtime` hints after editing the big drawer files — trust `npm run build` (green).
+- No standalone typecheck; validate with `npm run build`. Avoid PowerShell `Get-Content`/`Set-Content` (corrupts em-dashes); use editor tools / `cp` for cloning.
 - Pushing to `main` auto-deploys via GitHub Actions; the auto-mode classifier may block `git push` and need explicit approval.

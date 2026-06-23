@@ -7,13 +7,18 @@ import { HardwareAssetsListPage } from './components/HardwareAssetsListPage';
 import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
 import { NonItAssetsListPage } from './components/NonItAssetsListPage';
 import { ConsumableAssetsListPage } from './components/ConsumableAssetsListPage';
+import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
   const navigate = (page: string) => setActivePage(page as Page);
+  // A software asset id requested from elsewhere (e.g. the Software License "Managed Softwares" card),
+  // consumed by the Software Assets list page to auto-open that asset's detail drawer.
+  const [pendingSoftwareAssetId, setPendingSoftwareAssetId] = useState<string | null>(null);
+  const openSoftwareAsset = (id: string) => { setPendingSoftwareAssetId(id); setActivePage('software-assets'); };
 
   return (
     <>
@@ -22,9 +27,10 @@ export default function App() {
       {activePage === 'change' && <ChangeListPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListPage onNavigate={navigate} />}
       {activePage === 'hardware-assets' && <HardwareAssetsListPage onNavigate={navigate} />}
-      {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} />}
+      {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}
       {activePage === 'non-it-assets' && <NonItAssetsListPage onNavigate={navigate} />}
       {activePage === 'consumable-assets' && <ConsumableAssetsListPage onNavigate={navigate} />}
+      {activePage === 'software-licenses' && <SoftwareLicensesListPage onNavigate={navigate} onOpenSoftwareAsset={openSoftwareAsset} />}
       <Toaster position="top-right" />
     </>
   );
