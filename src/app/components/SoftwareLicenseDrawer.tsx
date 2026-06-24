@@ -968,8 +968,11 @@ export function SoftwareLicenseDrawer({
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Software License detail tabs: Overview · Allocation · Attachment · History.
-      const allTabs: string[] = ['properties', 'allocation', 'attachment', 'audit'];
+      // Software License detail tabs. User licenses show a single User Allocation tab;
+      // machine licenses split Allocation + Installation into separate tabs.
+      const allTabs: string[] = isUserLicense
+        ? ['properties', 'allocation', 'attachment', 'audit']
+        : ['properties', 'allocation', 'installation', 'attachment', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1029,7 +1032,12 @@ export function SoftwareLicenseDrawer({
     setTimeout(calculateTabOverflow, 0);
     window.addEventListener('resize', calculateTabOverflow);
     return () => window.removeEventListener('resize', calculateTabOverflow);
-  }, [activeTicket?.id, drawerWidth, ticketRelations]);
+  }, [activeTicket?.id, drawerWidth, ticketRelations, isUserLicense]);
+
+  // If we switch to a user license while on the machine-only Installation tab, fall back to Allocation.
+  useEffect(() => {
+    if (isUserLicense && activeMainTab === 'installation') setActiveMainTab('allocation');
+  }, [isUserLicense, activeMainTab]);
 
   // Click outside handler for More dropdown
   useEffect(() => {
@@ -1985,7 +1993,60 @@ export function SoftwareLicenseDrawer({
             <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Compliance Settings — the only header action on the license page */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy License URL</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <Share2 size={16} className="text-[#6b7280]" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Share License</TooltipContent>
+            </Tooltip>
+            <div className="relative">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="p-1.5 hover:bg-[#f9fafb] rounded"
+                    onClick={() => setIsWatching(!isWatching)}
+                    onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
+                    onMouseLeave={() => setShowWatchersDropdown(false)}
+                  >
+                    {isWatching ? <EyeOff size={16} className="text-[#6b7280]" /> : <Eye size={16} className="text-[#6b7280]" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{isWatching ? 'Unwatch' : 'Watch'}</TooltipContent>
+              </Tooltip>
+              {showWatchersDropdown && isWatching && (
+                <div
+                  className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
+                  onMouseEnter={() => setShowWatchersDropdown(true)}
+                  onMouseLeave={() => setShowWatchersDropdown(false)}
+                >
+                  <div className="px-3 py-2 border-b border-[#e5e7eb]">
+                    <div className="text-[13px] font-medium text-[#111827]">Watchers ({watchers.length})</div>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {watchers.map((watcher) => (
+                      <div key={watcher.id} className="px-3 py-2 hover:bg-[#f9fafb] cursor-pointer flex items-center gap-2">
+                        <div className="w-6 h-6 rounded bg-[#3D8BD0] text-white flex items-center justify-center text-[11px] font-medium">{watcher.avatar}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-medium text-[#111827] truncate leading-tight">{watcher.name}</div>
+                          <div className="text-[11px] text-[#6b7280] truncate mt-0.5">{watcher.email}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Compliance Settings — the bell action on the license page */}
             <div className="relative">
               <button
                 onClick={() => setShowComplianceSettings((v) => !v)}
@@ -2346,12 +2407,21 @@ export function SoftwareLicenseDrawer({
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
                 {(() => {
-                  const tabConfig = [
-                    { id: 'properties', label: 'Overview' },
-                    { id: 'allocation', label: 'Allocation' },
-                    { id: 'attachment', label: 'Attachment' },
-                    { id: 'audit', label: 'History' },
-                  ].filter(tab => (tab as any).condition !== false);
+                  const tabConfig = (isUserLicense
+                    ? [
+                        { id: 'properties', label: 'Overview' },
+                        { id: 'allocation', label: 'User Allocation' },
+                        { id: 'attachment', label: 'Attachment' },
+                        { id: 'audit', label: 'Audit Trail' },
+                      ]
+                    : [
+                        { id: 'properties', label: 'Overview' },
+                        { id: 'allocation', label: 'Allocation' },
+                        { id: 'installation', label: 'Installation' },
+                        { id: 'attachment', label: 'Attachment' },
+                        { id: 'audit', label: 'Audit Trail' },
+                      ]
+                  ).filter(tab => (tab as any).condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
                   const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
@@ -2371,9 +2441,9 @@ export function SoftwareLicenseDrawer({
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'allocation': 'Allocation',
+                    'allocation': isUserLicense ? 'User Allocation' : 'Allocation',
                     'attachment': 'Attachment',
-                    'audit': 'History'
+                    'audit': 'Audit Trail'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -2678,30 +2748,35 @@ export function SoftwareLicenseDrawer({
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
               {/* KPI strip — Warranty / Impact / Approval */}
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-5' : 'grid-cols-2'} gap-3`}>
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
                   {(() => {
                     const purchased = activeLicense?.purchaseCount ?? 0;
                     const allocated = activeLicense?.allocationCount ?? 0;
                     const installed = activeLicense?.installationCount ?? 0;
                     const available = Math.max(purchased - allocated, 0);       // purchased but not yet allocated
                     const pendingInstall = Math.max(allocated - installed, 0);  // allocated but not yet installed
+                    // Utilization status, color follows the value.
+                    const utilizationStatus = 'Over-utilized';
+                    const utilizationColor = utilizationStatus === 'Over-utilized' ? '#DC2626' : (utilizationStatus as string) === 'Under-utilized' ? '#D97706' : '#22A06B';
                     return [
-                      { label: 'Purchase Count', value: String(purchased), color: '#3D8BD0', icon: Package },
-                      { label: 'Allocation Count', value: String(allocated), color: '#8B5CF6', icon: Share2 },
-                      { label: 'Installation Count', value: String(installed), color: '#14B8A6', icon: Download },
-                      { label: 'Available', value: String(available), color: '#22A06B', icon: CheckCircle },
-                      { label: 'Pending Install', value: String(pendingInstall), color: '#D97706', icon: Clock },
-                    ] as { label: string; value: string; color: string; icon: typeof Package }[];
+                      { label: 'Purchase Count', value: String(purchased), sub: 'Total purchased', color: '#3D8BD0', icon: Package },
+                      { label: 'Available', value: String(available), sub: 'Unallocated', color: '#22A06B', icon: CheckCircle },
+                      { label: 'Allocation Count', value: String(allocated), sub: 'Allocated', color: '#8B5CF6', icon: Share2 },
+                      { label: 'Installation Count', value: String(installed), sub: 'Installed', color: '#14B8A6', icon: Download },
+                      { label: 'Pending Install', value: String(pendingInstall), sub: 'Not installed yet', color: '#D97706', icon: Clock },
+                      { label: 'Utilization', value: utilizationStatus, sub: 'Seat usage', color: utilizationColor, icon: Gauge },
+                    ] as { label: string; value: string; sub?: string; color: string; icon: typeof Package }[];
                   })().map((c) => {
                     const Icon = c.icon;
                     return (
-                      <div key={c.label} className="bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
-                        <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
-                          <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
+                      <div key={c.label} className="relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
+                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}</div>
+                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                       </div>
                     );
                   })}
@@ -3282,69 +3357,6 @@ export function SoftwareLicenseDrawer({
             })()}
 
             {/* Installation — hardware assets where this software is installed */}
-            {activeMainTab === 'installation' && (() => {
-              const all = [
-                { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', type: 'Windows Laptop', ip: '10.190.44.202', group: 'Unassigned', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Tue, Apr 28, 2026 11:44 AM' },
-                { id: 'LAP-6712', host: 'FIN-LT-0188', type: 'Windows Laptop', ip: '10.20.22.188', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Mar 17, 2026 09:20 AM' },
-                { id: 'DSK-5521', host: 'OPS-DT-0211', type: 'Windows Desktop', ip: '10.20.21.211', group: 'IT Operations', managedBy: { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' }, created: 'Fri, Feb 06, 2026 02:10 PM' },
-                { id: 'LAP-6420', host: 'ENG-LT-0312', type: 'Windows Laptop', ip: '10.20.19.112', group: 'IT Operations', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jan 14, 2026 04:45 PM' },
-              ];
-              const q = installationSearch.trim().toLowerCase();
-              const rows = q ? all.filter((r) => r.id.toLowerCase().includes(q) || r.host.toLowerCase().includes(q) || r.ip.includes(q) || r.type.toLowerCase().includes(q)) : all;
-              const headers = ['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date'];
-              return (
-                <div className="px-6 py-6">
-                  <div className="relative mb-4">
-                    <input
-                      type="text"
-                      value={installationSearch}
-                      onChange={(e) => setInstallationSearch(e.target.value)}
-                      placeholder="Select field or enter a keyword to search..."
-                      className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
-                    />
-                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px] text-[12px]">
-                      <thead className="bg-white border-b border-[#e5e7eb]">
-                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                        {rows.length === 0 ? (
-                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No installations found.</td></tr>
-                        ) : rows.map((r) => (
-                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-2">
-                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
-                                <span className="text-[#364658] max-w-[150px] truncate inline-block align-bottom">{r.host}</span>
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><Laptop size={14} className="text-[#6B7280]" />{r.type}</span></td>
-                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.host}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.ip}</td>
-                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[#9ca3af]">---<ChevronDown size={13} /></span></td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-2">
-                                <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
-                                <span className="text-[#364658]">{r.managedBy.name}</span>
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex items-center justify-end mt-4 text-[12px] text-[#7B8FA5]">
-                    Showing 1-{rows.length} of {rows.length} items
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* Meter — software usage metering across the assets it's installed on */}
             {activeMainTab === 'meter' && (() => {
               const rows = [
@@ -5924,51 +5936,29 @@ export function SoftwareLicenseDrawer({
               />
             )}
 
-            {/* Allocation Tab Content — machine licenses toggle Allocation/Installation; user licenses show User Allocation only */}
+            {/* Allocation Tab Content — machine: asset allocation; user license: user allocation */}
             {activeMainTab === 'allocation' && (
               <div className="px-6 py-6">
                 {!isUserLicense ? (
                   <>
-                    {/* Segmented toggle */}
-                    <div className="inline-flex items-center gap-1 rounded-lg bg-[#F1F5F9] p-1 mb-5">
-                      {([['allocation', 'Allocation'], ['installation', 'Installation']] as const).map(([id, label]) => (
-                        <button
-                          key={id}
-                          onClick={() => setLicenseAllocView(id)}
-                          className={`px-3.5 py-1.5 text-[13px] font-medium rounded-md transition-colors ${licenseAllocView === id ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Header row */}
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-[15px] font-semibold text-[#3D8BD0]">{licenseAllocView === 'allocation' ? 'Allocation' : 'Installation'}</h3>
-                      {licenseAllocView === 'allocation' ? (
-                        <button className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate</button>
-                      ) : (
-                        <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">All <Filter size={14} className="text-[#7B8FA5]" /></button>
-                      )}
+                      <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Allocation</h3>
+                      <button className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate</button>
                     </div>
-
-                    {/* Search */}
                     <div className="relative mb-4">
                       <input placeholder="Select field or enter a keyword to search..." className="h-[38px] w-full rounded-md border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
                     </div>
-
-                    {/* Asset table */}
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[1100px]">
                         <thead className="border-b border-[#E5E7EB]">
                           <tr>
-                            {['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date', ...(licenseAllocView === 'allocation' ? ['Actions'] : [])].map((h) => (
+                            {['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date', 'Actions'].map((h) => (
                               <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E5E7EB]">
-                          {(licenseAllocView === 'allocation' ? LICENSE_ALLOCATIONS : LICENSE_INSTALLATIONS).map((r) => (
+                          {LICENSE_ALLOCATIONS.map((r) => (
                             <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="inline-flex items-center gap-2 text-[12px]">
@@ -5993,18 +5983,13 @@ export function SoftwareLicenseDrawer({
                                 </span>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.created}</td>
-                              {licenseAllocView === 'allocation' && (
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                  <button className="text-[#DC2626] hover:text-[#b91c1c] transition-colors" title="Remove allocation"><Unlink size={15} /></button>
-                                </td>
-                              )}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <button className="text-[#DC2626] hover:text-[#b91c1c] transition-colors" title="Remove allocation"><Unlink size={15} /></button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                      {(licenseAllocView === 'allocation' ? LICENSE_ALLOCATIONS : LICENSE_INSTALLATIONS).length === 0 && (
-                        <div className="py-10 text-center text-[13px] text-[#9ca3af]">No records found</div>
-                      )}
                     </div>
                   </>
                 ) : (
@@ -6045,11 +6030,70 @@ export function SoftwareLicenseDrawer({
               </div>
             )}
 
+            {/* Installation Tab Content — machine licenses only */}
+            {activeMainTab === 'installation' && !isUserLicense && (
+              <div className="px-6 py-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Installation</h3>
+                  <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">All <Filter size={14} className="text-[#7B8FA5]" /></button>
+                </div>
+                <div className="relative mb-4">
+                  <input placeholder="Select field or enter a keyword to search..." className="h-[38px] w-full rounded-md border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1100px]">
+                    <thead className="border-b border-[#E5E7EB]">
+                      <tr>
+                        {['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E5E7EB]">
+                      {LICENSE_INSTALLATIONS.map((r) => (
+                        <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-2 text-[12px]">
+                              <span className="rounded bg-[#e8f4fd] px-2 py-0.5 font-semibold text-[#3D8BD0]">{r.id}</span>
+                              <span className="text-[#364658]">{r.name}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="inline-flex items-center gap-1.5"><Laptop size={14} className="text-[#6B7280]" />{r.assetType}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: r.status === 'In Use' ? '#22C55E' : '#3D8BD0' }} />{r.status}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.host === '---' ? <span className="text-[#9ca3af]">---</span> : r.host}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.ip === '---' ? <span className="text-[#9ca3af]">---</span> : r.ip}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.usedBy === '---' ? <span className="text-[#9ca3af]">---</span> : r.usedBy}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.group}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-2">
+                              {r.managedBy.initials ? (
+                                <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color || '#9CA3AF' }}>{r.managedBy.initials}</span>
+                              ) : (
+                                <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
+                              )}
+                              <span className="text-[12px] text-[#364658]">{r.managedBy.name}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.created}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Attachment Tab Content — grid of attachments + Add (side drawer) */}
             {activeMainTab === 'attachment' && (
               <div className="px-6 py-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Attachments</h3>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="relative w-[240px]">
+                    <input
+                      placeholder="Search..."
+                      className="h-[34px] w-full rounded-md border border-[#DFE5ED] bg-white pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none"
+                    />
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+                  </div>
                   <div className="flex items-center gap-2">
                     {/* Type filter */}
                     <div className="relative">
@@ -6103,7 +6147,12 @@ export function SoftwareLicenseDrawer({
                               <Paperclip size={14} className="text-[#6B7280]" />{att.name}
                             </button>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.type}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {(() => {
+                              const tc = att.type === 'License File' ? '#3D8BD0' : att.type === 'Invoice' ? '#8B5CF6' : '#D97706';
+                              return <span className="inline-flex items-center rounded-sm px-2.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${tc}1A`, color: tc }}>{att.type}</span>;
+                            })()}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.date === '---' ? <span className="text-[#9ca3af]">---</span> : att.date}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.uploadedBy}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{att.uploadedOn}</td>
@@ -6176,19 +6225,7 @@ export function SoftwareLicenseDrawer({
                 <div className="px-6 py-6">
                   {/* Sticky toolbar: category dropdown (left) + date range / filter / download (right) */}
                   <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
-                    <div className="relative">
-                      <button onClick={() => setShowHistoryMenu((o) => !o)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors min-w-[200px] justify-between">
-                        {activeCat.label}
-                        <ChevronDown size={14} className="text-[#7B8FA5]" />
-                      </button>
-                      {showHistoryMenu && (
-                        <div className="absolute top-full left-0 mt-1 z-50 w-[230px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1">
-                          {categories.map((c) => (
-                            <button key={c.id} onClick={() => { setHistoryCategory(c.id); setShowHistoryMenu(false); }} className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#F5F7FA] transition-colors ${historyCategory === c.id ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}>{c.label}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Audit Trail</h3>
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
                       <button title="Filter" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Filter size={15} /></button>

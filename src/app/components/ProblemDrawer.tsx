@@ -2377,7 +2377,7 @@ export function ProblemDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Copy Ticket URL
+                Copy Problem URL
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -2387,7 +2387,7 @@ export function ProblemDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Share Ticket
+                Share Problem
               </TooltipContent>
             </Tooltip>
             <div className="relative">

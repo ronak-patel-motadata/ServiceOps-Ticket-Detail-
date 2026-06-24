@@ -2820,7 +2820,7 @@ export function ChangeDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Copy Ticket URL
+                Copy Change URL
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -2830,7 +2830,7 @@ export function ChangeDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Share Ticket
+                Share Change
               </TooltipContent>
             </Tooltip>
             <div className="relative">

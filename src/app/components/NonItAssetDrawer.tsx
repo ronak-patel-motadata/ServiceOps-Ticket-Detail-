@@ -2785,8 +2785,8 @@ export function NonItAssetDrawer({
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
               {/* KPI strip — Warranty / Impact / Approval */}
-              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-3`}>
+              <div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-1'} gap-3`}>
                   {(() => {
                     const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
                     const impactCounts: [string, number][] = [
@@ -2797,20 +2797,20 @@ export function NonItAssetDrawer({
                     ];
                     const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
                     return [
-                    { label: 'Warranty Expire', value: 'Expires in 23 days', color: '#D97706', icon: ShieldCheck,
+                    { label: 'Warranty Expire', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
                       ai: { action: 'Renew warranty', q: 'When does this asset\'s warranty expire and how do I renew it?',
                         a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Manufacturer warranty — onsite service.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
-                  ] as { label: string; value?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
+                    { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
+                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
                     const Icon = c.icon;
                     if (c.counts) {
                       const visible = c.counts.filter(([, n]) => n > 0);
                       return (
-                        <div key={c.label} className={`${visible.length >= 4 ? 'col-span-2' : ''} bg-[#F9FAFB] rounded-xl p-3.5 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={15} /></span>
-                            <div className="text-[12px] text-[#7B8FA5]">Open related records for this asset</div>
+                        <div key={c.label} className={`${visible.length >= 4 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
+                          <div className="flex items-center gap-2.5 mb-3">
+                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {visible.map(([l, n]) => {
@@ -2825,9 +2825,9 @@ export function NonItAssetDrawer({
                                 <button
                                   key={l}
                                   onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                  className="group/imp flex items-center gap-1.5 rounded-lg bg-white border border-[#E5E7EB] pl-1.5 pr-2 py-1 hover:shadow-sm transition-all"
+                                  className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
                                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
                                 >
                                   <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
                                   <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
@@ -2840,18 +2840,19 @@ export function NonItAssetDrawer({
                       );
                     }
                     return (
-                      <div key={c.label} className="group relative bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
-                        <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
-                          <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
+                      <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
+                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                         {c.ai && (
                           <button
                             onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
                             title={`Ask ServiceOps AI — ${c.ai.action}`}
                             style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                            className="group/ai absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
+                            className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
                           >
                             <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
                             <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>

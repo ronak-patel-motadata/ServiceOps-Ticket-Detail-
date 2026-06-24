@@ -25,6 +25,8 @@ interface TicketPropertiesPanelProps {
   softwareMode?: boolean;
   // Software-license variant of the asset field set (Product + License Type only)
   licenseMode?: boolean;
+  // Contract variant of the asset field set (contract number/dates/cost/type/vendor)
+  contractMode?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
@@ -311,6 +313,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     assetMode = false,
     softwareMode = false,
     licenseMode = false,
+    contractMode = false,
     assetState,
     agentInfo,
     warranty,
@@ -1516,6 +1519,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           assetMode={assetMode}
           softwareMode={softwareMode}
           licenseMode={licenseMode}
+          contractMode={contractMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}

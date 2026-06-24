@@ -2988,37 +2988,38 @@ export function ConsumableAssetDrawer({
             <div className="px-6 py-6 space-y-6">
               {/* Group: Quantity & Allocation */}
               <div>
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div>
                 {(() => {
                   const totalQty = 60;
                   const allocatedQty = 54;
                   const availableQty = totalQty - allocatedQty;
                   const reorderLevel = 10;
                   const lowStock = availableQty <= reorderLevel;
-                  type Card = { label: string; value: string; color: string; tab?: string; addStock?: boolean; icon: typeof Package };
+                  type Card = { label: string; value: string; sub?: string; color: string; tab?: string; addStock?: boolean; icon: typeof Package };
                   const renderCard = (c: Card) => {
                     const Icon = c.icon;
                     const inner = (
                       <>
-                        <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={17} /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
-                          <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
+                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}</div>
+                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                       </>
                     );
                     if (c.tab) {
                       return (
-                        <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 text-left border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">{inner}</button>
+                        <button key={c.label} onClick={() => setActiveMainTab(c.tab as any)} className="relative bg-white rounded-xl p-4 text-left border border-[#E5E7EB]">{inner}</button>
                       );
                     }
                     return (
-                      <div key={c.label} className={`bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all ${c.addStock ? 'group relative' : ''}`}>
+                      <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
                         {inner}
                         {c.addStock && (
                           <button
                             onClick={() => { setActiveMainTab('allocation' as any); setAllocationView('quantity'); }}
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center gap-1 rounded-md bg-[#3D8BD0] text-white pl-1.5 pr-2 py-1 text-[11px] font-medium hover:bg-[#2F7AB8]"
+                            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center gap-1 rounded-md bg-[#3D8BD0] text-white pl-1.5 pr-2 py-1 text-[11px] font-medium hover:bg-[#2F7AB8]"
                           >
                             <Plus size={12} className="flex-shrink-0" /> Add stock
                           </button>
@@ -3027,13 +3028,13 @@ export function ConsumableAssetDrawer({
                     );
                   };
                   const row1: Card[] = [
-                    { label: 'Stock Status', value: lowStock ? `Low Stock ~ ${availableQty}` : 'In Stock', color: lowStock ? '#D97706' : '#22A06B', icon: lowStock ? AlertTriangle : Package, addStock: lowStock },
-                    { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
+                    { label: 'Stock Status', value: lowStock ? 'Low Stock' : 'In Stock', sub: lowStock ? `Only ${availableQty} left` : 'Healthy level', color: lowStock ? '#D97706' : '#22A06B', icon: lowStock ? AlertTriangle : Package, addStock: lowStock },
+                    { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
                   ];
                   const row2: Card[] = [
-                    { label: 'Total Quantity', value: String(totalQty), color: '#364658', icon: Layers },
-                    { label: 'Available', value: String(availableQty), color: lowStock ? '#DC2626' : '#22A06B', icon: CheckCircle },
-                    { label: 'Allocated', value: String(allocatedQty), color: '#364658', tab: 'allocation', icon: Share2 },
+                    { label: 'Total Quantity', value: String(totalQty), sub: 'Total stock', color: '#364658', icon: Layers },
+                    { label: 'Available', value: String(availableQty), sub: 'Ready to allocate', color: lowStock ? '#DC2626' : '#22A06B', icon: CheckCircle },
+                    { label: 'Allocated', value: String(allocatedQty), sub: 'Currently in use', color: '#364658', tab: 'allocation', icon: Share2 },
                   ];
                   return (
                     <div className="space-y-3">

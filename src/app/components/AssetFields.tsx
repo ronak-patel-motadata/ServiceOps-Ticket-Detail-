@@ -42,6 +42,17 @@ export const LICENSE_TYPE_OPTIONS = [
   'OEM', 'Free License', 'Enterprise Subscription',
 ];
 
+export const CONTRACT_TYPE_OPTIONS = ['Lease', 'Warranty', 'Maintenance', 'Support'];
+
+/** User options for the contract Owner picker (mirrors the ticket Assignee dropdown). */
+const OWNER_OPTIONS: { name: string; initials: string; color: string; status: string }[] = [
+  { name: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', status: '#22C55E' },
+  { name: 'Michael Chen', initials: 'MC', color: '#8B5CF6', status: '#22C55E' },
+  { name: 'Emma Wilson', initials: 'EW', color: '#EC4899', status: '#F59E0B' },
+  { name: 'David Kim', initials: 'DK', color: '#64748B', status: '#9CA3AF' },
+  { name: 'Lisa Anderson', initials: 'LA', color: '#22C55E', status: '#22C55E' },
+];
+
 /** Field labels in display order — also used for pinning and search matching. */
 export const ASSET_FIELD_LABELS = [
   'Asset Type', 'Status', 'Impact', 'Managed By Group', 'Managed By', 'CI',
@@ -276,9 +287,11 @@ interface AssetFieldsProps {
   softwareMode?: boolean;
   // Software-license variant: shows ONLY Product (read-only) + License Type (dropdown).
   licenseMode?: boolean;
+  // Contract variant: shows ONLY the contract fields (number/dates/cost/type/vendor).
+  contractMode?: boolean;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, licenseMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, licenseMode = false, contractMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -295,6 +308,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
   const [groupSearch, setGroupSearch] = useState('');
   const [managerSearch, setManagerSearch] = useState('');
   const [licenseTypeSearch, setLicenseTypeSearch] = useState('');
+  const [contractTypeSearch, setContractTypeSearch] = useState('');
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [owner, setOwner] = useState<{ name: string; initials: string; color: string } | null>(OWNER_OPTIONS[0]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['Hardware']));
 
   const ref = useRef<HTMLDivElement>(null);
@@ -448,6 +464,192 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
                 )}
               </div>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Contract variant: contract number / dates / cost / type / vendor.
+  if (contractMode) {
+    const filteredContractTypes = CONTRACT_TYPE_OPTIONS.filter((o) => o.toLowerCase().includes(contractTypeSearch.toLowerCase()));
+    const textRow = (label: string) => (
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+        <div className="flex-1 min-w-0">
+          {editingField === label ? (
+            <input
+              autoFocus
+              value={extra[label] || ''}
+              onChange={(e) => updateExtra(label, e.target.value)}
+              onBlur={() => setEditingField(null)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }}
+              className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+            />
+          ) : (
+            <div className="group/edit relative flex items-center">
+              <span className={`text-[13px] px-3 py-2 truncate flex-1 ${extra[label] ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{extra[label] || '---'}</span>
+              <button onClick={() => setEditingField(label)} className="absolute right-2 text-[#7B8FA5] opacity-0 group-hover/edit:opacity-100 transition-opacity"><Edit size={14} /></button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+    const dateRow = (label: string) => (
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+        <div className="flex-1 min-w-0">
+          <div className="relative group">
+            <input
+              type="date"
+              value={extra[label] || ''}
+              onChange={(e) => updateExtra(label, e.target.value)}
+              onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+              className={`w-full pl-3 pr-8 py-2 text-[13px] bg-transparent border-none rounded-md hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${extra[label] ? 'text-[#364658]' : 'text-transparent'}`}
+            />
+            {!extra[label] && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
+            <CalendarIcon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+          </div>
+        </div>
+      </div>
+    );
+    return (
+      <div className="px-4 pb-4 space-y-2" ref={ref}>
+        {(!q || 'contract number'.includes(q)) && textRow('Contract Number')}
+        {(!q || 'contract start date'.includes(q)) && dateRow('Contract Start Date')}
+        {(!q || 'contract end date'.includes(q)) && dateRow('Contract End Date')}
+        {(!q || 'cost'.includes(q)) && textRow('Cost')}
+        {(!q || 'contract type'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Contract Type</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <button className={`${triggerClass} pl-3`} title={extra['Contract Type']} onClick={() => toggle('contractType')}>
+                  {extra['Contract Type'] ? <span className="truncate">{extra['Contract Type']}</span> : <span className="text-[#9CA3AF]">Select</span>}
+                </button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'contractType' && (
+                  <div className={menuClass}>
+                    <SearchBox value={contractTypeSearch} onChange={setContractTypeSearch} />
+                    <div className="max-h-[280px] overflow-y-auto">
+                      {filteredContractTypes.map((o) => (
+                        <button key={o} className={optionClass} onClick={() => { updateExtra('Contract Type', o); setOpen(null); setContractTypeSearch(''); }}>
+                          <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                          {extra['Contract Type'] === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {(!q || 'vendor'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Vendor</div>
+            <div className="flex-1 min-w-0">
+              <span className={`text-[13px] px-3 py-2 block truncate ${extra['Vendor'] ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{extra['Vendor'] || '---'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* View more fields: Owner (user picker) + Department (dropdown) */}
+        {(showMore || q) && (!q || 'owner'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Owner</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                  {owner ? (
+                    <span className="flex size-5 items-center justify-center rounded text-[10px] font-semibold text-white" style={{ backgroundColor: owner.color }}>{owner.initials}</span>
+                  ) : (
+                    <span className="flex size-5 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={12} /></span>
+                  )}
+                </span>
+                <button className={`${triggerClass} pl-9`} title={owner?.name} onClick={() => toggle('owner')}>{owner?.name || 'Unassigned'}</button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'owner' && (
+                  <div className={menuClass}>
+                    <div className="px-3 pb-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search for users..."
+                          autoFocus
+                          value={ownerSearch}
+                          onChange={(e) => setOwnerSearch(e.target.value)}
+                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        />
+                        <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                      </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <button
+                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
+                        onClick={() => { setOwner(null); setOpen(null); setOwnerSearch(''); }}
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <span className="size-6 rounded-full border-2 border-dashed border-[#9CA3AF] flex-shrink-0" />
+                          <span className="text-[13px] text-[#364658] truncate">Unassigned</span>
+                        </span>
+                        {!owner && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                      </button>
+                      {OWNER_OPTIONS.filter((o) => o.name.toLowerCase().includes(ownerSearch.toLowerCase())).map((o) => (
+                        <button key={o.name} className={optionClass} onClick={() => { setOwner(o); setOpen(null); setOwnerSearch(''); }}>
+                          <span className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="size-6 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: o.color }}>{o.initials}</span>
+                            <span className="text-[13px] text-[#364658] truncate">{o.name}</span>
+                          </span>
+                          <span className="flex items-center gap-2 flex-shrink-0">
+                            <span className="size-2 rounded-full" style={{ backgroundColor: o.status }} />
+                            {owner?.name === o.name && <Check size={14} className="text-[#3D8BD0]" />}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {(showMore || q) && (!q || 'department'.includes(q)) && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Department</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <button className={`${triggerClass} pl-3`} title={extra['Department']} onClick={() => toggle('contractDepartment')}>
+                  {extra['Department'] ? <span className="truncate">{extra['Department']}</span> : <span className="text-[#9CA3AF]">Select</span>}
+                </button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'contractDepartment' && (
+                  <div className={menuClass}>
+                    <div className="max-h-[280px] overflow-y-auto">
+                      {['IT', 'Finance', 'HR', 'Operations', 'Sales', 'Procurement'].map((o) => (
+                        <button key={o} className={optionClass} onClick={() => { updateExtra('Department', o); setOpen(null); }}>
+                          <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                          {extra['Department'] === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View more / View less toggle (hidden while searching) */}
+        {!q && (
+          <div className="pt-1">
+            <button
+              onClick={() => setShowMore((v) => !v)}
+              className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
+            >
+              {showMore ? 'View less' : 'View more'}
+              {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
           </div>
         )}
       </div>

@@ -2824,7 +2824,7 @@ export function ReleaseDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Copy Ticket URL
+                Copy Release URL
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -2834,7 +2834,7 @@ export function ReleaseDrawer({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                Share Ticket
+                Share Release
               </TooltipContent>
             </Tooltip>
             <div className="relative">

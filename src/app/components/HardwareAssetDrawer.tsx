@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -286,40 +286,40 @@ export function HardwareAssetDrawer({
   ];
   const impactVisible = impactItems.filter((it) => it.n > 0);
   const healthComplianceGrid = (
-    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4`}>
       {([
-        { label: 'Warranty', value: 'Expires in 23 days', color: '#D97706', icon: ShieldCheck,
+        { label: 'Warranty', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
           ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
             a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Dell ProSupport Plus — onsite next-business-day.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term (1 yr / 3 yr) with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
-        { label: 'Antivirus', value: 'Active', color: '#22A06B', icon: Shield,
+        { label: 'Antivirus', value: 'Active', sub: 'Protection enabled', color: '#22A06B', icon: Shield,
           ai: { action: 'Run a scan', q: 'Run a security scan on this asset',
             a: "**Antivirus:** Active — CrowdStrike Falcon, definitions updated 4 hours ago.\n**Last full scan:** 2 days ago — 0 threats found.\n\n**Recommended next steps:**\n• Trigger an on-demand full scan now\n• Verify real-time protection is enabled\n• Review the quarantine log for the last 30 days\n\nShall I trigger an on-demand scan and notify the asset owner?" } },
-        { label: 'Patches', value: '2 missing', color: '#D97706', icon: Download,
+        { label: 'Patches', value: '2', sub: 'Missing updates', color: '#D97706', icon: Download,
           ai: { action: 'Deploy patches', q: 'Which patches are missing on this asset and how do I deploy them?',
             a: "**Patch status:** **2 missing** updates.\n\n**Missing:**\n• KB5034441 — Security Update (Critical)\n• KB5034123 — Cumulative Update (Important)\n\n**Recommended next steps:**\n• Schedule deployment in the next maintenance window\n• A reboot is required after KB5034441\n• Re-validate against the patch baseline after install\n\nWould you like me to schedule these patches for the next window?" } },
         baselineVarianceCount > 0
-          ? { label: 'Baseline Variance', value: `${baselineVarianceCount} detected`, color: '#DC2626', icon: ShieldAlert,
+          ? { label: 'Baseline Variance', value: `${baselineVarianceCount}`, sub: 'Deviations detected', color: '#DC2626', icon: ShieldAlert,
               ai: { action: 'Investigate drift', q: 'What baseline variances were detected on this asset?',
                 a: "**Baseline variance:** **3 deviations** from the approved Gold baseline.\n\n**Detected changes:**\n• Unapproved service enabled: Remote Registry\n• Firewall rule modified: inbound 3389 (RDP) opened\n• Local admin group: 1 unexpected member added\n\n**Recommended next steps:**\n• Review each deviation and revert unauthorized changes\n• Confirm with the asset owner whether changes were intentional\n• Re-run the baseline scan to clear resolved items\n\nWant me to open a change to remediate these deviations?" } }
-          : { label: 'Encryption', value: 'On', color: '#22A06B', icon: Lock,
+          : { label: 'Encryption', value: 'On', sub: 'Disk encrypted', color: '#22A06B', icon: Lock,
               ai: { action: 'Verify encryption', q: 'Is this asset encrypted and is the recovery key escrowed?',
                 a: "**Encryption:** On — BitLocker (XTS-AES 256).\n**Recovery key:** Escrowed in AD on May 30, 2026.\n\n**Recommended next steps:**\n• Confirm the key is recoverable from the directory\n• Verify the TPM is healthy and owned\n\nWant me to validate the recovery key escrow?" } },
-        { label: 'Software', value: '1 unauthorized', color: '#DC2626', icon: AppWindow,
+        { label: 'Software', value: '1', sub: 'Unauthorized app', color: '#DC2626', icon: AppWindow,
           ai: { action: 'Review software', q: 'Which unauthorized software is installed on this asset?',
             a: "**Unauthorized software:** **1 application** flagged against policy.\n\n**Flagged:**\n• uTorrent 3.6 — prohibited (P2P category)\n\n**Recommended next steps:**\n• Uninstall via software deployment\n• Notify the user of the policy violation\n• Add to the blocklist to prevent reinstall\n\nShall I queue an uninstall and notify the user?" } },
-        { label: 'Compliance', value: 'At risk', color: '#DC2626', icon: BadgeCheck,
+        { label: 'Compliance', value: 'At risk', sub: 'Needs attention', color: '#DC2626', icon: BadgeCheck,
           ai: { action: 'Fix compliance', q: "Why is this asset's compliance at risk and how do I fix it?",
             a: "**Compliance:** **At risk** — 3 of 12 controls failing.\n\n**Failing controls:**\n• Disk encryption not enforced (BitLocker off)\n• 2 missing security patches\n• 1 unauthorized application present\n\n**Recommended next steps:**\n• Enable BitLocker and escrow the recovery key\n• Deploy the 2 missing patches\n• Remove the unauthorized application\n\nWould you like me to bundle these into a single remediation plan?" } },
         ...(impactVisible.length > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, impact: true }] : []),
-        { label: 'Approvals', value: '2 pending', color: '#D97706', icon: CheckSquare },
-      ] as { label: string; value?: string; color: string; icon: typeof Shield; impact?: boolean; ai?: { action: string; q: string; a: string } }[]).map((c) => {
+        { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
+      ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Shield; impact?: boolean; ai?: { action: string; q: string; a: string } }[]).map((c) => {
         const Icon = c.icon;
         if (c.impact) {
           return (
-            <div key={c.label} className={`${impactVisible.length >= 4 ? 'col-span-2' : ''} bg-[#F9FAFB] rounded-xl p-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all`}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={15} /></span>
-                <div className="text-[12px] text-[#7B8FA5]">Open related records for this asset</div>
+            <div key={c.label} className={`${impactVisible.length >= 4 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {impactVisible.map((it) => {
@@ -328,9 +328,9 @@ export function HardwareAssetDrawer({
                     <button
                       key={it.label}
                       onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }}
-                      className="group/imp flex items-center gap-1.5 rounded-lg bg-white border border-[#E5E7EB] pl-2 pr-2.5 py-1.5 hover:shadow-sm transition-all"
+                      className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
                       onMouseEnter={(e) => (e.currentTarget.style.borderColor = it.color)}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#E5E7EB')}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
                     >
                       <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${it.color}1A`, color: it.color }}><ItIcon size={12} /></span>
                       <span className="text-[15px] font-bold leading-none" style={{ color: it.color }}>{it.n}</span>
@@ -343,20 +343,26 @@ export function HardwareAssetDrawer({
           );
         }
         return (
-        <div key={c.label} className="group relative bg-[#F9FAFB] rounded-xl p-3.5 flex items-start gap-3 border border-transparent hover:border-[#E5E7EB] hover:shadow-sm transition-all">
-          <span className="flex size-9 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}>
-            <Icon size={17} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[12px] text-[#7B8FA5] mb-0.5">{c.label}</div>
-            <div className="text-[14px] font-semibold leading-tight" style={{ color: c.color }}>{c.value}</div>
+        <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
+          {/* Header: icon badge + label */}
+          <div className="flex items-center gap-2.5 mb-3">
+            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}>
+              <Icon size={14} />
+            </span>
+            <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
           </div>
+          {/* Value */}
+          <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>
+            {c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}
+          </div>
+          {/* Subtitle */}
+          {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
           {c.ai && (
             <button
               onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
               title={`Ask ServiceOps AI — ${c.ai.action}`}
               style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-              className="group/ai absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
+              className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
             >
               <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
               <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
@@ -2639,7 +2645,7 @@ export function HardwareAssetDrawer({
             <div className="px-6 py-6 space-y-6">
               {/* Group: Health & Compliance */}
               <div>
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div>
                   {healthComplianceGrid}
                 </div>
               </div>
@@ -3673,48 +3679,71 @@ export function HardwareAssetDrawer({
 
             {activeMainTab === 'baseline' && (
               <div className="px-6 py-6 space-y-8">
-                {/* Baseline */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[14px] font-semibold text-[#3D8BD0]">Baseline</h3>
-                    <button
-                      title="Add Baseline"
-                      disabled={baselines.length >= 1}
-                      onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
-                      className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[12px]">
-                      <thead className="border-b border-[#e5e7eb]">
-                        <tr>
-                          {['ID', 'Name', 'Created On', 'Created By', 'Actions'].map((h) => (
-                            <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                        {baselines.length === 0 ? (
-                          <tr><td colSpan={5} className="px-4 py-10 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={16} /> No Data Found</span></td></tr>
-                        ) : baselines.map((b) => (
-                          <tr key={b.id} className="hover:bg-[#F9FAFB] transition-colors">
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.id}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.name}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdOn}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdBy}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button>
-                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
-                                <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
+                {/* Baseline — single-baseline half-width card + Add on the same row */}
+                <div className="flex items-start gap-3">
+                  <div className={`${baselines.length === 0 ? 'w-full' : 'w-1/2'} min-w-0`}>
+                  {baselines.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-[#D7DEE6] bg-[#FAFBFC] py-10 flex flex-col items-center justify-center text-center">
+                      <span className="flex size-11 items-center justify-center rounded-full bg-[#EEF2F6] text-[#9CA3AF] mb-3"><ShieldCheck size={22} /></span>
+                      <div className="text-[13px] font-medium text-[#364658]">No baseline added yet</div>
+                      <div className="text-[12px] text-[#9CA3AF] mt-1 mb-4">Capture a baseline to track configuration drift.</div>
+                      <button
+                        onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+                      >
+                        <Plus size={15} /> Add Baseline
+                      </button>
+                    </div>
+                  ) : baselines.map((b) => (
+                    <div key={b.id} className="rounded-xl border border-[#E5E7EB] bg-white p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{b.id}</span>
+                            <span className="text-[15px] font-semibold text-[#364658]">{b.name}</span>
+                          </div>
+                          <div className="flex items-center gap-8 mt-4">
+                            <div>
+                              <div className="text-[11px] text-[#9CA3AF]">Created On</div>
+                              <div className="text-[13px] text-[#364658] mt-0.5">{b.createdOn}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-[#9CA3AF]">Created By</div>
+                              <div className="text-[13px] text-[#364658] mt-0.5">{b.createdBy}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button title="View attributes" className="size-8 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><Eye size={16} /></button>
+                            </TooltipTrigger>
+                            <TooltipContent className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
+                              <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold text-[#364658]">Attributes</div>
+                              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-[#7B8FA5]">
+                                <span>Attribute Name</span><span>Value</span>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                              {[
+                                { name: 'OS Architecture', group: 'OS', value: '64 BIT' },
+                                { name: 'OS Name', group: 'OS', value: 'Microsoft Windows 11 Pro' },
+                                { name: 'Total Physical Memory', group: 'RAM', value: '16 GB' },
+                              ].map((a) => (
+                                <div key={a.name} className="px-3 py-1.5 flex items-start justify-between gap-3 border-t border-[#F0F2F5]">
+                                  <div className="min-w-0">
+                                    <div className="text-[12px] text-[#364658]">{a.name}</div>
+                                    <div className="text-[11px] text-[#9CA3AF]">{a.group}</div>
+                                  </div>
+                                  <div className="text-[12px] text-[#3D8BD0] text-right">{a.value}</div>
+                                </div>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
+                          <button title="Change Baseline" onClick={() => { setSelectedBaselineId(b.id); setBaselineSearch(''); setShowAddBaseline(true); }} className="size-8 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><ArrowRightLeft size={16} /></button>
+                          <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="size-8 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#FEF2F2] hover:text-[#EF4444] transition-colors"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                   </div>
                 </div>
 
