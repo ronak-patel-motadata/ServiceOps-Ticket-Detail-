@@ -144,6 +144,26 @@ function assetToTicket(a: HardwareAsset): Ticket {
   };
 }
 
+// Related records listed when hovering an Impact pill (keyed by relation type).
+const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
+  Incident: [
+    { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
+    { id: 'INC-45', subject: 'Email sync failing on Outlook', assignee: 'Rohan Mehta', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+    { id: 'INC-51', subject: 'Slow boot after update', assignee: 'Imran Qureshi', status: 'Pending', statusColor: '#9CA3AF', priority: 'Low' },
+  ],
+  Problem: [
+    { id: 'PRB-12', subject: 'Recurring VPN disconnects', assignee: 'Vikram Sethi', status: 'Under Investigation', statusColor: '#8B5CF6', priority: 'High' },
+    { id: 'PRB-18', subject: 'Frequent BSOD on docking', assignee: 'Farah Sheikh', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+  ],
+  Change: [
+    { id: 'CHG-08', subject: 'Windows 11 feature upgrade', assignee: 'Tabrez Khan', status: 'Scheduled', statusColor: '#3D8BD0', priority: 'Medium' },
+    { id: 'CHG-14', subject: 'BIOS firmware rollout', assignee: 'Neha Raje', status: 'Approved', statusColor: '#22A06B', priority: 'High' },
+  ],
+  Release: [
+    { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
+  ],
+};
+
 export function ContractDrawer({
   openAssets,
   activeAssetId,
@@ -2678,7 +2698,7 @@ export function ContractDrawer({
                     if (c.counts) {
                       const visible = c.counts.filter(([, n]) => n > 0);
                       return (
-                        <div key={c.label} className={`${visible.length >= 4 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
+                        <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
                           <div className="flex items-center gap-2.5 mb-3">
                             <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                             <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
@@ -2692,18 +2712,40 @@ export function ContractDrawer({
                                 Release: { icon: Package, color: '#22A06B' },
                               } as Record<string, { icon: typeof TicketIcon; color: string }>)[l];
                               const Ic = m.icon;
+                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
                               return (
-                                <button
-                                  key={l}
-                                  onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                  className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                                >
-                                  <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
-                                  <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
-                                  <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
-                                </button>
+                                <Tooltip key={l}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                                      className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
+                                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
+                                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
+                                    >
+                                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
+                                      <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
+                                      <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
+                                    <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{n} {l}</div>
+                                    <div className="max-h-[260px] overflow-y-auto">
+                                      {recs.map((r) => (
+                                        <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
+                                            <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
+                                          </div>
+                                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
+                                            <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
+                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
+                                            <span>{r.priority}</span>
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
                               );
                             })}
                           </div>

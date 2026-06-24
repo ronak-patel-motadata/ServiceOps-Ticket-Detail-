@@ -285,6 +285,25 @@ export function HardwareAssetDrawer({
     { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: Package, filter: 'Release' },
   ];
   const impactVisible = impactItems.filter((it) => it.n > 0);
+  // Related records listed when hovering an Impact pill (keyed by singular type).
+  const relatedRecords: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
+    Incident: [
+      { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
+      { id: 'INC-45', subject: 'Email sync failing on Outlook', assignee: 'Rohan Mehta', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+      { id: 'INC-51', subject: 'Slow boot after update', assignee: 'Imran Qureshi', status: 'Pending', statusColor: '#9CA3AF', priority: 'Low' },
+    ],
+    Problem: [
+      { id: 'PRB-12', subject: 'Recurring VPN disconnects', assignee: 'Vikram Sethi', status: 'Under Investigation', statusColor: '#8B5CF6', priority: 'High' },
+      { id: 'PRB-18', subject: 'Frequent BSOD on docking', assignee: 'Farah Sheikh', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+    ],
+    Change: [
+      { id: 'CHG-08', subject: 'Windows 11 feature upgrade', assignee: 'Tabrez Khan', status: 'Scheduled', statusColor: '#3D8BD0', priority: 'Medium' },
+      { id: 'CHG-14', subject: 'BIOS firmware rollout', assignee: 'Neha Raje', status: 'Approved', statusColor: '#22A06B', priority: 'High' },
+    ],
+    Release: [
+      { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
+    ],
+  };
   const healthComplianceGrid = (
     <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4`}>
       {([
@@ -316,7 +335,7 @@ export function HardwareAssetDrawer({
         const Icon = c.icon;
         if (c.impact) {
           return (
-            <div key={c.label} className={`${impactVisible.length >= 4 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
+            <div key={c.label} className={`${impactVisible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
               <div className="flex items-center gap-2.5 mb-3">
                 <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                 <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
@@ -324,18 +343,40 @@ export function HardwareAssetDrawer({
               <div className="flex flex-wrap gap-1.5">
                 {impactVisible.map((it) => {
                   const ItIcon = it.icon;
+                  const recs = (relatedRecords[it.label.replace(/s$/, '')] || []).slice(0, it.n);
                   return (
-                    <button
-                      key={it.label}
-                      onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }}
-                      className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = it.color)}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                    >
-                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${it.color}1A`, color: it.color }}><ItIcon size={12} /></span>
-                      <span className="text-[15px] font-bold leading-none" style={{ color: it.color }}>{it.n}</span>
-                      <span className="text-[12px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{it.label}</span>
-                    </button>
+                    <Tooltip key={it.label}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }}
+                          className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = it.color)}
+                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
+                        >
+                          <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${it.color}1A`, color: it.color }}><ItIcon size={12} /></span>
+                          <span className="text-[15px] font-bold leading-none" style={{ color: it.color }}>{it.n}</span>
+                          <span className="text-[12px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{it.label}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
+                        <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{it.n} {it.label}</div>
+                        <div className="max-h-[260px] overflow-y-auto">
+                          {recs.map((r) => (
+                            <button key={r.id} onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
+                                <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
+                                <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
+                                <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
+                                <span>{r.priority}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -3718,7 +3759,7 @@ export function HardwareAssetDrawer({
                             <TooltipTrigger asChild>
                               <button title="View attributes" className="size-8 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><Eye size={16} /></button>
                             </TooltipTrigger>
-                            <TooltipContent className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
+                            <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
                               <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold text-[#364658]">Attributes</div>
                               <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-[#7B8FA5]">
                                 <span>Attribute Name</span><span>Value</span>
