@@ -2884,9 +2884,10 @@ export function PurchaseDrawer({
                 ['City', address.city], ['Pincode', address.pincode],
                 ['State', address.state], ['Country', address.country],
               ];
+              const toneFor = (label: string) => label.trim().startsWith('−') ? '#DC2626' : label.trim().startsWith('+') ? '#22A06B' : '#364658';
               const AddressCard = ({ title, icon: Icon }: { title: string; icon: typeof Truck }) => (
-                <div className="border border-[#E5E7EB] rounded-xl bg-white overflow-hidden">
-                  <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#F0F2F5]">
+                <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-[#F5F9FD] to-white border-b border-[#F0F2F5]">
                     <span className="flex size-7 items-center justify-center rounded-lg bg-[#3D8BD0]/10 text-[#3D8BD0] flex-shrink-0"><Icon size={14} /></span>
                     <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
                   </div>
@@ -2894,7 +2895,7 @@ export function PurchaseDrawer({
                     {addrFields.map(([l, v]) => (
                       <div key={l} className={l === 'Street' || l === 'Landmark' ? 'col-span-2' : ''}>
                         <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1">{l}</div>
-                        <div className="text-[13px] text-[#364658]">{v}</div>
+                        <div className="text-[13px] text-[#364658] font-medium">{v}</div>
                       </div>
                     ))}
                   </div>
@@ -2902,11 +2903,14 @@ export function PurchaseDrawer({
               );
               return (
                 <div className="px-6 py-6 space-y-5">
-                  {/* Line items + totals */}
-                  <div className="border border-[#E5E7EB] rounded-xl bg-white overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F2F5]">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Purchase Items</h3>
-                      <span className="text-[12px] text-[#7B8FA5]">{items.length} products</span>
+                  {/* Purchase Items + totals */}
+                  <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-[#F5F9FD] to-white border-b border-[#F0F2F5]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex size-7 items-center justify-center rounded-lg bg-[#3D8BD0]/10 text-[#3D8BD0]"><Package size={14} /></span>
+                        <h3 className="text-[14px] font-semibold text-[#364658]">Purchase Items</h3>
+                      </div>
+                      <span className="inline-flex items-center rounded-sm bg-[#EAF2FB] px-2.5 py-1 text-[12px] font-medium text-[#3D8BD0]">{items.length} products</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[820px]">
@@ -2925,33 +2929,40 @@ export function PurchaseDrawer({
                         <tbody className="divide-y divide-[#F0F2F5]">
                           {items.map((it, i) => (
                             <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
-                              <td className="px-5 py-3 text-[13px] text-[#9CA3AF]">{i + 1}</td>
-                              <td className="px-3 py-3"><span className="text-[13px] font-medium text-[#364658]">{it.product}</span></td>
-                              <td className="px-3 py-3 text-[13px] text-[#9CA3AF]">{it.part}</td>
-                              <td className="px-3 py-3 text-right text-[13px] text-[#364658] tabular-nums">{fmt(it.price)}</td>
-                              <td className="px-3 py-3 text-right text-[13px] text-[#364658] tabular-nums">{it.tax.toFixed(2)}</td>
-                              <td className="px-3 py-3 text-center text-[13px] text-[#364658] tabular-nums">{it.ordered}</td>
-                              <td className="px-3 py-3 text-center">
+                              <td className="px-5 py-3.5 text-[13px] text-[#9CA3AF]">{i + 1}</td>
+                              <td className="px-3 py-3.5">
+                                <span className="inline-flex items-center gap-2.5">
+                                  <span className="flex size-7 items-center justify-center rounded-md bg-[#EAF2FB] text-[#3D8BD0] flex-shrink-0"><Package size={13} /></span>
+                                  <span className="text-[13px] font-medium text-[#364658]">{it.product}</span>
+                                </span>
+                              </td>
+                              <td className="px-3 py-3.5 text-[13px] text-[#9CA3AF]">{it.part}</td>
+                              <td className="px-3 py-3.5 text-right text-[13px] text-[#364658] tabular-nums">{fmt(it.price)}</td>
+                              <td className="px-3 py-3.5 text-right text-[13px] text-[#364658] tabular-nums">{it.tax.toFixed(2)}</td>
+                              <td className="px-3 py-3.5 text-center text-[13px] text-[#364658] tabular-nums">{it.ordered}</td>
+                              <td className="px-3 py-3.5 text-center">
                                 <span className={`inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded text-[12px] font-medium tabular-nums ${it.received >= it.ordered ? 'bg-[#22A06B]/10 text-[#22A06B]' : 'bg-[#F1F5F9] text-[#7B8FA5]'}`}>{it.received}</span>
                               </td>
-                              <td className="px-5 py-3 text-right text-[13px] font-medium text-[#364658] tabular-nums">{fmt(it.price * it.ordered)}</td>
+                              <td className="px-5 py-3.5 text-right text-[13px] font-semibold text-[#364658] tabular-nums">{fmt(it.price * it.ordered)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     {/* Totals summary */}
-                    <div className="flex justify-end px-5 py-4 border-t border-[#F0F2F5] bg-[#FCFCFD]">
-                      <div className="w-full max-w-[360px] space-y-2.5">
-                        {summary.map((r) => (
-                          <div key={r.label} className="flex items-center justify-between text-[13px]">
-                            <span className={r.strong ? 'font-semibold text-[#364658]' : 'text-[#5B6B7C]'}>{r.label}</span>
-                            <span className={`tabular-nums ${r.strong ? 'font-semibold text-[#364658]' : 'text-[#364658]'}`}>{r.value}</span>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between rounded-lg bg-[#3D8BD0]/10 px-3 py-2.5 mt-1">
-                          <span className="text-[13px] font-bold text-[#364658]">Total Cost (INR)</span>
-                          <span className="text-[15px] font-bold text-[#3D8BD0] tabular-nums">{fmt(totalCost)}</span>
+                    <div className="flex justify-end px-5 py-5 border-t border-[#F0F2F5] bg-[#FBFCFE]">
+                      <div className="w-full max-w-[380px]">
+                        <div className="space-y-2">
+                          {summary.map((r) => (
+                            <div key={r.label} className="flex items-center justify-between text-[13px]">
+                              <span className={r.strong ? 'font-semibold text-[#364658]' : 'text-[#5B6B7C]'}>{r.label}</span>
+                              <span className="tabular-nums" style={{ color: r.strong ? '#364658' : toneFor(r.label), fontWeight: r.strong ? 600 : 400 }}>{r.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between rounded-lg px-4 py-3 text-white shadow-sm" style={{ background: 'linear-gradient(90deg, #3D8BD0 0%, #5B7CFF 100%)' }}>
+                          <span className="text-[13px] font-semibold">Total Cost (INR)</span>
+                          <span className="text-[18px] font-bold tabular-nums">{fmt(totalCost)}</span>
                         </div>
                       </div>
                     </div>
@@ -2964,18 +2975,24 @@ export function PurchaseDrawer({
                   </div>
 
                   {/* Terms & signing authority */}
-                  <div className="border border-[#E5E7EB] rounded-xl bg-white p-5 space-y-5">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1.5">Terms &amp; Conditions</div>
+                  <div className="rounded-xl border border-[#E5E7EB] bg-white overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-[#F5F9FD] to-white border-b border-[#F0F2F5]">
+                      <span className="flex size-7 items-center justify-center rounded-lg bg-[#3D8BD0]/10 text-[#3D8BD0]"><FileText size={14} /></span>
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Terms &amp; Conditions</h3>
+                    </div>
+                    <div className="p-5 space-y-5">
                       <div className="flex flex-wrap gap-2">
                         {['Payment: Net 30 days', 'Delivery: Within 7 working days', 'Warranty: Minimum 1 year', 'Payment Mode: Bank Transfer'].map((t) => (
-                          <span key={t} className="inline-flex items-center rounded-md bg-[#F1F5F9] px-2.5 py-1 text-[12px] text-[#364658]">{t}</span>
+                          <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-[#F1F5F9] px-3 py-1 text-[12px] text-[#364658]"><Check size={12} className="text-[#22A06B]" />{t}</span>
                         ))}
                       </div>
-                    </div>
-                    <div className="border-t border-[#F0F2F5] pt-4">
-                      <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1">Signing Authority</div>
-                      <div className="text-[13px] text-[#364658]">Dharti Patel</div>
+                      <div className="border-t border-[#F0F2F5] pt-4">
+                        <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1.5">Signing Authority</div>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="flex size-7 items-center justify-center rounded-sm bg-[#8B5CF6] text-white text-[11px] font-semibold">DP</span>
+                          <span className="text-[13px] font-medium text-[#364658]">Dharti Patel</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
