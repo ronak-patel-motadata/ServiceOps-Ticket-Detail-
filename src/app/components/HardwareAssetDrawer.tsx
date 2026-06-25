@@ -394,7 +394,7 @@ export function HardwareAssetDrawer({
             <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
           </div>
           {/* Value */}
-          <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>
+          <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>
             {c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}
           </div>
           {/* Subtitle */}

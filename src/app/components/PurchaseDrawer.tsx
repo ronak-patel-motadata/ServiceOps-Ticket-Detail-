@@ -11,9 +11,9 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Truck, ReceiptText } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Truck, ReceiptText, ShoppingCart, CircleDollarSign } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
+import { IconRequest, IconProblem, IconChange, IconRelease, IconAssets, IconProject } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -162,6 +162,17 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
   Release: [
     { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
+  ],
+  Asset: [
+    { id: 'AST-002', subject: 'Dell Latitude 7440 — Finance', assignee: 'Tabrez Khan', status: 'In Use', statusColor: '#22A06B', priority: 'Medium' },
+    { id: 'AST-014', subject: 'HP LaserJet Pro M404dn — Floor 2', assignee: 'Tabrez Khan', status: 'Available', statusColor: '#9CA3AF', priority: 'Low' },
+  ],
+  Contract: [
+    { id: 'CON-104', subject: 'Core Switch AMC', assignee: 'Vikram Sethi', status: 'Active', statusColor: '#22A06B', priority: 'High' },
+    { id: 'CON-88', subject: 'Server Hardware Warranty', assignee: 'Neha Raje', status: 'Active', statusColor: '#22A06B', priority: 'Medium' },
+  ],
+  Project: [
+    { id: 'PRJ-09', subject: 'Datacenter Modernization', assignee: 'Vikram Sethi', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
   ],
 };
 
@@ -2728,207 +2739,106 @@ export function PurchaseDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
-              {/* KPI strip — Warranty / Impact / Approval */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
-                  {(() => {
-                    const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-                    const impactCounts: [string, number][] = [
-                      ['Incident', impactSeed % 4],
-                      ['Problem', Math.floor(impactSeed / 4) % 3],
-                      ['Change', Math.floor(impactSeed / 7) % 3],
-                      ['Release', Math.floor(impactSeed / 11) % 2],
-                    ];
-                    const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
-                    return [
-                    { label: 'Warranty Expire', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
-                      ai: { action: 'Renew warranty', q: 'When does this asset\'s warranty expire and how do I renew it?',
-                        a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Manufacturer warranty — onsite service.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
+              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                {(() => {
+                  const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  const itemsCount = PURCHASE_LINE_ITEMS.length;
+                  const totalCost = computePurchaseTotalCost(PURCHASE_LINE_ITEMS);
+                  const paidCost = 20;
+                  const remaining = totalCost - paidCost;
+                  const isExtra = remaining < 0;
+                  const vendor = activePurchase?.vendor ?? '---';
+                  const impactSeed = [...(activeAssetId ?? 'PO-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+                  const impactCounts: [string, number][] = [
+                    ['Incident', (impactSeed % 4) || 2],
+                    ['Asset', (Math.floor(impactSeed / 4) % 3) || 2],
+                    ['Contract', (Math.floor(impactSeed / 7) % 3) || 1],
+                    ['Project', Math.floor(impactSeed / 11) % 2],
+                  ];
+                  const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
+                  return [
+                    { label: 'Purchased Items', value: String(itemsCount), sub: 'In this order', color: '#3D8BD0', icon: ShoppingCart },
+                    { label: 'Total Cost', value: money(totalCost), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
+                    { label: 'Paid Cost', value: money(paidCost), unit: 'INR', sub: 'Settled so far', color: '#22A06B', icon: CheckCircle },
+                    { label: isExtra ? 'Extra Paid Cost' : 'Remaining Cost', value: money(Math.abs(remaining)), unit: 'INR', sub: isExtra ? 'Overpaid' : 'Yet to pay', color: isExtra ? '#8B5CF6' : '#D97706', icon: Clock },
+                    { label: 'Vendor', value: vendor, sub: 'Supplier', color: '#0D9488', icon: Briefcase, isText: true },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
-                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
-                    const Icon = c.icon;
-                    if (c.counts) {
-                      const visible = c.counts.filter(([, n]) => n > 0);
-                      return (
-                        <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {visible.map(([l, n]) => {
-                              const m = ({
-                                Incident: { icon: IconRequest, color: '#DC2626' },
-                                Problem: { icon: IconProblem, color: '#D97706' },
-                                Change: { icon: IconChange, color: '#8B5CF6' },
-                                Release: { icon: IconRelease, color: '#22A06B' },
-                              } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
-                              const Ic = m.icon;
-                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
-                              return (
-                                <Tooltip key={l}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                      className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                                    >
-                                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
-                                      <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
-                                      <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                                    <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{n} {l}</div>
-                                    <div className="max-h-[260px] overflow-y-auto">
-                                      {recs.map((r) => (
-                                        <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                            <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
-                                          </div>
-                                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
-                                            <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
-                                          </div>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
+                    { label: 'Approval', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
+                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; isText?: boolean }[];
+                })().map((c) => {
+                  const Icon = c.icon;
+                  if (c.counts) {
+                    const visible = c.counts.filter(([, n]) => n > 0);
                     return (
-                      <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                      <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
                         <div className="flex items-center gap-2.5 mb-3">
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
+                          <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this purchase</div>
                         </div>
-                        <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
-                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
-                        {c.ai && (
-                          <button
-                            onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
-                            title={`Ask ServiceOps AI — ${c.ai.action}`}
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                            className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
-                          >
-                            <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
-                            <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
-                          </button>
-                        )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {visible.map(([l, n]) => {
+                            const m = ({
+                              Incident: { icon: IconRequest, color: '#DC2626' },
+                              Asset: { icon: IconAssets, color: '#3D8BD0' },
+                              Contract: { icon: FileText, color: '#D97706' },
+                              Project: { icon: IconProject, color: '#8B5CF6' },
+                            } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
+                            const Ic = m.icon;
+                            const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
+                            return (
+                              <Tooltip key={l}>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
+                                    className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
+                                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
+                                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
+                                  >
+                                    <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
+                                    <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
+                                    <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
+                                  <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{n} {l}</div>
+                                  <div className="max-h-[260px] overflow-y-auto">
+                                    {recs.map((r) => (
+                                      <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
+                                          <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
+                                          <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
+                                          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
+                                          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
-                  })}
-                </div>
-              </div>
-
-              {/* Group: Financials & Contracts */}
-              <div className="mt-6">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  }
+                  return (
+                    <div key={c.label} className="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
+                        <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
+                      </div>
+                      {c.isText ? (
+                        <div className="text-[15px] font-semibold leading-snug break-words" style={{ color: c.color }} title={c.value}>{c.value}</div>
+                      ) : (
+                        <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                      )}
+                      {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
-                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                      ].map((c) => (
-                        <button
-                          key={c.label}
-                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                        >
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Non IT Property Group — shown last */}
-              <div className="mt-6">
-              {(() => {
-                const q = propertiesSearch.trim().toLowerCase();
-                const sections: { title: string; icon: JSX.Element | null; fields: [string, string][] }[] = [
-                {
-                  title: 'Non IT Property Group',
-                  icon: null,
-                  fields: [
-                    ['Serial Number', '---'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Audit Date', '---'],
-                    ['NON-IT Mac', '---'],
-                    ['asset type for nonit', '---'],
-                  ],
-                },
-                ];
-                const filtered = sections
-                  .map((s) => ({
-                    ...s,
-                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
-                  }))
-                  .filter((s) => s.fields.length > 0);
-                if (filtered.length === 0) {
-                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
-                }
-                return (
-                  <div className="space-y-6">
-                  {filtered.map((section) => (
-                <div key={section.title} className="group/section">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      {section.icon}
-                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
-                    </div>
-                    <button
-                      title={`Edit ${section.title}`}
-                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
-                    >
-                      <Edit size={15} />
-                    </button>
-                  </div>
-                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                      {section.fields.map(([label, value]) => (
-                        <div key={label} className="min-w-0">
-                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
-                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                  ))}
-                  </div>
-                );
-              })()}
+                  );
+                })}
               </div>
             </div>
             )}
