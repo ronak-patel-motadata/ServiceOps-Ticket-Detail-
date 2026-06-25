@@ -2894,8 +2894,8 @@ export function PurchaseDrawer({
                   <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-4">
                     {addrFields.map(([l, v]) => (
                       <div key={l} className={l === 'Street' || l === 'Landmark' ? 'col-span-2' : ''}>
-                        <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1">{l}</div>
-                        <div className="text-[13px] text-[#364658] font-medium">{v}</div>
+                        <div className="text-[12px] text-[#64748B] mb-1">{l}</div>
+                        <div className={`text-[13px] font-medium break-words ${v === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{v}</div>
                       </div>
                     ))}
                   </div>
@@ -2987,7 +2987,7 @@ export function PurchaseDrawer({
                         ))}
                       </div>
                       <div className="border-t border-[#F0F2F5] pt-4">
-                        <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1.5">Signing Authority</div>
+                        <div className="text-[12px] text-[#64748B] mb-1.5">Signing Authority</div>
                         <span className="inline-flex items-center gap-2">
                           <span className="flex size-7 items-center justify-center rounded-sm bg-[#8B5CF6] text-white text-[11px] font-semibold">DP</span>
                           <span className="text-[13px] font-medium text-[#364658]">Dharti Patel</span>

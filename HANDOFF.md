@@ -1,38 +1,33 @@
-# Handoff — 2026-06-25 22:08
+# Handoff — 2026-06-26 00:19
 
 ## Read first
-Focus on the **Purchase Order detail page** bullet under CLAUDE.md "Key context", plus the **Structure** entry for the Purchases module. The whole session built and tailored the new Purchases module.
+CLAUDE.md "Key context" → the **Purchase Order detail page** bullet (especially the **Purchase Details** tab description). This session was visual polish of that tab; the module itself was built in the previous session.
 
 ## What we worked on this session
-Built a new **Purchases** module (list page + Purchase Order detail drawer) cloned from Non-IT, then tailored its tabs, right panel, header, and Overview KPIs. Also made a few cross-module polish tweaks (impact pill icons + priority severity dot, smaller Overview KPI value font, baseline card layout).
+Polished the **Purchase Details** tab on the Purchase Order detail page (`PurchaseDrawer`) and refreshed the Overview impact pills. No new modules — all tweaks to existing Purchase UI.
 
 ## Completed
-- **Purchases list page** (`PurchasesListPage`/`PurchasesTable`) — opened from the Assets sidebar flyout "Purchases"; columns ID `PO-YYMM-###` / Name / Order Number / Status (dot) / Owner (avatar or Unassigned) / Vendor / Required By; realistic mock data; wired into `App.tsx` + `Sidebar.tsx`.
-- **PurchaseDrawer** (separate file, `purchaseToAssetShape` adapter). Tabs: Overview · Purchase Details · Conversation · Approvals · Settlements · Audit Trail (Relationship/Financials removed).
-  - **Right panel** `purchaseMode`: "Purchase Properties" / "Purchase Fields" (read-only Status, Order Number, read-only Cost (INR) auto = Total Cost, Cost Center, Required By, Order Date) + View more (Owner/Vendor/GL Code/Print Template/Invoice Received/Payment Status/Totals). System Fields via `purchaseMode` in `SystemFieldsRenderer`.
-  - **Overview** = 7 icon-badge KPIs (Purchased Items, Total Cost, Paid Cost, Remaining/Extra Paid Cost, Vendor, Impact [Incident/Asset/Contract/Project], Approval) — all old Non-IT overview content removed.
-  - **Purchase Details** = "Purchase Items" table + full charge-breakdown totals + Shipping/Billing address cards (distinct Truck/ReceiptText icons) + Terms chips + Signing Authority.
-  - **Conversation** = Collaborate + Note only (orange internal blocks); sub-tabs removed.
-  - **Settlements** = segmented Invoices/Payments toggle, plain tables, Add Invoice/Add Payment, sample rows.
-  - **Header**: link/share/eye + Add Relation + blue **Close Order** + 3-dot menu (Receive Items / Print). Barcode/QR removed.
-  - **Audit Trail** tab (renamed from History; dropdown replaced with heading).
-- **Cross-module polish**: impact pills now use sidebar module icons + severity dot on priority (all asset drawers + Contract); Overview KPI value font shrunk one step (20px/18px) across all 7 drawers; Hardware baseline card "Created On/By" inline.
+- **Purchase Overview**: replaced all old Non-IT overview content with a 7-KPI strip (Purchased Items / Total Cost / Paid Cost / Remaining→Extra Paid Cost / Vendor / Impact / Approval); **Impact pills = Incident / Asset / Contract / Project** with sidebar-style icons + hover popups (added Asset/Contract/Project to `RELATED_RECORDS`).
+- **Purchase Details tab** redesigned: gradient card headers + tinted `size-7` icon badges; "Purchase Items" table with per-row package icon badge and semibold Amount; `rounded-sm` "N products" pill; totals reproduce all charge rows (color-coded +green/−red) ending in a **gradient Total Cost bar**; Shipping/Billing address cards (Truck / ReceiptText icons); Terms chips; Signing Authority with `rounded-sm` avatar.
+  - Address + Signing Authority **label/value colors now match the Hardware tab** (label `text-[12px] #64748B`, value `text-[13px] font-medium #364658`, `#9CA3AF` for `---`).
+  - A top 4-stat KPI strip was added then **removed** at the user's request.
+- Cross-module (earlier this session/prior): Overview KPI value font one step smaller (20px wide / 18px narrow) across all 7 drawers; impact pills use sidebar icons + priority severity dot.
+- All published — latest commit `a77d5d2` (+ a small follow-up for the address/label color and signing-authority label, not yet committed — see Next steps).
 
 ## In progress
-- **Paused:** adding **"Ask for Approval"** as a third item to the Purchase 3-dot menu (`HardwareAssetActionsMenu` `purchase` variant in `src/app/components/HardwareAssetActionsMenu.tsx`). User declined the proposed edit; waiting on where it should sit in the menu (above Receive Items vs bottom).
+- **Paused:** adding **"Ask for Approval"** as a third item in the Purchase 3-dot menu (`HardwareAssetActionsMenu` `purchase` variant). User declined the proposed edit earlier; still waiting on where it should sit (above Receive Items vs bottom).
 
 ## Next steps
+- Publish the final tweaks from this session (address label/value colors + Signing Authority label color) — these landed after commit `a77d5d2`.
 - Confirm placement and add "Ask for Approval" to the purchase 3-dot menu.
-- Optionally wire Settlements / Purchase Details / addresses to per-purchase mock data so each PO differs (currently one shared dataset via `PURCHASE_LINE_ITEMS`).
-- Publish: a mid-session push (commit `c12ee76`) went out; the later changes (Overview KPI redesign, 4-pill Impact, smaller KPI font) landed after that and still need committing/pushing.
+- Optional: wire Settlements / Purchase Details / addresses to per-purchase mock data so each PO differs (currently one shared dataset via `PURCHASE_LINE_ITEMS`).
 
 ## Decisions made
-- PurchaseDrawer is a **separate clone** of Non-IT (per the established clone-chain pattern), tailored via a new `purchaseMode` prop threaded through the shared panels — keeps other modules untouched.
-- Large in-file blocks (conversation timeline, Overview KPI strip, barcode/QR removal) were edited via **Node line-splices** (read file as utf8, splice line arrays, preserve EOL) instead of huge Edit old_strings — avoids the PowerShell em-dash corruption CLAUDE.md warns about and keeps edits reliable. Helper content was written to scratchpad `.txt` files first.
-- Totals/cost are **data-driven** from `PURCHASE_LINE_ITEMS` + `computePurchaseTotalCost()` so the Purchase Details total, the right-panel Cost (INR), and the Overview Total Cost stay in sync.
+- Address/Signing Authority labels switched from uppercase `#9CA3AF` to the Hardware-tab style (`text-[12px] #64748B`) for consistency across the app.
+- Kept the Purchase Details charge rows **data-driven** (`PURCHASE_LINE_ITEMS` + `computePurchaseTotalCost`) so the tab total, right-panel Cost (INR), and Overview Total Cost stay in sync.
 
 ## Gotchas & notes
-- `gh` CLI is **not logged in** on this machine, so `/publish` can't watch the Actions run — but `git push` works via the Windows credential manager and the Pages site responded 200. Deploy is automatic on push to `main`.
-- `npm run build` is the only verification (no standalone typecheck; TS not global). LF→CRLF git warnings and the >500KB Babel/chunk note are harmless.
-- Editing these large drawer files: prefer the dedicated tools or Node splices; do NOT round-trip through PowerShell Get-Content/Set-Content (corrupts UTF-8 em-dashes in names).
+- Large in-file drawer blocks were edited via **Node line-splices** (read utf8 → splice line arrays → write, preserving EOL), with helper JSX written to scratchpad `.txt` first — avoids the PowerShell em-dash corruption CLAUDE.md warns about. Use this approach for big edits to `PurchaseDrawer.tsx`.
+- `gh` CLI is **not logged in** on this machine, so `/publish` can't watch the Actions run — but `git push` works via the Windows credential manager and Pages auto-deploys on push to `main` (site responds 200).
+- `npm run build` is the only verification (no standalone typecheck). LF→CRLF git warnings and the >500KB chunk note are harmless.
 - Live URL: https://ronak-patel-motadata.github.io/ServiceOps-Ticket-Detail-/
