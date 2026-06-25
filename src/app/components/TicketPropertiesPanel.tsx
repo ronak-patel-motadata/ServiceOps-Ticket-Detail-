@@ -27,6 +27,8 @@ interface TicketPropertiesPanelProps {
   licenseMode?: boolean;
   // Contract variant of the asset field set (contract number/dates/cost/type/vendor)
   contractMode?: boolean;
+  // Purchase variant of the asset field set (status/order number/cost/cost center/dates)
+  purchaseMode?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
@@ -314,6 +316,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     softwareMode = false,
     licenseMode = false,
     contractMode = false,
+    purchaseMode = false,
     assetState,
     agentInfo,
     warranty,
@@ -1520,6 +1523,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           softwareMode={softwareMode}
           licenseMode={licenseMode}
           contractMode={contractMode}
+          purchaseMode={purchaseMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -1756,6 +1760,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           getCurrentRequestChannelColor={getCurrentRequestChannelColor}
           pinnedFields={pinnedFields}
           assetMode={assetMode}
+          purchaseMode={purchaseMode}
         />
             );
           }
@@ -3254,6 +3259,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </Tooltip>
           )}
 
+          {!contractMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3274,6 +3280,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </TooltipTrigger>
             <TooltipContent>Notes</TooltipContent>
           </Tooltip>
+          )}
         </>
         )}
 

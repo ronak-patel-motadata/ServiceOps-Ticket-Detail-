@@ -11,7 +11,8 @@
  * to help reduce the file size where possible.
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ComponentType } from 'react';
+import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -278,11 +279,11 @@ export function HardwareAssetDrawer({
   // Per-asset impact counts: deterministically derived from the asset id so each
   // asset consistently shows a different number of pills (1–4) when opened.
   const impactSeed = [...(activeAssetId ?? 'AST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-  const impactItems: { label: string; n: number; color: string; icon: typeof Shield; filter: string }[] = [
-    { label: 'Incidents', n: impactSeed % 4, color: '#DC2626', icon: TicketIcon, filter: 'Request' },
-    { label: 'Problems', n: Math.floor(impactSeed / 4) % 3, color: '#D97706', icon: Stethoscope, filter: 'Problem' },
-    { label: 'Changes', n: Math.floor(impactSeed / 7) % 3, color: '#8B5CF6', icon: RefreshCw, filter: 'Change' },
-    { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: Package, filter: 'Release' },
+  const impactItems: { label: string; n: number; color: string; icon: ComponentType<{ size?: number }>; filter: string }[] = [
+    { label: 'Incidents', n: impactSeed % 4, color: '#DC2626', icon: IconRequest, filter: 'Request' },
+    { label: 'Problems', n: Math.floor(impactSeed / 4) % 3, color: '#D97706', icon: IconProblem, filter: 'Problem' },
+    { label: 'Changes', n: Math.floor(impactSeed / 7) % 3, color: '#8B5CF6', icon: IconChange, filter: 'Change' },
+    { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: IconRelease, filter: 'Release' },
   ];
   const impactVisible = impactItems.filter((it) => it.n > 0);
   // Related records listed when hovering an Impact pill (keyed by singular type).
@@ -305,7 +306,7 @@ export function HardwareAssetDrawer({
     ],
   };
   const healthComplianceGrid = (
-    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4`}>
+    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
       {([
         { label: 'Warranty', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
           ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
@@ -370,7 +371,7 @@ export function HardwareAssetDrawer({
                               <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
                                 <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
                                 <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                <span>{r.priority}</span>
+                                <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
                               </div>
                             </button>
                           ))}
@@ -393,7 +394,7 @@ export function HardwareAssetDrawer({
             <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
           </div>
           {/* Value */}
-          <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>
+          <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>
             {c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}
           </div>
           {/* Subtitle */}
@@ -3743,14 +3744,14 @@ export function HardwareAssetDrawer({
                             <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{b.id}</span>
                             <span className="text-[15px] font-semibold text-[#364658]">{b.name}</span>
                           </div>
-                          <div className="flex items-center gap-8 mt-4">
-                            <div>
-                              <div className="text-[11px] text-[#9CA3AF]">Created On</div>
-                              <div className="text-[13px] text-[#364658] mt-0.5">{b.createdOn}</div>
+                          <div className="flex items-center gap-8 mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[12px] text-[#9CA3AF]">Created On:</span>
+                              <span className="text-[12px] text-[#364658]">{b.createdOn}</span>
                             </div>
-                            <div>
-                              <div className="text-[11px] text-[#9CA3AF]">Created By</div>
-                              <div className="text-[13px] text-[#364658] mt-0.5">{b.createdBy}</div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[12px] text-[#9CA3AF]">Created By:</span>
+                              <span className="text-[12px] text-[#364658]">{b.createdBy}</span>
                             </div>
                           </div>
                         </div>

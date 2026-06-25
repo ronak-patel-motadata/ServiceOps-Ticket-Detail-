@@ -13,6 +13,7 @@
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -2577,7 +2578,7 @@ export function SoftwareAssetDrawer({
               {/* Group: License & Compliance */}
               <div>
                 <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                   {(() => {
                     const patchesMissing = 2;
                     const impactSeed = [...(activeAssetId ?? 'SWAST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
@@ -2619,11 +2620,11 @@ export function SoftwareAssetDrawer({
                           <div className="flex flex-wrap gap-1.5">
                             {visible.map(([l, n]) => {
                               const m = ({
-                                Incident: { icon: TicketIcon, color: '#DC2626' },
-                                Problem: { icon: Stethoscope, color: '#D97706' },
-                                Change: { icon: RefreshCw, color: '#8B5CF6' },
-                                Release: { icon: Package, color: '#22A06B' },
-                              } as Record<string, { icon: typeof TicketIcon; color: string }>)[l];
+                                Incident: { icon: IconRequest, color: '#DC2626' },
+                                Problem: { icon: IconProblem, color: '#D97706' },
+                                Change: { icon: IconChange, color: '#8B5CF6' },
+                                Release: { icon: IconRelease, color: '#22A06B' },
+                              } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
                               const Ic = m.icon;
                               const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
                               return (
@@ -2652,7 +2653,7 @@ export function SoftwareAssetDrawer({
                                           <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
                                             <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
                                             <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                            <span>{r.priority}</span>
+                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
                                           </div>
                                         </button>
                                       ))}
@@ -2671,7 +2672,7 @@ export function SoftwareAssetDrawer({
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                           <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
-                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                        <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
                         {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                       </>
                     );

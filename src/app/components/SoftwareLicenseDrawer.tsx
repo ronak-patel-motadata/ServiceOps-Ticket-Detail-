@@ -2749,7 +2749,7 @@ export function SoftwareLicenseDrawer({
             <div className="px-6 py-6">
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                   {(() => {
                     const purchased = activeLicense?.purchaseCount ?? 0;
                     const allocated = activeLicense?.allocationCount ?? 0;
@@ -2775,7 +2775,7 @@ export function SoftwareLicenseDrawer({
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                           <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
-                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}</div>
+                        <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}</div>
                         {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                       </div>
                     );

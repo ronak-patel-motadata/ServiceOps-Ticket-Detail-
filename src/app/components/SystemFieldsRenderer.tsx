@@ -8,6 +8,7 @@ interface SystemFieldsRendererProps {
   pinnedFields: string[];
   onTogglePin: (field: string) => void;
   assetMode?: boolean;
+  purchaseMode?: boolean;
 }
 
 /** Field rows shown in the Hardware Asset "System Fields" tab. */
@@ -20,13 +21,23 @@ const ASSET_SYSTEM_FIELDS: { label: string; value: string; sub?: string; tone?: 
   { label: 'Last Updated By', value: 'Rakesh Rathod', tone: 'link' },
 ];
 
+/** Field rows shown in the Purchase Order "System Fields" tab. */
+const PURCHASE_SYSTEM_FIELDS: { label: string; value: string; sub?: string; tone?: 'plain' | 'link' }[] = [
+  { label: 'Last Updated Date', value: 'Tue, Apr 28, 2026 05:44 PM', sub: '(2 months ago)' },
+  { label: 'Received Date', value: '---' },
+  { label: 'Purchase Close Date', value: '---' },
+  { label: 'Created By', value: 'Dharti', tone: 'link' },
+  { label: 'Last Updated By', value: 'Dharti', tone: 'link' },
+];
+
 export function SystemFieldsRenderer({
   fields,
   showMore,
   onToggleShowMore,
   pinnedFields,
   onTogglePin,
-  assetMode = false
+  assetMode = false,
+  purchaseMode = false
 }: SystemFieldsRendererProps) {
   const PinButton = ({ field }: { field: string }) => (
     <Tooltip>
@@ -38,6 +49,25 @@ export function SystemFieldsRenderer({
       <TooltipContent>{pinnedFields.includes(field) ? 'Unpin this field' : 'Pin this field on top'}</TooltipContent>
     </Tooltip>
   );
+
+  if (purchaseMode) {
+    return (
+      <div className="space-y-3">
+        {PURCHASE_SYSTEM_FIELDS.filter((f) => !pinnedFields.includes(f.label)).map((f) => (
+          <div key={f.label} className="flex items-start justify-between gap-3">
+            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1 pt-2">
+              <span>{f.label}</span>
+              <PinButton field={f.label} />
+            </div>
+            <div className="flex-1 py-2 min-w-0">
+              <div className={`text-[13px] font-medium ${f.tone === 'link' ? 'text-[#3D8BD0] cursor-pointer hover:underline' : 'text-[#364658]'}`}>{f.value}</div>
+              {f.sub && <div className="text-[12px] text-[#7B8FA5] mt-0.5">{f.sub}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (assetMode) {
     return (

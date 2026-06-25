@@ -9,9 +9,10 @@ import { NonItAssetsListPage } from './components/NonItAssetsListPage';
 import { ConsumableAssetsListPage } from './components/ConsumableAssetsListPage';
 import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage';
 import { ContractsListPage } from './components/ContractsListPage';
+import { PurchasesListPage } from './components/PurchasesListPage';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
@@ -33,6 +34,7 @@ export default function App() {
       {activePage === 'consumable-assets' && <ConsumableAssetsListPage onNavigate={navigate} />}
       {activePage === 'software-licenses' && <SoftwareLicensesListPage onNavigate={navigate} onOpenSoftwareAsset={openSoftwareAsset} />}
       {activePage === 'contracts' && <ContractsListPage onNavigate={navigate} />}
+      {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
       <Toaster position="top-right" />
     </>
   );

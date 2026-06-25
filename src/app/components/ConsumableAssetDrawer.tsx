@@ -3004,7 +3004,7 @@ export function ConsumableAssetDrawer({
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                           <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
-                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}</div>
+                        <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}</div>
                         {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                       </>
                     );

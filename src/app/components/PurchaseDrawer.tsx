@@ -1,23 +1,23 @@
 /**
- * NonItAssetDrawer Component
+ * PurchaseDrawer Component
  *
- * Cloned from SoftwareAssetDrawer as the Non-IT Asset detail page. It currently reuses the
- * full asset-detail UI; an internal adapter (nonItToAssetShape) maps a NonItAsset onto the
- * HardwareAsset shape the body expects, so this can be customized with non-IT-specific details
- * later. This is a SEPARATE file so Non-IT changes stay isolated.
+ * Cloned from NonItAssetDrawer as the Purchase Order detail page. It currently reuses the
+ * full asset-detail UI; an internal adapter (purchaseToAssetShape) maps a Purchase onto the
+ * HardwareAsset shape the body expects, so this can be customized with purchase-specific details
+ * later. This is a SEPARATE file so Purchase changes stay isolated.
  *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Truck, ReceiptText } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
-import type { NonItAsset } from './NonItAssetsListPage';
+import type { Purchase } from './PurchasesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -96,8 +96,8 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-interface NonItAssetDrawerProps {
-  openAssets: NonItAsset[];
+interface PurchaseDrawerProps {
+  openAssets: Purchase[];
   activeAssetId: string | null;
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
@@ -105,27 +105,21 @@ interface NonItAssetDrawerProps {
 }
 
 /**
- * Adapts a NonItAsset onto the HardwareAsset shape the cloned asset-detail body consumes.
+ * Adapts a Purchase onto the HardwareAsset shape the cloned asset-detail body consumes.
  * Missing hardware-only fields (hostName/ipAddress/serialNumber) are filled with placeholders
- * so the UI renders unchanged; replace with non-IT-specific fields when this page is customized.
+ * so the UI renders unchanged; replace with purchase-specific fields when this page is customized.
  */
-function nonItToAssetShape(s: NonItAsset): HardwareAsset {
-  const statusMap: Record<NonItAsset['status'], HardwareAsset['status']> = {
-    'In Use': 'In Use',
-    'In Store': 'In Store',
-    'In Stock': 'Available',
-    'Not Working': 'Available',
-  };
+function purchaseToAssetShape(s: Purchase): HardwareAsset {
   return {
     id: s.id,
     name: s.name,
-    assetType: s.assetType as HardwareAsset['assetType'],
-    status: statusMap[s.status] ?? 'In Use',
+    assetType: 'Desktop' as HardwareAsset['assetType'],
+    status: 'In Use',
     hostName: '---',
     ipAddress: '---',
-    usedBy: s.usedBy ? { label: s.usedBy } : null,
-    managedByGroup: s.managedByGroup,
-    managedBy: s.managedBy,
+    usedBy: s.owner ? { label: s.owner } : null,
+    managedByGroup: 'Procurement',
+    managedBy: { name: s.owner ?? 'Unassigned' },
     serialNumber: '---',
   };
 }
@@ -171,18 +165,34 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
 };
 
-export function NonItAssetDrawer({
+// Line items shown on the Purchase Details tab (shared so the right-panel Cost field can mirror the total).
+const PURCHASE_LINE_ITEMS = [
+  { product: 'PCAT-5', part: '---', price: 10000, tax: 0, ordered: 1, received: 0 },
+  { product: 'PCAT-4', part: '---', price: 12000, tax: 0, ordered: 1, received: 0 },
+  { product: 'Mouse', part: '---', price: 1000, tax: 0, ordered: 1, received: 0 },
+];
+
+/** Total cost = Total Net + TEST (100%) + GST (1.80%); shipping/discount/other charges are 0. */
+function computePurchaseTotalCost(items: typeof PURCHASE_LINE_ITEMS) {
+  const totalNet = items.reduce((s, it) => s + it.price * it.ordered, 0);
+  const test = totalNet;            // TEST (100%)
+  const gst = totalNet * 0.018;     // GST (1.80%)
+  return totalNet + test + gst;
+}
+
+export function PurchaseDrawer({
   openAssets,
   activeAssetId,
   onClose,
   onCloseTab,
   onTabChange
-}: NonItAssetDrawerProps) {
-  const assetList = openAssets.map(nonItToAssetShape);
+}: PurchaseDrawerProps) {
+  const assetList = openAssets.map(purchaseToAssetShape);
   const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
+  const activePurchase = openAssets.find(p => p.id === activeAssetId);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -214,14 +224,28 @@ export function NonItAssetDrawer({
     'Assignment Date': '',
   });
 
-  // Seed the asset fields from the active asset whenever the open asset changes.
+  // Seed the asset + purchase fields from the active purchase whenever the open asset changes.
   useEffect(() => {
     if (!activeAsset) return;
     setAssetType(activeAsset.assetType);
-    setAssetStatus(activeAsset.status === 'In Use' ? 'In Use' : 'In Stock');
     setAssetImpact('Low');
     setAssetGroup(activeAsset.managedByGroup || 'Unassigned');
     setAssetManager(activeAsset.managedBy);
+    if (activePurchase) {
+      setAssetStatus(activePurchase.status);
+      // DD/MM/YYYY -> YYYY-MM-DD for the native date input.
+      const toISO = (d: string) => { const m = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+      setAssetExtra((prev) => ({
+        ...prev,
+        'Order Number': activePurchase.orderNumber ?? '',
+        'Cost (INR)': computePurchaseTotalCost(PURCHASE_LINE_ITEMS).toFixed(2),
+        'Purchase Required By': toISO(activePurchase.requiredBy),
+        'Vendor': activePurchase.vendor,
+        'Print Template': 'Standard',
+        'Invoice Received': 'None',
+        'Payment Status': 'None',
+      }));
+    }
   }, [activeAssetId]);
 
   const assetState = {
@@ -246,7 +270,9 @@ export function NonItAssetDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'purchase-details' | 'settlements' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  // Settlements tab: which list (Invoices / Payments) is shown via the segmented toggle.
+  const [settlementView, setSettlementView] = useState<'invoices' | 'payments'>('invoices');
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -688,7 +714,7 @@ export function NonItAssetDrawer({
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Purchase Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -924,8 +950,8 @@ export function NonItAssetDrawer({
       if (!tabContainerRef.current) return;
 
       // Software detail tabs (Hardware, Baseline, Approvals, Financials removed).
-      const baseTabsForOthers = ['properties', 'approvals', 'relationship', 'financials', 'audit'];
-      const baseTabsForINC35 = ['properties', 'approvals', 'relationship', 'financials', 'service-request', 'audit'];
+      const baseTabsForOthers = ['properties', 'purchase-details', 'conversation', 'approvals', 'settlements', 'audit'];
+      const baseTabsForINC35 = ['properties', 'purchase-details', 'conversation', 'approvals', 'settlements', 'service-request', 'audit'];
 
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -941,7 +967,7 @@ export function NonItAssetDrawer({
                                   (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
       if (shouldShowRelations) {
         // Insert relations after relationship/software
-        const anchorIndex = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship') : allTabs.indexOf('software');
+        const anchorIndex = allTabs.indexOf('approvals') !== -1 ? allTabs.indexOf('approvals') : allTabs.indexOf('purchase-details');
         allTabs.splice(anchorIndex + 1, 0, 'relations');
       }
 
@@ -955,6 +981,8 @@ export function NonItAssetDrawer({
       const tabWidths: Record<string, number> = {
         'overview': 80,
         'properties': 85,
+        'purchase-details': 120,
+        'settlements': 100,
         'hardware': 85,
         'software': 80,
         'consolidated': 165,
@@ -2029,114 +2057,6 @@ export function NonItAssetDrawer({
                 </div>
               )}
             </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowBarcodeMenu(true)}
-              onMouseLeave={() => setShowBarcodeMenu(false)}
-            >
-              <button
-                onClick={() => setShowBarcodeMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <Barcode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showBarcodeMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                  {/* Barcode preview */}
-                  <div className="px-4 pb-2 flex flex-col items-center">
-                    <div
-                      className="h-11 w-full rounded-sm"
-                      style={{
-                        background:
-                          'repeating-linear-gradient(90deg, #1F2937 0px, #1F2937 1px, #fff 1px, #fff 3px, #1F2937 3px, #1F2937 5px, #fff 5px, #fff 6px, #1F2937 6px, #1F2937 9px, #fff 9px, #fff 11px)',
-                      }}
-                    />
-                    <span className="text-[12px] tracking-[0.18em] text-[#364658] mt-1.5 font-medium">88t540565065</span>
-                  </div>
-
-                  <div className="my-1 border-t border-[#F0F2F5]" />
-
-                  {/* Options */}
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Print Barcode</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Copy size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Copy UPC Code</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Settings2 size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Settings</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#DC2626] flex items-center gap-2.5">
-                    <Trash2 size={15} className="text-[#DC2626] flex-shrink-0" />
-                    <span>Remove Barcode</span>
-                  </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowQrMenu(true)}
-              onMouseLeave={() => setShowQrMenu(false)}
-            >
-              <button
-                onClick={() => setShowQrMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <QrCode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showQrMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                    {/* QR preview */}
-                    <div className="px-4 pb-2 flex flex-col items-center">
-                      <svg viewBox="0 0 33 33" className="w-32 h-32" shapeRendering="crispEdges">
-                        <rect width="33" height="33" fill="#fff" />
-                        {/* Finder patterns (3 corners) */}
-                        {[[0, 0], [26, 0], [0, 26]].map(([fx, fy], i) => (
-                          <g key={i}>
-                            <rect x={fx} y={fy} width="7" height="7" fill="#1F2937" />
-                            <rect x={fx + 1} y={fy + 1} width="5" height="5" fill="#fff" />
-                            <rect x={fx + 2} y={fy + 2} width="3" height="3" fill="#1F2937" />
-                          </g>
-                        ))}
-                        {/* Alignment pattern (bottom-right) */}
-                        <g>
-                          <rect x={24} y={24} width="5" height="5" fill="#1F2937" />
-                          <rect x={25} y={25} width="3" height="3" fill="#fff" />
-                          <rect x={26} y={26} width="1" height="1" fill="#1F2937" />
-                        </g>
-                        {/* Data modules (dense) */}
-                        {Array.from({ length: 33 * 33 }).map((_, idx) => {
-                          const x = idx % 33;
-                          const y = Math.floor(idx / 33);
-                          const inFinder = (x < 8 && y < 8) || (x > 24 && y < 8) || (x < 8 && y > 24);
-                          const inAlign = x >= 24 && x <= 28 && y >= 24 && y <= 28;
-                          if (inFinder || inAlign) return null;
-                          if (((x * 1103 + y * 2741 + x * y * 13 + 7) % 7) < 3)
-                            return <rect key={idx} x={x} y={y} width="1" height="1" fill="#1F2937" />;
-                          return null;
-                        })}
-                      </svg>
-                    </div>
-
-                    <div className="my-1 border-t border-[#F0F2F5]" />
-
-                    {/* Option */}
-                    <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                      <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                      <span>Print QR Code</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
@@ -2166,14 +2086,13 @@ export function NonItAssetDrawer({
                 </div>
               )}
             </div>
-            <HardwareAssetActionsMenu
-              nonIt
-              onOpenApprovalPopup={() => {
-                setShowCreateApprovalPopup(true);
-                setActiveMainTab('approvals');
-              }}
-              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
-            />
+            <button
+              onClick={() => toast.success('Purchase order closed')}
+              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+            >
+              Close Order
+            </button>
+            <HardwareAssetActionsMenu purchase />
           </div>
         </div>
 
@@ -2475,12 +2394,13 @@ export function NonItAssetDrawer({
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
+                    { id: 'purchase-details', label: 'Purchase Details' },
+                    { id: 'conversation', label: 'Conversation' },
                     { id: 'approvals', label: 'Approvals' },
-                    { id: 'relationship', label: 'Relationship' },
-                    { id: 'financials', label: 'Financials' },
+                    { id: 'settlements', label: 'Settlements' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
                     { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
-                    { id: 'audit', label: 'History' },
+                    { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -2490,6 +2410,9 @@ export function NonItAssetDrawer({
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
                     'properties': 'Overview',
+                    'purchase-details': 'Purchase Details',
+                    'conversation': 'Conversation',
+                    'settlements': 'Settlements',
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
@@ -2501,7 +2424,7 @@ export function NonItAssetDrawer({
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'audit': 'History'
+                    'audit': 'Audit Trail'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -3009,6 +2932,253 @@ export function NonItAssetDrawer({
               </div>
             </div>
             )}
+
+            {activeMainTab === 'purchase-details' && (() => {
+              const items = PURCHASE_LINE_ITEMS;
+              const fmt = (n: number) => n.toFixed(2);
+              const pctVal = (pct: number, amount: number) => `(${pct.toFixed(2)}%) ${fmt(amount)}`;
+              const subTotal = items.reduce((s, it) => s + it.price * it.ordered, 0);
+              const discountPct = 0;
+              const discount = subTotal * discountPct / 100;
+              const totalNet = subTotal - discount;
+              const shipping = 0;
+              const gsttPct = 0;
+              const gstt = totalNet * gsttPct / 100;
+              const newNumber1213 = 0;
+              const buyBack = 0;
+              const testPct = 100;
+              const test = totalNet * testPct / 100;
+              const gstPct = 1.8;
+              const gst = totalNet * gstPct / 100;
+              const usd = 0;
+              const tax = 0;
+              const newNumber23 = 0;
+              const totalCost = totalNet + shipping + gstt + newNumber1213 - buyBack + test + gst + usd + tax + newNumber23;
+              const summary: { label: string; value: string; strong?: boolean }[] = [
+                { label: 'Sub Total (INR)', value: fmt(subTotal), strong: true },
+                { label: '− Discount (%)', value: pctVal(discountPct, discount) },
+                { label: 'Total Net (INR)', value: fmt(totalNet), strong: true },
+                { label: '+ Shipping Charges (INR)', value: fmt(shipping) },
+                { label: '+ GSTT (%)', value: pctVal(gsttPct, gstt) },
+                { label: '+ New Number1213', value: fmt(newNumber1213) },
+                { label: '− Buy back item', value: fmt(buyBack) },
+                { label: '+ TEST (%)', value: pctVal(testPct, test) },
+                { label: '+ GST (%)', value: pctVal(gstPct, gst) },
+                { label: '+ USD', value: fmt(usd) },
+                { label: '+ Tax', value: fmt(tax) },
+                { label: '+ New Number23', value: fmt(newNumber23) },
+              ];
+              const address = { street: '5th Floor, Tech Park Building', landmark: 'Near Metro Station', city: 'Pune', pincode: '411001', state: 'Maharashtra', country: 'India' };
+              const addrFields: [string, string][] = [
+                ['Street', address.street], ['Landmark', address.landmark],
+                ['City', address.city], ['Pincode', address.pincode],
+                ['State', address.state], ['Country', address.country],
+              ];
+              const AddressCard = ({ title, icon: Icon }: { title: string; icon: typeof Truck }) => (
+                <div className="border border-[#E5E7EB] rounded-xl bg-white overflow-hidden">
+                  <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#F0F2F5]">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-[#3D8BD0]/10 text-[#3D8BD0] flex-shrink-0"><Icon size={14} /></span>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
+                  </div>
+                  <div className="p-5 grid grid-cols-2 gap-x-6 gap-y-4">
+                    {addrFields.map(([l, v]) => (
+                      <div key={l} className={l === 'Street' || l === 'Landmark' ? 'col-span-2' : ''}>
+                        <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1">{l}</div>
+                        <div className="text-[13px] text-[#364658]">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+              return (
+                <div className="px-6 py-6 space-y-5">
+                  {/* Line items + totals */}
+                  <div className="border border-[#E5E7EB] rounded-xl bg-white overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F2F5]">
+                      <h3 className="text-[14px] font-semibold text-[#364658]">Purchase Items</h3>
+                      <span className="text-[12px] text-[#7B8FA5]">{items.length} products</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[820px]">
+                        <thead>
+                          <tr className="bg-[#F9FAFB]">
+                            <th className="px-5 py-2.5 text-left text-[12px] font-semibold text-[#364658] w-[60px]">Sr.No</th>
+                            <th className="px-3 py-2.5 text-left text-[12px] font-semibold text-[#364658]">Product Name</th>
+                            <th className="px-3 py-2.5 text-left text-[12px] font-semibold text-[#364658]">Part Number</th>
+                            <th className="px-3 py-2.5 text-right text-[12px] font-semibold text-[#364658]">Price (INR)</th>
+                            <th className="px-3 py-2.5 text-right text-[12px] font-semibold text-[#364658]">Tax Rate (%)</th>
+                            <th className="px-3 py-2.5 text-center text-[12px] font-semibold text-[#364658]">Ordered Quantity</th>
+                            <th className="px-3 py-2.5 text-center text-[12px] font-semibold text-[#364658]">Received Quantity</th>
+                            <th className="px-5 py-2.5 text-right text-[12px] font-semibold text-[#364658]">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#F0F2F5]">
+                          {items.map((it, i) => (
+                            <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                              <td className="px-5 py-3 text-[13px] text-[#9CA3AF]">{i + 1}</td>
+                              <td className="px-3 py-3"><span className="text-[13px] font-medium text-[#364658]">{it.product}</span></td>
+                              <td className="px-3 py-3 text-[13px] text-[#9CA3AF]">{it.part}</td>
+                              <td className="px-3 py-3 text-right text-[13px] text-[#364658] tabular-nums">{fmt(it.price)}</td>
+                              <td className="px-3 py-3 text-right text-[13px] text-[#364658] tabular-nums">{it.tax.toFixed(2)}</td>
+                              <td className="px-3 py-3 text-center text-[13px] text-[#364658] tabular-nums">{it.ordered}</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded text-[12px] font-medium tabular-nums ${it.received >= it.ordered ? 'bg-[#22A06B]/10 text-[#22A06B]' : 'bg-[#F1F5F9] text-[#7B8FA5]'}`}>{it.received}</span>
+                              </td>
+                              <td className="px-5 py-3 text-right text-[13px] font-medium text-[#364658] tabular-nums">{fmt(it.price * it.ordered)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Totals summary */}
+                    <div className="flex justify-end px-5 py-4 border-t border-[#F0F2F5] bg-[#FCFCFD]">
+                      <div className="w-full max-w-[360px] space-y-2.5">
+                        {summary.map((r) => (
+                          <div key={r.label} className="flex items-center justify-between text-[13px]">
+                            <span className={r.strong ? 'font-semibold text-[#364658]' : 'text-[#5B6B7C]'}>{r.label}</span>
+                            <span className={`tabular-nums ${r.strong ? 'font-semibold text-[#364658]' : 'text-[#364658]'}`}>{r.value}</span>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between rounded-lg bg-[#3D8BD0]/10 px-3 py-2.5 mt-1">
+                          <span className="text-[13px] font-bold text-[#364658]">Total Cost (INR)</span>
+                          <span className="text-[15px] font-bold text-[#3D8BD0] tabular-nums">{fmt(totalCost)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Addresses */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                    <AddressCard title="Shipping Address" icon={Truck} />
+                    <AddressCard title="Billing Address" icon={ReceiptText} />
+                  </div>
+
+                  {/* Terms & signing authority */}
+                  <div className="border border-[#E5E7EB] rounded-xl bg-white p-5 space-y-5">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1.5">Terms &amp; Conditions</div>
+                      <div className="flex flex-wrap gap-2">
+                        {['Payment: Net 30 days', 'Delivery: Within 7 working days', 'Warranty: Minimum 1 year', 'Payment Mode: Bank Transfer'].map((t) => (
+                          <span key={t} className="inline-flex items-center rounded-md bg-[#F1F5F9] px-2.5 py-1 text-[12px] text-[#364658]">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t border-[#F0F2F5] pt-4">
+                      <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF] mb-1">Signing Authority</div>
+                      <div className="text-[13px] text-[#364658]">Dharti Patel</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {activeMainTab === 'settlements' && (() => {
+              const payments = [
+                { date: 'Wed, Mar 25, 2026 03:46 PM', amount: '10.00', comments: '---', attachments: '---', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+                { date: 'Fri, Mar 27, 2026 03:58 PM', amount: '10.00', comments: '---', attachments: '---', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+              ];
+              const invoices = [
+                { number: 'INV-2026-0142', billDate: 'Mon, Mar 23, 2026', amount: '23,000.00', dueDate: 'Wed, Apr 22, 2026', comments: 'Partial billing for PCAT units', attachments: 'invoice-0142.pdf', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+                { number: 'INV-2026-0157', billDate: 'Fri, Mar 27, 2026', amount: '19,605.60', dueDate: 'Sun, Apr 26, 2026', comments: '---', attachments: '---', by: 'Dharti Patel', initials: 'DP', color: '#8B5CF6' },
+              ];
+              const isInvoices = settlementView === 'invoices';
+              const seg = (id: 'invoices' | 'payments', label: string) => (
+                <button
+                  onClick={() => setSettlementView(id)}
+                  className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors ${settlementView === id ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}
+                >
+                  {label}
+                </button>
+              );
+              const Cell = ({ v }: { v: string }) => (v === '---' ? <span className="text-[#9ca3af]">---</span> : <span>{v}</span>);
+              return (
+                <div className="px-6 py-6">
+                  {/* Toolbar: segmented toggle (left) + Add button (right) */}
+                  <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                    <div className="inline-flex items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
+                      {seg('invoices', 'Invoices')}
+                      {seg('payments', 'Payments')}
+                    </div>
+                    <button className="px-4 py-1.5 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">
+                      {isInvoices ? 'Add Invoice' : 'Add Payment'}
+                    </button>
+                  </div>
+
+                  {isInvoices ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[980px] text-[12px]">
+                          <thead className="bg-white border-b border-[#e5e7eb]">
+                            <tr>{['Invoice Number', 'Bill Date', 'Invoice Amount', 'Due Date', 'Comments', 'Attachments', 'Added By', 'Actions'].map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {invoices.length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="px-4 py-16 text-center">
+                                  <div className="flex flex-col items-center gap-2 text-[#9CA3AF]">
+                                    <Info size={20} />
+                                    <span className="text-[14px]">No Data Found</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : invoices.map((r, idx) => (
+                              <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
+                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#3D8BD0]">{r.number}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.billDate} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.amount}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.dueDate} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.comments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.attachments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <span className="inline-flex items-center gap-2 text-[#364658]">
+                                    <span className="flex size-5 items-center justify-center rounded text-[9px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: r.color }}>{r.initials}</span>
+                                    {r.by}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <button className="text-[#7B8FA5] hover:text-[#3D8BD0]" title="Edit"><Edit size={15} /></button>
+                                    <button className="text-[#EF4444] hover:text-[#DC2626]" title="Delete"><Trash2 size={15} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[820px] text-[12px]">
+                          <thead className="bg-white border-b border-[#e5e7eb]">
+                            <tr>{['Payment Date', 'Payment Amount', 'Comments', 'Attachments', 'Added By', 'Actions'].map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {payments.map((r, idx) => (
+                              <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.date}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.amount}</td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.comments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.attachments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <span className="inline-flex items-center gap-2 text-[#364658]">
+                                    <span className="flex size-5 items-center justify-center rounded text-[9px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: r.color }}>{r.initials}</span>
+                                    {r.by}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    <button className="text-[#7B8FA5] hover:text-[#3D8BD0]" title="Edit"><Edit size={15} /></button>
+                                    <button className="text-[#EF4444] hover:text-[#DC2626]" title="Delete"><Trash2 size={15} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {activeMainTab === 'hardware' && (() => {
               type Rec = [string, string][];
@@ -4465,21 +4635,7 @@ export function NonItAssetDrawer({
               ) : (
               <>
               <div className="space-y-4">
-                <div className="sticky top-[48px] z-10 bg-white flex items-center justify-between mb-6 py-3 px-6 -mx-6">
-                  <div className="flex gap-2 flex-shrink-0 whitespace-nowrap">
-                    <button 
-                      className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'all' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                      onClick={() => setActiveConversationTab('all')}
-                    >
-                      All Activities
-                    </button>
-                    <button 
-                      className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                      onClick={() => setActiveConversationTab('technician')}
-                    >
-                      Technician Conversation
-                    </button>
-                  </div>
+                <div className="sticky top-[48px] z-10 bg-white flex items-center justify-end mb-6 py-3 px-6 -mx-6">
                   <div className="flex items-center gap-2 relative">
                     {!showSubTabSearch ? (
                       <button 
@@ -4525,402 +4681,55 @@ export function NonItAssetDrawer({
 
                 {/* Conversations Container with Sorting */}
                 <div className={`${isSortedFromTop ? 'flex flex-col-reverse' : ''}`}>
-                
-                {/* Show Old Messages Button or Last Week Group */}
-                {!showOldMessages ? (
-                  <div className="relative flex items-center gap-4 py-2">
-                    <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
-                    <button
-                      onClick={() => setShowOldMessages(!showOldMessages)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#6b7280] border border-[#DFE5ED] rounded-md transition-colors"
-                    >
-                      {/* Overlapping Profile Icons */}
-                      <div className="flex -space-x-2">
-                        <div className="size-5 rounded bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold border-2 border-white">
-                          SA
-                        </div>
-                        <div className="size-5 rounded bg-[#10B981] flex items-center justify-center text-white text-[10px] font-semibold border-2 border-white">
-                          AD
-                        </div>
-                        <div className="size-5 rounded bg-[#F59E0B] flex items-center justify-center text-white text-[10px] font-semibold border-2 border-white">
-                          MP
-                        </div>
-                      </div>
-                      <span className="text-xs">12 activities</span>
-                      {/* Stacked Chevrons */}
-                      <div className="flex flex-col -space-y-1">
-                        <ChevronUp className="size-3" />
-                        <ChevronDown className="size-3" />
-                      </div>
-                    </button>
-                    <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
-                  </div>
-                ) : (
-                  <div>
-                {/* Last Week Divider */}
-                <div className="flex items-center gap-3 pt-2 pb-6">
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
-                  <span className="text-xs font-medium text-[#7B8FA5]">Last Week</span>
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
-                </div>
-                    {/* Comment */}
-                    <div className="flex gap-3 group relative">
-                  <div className="flex flex-col items-center">
-                    <div className="size-[24px] rounded bg-[#fbbf24] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                      MT
-                    </div>
-                  </div>
-                  <div className="flex-1 pb-6">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-[#364658]">Mia Thompson</span>
-                      <span className="text-xs text-[#7B8FA5]">6 days ago</span>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
-                            <Lock className="size-3" />
-                            Internal
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Not Visible to Requester
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
-                      <p className="text-sm text-[#364658] leading-relaxed">
-                        <span className="text-[#3D8BD0] font-medium">@Arnav Desai</span> - Can you take a look at this? The requester needs assistance with the SolarWinds migration. This seems related to the infrastructure modernization project we discussed last month.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Hover Actions */}
-                  <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
-                      <Trash2 className="size-4 text-[#EF4444]" />
-                    </button>
-                  </div>
-                </div>
 
-                {/* Reporter Comment */}
-                {activeConversationTab === 'all' && (
-                replyingToConversation === 'conversation-5days' ? (
-                  <InlineReplyEditor
-                    replyContent={inlineReplyContent}
-                    onReplyContentChange={setInlineReplyContent}
-                    onClose={() => setReplyingToConversation(null)}
-                    conversationAuthor="Arnav Desai"
-                    conversationTime="5 days ago"
-                    conversationText="Forwarding to the infrastructure team for review and approval. Please prioritize this request as it impacts multiple production environments. We need to ensure all stakeholders are aligned on the timeline and resource allocation for this migration. The SolarWinds Observability platform will provide comprehensive monitoring capabilities..."
-                    onDeleteQuotedText={() => setReplyingToConversation(null)}
-                  />
-                ) : (
-                <div className="flex gap-3 group relative">
-                  <div className="flex flex-col items-center">
-                    <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                      AD
-                    </div>
-                  </div>
-                  <div className="flex-1 pb-6">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#364658]">Arnav Desai</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-xs text-[#7B8FA5] cursor-help">5 days ago</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Friday, February 6, 2026 at 3:15 PM
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,...</div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs">
-                          <div className="mb-2">
-                            <div className="font-medium">To: infrastructure.team@motadata.com</div>
-                            <div className="ml-4">devops@motadata.com</div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">database.team@motadata.com</div>
-                          </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
-                      <p className="text-sm text-[#364658] leading-relaxed">
-                        {showFullForwardText ? (
-                          <>
-                            Forwarding to the infrastructure team for review and approval. Please prioritize this request 
-                            as it impacts multiple production environments. We need to ensure all stakeholders are aligned 
-                            on the timeline and resource allocation for this migration. The SolarWinds Observability platform 
-                            will provide comprehensive monitoring capabilities across our entire infrastructure stack, including 
-                            application performance monitoring, infrastructure monitoring, log management, and real-time analytics.
-                            <br /><br />
-                            This migration will enable us to consolidate our current monitoring tools and provide better visibility 
-                            into system performance and potential issues. The platform supports hybrid cloud environments and offers 
-                            advanced features such as automated anomaly detection, intelligent alerting, and customizable dashboards 
-                            that will significantly improve our operational efficiency.
-                            <br /><br />
-                            Please review the technical requirements and provide your feedback on the proposed implementation timeline. 
-                            We should also schedule a meeting with all department heads to discuss the training requirements and ensure 
-                            a smooth transition. The estimated completion date is within Q2 2026, pending approval and resource availability.
-                          </>
-                        ) : (
-                          <>
-                            Forwarding to the infrastructure team for review and approval. Please prioritize this request 
-                            as it impacts multiple production environments. We need to ensure all stakeholders are aligned 
-                            on the timeline and resource allocation for this migration. The SolarWinds Observability platform 
-                            will provide comprehensive monitoring capabilities...{' '}
-                            <button 
-                              onClick={() => setShowFullForwardText(!showFullForwardText)}
-                              className="text-xs text-[#3D8BD0] hover:text-[#2E6BA4] inline"
-                            >
-                              View full message
-                            </button>
-                          </>
-                        )}
-                      </p>
-                      
-                      {showFullForwardText && (
-                        <button 
-                          onClick={() => setShowFullForwardText(!showFullForwardText)}
-                          className="text-xs text-[#3D8BD0] hover:text-[#2E6BA4] mt-3 block"
-                        >
-                          View less
-                        </button>
-                      )}
-                      
-                      {/* Divider */}
-                      <div className="border-t border-[#DFE5ED] my-3"></div>
-                      
-                      {/* Toggle Forwarded Message */}
-                      <div className="relative inline-flex">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => setShowForwardedMessage(!showForwardedMessage)}
-                              className="flex items-center gap-2 text-xs text-[#3D8BD0] hover:text-[#2E6BA4]"
-                            >
-                              <span>•••</span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {showForwardedMessage ? 'Hide expanded content' : 'Show trimmed content'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-
-                      {/* Forwarded Message Content */}
-                      {showForwardedMessage && (
-                        <div className="border-l-2 border-[#DFE5ED] pl-4 mt-3">
-                          <div className="text-xs text-[#7B8FA5] mb-2">
-                            <div><span className="font-medium">From:</span> Sarah Chen</div>
-                            <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
-                          </div>
-                          <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
-                            <p className="text-sm text-[#364658] leading-relaxed">
-                              Hi team, we need to migrate our current monitoring setup to SolarWinds Observability. 
-                              This change will provide better visibility across our infrastructure and improve our 
-                              incident response times. Please review and advise on the implementation timeline.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Hover Actions */}
-                  <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                    <button 
-                      className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                      title="Reply"
-                      onClick={() => {
-                        setReplyingToConversation('conversation-5days');
-                        setInlineReplyContent('');
-                      }}
-                    >
-                      <Reply className="size-4 text-[#7B8FA5]" />
-                    </button>
-                    <button 
-                      className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                      title="Forward"
-                      onClick={() => {
-                        // Add forward handler here
-                        console.log('Forward clicked');
-                      }}
-                    >
-                      <Forward className="size-4 text-[#7B8FA5]" />
-                    </button>
-                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
-                      <Trash2 className="size-4 text-[#EF4444]" />
-                    </button>
-                  </div>
-                </div>
-                )
-                )}
-                  </div>
-                )}
-
-                {/* 2 Days Ago Group */}
-                {activeConversationTab === 'all' && (
-                  <div>
-                {/* 2 Days Ago Divider */}
-                <div className="flex items-center gap-3 pt-2 pb-6">
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
-                  <span className="text-xs font-medium text-[#7B8FA5]">2 Days Ago</span>
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
-                </div>
-
-                {/* Arnav Desai Reply with Attachments */}
-                {replyingToConversation === 'conversation-2days' ? (
-                  <InlineReplyEditor
-                    replyContent={inlineReplyContent}
-                    onReplyContentChange={setInlineReplyContent}
-                    onClose={() => setReplyingToConversation(null)}
-                    conversationAuthor="Arnav Desai"
-                    conversationTime="2 days ago"
-                    conversationText="Thanks for reaching out! I've reviewed your requirements and prepared a migration plan. The attached documents outline the implementation steps and timeline."
-                    onDeleteQuotedText={() => setReplyingToConversation(null)}
-                  />
-                ) : (
-                  <div className="flex gap-3 group relative">
-                    <div className="flex flex-col items-center">
-                      <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        AD
-                      </div>
-                    </div>
-                    <div className="flex-1 pb-6">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-[#364658]">Arnav Desai</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-[#7B8FA5] cursor-help">2 days ago</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Monday, February 9, 2026 at 11:20 AM
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                            <div>Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,...</div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-xs">
-                            <div className="mb-2">
-                              <div className="font-medium">To: sarah.chen@motadata.com</div>
-                              <div className="ml-4">ops.team@motadata.com</div>
-                            </div>
-                            <div>
-                              <div className="font-medium">Cc: infrastructure.team@motadata.com</div>
-                              <div className="ml-4">keertan@motadata.com</div>
-                              <div className="ml-4">saahil.pandya@motadata.com</div>
-                            </div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                      <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
-                        <p className="text-sm text-[#364658] leading-relaxed">
-                          Thanks for reaching out! I've reviewed your requirements and prepared a migration plan. 
-                          The attached documents outline the implementation steps and timeline.
-                        </p>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">task-changes.doc</span>
-                            <span className="text-[10px] text-[#7B8FA5]">674 KB</span>
-                          </div>
-                          {/* Hover Actions */}
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download">
-                              <Download className="size-3.5 text-[#7B8FA5]" />
-                            </button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete">
-                              <Trash2 className="size-3.5 text-[#EF4444]" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs text-[#364658] font-medium">network-diagnosis.pdf</span>
-                            <span className="text-[10px] text-[#7B8FA5]">2 MB</span>
-                          </div>
-                          {/* Hover Actions */}
-                          <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                            <button className="p-1 hover:bg-white rounded" title="Download">
-                              <Download className="size-3.5 text-[#7B8FA5]" />
-                            </button>
-                            <button className="p-1 hover:bg-white rounded" title="Delete">
-                              <Trash2 className="size-3.5 text-[#EF4444]" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Hover Actions */}
-                    <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                      <button 
-                        className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                        title="Reply"
-                        onClick={() => {
-                          setReplyingToConversation('conversation-2days');
-                          setInlineReplyContent('');
-                        }}
-                      >
-                        <Reply className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Forward">
-                        <Forward className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
-                        <Trash2 className="size-4 text-[#EF4444]" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                  </div>
-                )}
-
-                {/* Yesterday Group */}
-                <div>
-                {/* 3 Days Ago Divider */}
+                {/* Yesterday */}
                 <div className="flex items-center gap-3 pt-2 pb-6">
                   <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
                   <span className="text-xs font-medium text-[#7B8FA5]">Yesterday</span>
                   <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
                 </div>
 
-                {/* Arnav Desai Note */}
+                {/* Collaborate (internal) */}
                 <div className="flex gap-3 group relative">
                   <div className="flex flex-col items-center">
-                    <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                      AD
+                    <div className="size-[24px] rounded bg-[#fbbf24] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">MT</div>
+                  </div>
+                  <div className="flex-1 pb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-[#364658]">Mia Thompson</span>
+                      <span className="text-xs text-[#7B8FA5]">1 day ago</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
+                            <Lock className="size-3" />
+                            Internal
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Not Visible to Requester</TooltipContent>
+                      </Tooltip>
                     </div>
+                    <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
+                      <p className="text-sm text-[#364658] leading-relaxed">
+                        <span className="text-[#3D8BD0] font-medium">@Arnav Desai</span> - Can you confirm the delivery timeline with the vendor? We need this purchase received before the quarter close.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
+                      <Trash2 className="size-4 text-[#EF4444]" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Note (internal) */}
+                <div className="flex gap-3 group relative">
+                  <div className="flex flex-col items-center">
+                    <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">AD</div>
                   </div>
                   <div className="flex-1 pb-6">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-semibold text-[#364658]">Arnav Desai</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-xs text-[#7B8FA5] cursor-help">1 day ago</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Tuesday, February 10, 2026 at 2:45 PM
-                        </TooltipContent>
-                      </Tooltip>
+                      <span className="text-xs text-[#7B8FA5]">8 hours ago</span>
                       <span className="flex items-center gap-1 px-2 py-0.5 bg-[rgba(200,66,53,0.05)] text-[#C84235] text-xs rounded font-medium">
                         <FileText className="size-3" />
                         Note
@@ -4932,128 +4741,30 @@ export function NonItAssetDrawer({
                             Internal
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          Not Visible to Requester
-                        </TooltipContent>
+                        <TooltipContent>Not Visible to Requester</TooltipContent>
                       </Tooltip>
                     </div>
                     <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
                       <p className="text-sm text-[#364658] leading-relaxed">
-                        Migration testing scheduled for this weekend. Will update the requester once we complete 
-                        the initial deployment phase.
+                        Vendor confirmed dispatch for the PCAT units. Awaiting tracking details; will update once the shipment is received.
                       </p>
                     </div>
                   </div>
-                  
-                  {/* Hover Actions */}
                   <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Edit" onClick={() => setEditingNote('note-1')}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
-                      </svg>
+                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Edit">
+                      <Edit className="size-4 text-[#7B8FA5]" />
                     </button>
                     <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
                       <Trash2 className="size-4 text-[#EF4444]" />
                     </button>
                   </div>
                 </div>
-                </div>
 
-                {/* Today Group */}
-                {activeConversationTab === 'all' && (
-                  <div>
-                {/* Today Divider */}
-                <div className="flex items-center gap-3 pt-2 pb-6">
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
-                  <span className="text-xs font-medium text-[#7B8FA5]">Today</span>
-                  <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
-                </div>
-
-                {/* Arnav Desai - Today */}
-                {replyingToConversation === 'conversation-today' ? (
-                  <InlineReplyEditor
-                    replyContent={inlineReplyContent}
-                    onReplyContentChange={setInlineReplyContent}
-                    onClose={() => setReplyingToConversation(null)}
-                    conversationAuthor="Arnav Desai"
-                    conversationTime="8 hours ago"
-                    conversationText="Initial deployment completed successfully. I've attached the post-deployment report and monitoring dashboard access credentials. Please review and let me know if you need any adjustments."
-                    onDeleteQuotedText={() => setReplyingToConversation(null)}
-                  />
-                ) : (
-                <div className="flex gap-3 group relative">
-                  <div className="flex flex-col items-center">
-                    <div className="size-[24px] rounded bg-[#E67E22] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">AD</div>
-                  </div>
-                  <div className="flex-1 pb-6">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#364658]">Arnav Desai</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-xs text-[#7B8FA5] cursor-help">8 hours ago</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Wednesday, February 11, 2026 at 4:45 AM
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,...</div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs">
-                          <div className="mb-2">
-                            <div className="font-medium">To: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Cc: database.team@motadata.com</div>
-                            <div className="ml-4">kenil.patel@motadata.com</div>
-                            <div className="ml-4">ronak.patel@motadata.com</div>
-                            <div className="ml-4">saahil.pandya@motadata.com</div>
-                            <div className="ml-4">nirav.bhatt@motadata.com</div>
-                          </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                    <div className="bg-[rgba(223,229,237,0.20)] rounded-lg p-4 mt-2">
-                      <p className="text-sm text-[#364658] leading-relaxed">
-                        Initial deployment completed successfully. I've attached the post-deployment report and 
-                        monitoring dashboard access credentials. Please review and let me know if you need any adjustments.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Hover Actions */}
-                  <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                    <button 
-                      className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                      title="Reply" 
-                      onClick={() => {
-                        setReplyingToConversation('conversation-today');
-                        setInlineReplyContent('');
-                      }}
-                    >
-                      <Reply className="size-4 text-[#7B8FA5]" />
-                    </button>
-                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Forward" onClick={() => console.log('Forward clicked')}>
-                      <Forward className="size-4 text-[#7B8FA5]" />
-                    </button>
-                    <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Delete">
-                      <Trash2 className="size-4 text-[#EF4444]" />
-                    </button>
-                  </div>
-                </div>
-                )}
-                
-                {/* Sent Conversations - shown after Today's messages */}
+                {/* Sent Conversations (runtime collaborate / note entries) */}
                 {sentConversations.filter(c => c.ticketId === activeTicketId).map((conversation) => (
                   <div key={conversation.id} className="flex gap-3 group relative">
                     <div className="flex flex-col items-center">
-                      <div 
+                      <div
                         className="size-[24px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
                         style={{ backgroundColor: conversation.authorColor }}
                       >
@@ -5067,9 +4778,7 @@ export function NonItAssetDrawer({
                           <TooltipTrigger asChild>
                             <span className="text-xs text-[#7B8FA5] cursor-help">{getRelativeTime(conversation.timestamp)}</span>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            {formatFullDate(conversation.timestamp)}
-                          </TooltipContent>
+                          <TooltipContent>{formatFullDate(conversation.timestamp)}</TooltipContent>
                         </Tooltip>
                         {conversation.type === 'note' && (
                           <>
@@ -5084,9 +4793,7 @@ export function NonItAssetDrawer({
                                   Internal
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Not Visible to Requester
-                              </TooltipContent>
+                              <TooltipContent>Not Visible to Requester</TooltipContent>
                             </Tooltip>
                           </>
                         )}
@@ -5098,80 +4805,19 @@ export function NonItAssetDrawer({
                                 Internal
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              Not Visible to Requester
-                            </TooltipContent>
+                            <TooltipContent>Not Visible to Requester</TooltipContent>
                           </Tooltip>
                         )}
                       </div>
-                      {conversation.type === 'reply' && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                              <div>Replied to {conversation.to}{conversation.cc ? `, Cc: ${conversation.cc},...` : ''}</div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs">
-                              <div className="mb-2">
-                                <div className="font-medium">To: {conversation.to}</div>
-                              </div>
-                              {conversation.cc && (
-                                <div>
-                                  <div className="font-medium">Cc: {conversation.cc}</div>
-                                </div>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      <div className={`rounded-lg p-4 mt-2 ${
-                        conversation.type === 'note' || conversation.type === 'collaborate'
-                          ? 'bg-[rgba(245,133,24,0.10)] border-l-2 border-[#F58518]'
-                          : 'bg-[rgba(223,229,237,0.20)]'
-                      }`}>
+                      <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
                         <div className="text-sm text-[#364658] leading-relaxed whitespace-pre-wrap">
                           {conversation.content}
                         </div>
-                        {conversation.kbArticles && conversation.kbArticles.length > 0 && (
-                          <div className="mt-3 p-3 bg-[#F0F8FF] border border-[#B8DCFF] rounded-lg">
-                            <h4 className="text-xs font-semibold text-[#3D8BD0] mb-2">Suggested KB Articles</h4>
-                            <div className="space-y-1.5">
-                              {conversation.kbArticles.map((article) => (
-                                <a
-                                  key={article.id}
-                                  href={article.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-xs text-[#3D8BD0] hover:text-[#2E6BA4] hover:underline"
-                                >
-                                  <FileText size={12} className="flex-shrink-0" />
-                                  <span>{article.title}</span>
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
-                    
-                    {/* Hover Actions */}
                     <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                      <button 
-                        className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                        title="Reply" 
-                        onClick={() => {
-                          setReplyingToConversation(conversation.id);
-                          setInlineReplyContent('');
-                        }}
-                      >
-                        <Reply className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Forward" onClick={() => console.log('Forward clicked')}>
-                        <Forward className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button 
-                        className="p-1.5 hover:bg-[#F3F4F6] rounded" 
+                      <button
+                        className="p-1.5 hover:bg-[#F3F4F6] rounded"
                         title="Delete"
                         onClick={() => {
                           setSentConversations(sentConversations.filter(c => c.id !== conversation.id));
@@ -5182,8 +4828,6 @@ export function NonItAssetDrawer({
                     </div>
                   </div>
                 ))}
-                  </div>
-                )}
                 </div>
                 {/* End Conversations Container */}
               </div>
@@ -6194,21 +5838,9 @@ export function NonItAssetDrawer({
 
               return (
                 <div className="px-6 py-6">
-                  {/* Sticky toolbar: category dropdown (left) + date range / filter / download (right) */}
+                  {/* Sticky toolbar: Audit Trail heading (left) + date range / filter / download (right) */}
                   <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
-                    <div className="relative">
-                      <button onClick={() => setShowHistoryMenu((o) => !o)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[#DFE5ED] text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors min-w-[200px] justify-between">
-                        {activeCat.label}
-                        <ChevronDown size={14} className="text-[#7B8FA5]" />
-                      </button>
-                      {showHistoryMenu && (
-                        <div className="absolute top-full left-0 mt-1 z-50 w-[230px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1">
-                          {categories.map((c) => (
-                            <button key={c.id} onClick={() => { setHistoryCategory(c.id); setShowHistoryMenu(false); }} className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#F5F7FA] transition-colors ${historyCategory === c.id ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}>{c.label}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Audit Trail</h3>
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
                       <button title="Filter" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Filter size={15} /></button>
@@ -7274,67 +6906,7 @@ export function NonItAssetDrawer({
                   </div>
                   </button>
 
-                  {/* Reply with AI - Primary Action with Dropdown */}
-                  <div className="relative" ref={aiDropdownRef}>
-                    <button 
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{
-                        background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                        border: '2px solid transparent',
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAiDropdown(!showAiDropdown);
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-                        <defs>
-                          <linearGradient id="sparkle-gradient-icon" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#4CB1FE" />
-                            <stop offset="20.44%" stopColor="#731EFB" />
-                            <stop offset="99.68%" stopColor="#F911E3" />
-                          </linearGradient>
-                        </defs>
-                        <path fill="url(#sparkle-gradient-icon)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
-                      </svg>
-                      <span>Reply with AI</span>
-                      <ChevronDown size={12} className={`text-[#7B8FA5] transition-transform ${showAiDropdown ? '' : 'rotate-180'}`} />
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    {showAiDropdown && (
-                      <div className="absolute bottom-full left-0 mb-2 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
-                        {aiOptions.map((option, index) => (
-                          <button
-                            key={index}
-                            className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAiDropdown(false);
-                              handleReplyWithAI(option.label);
-                            }}
-                          >
-                            <option.icon size={16} className={`${option.color} flex-shrink-0 mt-0.5`} />
-                            <span className="text-sm text-[#364658] whitespace-pre-line">{option.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Secondary Actions */}
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
-                          onClick={handleReply}>
-                    <Reply size={14} className="text-[#7B8FA5]" />
-                    <span>Reply</span>
-                  </button>
-
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
-                          onClick={handleForward}>
-                    <Forward size={14} className="text-[#7B8FA5]" />
-                    <span>Forward</span>
-                  </button>
-
+                  {/* Secondary Actions — purchase conversation supports only Collaborate + Note */}
                   <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                           onClick={handleCollaborate}>
                     <MessageSquare size={14} className="text-[#7B8FA5]" />
@@ -7358,9 +6930,9 @@ export function NonItAssetDrawer({
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Asset Fields"
+            fieldsTitle="Purchase Fields"
             assetMode={true}
-            softwareMode={true}
+            purchaseMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7470,7 +7042,7 @@ export function NonItAssetDrawer({
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Asset Properties"
+            propertiesTitle="Purchase Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -8484,4 +8056,4 @@ export function NonItAssetDrawer({
   );
 }
 
-export default NonItAssetDrawer;
+export default PurchaseDrawer;

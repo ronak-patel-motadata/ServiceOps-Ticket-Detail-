@@ -45,8 +45,9 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
       : label === 'Consumable Assets' ? 'consumable-assets'
       : label === 'Software Licenses' ? 'software-licenses'
       : label === 'Contracts' ? 'contracts'
+      : label === 'Purchases' ? 'purchases'
       : undefined;
-  const sectionActive = activePage === 'hardware-assets' || activePage === 'software-assets' || activePage === 'non-it-assets' || activePage === 'consumable-assets' || activePage === 'software-licenses' || activePage === 'contracts';
+  const sectionActive = activePage === 'hardware-assets' || activePage === 'software-assets' || activePage === 'non-it-assets' || activePage === 'consumable-assets' || activePage === 'software-licenses' || activePage === 'contracts' || activePage === 'purchases';
   return (
     <div className="relative group">
       <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" />

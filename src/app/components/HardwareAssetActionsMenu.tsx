@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   MoreVertical, UserCheck, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
-  Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode, XCircle,
+  Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode, XCircle, PackageCheck,
 } from 'lucide-react';
 
 interface HardwareAssetActionsMenuProps {
@@ -13,9 +13,11 @@ interface HardwareAssetActionsMenuProps {
   nonIt?: boolean;
   // Contract menu: only Cancel Contract, Archive, Print
   contract?: boolean;
+  // Purchase menu: only Receive Items, Print
+  purchase?: boolean;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -77,7 +79,14 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
-      {open && !minimal && !nonIt && !contract && (
+      {open && purchase && (
+        <div className="absolute right-0 top-full mt-1 w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Item label="Receive Items" icon={<PackageCheck size={15} />} />
+          <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
+        </div>
+      )}
+
+      {open && !minimal && !nonIt && !contract && !purchase && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           {/* Group 1 */}
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />

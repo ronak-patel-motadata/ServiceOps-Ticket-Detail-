@@ -11,7 +11,8 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Bell, CircleDollarSign, ShoppingCart } from 'lucide-react';
+import { IconRequest, IconAssets } from './SidebarIcons';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -145,6 +146,15 @@ function assetToTicket(a: HardwareAsset): Ticket {
 }
 
 // Related records listed when hovering an Impact pill (keyed by relation type).
+// Technician options for the Expiry Reminder picker (mirrors the ticket Assignee dropdown).
+const TECHNICIAN_OPTIONS: { name: string; initials: string; color: string; status: string }[] = [
+  { name: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', status: '#22C55E' },
+  { name: 'Michael Chen', initials: 'MC', color: '#8B5CF6', status: '#22C55E' },
+  { name: 'Emma Wilson', initials: 'EW', color: '#EC4899', status: '#F59E0B' },
+  { name: 'David Kim', initials: 'DK', color: '#64748B', status: '#9CA3AF' },
+  { name: 'Lisa Anderson', initials: 'LA', color: '#22C55E', status: '#22C55E' },
+];
+
 const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
   Incident: [
     { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
@@ -161,6 +171,14 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
   Release: [
     { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
+  ],
+  Asset: [
+    { id: 'AST-201', subject: 'Core Switch — Cisco Catalyst 9300', assignee: 'Vikram Sethi', status: 'In Use', statusColor: '#22C55E', priority: 'High' },
+    { id: 'AST-118', subject: 'Edge Router — Cisco ISR 4451', assignee: 'Neha Raje', status: 'In Use', statusColor: '#22C55E', priority: 'Medium' },
+  ],
+  Purchase: [
+    { id: 'PO-4471', subject: 'Network hardware procurement', assignee: 'Karan Malhotra', status: 'Approved', statusColor: '#22A06B', priority: 'Medium' },
+    { id: 'PO-4490', subject: 'Annual support renewal', assignee: 'Priya Nair', status: 'Ordered', statusColor: '#3D8BD0', priority: 'Low' },
   ],
 };
 
@@ -255,7 +273,7 @@ export function ContractDrawer({
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'renewals' | 'child-contracts'>('properties');
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -297,6 +315,15 @@ export function ContractDrawer({
   const [propertiesSearch, setPropertiesSearch] = useState('');
   // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
   const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
+  // Expiry Reminder popup (bell icon in the contract header).
+  const [showExpiryReminder, setShowExpiryReminder] = useState(false);
+  const [reminderEmails, setReminderEmails] = useState<string[]>([]);
+  const [reminderEmailInput, setReminderEmailInput] = useState('');
+  const [reminderTechnician, setReminderTechnician] = useState('');
+  const [showReminderTechDropdown, setShowReminderTechDropdown] = useState(false);
+  const [reminderTechSearch, setReminderTechSearch] = useState('');
+  const [notifyBefore, setNotifyBefore] = useState('0');
+  const [notifyInterval, setNotifyInterval] = useState('0');
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLocationHistory, setShowLocationHistory] = useState(false);
   // Whether the Hardware tab's jump-to-section list is open.
@@ -933,7 +960,7 @@ export function ContractDrawer({
       if (!tabContainerRef.current) return;
 
       // Contract detail tabs (Approvals, Relationship, Financials removed — Overview + History only).
-      const allTabs: string[] = ['properties', 'audit'];
+      const allTabs: string[] = ['properties', 'renewals', 'child-contracts', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1946,7 +1973,14 @@ export function ContractDrawer({
             <h1 className="text-[18px] font-semibold text-[#364658] truncate">
               {activeTicket.subject}
             </h1>
-            <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
+              {activeContract && (() => {
+                const s = activeContract.status;
+                const c = s === 'Active' ? '#22A06B' : s === 'Not Started' ? '#D97706' : '#9CA3AF';
+                return <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${c}1A`, color: c }}>Status: {s}</span>;
+              })()}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Tooltip>
@@ -2017,6 +2051,131 @@ export function ContractDrawer({
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+            {/* Expiry Reminder (bell) */}
+            <div className="relative">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setShowExpiryReminder((v) => !v)}
+                    className={`p-1.5 bg-white border rounded hover:bg-[#F5F7FA] ${showExpiryReminder ? 'border-[#3D8BD0]' : 'border-[#DFE5ED]'}`}
+                  >
+                    <Bell size={16} className="text-[#6b7280]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Expiry Reminder</TooltipContent>
+              </Tooltip>
+
+              {showExpiryReminder && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => { setShowExpiryReminder(false); setShowReminderTechDropdown(false); }} />
+                  <div className="absolute top-full right-0 pt-1 z-[9999] w-[360px]">
+                    <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4">
+                      <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Expiry Reminder</h3>
+
+                      {/* Emails — type and press Enter to add as a pill */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Emails</div>
+                        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-[#DFE5ED] px-2 py-1.5 focus-within:border-[#3D8BD0] transition-colors">
+                          {reminderEmails.map((em, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 rounded bg-[#EFF3F8] text-[#364658] text-[12px] pl-2 pr-1 py-1">
+                              {em}
+                              <button onClick={() => setReminderEmails((prev) => prev.filter((_, idx) => idx !== i))} className="text-[#7B8FA5] hover:text-[#DC2626]"><X size={12} /></button>
+                            </span>
+                          ))}
+                          <input
+                            type="email"
+                            value={reminderEmailInput}
+                            onChange={(e) => setReminderEmailInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if ((e.key === 'Enter' || e.key === ',') && reminderEmailInput.trim()) {
+                                e.preventDefault();
+                                setReminderEmails((prev) => [...prev, reminderEmailInput.trim()]);
+                                setReminderEmailInput('');
+                              } else if (e.key === 'Backspace' && !reminderEmailInput && reminderEmails.length) {
+                                setReminderEmails((prev) => prev.slice(0, -1));
+                              }
+                            }}
+                            onBlur={() => { if (reminderEmailInput.trim()) { setReminderEmails((prev) => [...prev, reminderEmailInput.trim()]); setReminderEmailInput(''); } }}
+                            placeholder={reminderEmails.length ? '' : 'name@company.com'}
+                            className="flex-1 min-w-[120px] bg-transparent text-[13px] text-[#364658] placeholder:text-[#9ca3af] outline-none py-1"
+                          />
+                        </div>
+                        <div className="text-[11px] text-[#9CA3AF] mt-1">Press Enter to add each email.</div>
+                      </div>
+
+                      {/* Technician — user picker (avatars + status dots + search) */}
+                      <div className="mb-4">
+                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Technician</div>
+                        <div className="relative">
+                          {(() => {
+                            const sel = TECHNICIAN_OPTIONS.find((o) => o.name === reminderTechnician);
+                            return (
+                              <button onClick={() => setShowReminderTechDropdown((v) => !v)} className="w-full h-[36px] flex items-center justify-between rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] hover:bg-[#F5F7FA]">
+                                {sel ? (
+                                  <span className="flex items-center gap-2 min-w-0">
+                                    <span className="size-5 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: sel.color }}>{sel.initials}</span>
+                                    <span className="truncate">{sel.name}</span>
+                                  </span>
+                                ) : <span className="text-[#9CA3AF]">Select</span>}
+                                <ChevronDown size={14} className="text-[#7B8FA5] flex-shrink-0" />
+                              </button>
+                            );
+                          })()}
+                          {showReminderTechDropdown && (
+                            <div className="absolute top-full left-0 right-0 mt-1 z-[10000] bg-white rounded-md shadow-lg border border-[#DFE5ED] py-1">
+                              <div className="px-2 pt-1 pb-2">
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    value={reminderTechSearch}
+                                    onChange={(e) => setReminderTechSearch(e.target.value)}
+                                    placeholder="Search for users..."
+                                    className="w-full pl-3 pr-8 py-1.5 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                                  />
+                                  <Search size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                                </div>
+                              </div>
+                              <div className="max-h-[240px] overflow-y-auto">
+                                {TECHNICIAN_OPTIONS.filter((o) => o.name.toLowerCase().includes(reminderTechSearch.toLowerCase())).map((o) => (
+                                  <button key={o.name} onClick={() => { setReminderTechnician(o.name); setShowReminderTechDropdown(false); setReminderTechSearch(''); }} className="w-full flex items-center justify-between px-3 py-2 hover:bg-[#F9FAFB] text-left transition-colors">
+                                    <span className="flex items-center gap-2.5 min-w-0">
+                                      <span className="size-6 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: o.color }}>{o.initials}</span>
+                                      <span className="text-[13px] text-[#364658] truncate">{o.name}</span>
+                                    </span>
+                                    <span className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="size-2 rounded-full" style={{ backgroundColor: o.status }} />
+                                      {reminderTechnician === o.name && <Check size={14} className="text-[#3D8BD0]" />}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Notify Before / Interval */}
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                          <div className="text-[13px] text-[#7B8FA5] mb-1.5">Notify Before (Days)</div>
+                          <input type="number" min={0} value={notifyBefore} onChange={(e) => setNotifyBefore(e.target.value)} className="w-full h-[36px] rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] text-[#7B8FA5] mb-1.5">Notify Interval (Days)</div>
+                          <input type="number" min={0} value={notifyInterval} onChange={(e) => setNotifyInterval(e.target.value)} className="w-full h-[36px] rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none" />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => setShowExpiryReminder(false)} className="px-4 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6]">Cancel</button>
+                        <button onClick={() => setShowExpiryReminder(false)} className="px-4 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Update</button>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
             <div className="relative">
@@ -2350,6 +2509,8 @@ export function ContractDrawer({
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Overview' },
+                    { id: 'renewals', label: 'Renewals' },
+                    { id: 'child-contracts', label: 'Child Contracts' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => (tab as any).condition !== false);
 
@@ -2371,6 +2532,8 @@ export function ContractDrawer({
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
+                    'renewals': 'Renewals',
+                    'child-contracts': 'Child Contracts',
                     'audit': 'Audit Trail'
                   };
 
@@ -2677,22 +2840,24 @@ export function ContractDrawer({
             <div className="px-6 py-6">
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-1'} gap-3`}>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                   {(() => {
                     const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
                     const impactCounts: [string, number][] = [
-                      ['Incident', impactSeed % 4],
-                      ['Problem', Math.floor(impactSeed / 4) % 3],
-                      ['Change', Math.floor(impactSeed / 7) % 3],
-                      ['Release', Math.floor(impactSeed / 11) % 2],
+                      ['Incident', (impactSeed % 4) || 1],
+                      ['Asset', Math.floor(impactSeed / 4) % 3],
+                      ['Purchase', Math.floor(impactSeed / 7) % 3],
                     ];
                     const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
                     return [
-                    { label: 'Warranty Expire', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
-                      ai: { action: 'Renew warranty', q: 'When does this asset\'s warranty expire and how do I renew it?',
-                        a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Manufacturer warranty — onsite service.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
+                    { label: 'Contract Type', value: activeContract?.contractType ?? '---', sub: 'Contract type', color: '#3D8BD0', icon: FileText },
+                    { label: 'Cost', value: activeContract?.cost ?? '---', sub: 'Total cost', color: '#22A06B', icon: CircleDollarSign },
+                    { label: 'Vendor', value: activeContract?.vendor ?? '---', sub: 'Supplier', color: '#8B5CF6', icon: Briefcase },
+                    { label: 'Contract Expires', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: Clock,
+                      ai: { action: 'Renew contract', q: 'When does this contract expire and how do I renew it?',
+                        a: "**Contract expiry:** Expires in **23 days**.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry\n• Confirm the renewal term with the contract owner\n\nWould you like me to draft a renewal request?" } },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
+                    { label: 'Child Contracts', value: '2', sub: 'Linked contracts', color: '#14B8A6', icon: Copy },
                   ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
                     const Icon = c.icon;
                     if (c.counts) {
@@ -2701,16 +2866,15 @@ export function ContractDrawer({
                         <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
                           <div className="flex items-center gap-2.5 mb-3">
                             <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
+                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this contract</div>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {visible.map(([l, n]) => {
                               const m = ({
-                                Incident: { icon: TicketIcon, color: '#DC2626' },
-                                Problem: { icon: Stethoscope, color: '#D97706' },
-                                Change: { icon: RefreshCw, color: '#8B5CF6' },
-                                Release: { icon: Package, color: '#22A06B' },
-                              } as Record<string, { icon: typeof TicketIcon; color: string }>)[l];
+                                Incident: { icon: IconRequest, color: '#DC2626' },
+                                Asset: { icon: IconAssets, color: '#3D8BD0' },
+                                Purchase: { icon: ShoppingCart, color: '#D97706' },
+                              } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
                               const Ic = m.icon;
                               const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
                               return (
@@ -2739,7 +2903,7 @@ export function ContractDrawer({
                                           <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
                                             <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
                                             <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                            <span>{r.priority}</span>
+                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
                                           </div>
                                         </button>
                                       ))}
@@ -2758,7 +2922,7 @@ export function ContractDrawer({
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                           <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
-                        <div className="text-[24px] font-bold leading-none" style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                        <div className={`${drawerWidth > 1080 ? 'text-[24px]' : 'text-[20px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
                         {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                         {c.ai && (
                           <button
@@ -2777,106 +2941,6 @@ export function ContractDrawer({
                 </div>
               </div>
 
-              {/* Group: Financials & Contracts */}
-              <div className="mt-6">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
-                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                      ].map((c) => (
-                        <button
-                          key={c.label}
-                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                        >
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Non IT Property Group — shown last */}
-              <div className="mt-6">
-              {(() => {
-                const q = propertiesSearch.trim().toLowerCase();
-                const sections: { title: string; icon: JSX.Element | null; fields: [string, string][] }[] = [
-                {
-                  title: 'Non IT Property Group',
-                  icon: null,
-                  fields: [
-                    ['Serial Number', '---'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Audit Date', '---'],
-                    ['NON-IT Mac', '---'],
-                    ['asset type for nonit', '---'],
-                  ],
-                },
-                ];
-                const filtered = sections
-                  .map((s) => ({
-                    ...s,
-                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
-                  }))
-                  .filter((s) => s.fields.length > 0);
-                if (filtered.length === 0) {
-                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
-                }
-                return (
-                  <div className="space-y-6">
-                  {filtered.map((section) => (
-                <div key={section.title} className="group/section">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      {section.icon}
-                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
-                    </div>
-                    <button
-                      title={`Edit ${section.title}`}
-                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
-                    >
-                      <Edit size={15} />
-                    </button>
-                  </div>
-                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                      {section.fields.map(([label, value]) => (
-                        <div key={label} className="min-w-0">
-                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
-                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                  ))}
-                  </div>
-                );
-              })()}
-              </div>
             </div>
             )}
 
@@ -6009,6 +6073,89 @@ export function ContractDrawer({
                 initialTypeFilter={relationsInitialFilter}
                 onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />
+            )}
+
+            {/* Renewals Tab Content */}
+            {activeMainTab === 'renewals' && (
+              <div className="px-6 py-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1100px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr className="bg-white">
+                        {['Name', 'Contract Type', 'Status', 'Contract Number', 'Contract Start Date', 'Contract End Date', 'Renewal Date', 'Vendor'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                      {[
+                        { id: 'CON-94', name: 'Imperva DAM Renewal', created: 'Thu, Mar 26, 2026', type: 'Software License', status: 'Active', statusColor: '#22C55E', number: '---', start: '26/03/2026', end: '27/03/2027', renewal: '26/03/2026', vendor: 'VEN-61: Imperva' },
+                        { id: 'CON-93', name: 'Imperva DAM Renewal', created: 'Tue, Mar 24, 2026', type: 'Software License', status: 'Expired', statusColor: '#9CA3AF', number: '---', start: '01/01/2024', end: '26/03/2026', renewal: '---', vendor: 'VEN-61: Imperva' },
+                      ].map((r) => (
+                        <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                              <div className="min-w-0">
+                                <div className="text-[12px] text-[#364658] truncate max-w-[160px]">{r.name}</div>
+                                <div className="text-[11px] text-[#9CA3AF]">{r.created}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.type}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[12px] text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.number === '---' ? <span className="text-[#9ca3af]">---</span> : r.number}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.start}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.end}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.renewal === '---' ? <span className="text-[#9ca3af]">---</span> : r.renewal}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.vendor}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Child Contracts Tab Content */}
+            {activeMainTab === 'child-contracts' && (
+              <div className="px-6 py-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1000px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr className="bg-white">
+                        {['Name', 'Contract Type', 'Status', 'Contract Number', 'Contract Start Date', 'Contract End Date', 'Vendor'].map((h) => (
+                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                      {[
+                        { id: 'CON-118', name: 'Firewall Support Addendum', created: 'Mon, Apr 06, 2026', type: 'Support', status: 'Active', statusColor: '#22C55E', number: 'ADD-118', start: '06/04/2026', end: '05/04/2027', vendor: 'VEN-22: Hewlett Packard' },
+                        { id: 'CON-121', name: 'Onsite Maintenance Rider', created: 'Wed, Apr 15, 2026', type: 'Maintenance', status: 'Not Started', statusColor: '#D97706', number: '---', start: '01/07/2026', end: '30/06/2027', vendor: 'VEN-12: Hitachi Vantara' },
+                      ].map((r) => (
+                        <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                              <div className="min-w-0">
+                                <div className="text-[12px] text-[#364658] truncate max-w-[160px]">{r.name}</div>
+                                <div className="text-[11px] text-[#9CA3AF]">{r.created}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.type}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[12px] text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span></td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.number === '---' ? <span className="text-[#9ca3af]">---</span> : r.number}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.start}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.end}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.vendor}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
 
             {/* Audit Trails Tab Content */}
