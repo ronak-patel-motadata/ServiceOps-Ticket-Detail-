@@ -191,6 +191,19 @@ function computePurchaseTotalCost(items: typeof PURCHASE_LINE_ITEMS) {
   return totalNet + test + gst;
 }
 
+// Settlement records (shared so the Overview + Settlements KPIs use one source).
+const PURCHASE_INVOICES = [
+  { number: 'INV-2026-0142', billDate: 'Mon, Mar 23, 2026', amount: '23,000.00', dueDate: 'Wed, Apr 22, 2026', comments: 'Partial billing for PCAT units', attachments: 'invoice-0142.pdf', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+  { number: 'INV-2026-0157', billDate: 'Fri, Mar 27, 2026', amount: '19,605.60', dueDate: 'Sun, Apr 26, 2026', comments: '---', attachments: '---', by: 'Dharti Patel', initials: 'DP', color: '#8B5CF6' },
+];
+const PURCHASE_PAYMENTS = [
+  { date: 'Wed, Mar 25, 2026 03:46 PM', amount: '12,000.00', comments: 'Advance payment', attachments: 'payment-receipt-01.pdf', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+  { date: 'Fri, Mar 27, 2026 03:58 PM', amount: '10,000.00', comments: '---', attachments: '---', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
+];
+const purchaseAmount = (s: string) => parseFloat(s.replace(/,/g, '')) || 0;
+const PURCHASE_INVOICED_TOTAL = PURCHASE_INVOICES.reduce((s, inv) => s + purchaseAmount(inv.amount), 0);
+const PURCHASE_PAID_TOTAL = PURCHASE_PAYMENTS.reduce((s, p) => s + purchaseAmount(p.amount), 0);
+
 export function PurchaseDrawer({
   openAssets,
   activeAssetId,
@@ -2744,7 +2757,8 @@ export function PurchaseDrawer({
                   const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                   const itemsCount = PURCHASE_LINE_ITEMS.length;
                   const totalCost = computePurchaseTotalCost(PURCHASE_LINE_ITEMS);
-                  const paidCost = 20;
+                  const paidCost = PURCHASE_PAID_TOTAL;
+                  const invoicedCost = PURCHASE_INVOICED_TOTAL;
                   const remaining = totalCost - paidCost;
                   const isExtra = remaining < 0;
                   const vendor = activePurchase?.vendor ?? '---';
@@ -2757,13 +2771,14 @@ export function PurchaseDrawer({
                   ];
                   const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
                   return [
-                    { label: 'Purchased Items', value: String(itemsCount), sub: 'In this order', color: '#3D8BD0', icon: ShoppingCart },
-                    { label: 'Total Cost', value: money(totalCost), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
-                    { label: 'Paid Cost', value: money(paidCost), unit: 'INR', sub: 'Settled so far', color: '#22A06B', icon: CheckCircle },
-                    { label: isExtra ? 'Extra Paid Cost' : 'Remaining Cost', value: money(Math.abs(remaining)), unit: 'INR', sub: isExtra ? 'Overpaid' : 'Yet to pay', color: isExtra ? '#8B5CF6' : '#D97706', icon: Clock },
+                    { label: 'Purchased Items', value: String(itemsCount), sub: 'Items in this order', color: '#3D8BD0', icon: ShoppingCart },
+                    { label: 'Total Payable', value: money(totalCost), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
+                    { label: 'Invoiced', value: money(invoicedCost), unit: 'INR', sub: `${PURCHASE_INVOICES.length} invoices billed`, color: '#8B5CF6', icon: ReceiptText },
+                    { label: 'Paid', value: money(paidCost), unit: 'INR', sub: `${PURCHASE_PAYMENTS.length} payments made`, color: '#22A06B', icon: CheckCircle },
+                    { label: 'Outstanding', value: money(Math.abs(remaining)), unit: 'INR', sub: isExtra ? 'Overpaid' : 'Yet to pay', color: isExtra ? '#8B5CF6' : '#D97706', icon: Clock },
                     { label: 'Vendor', value: vendor, sub: 'Supplier', color: '#0D9488', icon: Briefcase, isText: true },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approval', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
+                    { label: 'Approval', value: '2', sub: 'Pending approvals', color: '#D97706', icon: CheckSquare },
                   ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; isText?: boolean }[];
                 })().map((c) => {
                   const Icon = c.icon;
@@ -3000,15 +3015,20 @@ export function PurchaseDrawer({
             })()}
 
             {activeMainTab === 'settlements' && (() => {
-              const payments = [
-                { date: 'Wed, Mar 25, 2026 03:46 PM', amount: '10.00', comments: '---', attachments: '---', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
-                { date: 'Fri, Mar 27, 2026 03:58 PM', amount: '10.00', comments: '---', attachments: '---', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
-              ];
-              const invoices = [
-                { number: 'INV-2026-0142', billDate: 'Mon, Mar 23, 2026', amount: '23,000.00', dueDate: 'Wed, Apr 22, 2026', comments: 'Partial billing for PCAT units', attachments: 'invoice-0142.pdf', by: 'Shivam Pansuriya', initials: 'SP', color: '#3D8BD0' },
-                { number: 'INV-2026-0157', billDate: 'Fri, Mar 27, 2026', amount: '19,605.60', dueDate: 'Sun, Apr 26, 2026', comments: '---', attachments: '---', by: 'Dharti Patel', initials: 'DP', color: '#8B5CF6' },
-              ];
+              const payments = PURCHASE_PAYMENTS;
+              const invoices = PURCHASE_INVOICES;
               const isInvoices = settlementView === 'invoices';
+              const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const totalPayable = computePurchaseTotalCost(PURCHASE_LINE_ITEMS);
+              const invoicedTotal = PURCHASE_INVOICED_TOTAL;
+              const paidTotal = PURCHASE_PAID_TOTAL;
+              const outstanding = totalPayable - paidTotal;
+              const settlementKpis = [
+                { label: 'Total Payable', value: money(totalPayable), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
+                { label: 'Invoiced', value: money(invoicedTotal), unit: 'INR', sub: `${invoices.length} invoices billed`, color: '#8B5CF6', icon: ReceiptText },
+                { label: 'Paid', value: money(paidTotal), unit: 'INR', sub: `${payments.length} payments made`, color: '#22A06B', icon: CheckCircle },
+                { label: 'Outstanding', value: money(outstanding), unit: 'INR', sub: outstanding > 0 ? 'Yet to pay' : 'Fully settled', color: outstanding > 0 ? '#D97706' : '#22A06B', icon: Clock },
+              ];
               const seg = (id: 'invoices' | 'payments', label: string) => (
                 <button
                   onClick={() => setSettlementView(id)}
@@ -3018,8 +3038,29 @@ export function PurchaseDrawer({
                 </button>
               );
               const Cell = ({ v }: { v: string }) => (v === '---' ? <span className="text-[#9ca3af]">---</span> : <span>{v}</span>);
+              const Attach = ({ v }: { v: string }) => (v === '---' ? <span className="text-[#9ca3af]">---</span> : (
+                <button onClick={() => toast.success(`Downloading ${v}`)} className="group/att inline-flex items-center gap-1.5 text-[12px] text-[#3D8BD0] hover:underline" title={`Download ${v}`}>
+                  <FileText size={12} className="flex-shrink-0" />
+                  <span className="truncate max-w-[160px]">{v}</span>
+                  <Download size={11} className="flex-shrink-0 opacity-60 group-hover/att:opacity-100" />
+                </button>
+              ));
               return (
                 <div className="px-6 py-6">
+                  {/* Payment KPI strip */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3 mb-5`}>
+                    {settlementKpis.map((k) => { const I = k.icon; return (
+                      <div key={k.label} className="bg-white rounded-xl p-4 border border-[#E5E7EB]">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${k.color}1A`, color: k.color }}><I size={14} /></span>
+                          <span className="text-[13px] font-medium text-[#7B8FA5]">{k.label}</span>
+                        </div>
+                        <div className="text-[20px] font-bold leading-none" style={{ color: k.color }}>{k.value}<span className="text-[13px] font-semibold ml-1">{k.unit}</span></div>
+                        <div className="text-[12px] text-[#9CA3AF] mt-2">{k.sub}</div>
+                      </div>
+                    ); })}
+                  </div>
+
                   {/* Toolbar: segmented toggle (left) + Add button (right) */}
                   <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
                     <div className="inline-flex items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
@@ -3049,12 +3090,12 @@ export function PurchaseDrawer({
                               </tr>
                             ) : invoices.map((r, idx) => (
                               <tr key={idx} className="group hover:bg-[#F9FAFB] transition-colors">
-                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#3D8BD0]">{r.number}</td>
+                                <td className="px-4 py-3 whitespace-nowrap font-medium text-[#364658]">{r.number}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.billDate} /></td>
                                 <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.amount}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-[#364658]"><Cell v={r.dueDate} /></td>
                                 <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.comments} /></td>
-                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.attachments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Attach v={r.attachments} /></td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   <span className="inline-flex items-center gap-2 text-[#364658]">
                                     <span className="flex size-5 items-center justify-center rounded text-[9px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: r.color }}>{r.initials}</span>
@@ -3084,7 +3125,7 @@ export function PurchaseDrawer({
                                 <td className="px-4 py-3 whitespace-nowrap text-[#364658] font-medium">{r.date}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.amount}</td>
                                 <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.comments} /></td>
-                                <td className="px-4 py-3 whitespace-nowrap"><Cell v={r.attachments} /></td>
+                                <td className="px-4 py-3 whitespace-nowrap"><Attach v={r.attachments} /></td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   <span className="inline-flex items-center gap-2 text-[#364658]">
                                     <span className="flex size-5 items-center justify-center rounded text-[9px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: r.color }}>{r.initials}</span>

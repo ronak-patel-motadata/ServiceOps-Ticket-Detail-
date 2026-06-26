@@ -2207,6 +2207,12 @@ export function ContractDrawer({
                 </div>
               )}
             </div>
+            <button
+              onClick={() => toast.success('Contract renewal started')}
+              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+            >
+              Renew Contract
+            </button>
             <HardwareAssetActionsMenu contract />
           </div>
         </div>
@@ -2852,13 +2858,13 @@ export function ContractDrawer({
                     return [
                     { label: 'Contract Type', value: activeContract?.contractType ?? '---', sub: 'Contract type', color: '#3D8BD0', icon: FileText },
                     { label: 'Cost', value: activeContract?.cost ?? '---', sub: 'Total cost', color: '#22A06B', icon: CircleDollarSign },
-                    { label: 'Vendor', value: activeContract?.vendor ?? '---', sub: 'Supplier', color: '#8B5CF6', icon: Briefcase },
+                    { label: 'Vendor', value: activeContract?.vendor ?? '---', sub: 'Supplier', color: '#8B5CF6', icon: Briefcase, isText: true },
                     { label: 'Contract Expires', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: Clock,
                       ai: { action: 'Renew contract', q: 'When does this contract expire and how do I renew it?',
                         a: "**Contract expiry:** Expires in **23 days**.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry\n• Confirm the renewal term with the contract owner\n\nWould you like me to draft a renewal request?" } },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
                     { label: 'Child Contracts', value: '2', sub: 'Linked contracts', color: '#14B8A6', icon: Copy },
-                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
+                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; isText?: boolean; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
                     const Icon = c.icon;
                     if (c.counts) {
                       const visible = c.counts.filter(([, n]) => n > 0);
@@ -2922,7 +2928,11 @@ export function ContractDrawer({
                           <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
                           <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
                         </div>
-                        <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                        {c.isText ? (
+                          <div className="text-[15px] font-semibold leading-snug break-words" style={{ color: c.color }} title={c.value}>{c.value}</div>
+                        ) : (
+                          <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
+                        )}
                         {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
                         {c.ai && (
                           <button
