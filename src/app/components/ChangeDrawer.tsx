@@ -8,6 +8,8 @@
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { DrawerTabStrip } from './DrawerTabStrip';
+import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { toast } from 'sonner';
 import type { Change } from './ChangeListPage';
 import { StatusBadge } from './StatusBadge';
@@ -636,6 +638,8 @@ export function ChangeDrawer({
   onTabChange
 }: ChangeDrawerProps) {
   const activeChange = openChanges.find(c => c.id === activeChangeId);
+  const [minimized, setMinimized] = useState(false);
+  useEffect(() => { setMinimized(false); }, [activeChange?.id]);
   const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
@@ -2720,6 +2724,7 @@ export function ChangeDrawer({
   }, [showAiSummaryMenu]);
 
   if (openChanges.length === 0 || !activeChange) return null;
+  if (minimized) return <MinimizedDrawerRail items={openChanges} activeId={activeChange?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
@@ -2744,38 +2749,15 @@ export function ChangeDrawer({
       </div>
       
       {/* Tabs Header */}
-      <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb] overflow-x-auto">
-        <div className="flex items-center flex-1 min-w-0">
-          {openChanges.map((ticket) => (
-            <div
-              key={ticket.id}
-              className={`flex items-center gap-2 px-4 py-3 border-r border-[#e5e7eb] cursor-pointer min-w-0 max-w-[250px] ${
-                activeChangeId === ticket.id
-                  ? 'bg-white border-b-2 border-b-[#3D8BD0]'
-                  : 'hover:bg-white/50'
-              }`}
-              onClick={() => onTabChange(ticket.id)}
-            >
-              <span className={`text-[12px] font-semibold whitespace-nowrap ${
-                activeChangeId === ticket.id ? 'text-[#3D8BD0]' : 'text-[#6b7280]'
-              }`}>
-                {ticket.id}
-              </span>
-              <span className="text-[12px] text-[#364658] truncate flex-1">
-                {ticket.subject}
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseTab(ticket.id);
-                }}
-                className="p-0.5 hover:bg-[#e5e7eb] rounded"
-              >
-                <X size={14} className="text-[#6b7280]" />
-              </button>
-            </div>
-          ))}
-        </div>
+      <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-r border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
+        <DrawerTabStrip
+          items={openChanges}
+          activeId={activeChangeId}
+          onSelect={onTabChange}
+          onClose={onCloseTab}
+          maxVisible={drawerWidth > 1080 ? 8 : 3}
+        />
         <button
           onClick={toggleDrawerView}
           className="p-3 hover:bg-[#e5e7eb]"

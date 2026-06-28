@@ -142,7 +142,12 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           onClick={() => onNavigate?.('release')}
         />
         <AssetsNavItem activePage={activePage} onNavigate={onNavigate} />
-        <NavItem icon={<IconCMDB size={20} />} title="CMDB" />
+        <NavItem
+          icon={<IconCMDB size={20} />}
+          active={activePage === 'cmdb'}
+          title="CMDB"
+          onClick={() => onNavigate?.('cmdb')}
+        />
         <NavItem icon={<IconPatch size={20} />} title="Patch" />
         <NavItem icon={<IconPackage size={20} />} title="Package" />
         <NavItem icon={<IconProject size={20} />} title="Project" />

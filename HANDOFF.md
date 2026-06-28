@@ -1,33 +1,32 @@
-# Handoff — 2026-06-26 00:19
+# Handoff — 2026-06-28 22:11
 
 ## Read first
-CLAUDE.md "Key context" → the **Purchase Order detail page** bullet (especially the **Purchase Details** tab description). This session was visual polish of that tab; the module itself was built in the previous session.
+CLAUDE.md "Key context" → the **Drawer minimize + open-item tabs** bullet, and the **Structure** entries for the new **CMDB / Base CI** module + the shared `MinimizedDrawerRail` / `DrawerTabStrip` chrome. This session added the CMDB module and a DevRev-style minimize + tab-overflow behavior to every drawer.
 
 ## What we worked on this session
-Polished the **Purchase Details** tab on the Purchase Order detail page (`PurchaseDrawer`) and refreshed the Overview impact pills. No new modules — all tweaks to existing Purchase UI.
+Built the **CMDB (Base CI)** module (list + detail clone of Hardware) and added a **per-drawer minimize-to-rail** feature plus a **"More ▾" overflow tab bar** to all 12 detail drawers.
 
 ## Completed
-- **Purchase Overview**: replaced all old Non-IT overview content with a 7-KPI strip (Purchased Items / Total Cost / Paid Cost / Remaining→Extra Paid Cost / Vendor / Impact / Approval); **Impact pills = Incident / Asset / Contract / Project** with sidebar-style icons + hover popups (added Asset/Contract/Project to `RELATED_RECORDS`).
-- **Purchase Details tab** redesigned: gradient card headers + tinted `size-7` icon badges; "Purchase Items" table with per-row package icon badge and semibold Amount; `rounded-sm` "N products" pill; totals reproduce all charge rows (color-coded +green/−red) ending in a **gradient Total Cost bar**; Shipping/Billing address cards (Truck / ReceiptText icons); Terms chips; Signing Authority with `rounded-sm` avatar.
-  - Address + Signing Authority **label/value colors now match the Hardware tab** (label `text-[12px] #64748B`, value `text-[13px] font-medium #364658`, `#9CA3AF` for `---`).
-  - A top 4-stat KPI strip was added then **removed** at the user's request.
-- Cross-module (earlier this session/prior): Overview KPI value font one step smaller (20px wide / 18px narrow) across all 7 drawers; impact pills use sidebar icons + priority severity dot.
-- All published — latest commit `a77d5d2` (+ a small follow-up for the address/label color and signing-authority label, not yet committed — see Next steps).
+- **CMDB module**: `CmdbListPage` + `CmdbTable` + `CmdbDrawer` (cloned from `HardwareAssetDrawer` via `ciToAssetShape`). Opened from the **CMDB sidebar icon** (wired in `Sidebar.tsx` + `App.tsx` page `cmdb`). Columns match the screenshot; data replaced with **realistic enterprise CIs** (servers/apps/switches/laptops/mobiles).
+- **Minimize (all 12 drawers)**: `MinimizedDrawerRail` shared component. Minimize button (top-left of tab header) collapses the drawer to a narrow right rail (widens on hover, keeps the top-right profile icon visible). Rail shows open items as vertical ID chips (active highlighted), centered; hover shows a dark Radix tooltip with **ID — subject** (`side="left"`). Click bar = restore active; click chip = open that item. List behind stays interactive; effect on active `?.id` auto-restores when a new item is opened.
+- **Open-item tab overflow (all 12 drawers)**: `DrawerTabStrip` replaces the old inline tabs. Fixed-width 170px tabs, **width measured via ResizeObserver** → shows as many as fit, rest go to a floating **"More (N) ▾"** dropdown (absolute, `right-0` so it stays inside the drawer, z-9999). Active item always kept visible. Removed `overflow-x-auto` from the tab header so the dropdown isn't clipped.
 
 ## In progress
-- **Paused:** adding **"Ask for Approval"** as a third item in the Purchase 3-dot menu (`HardwareAssetActionsMenu` `purchase` variant). User declined the proposed edit earlier; still waiting on where it should sit (above Receive Items vs bottom).
+- **Paused (from earlier):** adding **"Ask for Approval"** as a third item in the Purchase 3-dot menu (`HardwareAssetActionsMenu` `purchase` variant). User declined the proposed edit; still waiting on placement.
 
 ## Next steps
-- Publish the final tweaks from this session (address label/value colors + Signing Authority label color) — these landed after commit `a77d5d2`.
-- Confirm placement and add "Ask for Approval" to the purchase 3-dot menu.
-- Optional: wire Settlements / Purchase Details / addresses to per-purchase mock data so each PO differs (currently one shared dataset via `PURCHASE_LINE_ITEMS`).
+- Publish this session's work (CMDB module + minimize/tab-overflow) — not yet pushed.
+- Optionally tailor the **CMDB detail page** (it's currently the full Hardware UI via adapter) — CI-specific tabs/fields/titles.
+- Confirm placement + add "Ask for Approval" to the purchase 3-dot menu.
 
 ## Decisions made
-- Address/Signing Authority labels switched from uppercase `#9CA3AF` to the Hardware-tab style (`text-[12px] #64748B`) for consistency across the app.
-- Kept the Purchase Details charge rows **data-driven** (`PURCHASE_LINE_ITEMS` + `computePurchaseTotalCost`) so the tab total, right-panel Cost (INR), and Overview Total Cost stay in sync.
+- **Per-drawer minimize** (not a global cross-module peek) — chosen by the user via AskUserQuestion; the global-provider approach was reverted in a prior session, so this stays within each module and is far lower risk.
+- **Tab overflow as a "More" dropdown** (not horizontal scroll) per user request — `DrawerTabStrip` measures width with `ResizeObserver` so "More" appears dynamically by available space, at the end of the strip.
+- Cross-drawer changes applied via **Node string-replace scripts using stable shared anchors** (the `.find(...)` line, the `if (open…) return null` early-return, the tab-header div, `onClick={toggleDrawerView}`) — all 12 drawers are near-identical clones so one script patches them uniformly.
 
 ## Gotchas & notes
-- Large in-file drawer blocks were edited via **Node line-splices** (read utf8 → splice line arrays → write, preserving EOL), with helper JSX written to scratchpad `.txt` first — avoids the PowerShell em-dash corruption CLAUDE.md warns about. Use this approach for big edits to `PurchaseDrawer.tsx`.
-- `gh` CLI is **not logged in** on this machine, so `/publish` can't watch the Actions run — but `git push` works via the Windows credential manager and Pages auto-deploys on push to `main` (site responds 200).
-- `npm run build` is the only verification (no standalone typecheck). LF→CRLF git warnings and the >500KB chunk note are harmless.
+- Absolute dropdowns inside the tab header were being clipped by `overflow-x-auto` / `overflow-hidden` ancestors — both were removed from the header/strip. If a drawer dropdown ever clips again, check for an `overflow-*` ancestor.
+- The minimize state/effect were injected right after each drawer's active-var `.find(...)` line (guaranteed before any early return) to respect rules-of-hooks.
+- `gh` CLI is **not logged in**; `/publish` can't watch the Actions run, but `git push` works via the Windows credential manager and Pages auto-deploys on push to `main` (site returns 200).
+- `npm run build` is the only verification. LF→CRLF git warnings and the >500KB chunk note are harmless.
 - Live URL: https://ronak-patel-motadata.github.io/ServiceOps-Ticket-Detail-/
