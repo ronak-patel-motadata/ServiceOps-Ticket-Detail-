@@ -659,6 +659,20 @@ export function SoftwareLicenseDrawer({
   const [showPropertiesRelationDropdown, setShowPropertiesRelationDropdown] = useState(false);
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
   const [propertiesRelationType, setPropertiesRelationType] = useState('');
+  const [relationMode, setRelationMode] = useState<'existing' | 'create'>('existing');
+  const [relationCreateSubject, setRelationCreateSubject] = useState('');
+  const [relationCreateDesc, setRelationCreateDesc] = useState('');
+  const handleCreateRelation = () => {
+    if (!relationCreateSubject.trim()) return;
+    toast.success(`${propertiesRelationType} created and linked`);
+    setShowPropertiesRelationModal(false);
+    setRelationMode('existing');
+    setRelationCreateSubject('');
+    setRelationCreateDesc('');
+    setSelectedPropertiesRelationTickets([]);
+    setPropertiesRelationType('');
+    setPropertiesRelationSearchQuery('');
+  };
   const [propertiesRelationSearchQuery, setPropertiesRelationSearchQuery] = useState('');
   const [selectedPropertiesRelationTickets, setSelectedPropertiesRelationTickets] = useState<string[]>([]);
   
@@ -926,7 +940,7 @@ export function SoftwareLicenseDrawer({
     setShowPropertiesRelationModal(false);
     setSelectedPropertiesRelationTickets([]);
     setPropertiesRelationType('');
-    setPropertiesRelationSearchQuery('');
+    setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
   };
 
   // Onboarding - shows once per session, resets on page refresh
@@ -8396,14 +8410,14 @@ export function SoftwareLicenseDrawer({
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
                 <h2 className="text-[18px] font-semibold text-[#364658]">
-                  Add {propertiesRelationType} Relation
+                  {relationMode === 'create' ? `Create ${propertiesRelationType}` : `Add ${propertiesRelationType} Relation`}
                 </h2>
                 <button
                   onClick={() => {
                     setShowPropertiesRelationModal(false);
                     setSelectedPropertiesRelationTickets([]);
                     setPropertiesRelationType('');
-                    setPropertiesRelationSearchQuery('');
+                    setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
                   }}
                   className="p-1 hover:bg-[#F3F4F6] rounded transition-colors"
                 >
@@ -8411,6 +8425,8 @@ export function SoftwareLicenseDrawer({
                 </button>
               </div>
 
+                            {relationMode === 'existing' ? (
+              <>
               {/* Search and Filters */}
               <div className="px-6 py-4 border-b border-[#E5E7EB] space-y-3">
                 {/* Search Bar */}
@@ -8497,6 +8513,22 @@ export function SoftwareLicenseDrawer({
                 </table>
               </div>
 
+              </>
+              ) : (
+              <div className="flex-1 overflow-auto px-6 py-5">
+                <div className="max-w-[640px] space-y-4">
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Subject / Name <span className="text-[#DC2626]">*</span></label>
+                    <input value={relationCreateSubject} onChange={(e) => setRelationCreateSubject(e.target.value)} placeholder={`Enter ${propertiesRelationType.toLowerCase()} subject`} className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Description</label>
+                    <textarea value={relationCreateDesc} onChange={(e) => setRelationCreateDesc(e.target.value)} rows={5} placeholder="Add a short description..." className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors resize-none" />
+                  </div>
+                  <p className="text-[12px] text-[#9CA3AF]">A new {propertiesRelationType.toLowerCase()} will be created and linked to this record.</p>
+                </div>
+              </div>
+              )}
               {/* Modal Footer */}
               <div className="px-6 py-4 border-t border-[#E5E7EB] flex items-center justify-between">
                 <div className="text-[13px] text-[#6B7280]">
@@ -8508,18 +8540,18 @@ export function SoftwareLicenseDrawer({
                       setShowPropertiesRelationModal(false);
                       setSelectedPropertiesRelationTickets([]);
                       setPropertiesRelationType('');
-                      setPropertiesRelationSearchQuery('');
+                      setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
                     }}
                     className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddPropertiesRelations}
-                    disabled={selectedPropertiesRelationTickets.length === 0}
+                    onClick={relationMode === 'create' ? handleCreateRelation : handleAddPropertiesRelations}
+                    disabled={relationMode === 'create' ? !relationCreateSubject.trim() : selectedPropertiesRelationTickets.length === 0}
                     className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Add Relations
+                    {relationMode === 'create' ? 'Create & Link' : 'Add Relations'}
                   </button>
                 </div>
               </div>
