@@ -15,6 +15,7 @@ import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { AssetAiSummary } from './AssetAiSummary';
 import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -2133,6 +2134,9 @@ export function NonItAssetDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
@@ -2807,6 +2811,17 @@ export function NonItAssetDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
+              {/* AI summary (no heading — icon + short asset summary) */}
+              <div className="mb-6">
+                <AssetAiSummary
+                  summary="This non-IT asset is in service and assigned, with no critical issues, though its warranty is approaching expiry."
+                  points={[
+                    'Warranty is nearing expiry — review a renewal or replacement plan.',
+                    'Linked to a few active records across incidents, contracts and purchases.',
+                    'No pending approvals are currently blocking this asset.',
+                  ]}
+                />
+              </div>
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>

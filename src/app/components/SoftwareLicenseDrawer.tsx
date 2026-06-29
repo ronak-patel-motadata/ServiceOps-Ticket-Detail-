@@ -15,6 +15,7 @@ import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { AssetAiSummary } from './AssetAiSummary';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -2042,6 +2043,9 @@ export function SoftwareLicenseDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             {/* Compliance Settings — the bell action on the license page */}
             <div className="relative">
               <button
@@ -2743,6 +2747,17 @@ export function SoftwareLicenseDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
+              {/* AI summary (no heading — icon + short asset summary) */}
+              <div className="mb-6">
+                <AssetAiSummary
+                  summary="This license is active and compliant, with utilization tracking comfortably against the purchased entitlement."
+                  points={[
+                    'Allocation and installation counts are within the purchased seats — no over-utilization.',
+                    'Renewal/expiry is approaching — review before the license lapses.',
+                    'Compliance is healthy across the managed software.',
+                  ]}
+                />
+              </div>
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>

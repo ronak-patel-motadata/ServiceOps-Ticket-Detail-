@@ -4,10 +4,13 @@ import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
 import type { AssetFieldState, AgentInfo } from './AssetFields';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
+import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, Bell } from 'lucide-react';
+import { NotificationsPanel } from './NotificationsPanel';
+import type { EmailNotification } from './SendEmailModal';
 
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
@@ -18,6 +21,8 @@ interface TicketPropertiesPanelProps {
   statusGroupLabel?: string;
   // Show the SLA Status card (hidden on the Hardware Asset detail page)
   showSla?: boolean;
+  // Append the 50+ demo custom form fields to Additional Fields (ticket page only)
+  demoCustomFields?: boolean;
   // Render the Hardware Asset field set in the fields accordion instead of ticket fields
   assetMode?: boolean;
   assetState?: AssetFieldState;
@@ -42,8 +47,8 @@ interface TicketPropertiesPanelProps {
   // Calendar section title (e.g. "Change Calendar" or "Release Calendar")
   changeCalendarTitle?: string;
   // State
-  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes';
-  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes') => void;
+  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications';
+  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications') => void;
   pinnedFields: string[];
   setPinnedFields: (fields: string[]) => void;
   showPropertiesSearch: boolean;
@@ -198,6 +203,8 @@ interface TicketPropertiesPanelProps {
   getGroupTitle: () => string;
   // Title shown on the Properties group icon tooltip (matches the properties group header).
   propertiesTitle?: string;
+  // Show the Notifications (email) group at the end of the right rail.
+  showNotifications?: boolean;
   getCurrentStatusColor: () => string;
   getCurrentPriorityColor: () => string;
   getCurrentAssigneeColor: () => string;
@@ -312,6 +319,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     showProblemFields = false,
     statusGroupLabel,
     showSla = true,
+    demoCustomFields = false,
     assetMode = false,
     softwareMode = false,
     licenseMode = false,
@@ -363,6 +371,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     getFilteredPinnedFields,
     getGroupTitle,
     propertiesTitle,
+    showNotifications = false,
     getCurrentStatusColor,
     getCurrentPriorityColor,
     getCurrentAssigneeColor,
@@ -539,6 +548,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
+  // Attachment that is open in the centered preview popup
+  const [previewAttachment, setPreviewAttachment] = useState<any>(null);
+  // Email notifications sent for this record (Notifications group)
+  const [emailNotifications, setEmailNotifications] = useState<EmailNotification[]>([]);
+  const [showSendEmail, setShowSendEmail] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ id: number; text: string; isUser: boolean; timestamp: string; isTyping?: boolean; fullText?: string; displayedText?: string; followUpActions?: string[] }>>([]);
   const [previousGroup, setPreviousGroup] = useState<'properties' | 'activity' | 'suggestions'>('suggestions');
   // Asset-only Notes group
@@ -1126,7 +1140,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <path fill="url(#sparkle-gradient-properties)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
                 </svg>
               )}
-              {getGroupTitle()}
+              {activeGroup === 'notifications' ? 'Notifications' : getGroupTitle()}
             </h2>
             {activeGroup === 'chatbot' && (
               <button
@@ -1159,6 +1173,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             )}
             {activeGroup === 'users' && (
               <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                <Plus size={15} />
+              </button>
+            )}
+            {activeGroup === 'notifications' && emailNotifications.length > 0 && (
+              <button title="Send Email" onClick={() => setShowSendEmail(true)} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
@@ -1497,6 +1516,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </Tooltip>
               </div>
             
+              {/* Penalty Amount — only shown when a penalty has been incurred */}
+              {getSlaPenaltyAmount(ticketId) > 0 && (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-[#364658]">Penalty</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-[#FFEBEE] rounded px-2 py-1 flex-shrink-0">
+                    <span className="text-[12px] font-semibold text-[#E74C3C]">{formatPenaltyAmount(getSlaPenaltyAmount(ticketId))}</span>
+                  </div>
+                </div>
+              )}
+
               {/* SLA History Link */}
               <button
                 onClick={() => setShowSLAHistory(true)}
@@ -1764,6 +1795,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           pinnedFields={pinnedFields}
           assetMode={assetMode}
           purchaseMode={purchaseMode}
+          demoCustomFields={demoCustomFields}
         />
             );
           }
@@ -2017,6 +2049,16 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setPreviewAttachment(attachment);
+                        }}
+                        className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors"
+                        title="Preview"
+                      >
+                        <Eye size={14} className="text-[#64748B]" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           // Handle download
                         }}
                         className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors"
@@ -2056,6 +2098,64 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </div>
           )}
         </div>
+
+        {/* Attachment preview popup (centered) */}
+        {previewAttachment && (() => {
+          const ext = (previewAttachment.name?.split('.').pop() || '').toLowerCase();
+          const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+          return (
+            <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
+              <div className="absolute inset-0 bg-black/50" onClick={() => setPreviewAttachment(null)} />
+              <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[85vh] flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText size={16} className="text-[#7B8FA5] flex-shrink-0" />
+                    <span className="text-[14px] font-semibold text-[#364658] truncate" title={previewAttachment.name}>{previewAttachment.name}</span>
+                    <span className="text-[12px] text-[#7B8FA5] flex-shrink-0">{previewAttachment.size}</span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors" title="Download">
+                      <Download size={16} className="text-[#3D8BD0]" />
+                    </button>
+                    <button onClick={() => setPreviewAttachment(null)} className="p-1.5 rounded hover:bg-[#F1F5F9] transition-colors" title="Close">
+                      <X size={18} className="text-[#6B7280]" />
+                    </button>
+                  </div>
+                </div>
+                {/* Body */}
+                <div className="flex-1 overflow-auto bg-[#F1F5F9] flex items-center justify-center p-6">
+                  {isImage ? (
+                    <svg viewBox="0 0 640 420" className="w-full h-auto max-w-[560px] rounded-lg border border-[#E2E8F0] shadow-sm">
+                      <defs>
+                        <linearGradient id="attPreviewSky" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#DBEAFE" />
+                          <stop offset="100%" stopColor="#EFF6FF" />
+                        </linearGradient>
+                      </defs>
+                      <rect width="640" height="420" fill="url(#attPreviewSky)" />
+                      <circle cx="500" cy="100" r="44" fill="#FBBF24" />
+                      <path d="M0 420 L170 210 L300 330 L430 170 L640 300 L640 420 Z" fill="#86C7A8" />
+                      <path d="M0 420 L210 280 L400 380 L640 250 L640 420 Z" fill="#5FAE93" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 520 660" className="h-auto max-h-[60vh] rounded-lg border border-[#E2E8F0] bg-white shadow-sm">
+                      <rect width="520" height="660" fill="#FFFFFF" />
+                      <rect x="40" y="44" width="240" height="22" rx="4" fill="#94A3B8" />
+                      {Array.from({ length: 15 }).map((_, i) => (
+                        <rect key={i} x="40" y={92 + i * 34} width={i % 4 === 3 ? 180 : 440} height="12" rx="3" fill="#E2E8F0" />
+                      ))}
+                    </svg>
+                  )}
+                </div>
+                {/* Footer caption */}
+                <div className="px-5 py-2.5 border-t border-[#E5E7EB] text-[12px] text-[#7B8FA5] flex-shrink-0">
+                  {isImage ? 'Image preview' : 'Document preview'} • Uploaded by {previewAttachment.uploadedBy}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Info Section - Features Available */}
         <div className="mt-6 px-4">
@@ -2126,6 +2226,17 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 );
               })}
             </div>
+        )}
+
+        {/* Notifications Group Content (email notifications) */}
+        {activeGroup === 'notifications' && (
+          <NotificationsPanel
+            recordId={ticketId}
+            notifications={emailNotifications}
+            onSend={(email) => setEmailNotifications((prev) => [email, ...prev])}
+            showSendEmail={showSendEmail}
+            setShowSendEmail={setShowSendEmail}
+          />
         )}
 
         {/* Notes Group Content (asset only) */}
@@ -3336,6 +3447,33 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </button>
           </TooltipTrigger>
           <TooltipContent>AI Suggestions</TooltipContent>
+        </Tooltip>
+        )}
+
+        {/* Notifications group (ticket/problem/change/release/contract/purchase) — last icon */}
+        {showNotifications && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('notifications');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+                activeGroup === 'notifications'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <Bell size={16} className={activeGroup === 'notifications' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              {emailNotifications.length > 0 && activeGroup !== 'notifications' && (
+                <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0]"></span>
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Notifications</TooltipContent>
         </Tooltip>
         )}
       </div>

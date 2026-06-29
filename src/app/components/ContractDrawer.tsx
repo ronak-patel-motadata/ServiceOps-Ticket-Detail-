@@ -16,6 +16,7 @@ import { IconRequest, IconAssets } from './SidebarIcons';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { AssetAiSummary } from './AssetAiSummary';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -445,7 +446,7 @@ export function ContractDrawer({
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -2177,6 +2178,9 @@ export function ContractDrawer({
                 </>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
@@ -2849,6 +2853,17 @@ export function ContractDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
+              {/* AI summary (no heading — icon + short asset summary) */}
+              <div className="mb-6">
+                <AssetAiSummary
+                  summary="This contract is active and on track, though its term is approaching renewal."
+                  points={[
+                    'Renewal date is approaching — decide whether to renew, renegotiate or let it expire.',
+                    'Linked to active assets and purchase orders.',
+                    'No pending approvals are currently blocking this contract.',
+                  ]}
+                />
+              </div>
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
                 <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
@@ -7495,6 +7510,7 @@ export function ContractDrawer({
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Contract Properties"
+            showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

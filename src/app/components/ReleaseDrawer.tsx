@@ -10,6 +10,7 @@ import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { toast } from 'sonner';
 import type { Release } from './ReleaseListPage';
 import { StatusBadge } from './StatusBadge';
@@ -21,6 +22,7 @@ import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
 import { SLAHistoryModal } from './SLAHistoryModal';
+import { getSlaPenaltyAmount } from './TicketDrawerUtils';
 import { ServiceRequestItems } from './ServiceRequestItems';
 import { EditItemPopup } from './EditItemPopup';
 import { InlineReplyEditor } from './InlineReplyEditor';
@@ -767,7 +769,7 @@ export function ReleaseDrawer({
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -2883,8 +2885,11 @@ export function ReleaseDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
                 className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
               >
@@ -3333,6 +3338,26 @@ export function ReleaseDrawer({
                           {getChangeContent(activeChange?.id).desc}
                           <br /><br />
                           {getChangeContent(activeChange?.id).descExtra}
+                          <br /><br />
+                          The remediation workflow begins by capturing a baseline snapshot of the current network state — active adapters, assigned IP addresses, the default gateway, DNS servers, and the contents of the ARP and routing tables — so that any change made during recovery can be compared against a known-good reference and rolled back if necessary.
+                          <br /><br />
+                          Next, the automation flushes the DNS resolver cache and re-registers the host with the corporate DNS, clearing any stale or poisoned records that may be redirecting traffic. It then releases and renews the DHCP lease to ensure the device receives a valid address, subnet mask, and gateway from the correct scope on the VLAN.
+                          <br /><br />
+                          Once addressing is confirmed, the routine resets the TCP/IP stack and Winsock catalog, removing any corrupted layered service providers or leftover proxy hooks that frequently cause "connected but no internet" symptoms. The network adapter is then disabled and re-enabled to force a clean re-association with the access point.
+                          <DescriptionInlineImage />
+                          The diagram above illustrates the path the diagnostics walk through — from the endpoint, to the wireless access point, to the local gateway, and finally out to the ISP. Highlighting the failing hop makes it easy to see whether the break is local (adapter, IP, DNS) or upstream (gateway-to-ISP), which determines whether this can be fixed on the endpoint or must be escalated to the network team.
+                          <br /><br />
+                          After connectivity primitives are restored, the workflow re-establishes secure sessions to corporate resources. It re-authenticates the device against the domain controllers, refreshes Kerberos tickets, and re-mounts the mapped network drives so that file shares, print queues, and policy-driven resources come back online without a manual logout.
+                          <br /><br />
+                          Proxy and PAC configurations are validated against the expected corporate values, certificate trust chains are checked, and the VPN client's connection profile is verified to ensure split-tunnel rules and DNS suffixes are applied correctly. Any drift from the standard configuration is flagged in the run log for review.
+                          <br /><br />
+                          The routine then performs a series of reachability tests: it pings the gateway, resolves a set of known internal and external hostnames, and issues lightweight HTTPS requests to a handful of critical business applications. Latency, packet loss, and response codes are recorded for each target so support staff can confirm the fix objectively rather than relying on a subjective "it works now".
+                          <br /><br />
+                          If any test still fails after the refresh, the workflow does not silently stop. It collects a diagnostic bundle — adapter details, the before/after configuration, ping and traceroute output, and relevant event-log entries — and attaches it to this record so the next engineer has full context without having to ask the user to reproduce the steps.
+                          <br /><br />
+                          All actions are idempotent and logged with timestamps, which means the workflow can be safely re-run if the issue recurs, and the audit trail clearly shows what was changed, when, and by which automation account. This satisfies our change-management and security-review requirements for any automated remediation that touches network configuration.
+                          <br /><br />
+                          On successful completion the device is returned to a fully operational state with verified internet access, restored corporate connectivity, and a clean diagnostic report. The user is notified automatically, and this record is updated with the final status so it can be reviewed, audited, or referenced if a similar issue is reported in the future.
                         </>
                       ) : (
                         <>
@@ -3610,7 +3635,7 @@ export function ReleaseDrawer({
                     <ul className="space-y-1.5">
                       {getChangeContent(activeChange?.id).keyPoints.map((point, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13px] text-[#364658]">
-                          <span className="text-[#3D8BD0] mt-1">•</span>
+                          <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                           <span>{point}</span>
                         </li>
                       ))}
@@ -5909,6 +5934,7 @@ export function ReleaseDrawer({
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Properties"
+            showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -6891,6 +6917,7 @@ export function ReleaseDrawer({
       <SLAHistoryModal
         isOpen={showSLAHistory}
         onClose={() => setShowSLAHistory(false)}
+        penaltyAmount={getSlaPenaltyAmount(activeChange?.id)}
       />
     </div>
   );

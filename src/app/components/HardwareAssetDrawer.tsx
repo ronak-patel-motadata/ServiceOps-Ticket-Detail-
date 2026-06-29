@@ -14,6 +14,7 @@ import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal
 import { useState, useRef, useEffect, type ComponentType } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { AssetAiSummary } from './AssetAiSummary';
 import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
@@ -2251,6 +2252,9 @@ export function HardwareAssetDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
@@ -2691,6 +2695,16 @@ export function HardwareAssetDrawer({
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
             <div className="px-6 py-6 space-y-6">
+              {/* AI summary (no heading — icon + short asset summary) */}
+              <AssetAiSummary
+                summary="This device is healthy and actively managed, but its warranty is nearing expiry and a couple of updates are still pending."
+                points={[
+                  'Warranty expires in 23 days — plan a renewal or replacement to avoid a coverage gap.',
+                  '2 security patches are pending installation on this asset.',
+                  'Antivirus is active and the device is baseline-compliant with no major variance.',
+                ]}
+              />
+
               {/* Group: Health & Compliance */}
               <div>
                 <div>

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Pin as PinIcon, PinOff } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { AssetValueDisplay } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
+import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
 
 interface PinnedFieldsAccordionProps {
   // Render pinned Hardware Asset field values instead of ticket field values
@@ -179,8 +180,23 @@ export function PinnedFieldsAccordion(props: PinnedFieldsAccordionProps) {
           </div>
         );
       
-      default:
+      default: {
+        // Known built-in fields (Department/Location/Vendor/etc.) resolve to a
+        // real value here — only fall through to the demo custom lookup when the
+        // field is otherwise unknown.
+        const custom = value === '-' ? DEMO_CUSTOM_FORM_FIELDS.find((f) => f.label === field) : undefined;
+        if (custom) {
+          return (
+            <div className="flex items-center gap-2 min-w-0">
+              {custom.color && (
+                <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: custom.color }} />
+              )}
+              <span className="text-[13px] text-[#364658] truncate min-w-0" title={custom.value}>{custom.value}</span>
+            </div>
+          );
+        }
         return <span className="text-[13px] text-[#364658]">{value}</span>;
+      }
     }
   };
 
@@ -230,7 +246,7 @@ export function PinnedFieldsAccordion(props: PinnedFieldsAccordionProps) {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex-1 py-2 px-3 bg-[#F9FAFB] rounded-md">
+              <div className="flex-1 min-w-0 py-2 px-3 bg-[#F9FAFB] rounded-md">
                 {renderFieldValue(field)}
               </div>
             </div>

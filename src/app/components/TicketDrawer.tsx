@@ -6,10 +6,12 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, ArrowRightLeft } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { DescriptionInlineImage } from './DescriptionInlineImage';
+import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { StatusBadge } from './StatusBadge';
@@ -21,6 +23,9 @@ import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
 import { SLAHistoryModal } from './SLAHistoryModal';
+import { AddWorkLogModal } from './AddWorkLogModal';
+import { WorkHistoryModal } from './WorkHistoryModal';
+import { getSlaPenaltyAmount } from './TicketDrawerUtils';
 import { ServiceRequestItems } from './ServiceRequestItems';
 import { EditItemPopup } from './EditItemPopup';
 import { InlineReplyEditor } from './InlineReplyEditor';
@@ -220,7 +225,7 @@ export function TicketDrawer({
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -254,11 +259,27 @@ export function TicketDrawer({
   const serviceRequestMenuRef = useRef<HTMLDivElement>(null);
   const serviceRequestStatusRef = useRef<HTMLDivElement>(null);
   const [showServiceCatalog, setShowServiceCatalog] = useState(false);
+  const [showWorkLogModal, setShowWorkLogModal] = useState(false);
+  const [workLogs, setWorkLogs] = useState<any[]>([
+    { id: 'wl-1', technician: { name: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0' }, start: '2026-06-01T19:33', end: '2026-06-29T19:33', description: 'service Taken' },
+    { id: 'wl-2', technician: { name: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0' }, start: '2026-06-29T19:34', end: '2026-06-29T19:34', description: 'Work Start', timeTaken: '8 seconds' },
+  ]);
+  const [editingWorkLog, setEditingWorkLog] = useState<any>(null);
+  const handleAddWorkLog = (log: any) => setWorkLogs((prev) => [{ id: `wl-${Date.now()}`, ...log }, ...prev]);
+  const handleDeleteWorkLog = (id: string) => setWorkLogs((prev) => prev.filter((l) => l.id !== id));
+  const handleUpdateWorkLog = (id: string, log: any) =>
+    setWorkLogs((prev) => prev.map((l) => (l.id === id ? { ...l, ...log, timeTaken: undefined } : l)));
+  const handleEditWorkLog = (log: any) => {
+    setEditingWorkLog(log);
+    setShowWorkLogModal(true);
+  };
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [selectedCatalogCategory, setSelectedCatalogCategory] = useState<string>('All');
   const [showCatalogCategoryDropdown, setShowCatalogCategoryDropdown] = useState(false);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<any>(null);
   const [showCatalogItemDetails, setShowCatalogItemDetails] = useState(false);
+  // Id of the service-request item being swapped via "Change Item" (null = adding a new item)
+  const [changingItemId, setChangingItemId] = useState<string | null>(null);
   const [catalogItemQuantity, setCatalogItemQuantity] = useState(1);
   
   // Catalog Item Configuration States
@@ -582,9 +603,11 @@ export function TicketDrawer({
 
   const hasAdditionalFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
-    return getFilteredAdditionalFormFieldsWrapper().length > 0 || 
-           getFilteredAdditionalFieldsWrapper().length > 0 || 
-           'additional fields'.includes(propertiesSearchQuery.toLowerCase());
+    const query = propertiesSearchQuery.toLowerCase();
+    return getFilteredAdditionalFormFieldsWrapper().length > 0 ||
+           getFilteredAdditionalFieldsWrapper().length > 0 ||
+           DEMO_CUSTOM_FORM_FIELDS.some(f => f.label.toLowerCase().includes(query)) ||
+           'additional fields'.includes(query);
   };
 
   const hasRequesterInfoMatch = () => {
@@ -652,8 +675,8 @@ export function TicketDrawer({
   };
 
   const openManualWorkLog = () => {
-    // Handle opening manual work log modal
-    console.log('Open manual work log');
+    setEditingWorkLog(null);
+    setShowWorkLogModal(true);
   };
 
   // Properties Panel Relation Modal Helper Functions (local handlers)
@@ -1857,8 +1880,11 @@ export function TicketDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
                 className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
               >
@@ -2280,6 +2306,26 @@ export function TicketDrawer({
                           I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.
                           <br /><br />
                           This is significantly impacting my ability to work as I cannot access emails, cloud applications, or collaborate with my team. I've checked with colleagues nearby and they don't seem to be experiencing any connectivity issues. I need urgent assistance to resolve this problem as I have several critical tasks and meetings scheduled today that require internet access.
+                          <br /><br />
+                          The problem first appeared at approximately 8:45 AM today, right after I returned from a short meeting and unlocked my laptop. Everything was working perfectly when I left my desk around 8:15 AM, so the outage seems to have started while the machine was locked and idle.
+                          <br /><br />
+                          Before raising this ticket I attempted the usual troubleshooting steps on my own: I rebooted the laptop three times, toggled the Wi-Fi adapter off and on, forgot and re-joined the "Corp-Secure" network, and even tried the guest network as a test. None of these restored connectivity, and the guest network behaved exactly the same way.
+                          <DescriptionInlineImage />
+                          I also ran the built-in network diagnostics tool, and I've attached the exported report below. As shown in the diagram above, my laptop reaches the office access point and the local gateway without any problem, but every request beyond the gateway times out — it looks like the connection is being dropped somewhere between our gateway and the internet service provider.
+                          <br /><br />
+                          When I open Command Prompt, I can successfully ping the gateway (192.168.1.1) with 0% packet loss, but pinging external addresses such as 8.8.8.8 or google.com results in "Request timed out" for every packet. DNS lookups also fail with a "server could not be found" error in the browser.
+                          <br /><br />
+                          The outage is blocking access to a long list of business-critical resources, including Outlook/Exchange email, the Jira and Confluence workspaces, our internal SharePoint drives, the CRM portal, Microsoft Teams, and the cloud build pipeline I use throughout the day. Essentially nothing that lives outside the local network is reachable.
+                          <br /><br />
+                          I walked around to confirm the scope of the issue. Two colleagues sitting in the same row are online without any trouble on the same SSID, which suggests this is specific to my device or my network profile rather than a building-wide outage. One teammate on the far side of the floor did mention intermittent slowness, so it may be worth checking that segment as well.
+                          <br /><br />
+                          As a temporary workaround I tethered my laptop to my mobile phone's hotspot, and on that connection everything works normally — email syncs, websites load, and the VPN connects. This further points to a problem with the office Wi-Fi path to the internet rather than anything wrong with the laptop's hardware or operating system.
+                          <br /><br />
+                          I have not made any recent changes to my machine — no new software installs, no VPN client updates, and no firewall changes that I'm aware of. The corporate VPN client shows "disconnected" and refuses to reconnect over the office network, returning a timeout, although it connects instantly over the mobile hotspot.
+                          <br /><br />
+                          This is genuinely urgent for me today. I have a customer demo at 2:00 PM that depends on the cloud environment, a release sign-off that needs to happen before 4:00 PM, and several code reviews that are blocking other engineers. Every hour without connectivity is directly delaying the team's deliverables for this sprint.
+                          <br /><br />
+                          Please treat this with high priority. I'm available at my desk (Seat 4-B, 3rd floor) for the rest of the day and can stay on a call or screen-share via my phone's hotspot if the support engineer needs to run remote diagnostics. Thank you in advance for the quick help.
                         </>
                       ) : (
                         <>
@@ -2594,45 +2640,45 @@ export function TicketDrawer({
                       {activeTicket?.id === 'INC-32' ? (
                         <>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>No internet access despite Wi-Fi showing as connected</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Impacting ability to access emails and cloud applications</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0]">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Requires network diagnostics and connectivity troubleshooting</span>
                           </li>
                         </>
                       ) : activeTicket?.id === 'INC-35' ? (
                         <>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Hardware request for MacBook Pro 16-inch</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Current laptop has performance issues with development tools</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Required for running Docker containers and virtual machines</span>
                           </li>
                         </>
                       ) : (
                         <>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>No internet access despite Wi-Fi showing as connected</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Impacting ability to access emails and cloud applications</span>
                           </li>
                           <li className="flex items-start gap-2 text-[13px] text-[#364658]">
-                            <span className="text-[#3D8BD0] mt-1">•</span>
+                            <span className="mt-[7px] size-1 rounded-full bg-[#8B5CF6] flex-shrink-0" />
                             <span>Requires network diagnostics and connectivity troubleshooting</span>
                           </li>
                         </>
@@ -5282,17 +5328,17 @@ export function TicketDrawer({
                                 Edit
                               </button>
                               <button
-                                className="w-full px-4 py-2 text-left text-[13px] text-[#EF4444] hover:bg-[#FEF2F2] flex items-center gap-2 transition-colors"
+                                className="w-full px-4 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] flex items-center gap-2 transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setShowServiceRequestMenu(null);
-                                  // Remove item from service request
-                                  setServiceRequestItems(serviceRequestItems.filter(i => i.id !== item.id));
-                                  setExpandedItemIds(expandedItemIds.filter(id => id !== item.id));
+                                  // Open the Service Catalog to swap this item for another
+                                  setChangingItemId(item.id);
+                                  setShowServiceCatalog(true);
                                 }}
                               >
-                                <Trash2 className="size-4 text-[#EF4444]" />
-                                Delete
+                                <ArrowRightLeft className="size-4 text-[#6B7280]" />
+                                Change Item
                               </button>
                             </div>
                           )}
@@ -5587,6 +5633,8 @@ export function TicketDrawer({
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Ticket Properties"
+            showNotifications={true}
+            demoCustomFields={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -5715,9 +5763,9 @@ export function TicketDrawer({
       {showServiceCatalog && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/20 z-[100]"
-            onClick={() => setShowServiceCatalog(false)}
+            onClick={() => { setShowServiceCatalog(false); setChangingItemId(null); }}
           />
           
           {/* Slide-in Panel */}
@@ -5726,7 +5774,7 @@ export function TicketDrawer({
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
               <h2 className="text-lg font-semibold text-[#364658]">Service Catalog</h2>
               <button
-                onClick={() => setShowServiceCatalog(false)}
+                onClick={() => { setShowServiceCatalog(false); setChangingItemId(null); }}
                 className="p-1.5 hover:bg-[#F3F4F6] rounded transition-colors"
               >
                 <X className="size-5 text-[#6B7280]" />
@@ -6265,14 +6313,11 @@ export function TicketDrawer({
                   </button>
                   <button
                     onClick={() => {
-                      // Add item to service request
-                      const newItem = {
-                        id: `item-${Date.now()}`,
+                      const itemData = {
                         name: selectedCatalogItem.name,
                         quantity: catalogItemQuantity,
                         price: selectedCatalogItem.price,
                         icon: selectedCatalogItem.icon,
-                        status: 'Requested',
                         configuration: {
                           processor: selectedProcessor,
                           ram: selectedRAM,
@@ -6283,7 +6328,16 @@ export function TicketDrawer({
                         },
                         deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB').replace(/\//g, '/'),
                       };
-                      setServiceRequestItems([...serviceRequestItems, newItem]);
+                      if (changingItemId) {
+                        // Replace the item the user chose to change
+                        setServiceRequestItems(serviceRequestItems.map(i =>
+                          i.id === changingItemId ? { ...i, ...itemData } : i
+                        ));
+                      } else {
+                        // Add a brand-new item to the service request
+                        setServiceRequestItems([...serviceRequestItems, { id: `item-${Date.now()}`, status: 'Requested', ...itemData }]);
+                      }
+                      setChangingItemId(null);
                       setShowServiceCatalog(false);
                       setShowCatalogItemDetails(false);
                       setSelectedCatalogItem(null);
@@ -6298,7 +6352,7 @@ export function TicketDrawer({
                     }}
                     className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded-lg text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
                   >
-                    Add to Request
+                    {changingItemId ? 'Change Item' : 'Add to Request'}
                   </button>
                 </div>
               </div>
@@ -6568,6 +6622,23 @@ export function TicketDrawer({
       <SLAHistoryModal
         isOpen={showSLAHistory}
         onClose={() => setShowSLAHistory(false)}
+        penaltyAmount={getSlaPenaltyAmount(activeTicket?.id)}
+      />
+
+      <AddWorkLogModal
+        isOpen={showWorkLogModal}
+        onClose={() => { setShowWorkLogModal(false); setEditingWorkLog(null); }}
+        onAdd={handleAddWorkLog}
+        editingLog={editingWorkLog}
+        onUpdate={handleUpdateWorkLog}
+      />
+
+      <WorkHistoryModal
+        isOpen={showWorkHistory}
+        onClose={() => setShowWorkHistory(false)}
+        logs={workLogs}
+        onDelete={handleDeleteWorkLog}
+        onEdit={handleEditWorkLog}
       />
     </div>
   );

@@ -264,13 +264,21 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
     setActiveFilters(prev => prev.filter(f => f !== filter));
   };
 
+  // Count relations by type for the filter pills (only types with data are shown).
+  const typeCounts = relations.reduce((acc, r) => {
+    acc[r.type] = (acc[r.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const presentTypes = relationTypes.filter((t) => (typeCounts[t] || 0) > 0);
+
   return (
     <div className="px-6 pb-6 pt-3">
       {/* Add Relation Button - Show at top only when there are relations */}
       {relations.length > 0 && (
-        <div className="mb-4 relative">
+        <div className="mb-4 relative @container">
           <div className="flex items-center gap-2 justify-between">
-            <div className="relative" ref={sortDropdownRef}>
+            {/* Narrow view: All + filter dropdown */}
+            <div className="relative @2xl:hidden" ref={sortDropdownRef}>
               <button
                 onClick={() => setShowTaskSortMenu(!showTaskSortMenu)}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-[13px] font-medium text-[#364658]"
@@ -305,6 +313,27 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   ))}
                 </div>
               )}
+            </div>
+            {/* Wide view: filter pills (All is always first, then one per type with data) */}
+            <div className="hidden @2xl:flex items-center gap-2 flex-wrap min-w-0">
+              <button
+                onClick={() => { setTypeFilter(null); onClearTypeFilter?.(); }}
+                className={`inline-flex items-center px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${!typeFilter ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+              >
+                All
+              </button>
+              {presentTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(typeFilter === type ? null : type)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${typeFilter === type ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                >
+                  {type}
+                  <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${typeFilter === type ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>
+                    {typeCounts[type]}
+                  </span>
+                </button>
+              ))}
             </div>
             <div className="flex items-center gap-2">
               <button

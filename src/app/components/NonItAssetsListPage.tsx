@@ -172,6 +172,13 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
           </div>
         </main>
       </div>
+      <NonItAssetDrawer
+        openAssets={openAssets}
+        activeAssetId={activeAssetId}
+        onClose={handleCloseDrawer}
+        onCloseTab={handleCloseTab}
+        onTabChange={handleTabChange}
+      />
     </div>
   );
 }

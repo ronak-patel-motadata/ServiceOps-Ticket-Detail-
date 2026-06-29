@@ -1,7 +1,9 @@
-import { ChevronDown, ChevronRight, Tag, Pin as PinIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2 } from 'lucide-react';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
+import { DescriptionExpandModal } from './DescriptionExpandModal';
 
 interface AdditionalFieldsAccordionProps {
   additionalFieldsExpanded: boolean;
@@ -62,6 +64,8 @@ interface AdditionalFieldsAccordionProps {
   assetMode?: boolean;
   // Render the purchase-specific system fields
   purchaseMode?: boolean;
+  // Append the 50+ demo custom form fields (ticket detail page only)
+  demoCustomFields?: boolean;
 }
 
 export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps) {
@@ -109,7 +113,14 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
     pinnedFields,
     assetMode = false,
     purchaseMode = false,
+    demoCustomFields = false,
   } = props;
+
+  // Collapse the long custom-field list until the user clicks "View more"
+  const [showAllFormFields, setShowAllFormFields] = useState(false);
+  // Description custom field (single-line + expandable rich editor)
+  const [descriptionValue, setDescriptionValue] = useState('');
+  const [showDescriptionExpand, setShowDescriptionExpand] = useState(false);
 
   useEffect(() => {
     // Close dropdowns when clicking outside
@@ -453,6 +464,89 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                 </div>
               </div>
               )}
+
+              {demoCustomFields && (!propertiesSearchQuery || 'description'.includes(propertiesSearchQuery.toLowerCase())) && (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">Description</div>
+                  <button
+                    onClick={() => setShowDescriptionExpand(true)}
+                    title={descriptionValue || 'Add description'}
+                    className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-md hover:bg-[#F5F7FA] transition-colors text-left"
+                  >
+                    <span className={`truncate ${descriptionValue ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                      {descriptionValue || 'Add description'}
+                    </span>
+                    <Maximize2 size={14} className="text-[#7B8FA5] flex-shrink-0" />
+                  </button>
+                </div>
+              )}
+
+              {demoCustomFields && (() => {
+                // Pinned custom fields move to the top "Pinned Fields" section,
+                // so drop them here; also honour the top search box.
+                const matches = DEMO_CUSTOM_FORM_FIELDS.filter(
+                  (f) =>
+                    !pinnedFields.includes(f.label) &&
+                    (!propertiesSearchQuery || f.label.toLowerCase().includes(propertiesSearchQuery.toLowerCase()))
+                );
+                // Collapsed view shows the first custom field (5 built-in + 1 = 6
+                // fields) and a "View more"; search or expand shows the full list.
+                const expanded = !!propertiesSearchQuery || showAllFormFields;
+                const visible = expanded ? matches : matches.slice(0, 1);
+                return (
+                  <>
+                    {visible.map((f) => (
+                      <div key={f.label} className="flex items-center justify-between gap-3">
+                        <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
+                          <span>{f.label}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); togglePinField(f.label); }}
+                                className="flex items-center"
+                              >
+                                <PinIcon
+                                  size={14}
+                                  className={`transition-opacity ${pinnedFields.includes(f.label) ? 'text-[#3D8BD0] opacity-100' : 'text-[#7B8FA5] opacity-0 group-hover/label:opacity-100'}`}
+                                />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {pinnedFields.includes(f.label) ? 'Unpin this field' : 'Pin this field on top'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-[13px] text-[#364658] rounded-md hover:bg-[#F5F7FA] transition-colors">
+                          {f.color && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
+                          <span className="truncate min-w-0" title={f.value}>{f.value}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {!propertiesSearchQuery && !showAllFormFields && matches.length > 1 && (
+                      <div>
+                        <button
+                          onClick={() => setShowAllFormFields(true)}
+                          className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
+                        >
+                          View more
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                    )}
+                    {!propertiesSearchQuery && showAllFormFields && (
+                      <div>
+                        <button
+                          onClick={() => setShowAllFormFields(false)}
+                          className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
+                        >
+                          View less
+                          <ChevronUp size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -470,6 +564,13 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
           )}
         </div>
       )}
+
+      <DescriptionExpandModal
+        isOpen={showDescriptionExpand}
+        onClose={() => setShowDescriptionExpand(false)}
+        value={descriptionValue}
+        onChange={setDescriptionValue}
+      />
     </div>
   );
 }

@@ -3,9 +3,10 @@ import { X } from 'lucide-react';
 interface SLAHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  penaltyAmount?: number;
 }
 
-export function SLAHistoryModal({ isOpen, onClose }: SLAHistoryModalProps) {
+export function SLAHistoryModal({ isOpen, onClose, penaltyAmount = 0 }: SLAHistoryModalProps) {
   if (!isOpen) return null;
 
   const slaHistoryData = [
@@ -61,7 +62,7 @@ export function SLAHistoryModal({ isOpen, onClose }: SLAHistoryModalProps) {
           <div>
             <h2 className="text-[18px] font-semibold text-[#111827]">SLA History</h2>
             <p className="text-[13px] text-[#6B7280] mt-1">
-              Total Penalty Amount: <span className="font-semibold text-[#111827]">$0.00</span>
+              Total Penalty Amount: <span className="font-semibold text-[#111827]">${penaltyAmount.toFixed(2)}</span>
             </p>
           </div>
           <button

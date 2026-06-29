@@ -2272,6 +2272,9 @@ export function CmdbDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}

@@ -349,11 +349,21 @@ export const getFilteredTicketFields = (pinnedFields: string[], showMoreFields: 
 
 export const getFilteredAdditionalFormFields = (pinnedFields: string[], searchQuery: string) => {
   const formFields = ['Project Name', 'Cost Center', 'Business Unit', 'Building', 'Request Channel'];
-  return formFields.filter(field => 
+  return formFields.filter(field =>
     !pinnedFields.includes(field) &&
     (!searchQuery || field.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 };
+
+// SLA breach penalty shown on the SLA Status card and history popup. Records
+// that are on track (e.g. INC-32) carry no penalty and the card hides the row;
+// breached ones incur a flat demo amount.
+export const getSlaPenaltyAmount = (id?: string): number => {
+  if (!id || id === 'INC-32') return 0;
+  return 250;
+};
+
+export const formatPenaltyAmount = (amount: number): string => `$${amount.toFixed(2)}`;
 
 export const getFilteredAdditionalFields = (pinnedFields: string[], searchQuery: string) => {
   const fields = [

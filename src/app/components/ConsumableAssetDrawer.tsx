@@ -15,6 +15,7 @@ import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
+import { AssetAiSummary } from './AssetAiSummary';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
@@ -2194,6 +2195,9 @@ export function ConsumableAssetDrawer({
                 </div>
               )}
             </div>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
@@ -2988,6 +2992,15 @@ export function ConsumableAssetDrawer({
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6 space-y-6">
+              {/* AI summary (no heading — icon + short asset summary) */}
+              <AssetAiSummary
+                summary="This consumable is in stock and actively allocated, with availability still within a healthy range."
+                points={[
+                  'Available quantity is sufficient for current demand.',
+                  'Several units are already allocated to users and teams.',
+                  'Consider reordering when stock drops below the configured threshold.',
+                ]}
+              />
               {/* Group: Quantity & Allocation */}
               <div>
                 <div>
