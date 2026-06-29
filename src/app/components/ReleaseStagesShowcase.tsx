@@ -290,6 +290,92 @@ function CompactProgress({ activeIndex }: { activeIndex: number }) {
   );
 }
 
+/* Compact breadcrumb for narrow / half view — chevron segments with the middle
+   stages collapsed into a "…" overflow that reveals the hidden stages on hover. */
+function CompactBreadcrumb({ activeIndex }: { activeIndex: number }) {
+  const total = STAGES.length;
+  const D = 9, H = 28, iconPx = 13;
+  const stateOf = (i: number) => (i < activeIndex ? 'done' : i === activeIndex ? 'active' : 'future');
+  const bgFor = (k: string) => (k === 'done' ? '#E6F6EF' : k === 'active' ? '#3D8BD0' : '#EEF2F6');
+  const fgFor = (k: string) => (k === 'done' ? '#1F8A5B' : k === 'active' ? '#FFFFFF' : '#9CA3AF');
+
+  // Show the first 2 + last 2 stages + the active stage; collapse each remaining
+  // gap into its own "…" dropdown (so the active step is never hidden).
+  const LEAD = 2, TRAIL = 2;
+  const total2 = total;
+  type Entry = { type: 'stage'; index: number } | { type: 'more'; hidden: number[] };
+  let entries: Entry[] = [];
+  if (total2 <= LEAD + TRAIL + 1) {
+    entries = STAGES.map((_, i) => ({ type: 'stage', index: i }));
+  } else {
+    const show = new Set<number>();
+    for (let i = 0; i < LEAD; i++) show.add(i);
+    for (let i = total2 - TRAIL; i < total2; i++) show.add(i);
+    show.add(activeIndex);
+    let i = 0;
+    while (i < total2) {
+      if (show.has(i)) { entries.push({ type: 'stage', index: i }); i++; }
+      else { const run: number[] = []; while (i < total2 && !show.has(i)) { run.push(i); i++; } entries.push({ type: 'more', hidden: run }); }
+    }
+  }
+
+  const clipFor = (pos: number, lastPos: number) => {
+    if (pos === 0) return `polygon(0 0, calc(100% - ${D}px) 0, 100% 50%, calc(100% - ${D}px) 100%, 0 100%)`;
+    if (pos === lastPos) return `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${D}px 50%)`;
+    return `polygon(0 0, calc(100% - ${D}px) 0, 100% 50%, calc(100% - ${D}px) 100%, 0 100%, ${D}px 50%)`;
+  };
+
+  return (
+    <div className="flex items-center">
+      {entries.map((e, pos) => {
+        const isFirst = pos === 0, isLast = pos === entries.length - 1;
+        if (e.type === 'more') {
+          return (
+            <Tooltip key={`more-${pos}`}>
+              <TooltipTrigger asChild>
+                <div
+                  className="flex items-center justify-center gap-1 flex-shrink-0 cursor-pointer"
+                  style={{ height: H, backgroundColor: '#EEF2F6', color: '#5A6A7D', clipPath: clipFor(pos, entries.length - 1), paddingLeft: isFirst ? 12 : D + 10, paddingRight: isLast ? 12 : D + 10, marginLeft: isFirst ? 0 : -(D - 4) }}
+                >
+                  <span className="text-[12px] font-semibold leading-none tracking-wider">…</span>
+                  <ChevronDown size={12} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="center" hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[210px]">
+                <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">Hidden stages</div>
+                <div className="py-1 max-h-[260px] overflow-y-auto">
+                  {e.hidden.map((i) => {
+                    const k = stateOf(i), st = STAGES[i];
+                    return (
+                      <div key={st.key} className="flex items-center gap-2 px-3 py-1.5">
+                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: k === 'done' ? '#22A06B' : k === 'active' ? '#3D8BD0' : '#C5CDD8' }} />
+                        <span className={`text-[12px] truncate ${k === 'future' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{st.label}</span>
+                        {k === 'done' && st.date && <span className="ml-auto text-[10px] text-[#9CA3AF] whitespace-nowrap">{st.date.split(' ').slice(0, 4).join(' ')}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+        const k = stateOf(e.index), st = STAGES[e.index];
+        return (
+          <StageTip key={st.key} done={k === 'done'} date={st.date}>
+            <div
+              className="flex items-center justify-center gap-1.5 flex-shrink-0 overflow-hidden"
+              style={{ height: H, backgroundColor: bgFor(k), color: fgFor(k), clipPath: clipFor(pos, entries.length - 1), paddingLeft: isFirst ? 12 : D + 10, paddingRight: isLast ? 12 : D + 10, marginLeft: isFirst ? 0 : -(D - 4) }}
+            >
+              <span className="flex-shrink-0 flex items-center">{k === 'done' ? <Check style={{ width: iconPx, height: iconPx }} /> : st.icon(iconPx)}</span>
+              <span className="text-[11px] font-semibold leading-none truncate max-w-[92px]">{st.label}</span>
+            </div>
+          </StageTip>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ReleaseStagesShowcase({ status, drawerWidth = 1546 }: ShowcaseProps) {
   const { index, sub } = resolveStatus(status);
   const compact = drawerWidth <= 1080;
@@ -303,7 +389,7 @@ export function ReleaseStagesShowcase({ status, drawerWidth = 1546 }: ShowcasePr
     // Live stage bar — chevron flow in full view, compact progress in narrow view.
     return (
       <div className="bg-white px-4 py-3">
-        {compact ? <CompactProgress activeIndex={index} /> : <ChevronFlow {...vp} />}
+        {compact ? <CompactBreadcrumb activeIndex={index} /> : <ChevronFlow {...vp} />}
       </div>
     );
   }

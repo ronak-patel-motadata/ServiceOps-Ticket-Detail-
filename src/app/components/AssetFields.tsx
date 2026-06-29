@@ -104,6 +104,8 @@ const ASSET_REQUIRED_LABELS = ['Under Change Control', 'Business Service'];
 /** Values shown in the Agent Information block (replaces Requester Information on the asset page). */
 export interface AgentInfo {
   id: string;
+  /** Agent name (e.g. AGENT-417) shown as the Agent Information header */
+  agentName?: string;
   hostName: string;
   hostStatusColor?: string;
   ipAddress: string;

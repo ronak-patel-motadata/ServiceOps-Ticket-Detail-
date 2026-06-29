@@ -44,6 +44,9 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
   );
 
   const Divider = () => <div className="my-1 border-t border-[#F0F2F5]" />;
+  const Section = ({ label }: { label: string }) => (
+    <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
+  );
 
   return (
     <div className="relative" ref={ref}>
@@ -61,11 +64,13 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
 
       {open && nonIt && (
         <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
           <Item label="Used By History" icon={<History size={15} />} />
           <Item label="Location History" icon={<History size={15} />} />
           <Divider />
+          <Section label="Record" />
           <Item label="Archive" icon={<Archive size={15} />} />
           <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
         </div>
@@ -88,7 +93,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
 
       {open && !minimal && !nonIt && !contract && !purchase && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
-          {/* Group 1 */}
+          <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
           <Item label="Sync Warranty" icon={<RefreshCw size={15} />} />
@@ -96,7 +101,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
 
           <Divider />
 
-          {/* Group 2 — power actions */}
+          <Section label="Power" />
           <Item label="Lock" icon={<Lock size={15} />} />
           <Item label="Restart" icon={<RotateCcw size={15} />} />
           <Item label="ShutDown" icon={<Power size={15} />} />
@@ -105,13 +110,13 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
 
           <Divider />
 
-          {/* Group 3 */}
+          <Section label="Remote" />
           <Item label="Exclude From Scan" icon={<Ban size={15} />} />
           <Item label="Remote Desktop" icon={<Monitor size={15} />} />
 
           <Divider />
 
-          {/* Group 4 — history & reconcile */}
+          <Section label="History" />
           <Item label="RDP History" icon={<History size={15} />} />
           <Item label="Reconcile" icon={<Repeat size={15} />} />
           <Item label="Used By History" icon={<History size={15} />} />
@@ -120,7 +125,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
 
           <Divider />
 
-          {/* Group 5 */}
+          <Section label="Record" />
           <Item label="Archive" icon={<Archive size={15} />} />
           <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
         </div>

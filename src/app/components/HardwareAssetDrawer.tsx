@@ -194,12 +194,13 @@ export function HardwareAssetDrawer({
   // Real values from the asset where available; the rest are representative samples for now.
   const agentInfo = {
     id: activeAsset?.id || '---',
+    agentName: 'AGENT-417',
     hostName: activeAsset?.hostName || '---',
     hostStatusColor: '#EAB308',
     ipAddress: activeAsset?.ipAddress || '---',
     poller: '---',
     os: 'Microsoft Windows 11 Pro',
-    version: '8.7.404',
+    version: '8.7.410',
     domainName: 'WORKGROUP',
     lastSyncDate: 'Wed, May 06, 2026 12:54 PM',
   };
@@ -284,7 +285,7 @@ export function HardwareAssetDrawer({
   // asset consistently shows a different number of pills (1–4) when opened.
   const impactSeed = [...(activeAssetId ?? 'AST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
   const impactItems: { label: string; n: number; color: string; icon: ComponentType<{ size?: number }>; filter: string }[] = [
-    { label: 'Incidents', n: impactSeed % 4, color: '#DC2626', icon: IconRequest, filter: 'Request' },
+    { label: 'Incidents', n: (impactSeed % 3) + 4, color: '#DC2626', icon: IconRequest, filter: 'Request' },
     { label: 'Problems', n: Math.floor(impactSeed / 4) % 3, color: '#D97706', icon: IconProblem, filter: 'Problem' },
     { label: 'Changes', n: Math.floor(impactSeed / 7) % 3, color: '#8B5CF6', icon: IconChange, filter: 'Change' },
     { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: IconRelease, filter: 'Release' },
@@ -348,7 +349,7 @@ export function HardwareAssetDrawer({
               <div className="flex flex-wrap gap-1.5">
                 {impactVisible.map((it) => {
                   const ItIcon = it.icon;
-                  const recs = (relatedRecords[it.label.replace(/s$/, '')] || []).slice(0, it.n);
+                  const recs = (relatedRecords[it.label.replace(/s$/, '')] || []).slice(0, Math.min(3, it.n));
                   return (
                     <Tooltip key={it.label}>
                       <TooltipTrigger asChild>
@@ -363,14 +364,14 @@ export function HardwareAssetDrawer({
                           <span className="text-[12px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{it.label}</span>
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                        <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{it.n} {it.label}</div>
+                      <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
+                        
                         <div className="max-h-[260px] overflow-y-auto">
                           {recs.map((r) => (
-                            <button key={r.id} onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
+                            <button key={r.id} onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
+                                <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                               </div>
                               <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
                                 <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
@@ -380,6 +381,9 @@ export function HardwareAssetDrawer({
                             </button>
                           ))}
                         </div>
+                        {it.n > 3 && (
+                          <button onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2.5 border-t border-[#F0F2F5] text-[12px] font-medium text-[#3D8BD0] hover:bg-[#F9FAFB] transition-colors cursor-pointer">View all {it.n}</button>
+                        )}
                       </TooltipContent>
                     </Tooltip>
                   );

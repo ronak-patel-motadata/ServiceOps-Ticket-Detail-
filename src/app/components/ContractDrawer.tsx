@@ -328,6 +328,8 @@ export function ContractDrawer({
   const [reminderTechSearch, setReminderTechSearch] = useState('');
   const [notifyBefore, setNotifyBefore] = useState('0');
   const [notifyInterval, setNotifyInterval] = useState('0');
+  // True once the user has configured any expiry-reminder detail (decorates the bell).
+  const reminderConfigured = reminderEmails.length > 0 || !!reminderTechnician || Number(notifyBefore) > 0 || Number(notifyInterval) > 0;
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLocationHistory, setShowLocationHistory] = useState(false);
   // Whether the Hardware tab's jump-to-section list is open.
@@ -2055,12 +2057,13 @@ export function ContractDrawer({
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setShowExpiryReminder((v) => !v)}
-                    className={`p-1.5 bg-white border rounded hover:bg-[#F5F7FA] ${showExpiryReminder ? 'border-[#3D8BD0]' : 'border-[#DFE5ED]'}`}
+                    className={`relative p-1.5 border rounded hover:bg-[#F5F7FA] ${showExpiryReminder ? 'border-[#3D8BD0] bg-[#EAF3FB]' : reminderConfigured ? 'border-[#3D8BD0] bg-[#EAF3FB]' : 'border-[#DFE5ED] bg-white'}`}
                   >
-                    <Bell size={16} className="text-[#6b7280]" />
+                    <Bell size={16} className={reminderConfigured ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} fill={reminderConfigured ? '#3D8BD0' : 'none'} />
+                    {reminderConfigured && <span className="absolute top-1 right-1 size-2 rounded-full bg-[#22C55E] border border-white" />}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Expiry Reminder</TooltipContent>
+                <TooltipContent>{reminderConfigured ? 'Expiry Reminder set' : 'Expiry Reminder'}</TooltipContent>
               </Tooltip>
 
               {showExpiryReminder && (
@@ -2852,7 +2855,7 @@ export function ContractDrawer({
                   {(() => {
                     const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
                     const impactCounts: [string, number][] = [
-                      ['Incident', (impactSeed % 4) || 1],
+                      ['Incident', (impactSeed % 3) + 4],
                       ['Asset', Math.floor(impactSeed / 4) % 3],
                       ['Purchase', Math.floor(impactSeed / 7) % 3],
                     ];
@@ -2884,7 +2887,7 @@ export function ContractDrawer({
                                 Purchase: { icon: ShoppingCart, color: '#D97706' },
                               } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
                               const Ic = m.icon;
-                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Number(n));
+                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Math.min(3, Number(n)));
                               return (
                                 <Tooltip key={l}>
                                   <TooltipTrigger asChild>
@@ -2899,14 +2902,14 @@ export function ContractDrawer({
                                       <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
                                     </button>
                                   </TooltipTrigger>
-                                  <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                                    <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold">{n} {l}</div>
+                                  <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
+                                    
                                     <div className="max-h-[260px] overflow-y-auto">
                                       {recs.map((r) => (
-                                        <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors">
+                                        <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
                                           <div className="flex items-center gap-2 min-w-0">
                                             <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                            <span className="text-[12px] font-medium text-[#364658] truncate hover:text-[#3D8BD0]">{r.subject}</span>
+                                            <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                           </div>
                                           <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
                                             <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
@@ -2916,6 +2919,9 @@ export function ContractDrawer({
                                         </button>
                                       ))}
                                     </div>
+                                    {Number(n) > 3 && (
+                                      <button onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2.5 border-t border-[#F0F2F5] text-[12px] font-medium text-[#3D8BD0] hover:bg-[#F9FAFB] transition-colors cursor-pointer">View all {n}</button>
+                                    )}
                                   </TooltipContent>
                                 </Tooltip>
                               );

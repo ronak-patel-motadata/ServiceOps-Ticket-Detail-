@@ -50,6 +50,10 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
 
   const Divider = () => <div className="my-1 border-t border-[#F0F2F5]" />;
 
+  const Section = ({ label }: { label: string }) => (
+    <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">{label}</div>
+  );
+
   return (
     <div className="relative" ref={actionsMenuRef}>
       <button
@@ -62,7 +66,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
       {showActionsMenu && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
 
-          {/* Group 1 */}
+          <Section label="Actions" />
           <Item
             onClick={onOpenApprovalPopup}
             label="Ask for Approval"
@@ -100,7 +104,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
 
           <Divider />
 
-          {/* Group 2 */}
+          <Section label="Collaboration" />
           <Item
             label="Mark as Spam"
             icon={
@@ -133,7 +137,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
 
           <Divider />
 
-          {/* Group 3 */}
+          <Section label="Workflow" />
           <Item
             label="Scenario"
             icon={
@@ -167,7 +171,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
 
           <Divider />
 
-          {/* Group 4 */}
+          <Section label="Record" />
           <Item
             label={convertLabel}
             onClick={() => {
@@ -209,7 +213,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
 
           <Divider />
 
-          {/* Group 5 */}
+          <Section label="Help" />
           <Item
             onClick={onRestartOnboarding}
             label="In-App User Guide"

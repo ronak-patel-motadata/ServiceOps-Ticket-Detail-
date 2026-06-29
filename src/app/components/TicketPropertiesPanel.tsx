@@ -1322,10 +1322,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </button>
               <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><Bot size={20} /></span>
               <div className="min-w-0">
-                {agentInfo?.id && (
+                {(agentInfo?.agentName || agentInfo?.id) && (
                   <div className="text-[13px] font-semibold text-[#364658] truncate flex items-center gap-1.5">
                     <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
-                    {agentInfo.id}
+                    {agentInfo.agentName || agentInfo.id}
+                    {agentInfo?.version && (
+                      <span className="rounded bg-[#EAF3FB] px-1.5 py-0.5 text-[10px] font-medium text-[#3D8BD0] flex-shrink-0">v{agentInfo.version}</span>
+                    )}
                   </div>
                 )}
                 {agentInfo?.lastSyncDate && (
