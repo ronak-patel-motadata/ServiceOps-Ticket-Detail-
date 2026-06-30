@@ -39,7 +39,7 @@ export function MinimizedDrawerRail({
       </span>
 
       {/* Open items (stacked vertical chips) */}
-      <div className="flex-1 w-full flex flex-col items-center justify-center gap-1 py-3 overflow-y-auto">
+      <div className="flex-1 w-full flex flex-col items-center justify-start gap-1 py-3 overflow-y-auto">
         {shown.map((it) => {
           const active = it.id === activeId;
           return (
@@ -47,7 +47,7 @@ export function MinimizedDrawerRail({
               <TooltipTrigger asChild>
                 <button
                   onClick={(e) => { e.stopPropagation(); onSelect(it.id); }}
-                  className={`w-full flex items-center justify-center py-2 rounded-md transition-colors ${active ? 'bg-[#EAF2FB]' : 'hover:bg-[#f3f4f6]'}`}
+                  className={`w-[calc(100%-8px)] mx-auto flex items-center justify-center py-2 rounded-sm transition-colors ${active ? 'bg-[#EAF2FB]' : 'hover:bg-[#f3f4f6]'}`}
                 >
                   <span
                     className={`[writing-mode:vertical-rl] rotate-180 text-[11px] font-semibold tracking-wide truncate transition-colors ${active ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`}

@@ -1914,7 +1914,6 @@ export function SoftwareAssetDrawer({
       
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
-        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-r border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
         <DrawerTabStrip
           items={openTickets}
           activeId={activeTicketId}
@@ -1922,24 +1921,22 @@ export function SoftwareAssetDrawer({
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
           className="p-3 hover:bg-[#e5e7eb]"
           title={drawerWidth > 1080 ? "Switch to small view" : "Switch to full view"}
         >
           {drawerWidth > 1080 ? (
-            // Show half-view icon when in full view
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M19 4C19.5523 4 20 4.44772 20 5V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 20.4477 4 21C4 21.5523 4.44772 22 5 22H19C20.6569 22 22 20.6569 22 19V5C22 3.34315 20.6569 2 19 2H5C4.44772 2 4 2.44772 4 3C4 3.55228 4.44772 4 5 4H19Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M15 2C14.4477 2 14 2.44772 14 3V21C14 21.5523 14.4477 22 15 22C15.5523 22 16 21.5523 16 21V3C16 2.44772 15.5523 2 15 2Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M4.47313 7.13707C4.0826 7.5276 4.0826 8.16076 4.47313 8.55129L7.92178 11.9999L4.47313 15.4486C4.0826 15.8391 4.0826 16.4723 4.47313 16.8628C4.86365 17.2533 5.49682 17.2533 5.88734 16.8628L10.0431 12.707C10.4336 12.3165 10.4336 11.6834 10.0431 11.2928L5.88734 7.13707C5.49682 6.74655 4.86365 6.74655 4.47313 7.13707Z" fill="#364658"/>
+            // Restore icon (overlapping squares) when full -> click shrinks to small
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="8" width="12" height="12" rx="1.5" stroke="#364658" strokeWidth="2"/>
+              <path d="M8 8V6.5A1.5 1.5 0 0 1 9.5 5H18A1.5 1.5 0 0 1 19.5 6.5V15A1.5 1.5 0 0 1 18 16.5H16" stroke="#364658" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           ) : (
-            // Show full-view icon when in small view
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M5 4C4.44772 4 4 4.44772 4 5V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 20.4477 20 21C20 21.5523 19.5523 22 19 22H5C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C19.5523 2 20 2.44772 20 3C20 3.55228 19.5523 4 19 4H5Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M9 2C9.55228 2 10 2.44772 10 3V21C10 21.5523 9.55228 22 9 22C8.44772 22 8 21.5523 8 21V3C8 2.44772 8.44772 2 9 2Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M19.5269 7.13707C19.9174 7.5276 19.9174 8.16076 19.5269 8.55129L16.0782 11.9999L19.5269 15.4486C19.9174 15.8391 19.9174 16.4723 19.5269 16.8628C19.1363 17.2533 18.5032 17.2533 18.1127 16.8628L13.9569 12.707C13.5664 12.3165 13.5664 11.6834 13.9569 11.2928L18.1127 7.13707C18.5032 6.74655 19.1363 6.74655 19.5269 7.13707Z" fill="#364658"/>
+            // Maximize icon (single square) when small -> click expands to full
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="5" width="14" height="14" rx="1.5" stroke="#364658" strokeWidth="2"/>
             </svg>
           )}
         </button>
@@ -1954,14 +1951,65 @@ export function SoftwareAssetDrawer({
       {/* Drawer Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
-        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate">
               {activeTicket.subject}
             </h1>
-            <span className="text-[12px] text-[#6b7280] block mt-0.5">Created at 26/02/2025 15:02 (6 days ago)</span>
+            {/* Software-asset KPIs — Created · Status · Compliance · Utilization · License Expiry · Impact · Managed By */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
+                <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
+                <span className="text-[11px] text-[#7B8FA5]">Compliance</span>
+                <span className="text-[12px] font-medium text-[#E74C3C]">At risk</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
+                <span className="text-[11px] text-[#7B8FA5]">Utilization</span>
+                <span className="text-[12px] font-medium text-[#E74C3C]">Over-utilized</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
+                <span className="text-[11px] text-[#7B8FA5]">License Expiry</span>
+                <span className="text-[12px] font-medium text-[#D97706]">23 days</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
+                <span className="text-[11px] text-[#7B8FA5]">Impact</span>
+                <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
+              </span>
+              <span className="h-3 w-px bg-[#E5E7EB]" />
+              {activeAsset?.managedBy?.name && activeAsset.managedBy.name !== 'Unassigned' ? (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset.managedBy.color || '#6366F1' }}>
+                    {activeAsset.managedBy.initials || activeAsset.managedBy.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeAsset.managedBy.name}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Managed By</span>
+                  <span className="text-[12px] font-medium text-[#9CA3AF]">Unassigned</span>
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">

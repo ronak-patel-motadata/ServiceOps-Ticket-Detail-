@@ -19,12 +19,12 @@ export interface SoftwareLicense {
 }
 
 const mockLicenses: SoftwareLicense[] = [
-  { id: 'LIC-86', name: 'Microsoft 365 E3', product: 'Microsoft 365 Enterprise', licenseType: 'Volume Users', purchaseCount: 250, allocationCount: 212, installationCount: 198, expiryDate: '30/06/2026' },
+  { id: 'LIC-86', name: 'Microsoft 365 E3', product: 'Microsoft 365 Enterprise', licenseType: 'Volume Users', purchaseCount: 250, allocationCount: 212, installationCount: 198, expiryDate: '24/07/2026' },
   { id: 'LIC-85', name: 'Adobe Creative Cloud', product: 'Adobe CC All Apps', licenseType: 'Volume Users', purchaseCount: 60, allocationCount: 54, installationCount: 49, expiryDate: '15/09/2026' },
   { id: 'LIC-84', name: 'Autodesk AutoCAD 2025', product: 'AutoCAD LT', licenseType: 'Single Machine', purchaseCount: 40, allocationCount: 32, installationCount: 30, expiryDate: '31/05/2027' },
   { id: 'LIC-83', name: 'Atlassian Jira Software', product: 'Jira Cloud', licenseType: 'Enterprise Subscription', purchaseCount: 150, allocationCount: 138, installationCount: 0, expiryDate: '12/11/2026' },
   { id: 'LIC-82', name: 'Slack Business+', product: 'Slack Workspace', licenseType: 'Volume Users', purchaseCount: 200, allocationCount: 176, installationCount: null, expiryDate: '28/02/2027' },
-  { id: 'LIC-81', name: 'Zoom Workplace Pro', product: 'Zoom Meetings', licenseType: 'Volume Users', purchaseCount: 120, allocationCount: 95, installationCount: 88, expiryDate: '09/08/2026' },
+  { id: 'LIC-81', name: 'Zoom Workplace Pro', product: 'Zoom Meetings', licenseType: 'Volume Users', purchaseCount: 120, allocationCount: 95, installationCount: 88, expiryDate: '26/07/2026' },
   { id: 'LIC-80', name: 'JetBrains IntelliJ IDEA', product: 'IntelliJ IDEA Ultimate', licenseType: 'Single User', purchaseCount: 25, allocationCount: 22, installationCount: 21, expiryDate: '20/03/2027' },
   { id: 'LIC-79', name: 'VMware vSphere Standard', product: 'vSphere ESXi', licenseType: 'Multiple Machines', purchaseCount: 16, allocationCount: 12, installationCount: 12, expiryDate: '06/05/2028' },
   { id: 'LIC-78', name: 'Tableau Creator', product: 'Tableau Desktop', licenseType: 'Single User', purchaseCount: 30, allocationCount: 24, installationCount: 19, expiryDate: null },
@@ -40,9 +40,9 @@ const mockLicenses: SoftwareLicense[] = [
   { id: 'LIC-68', name: 'Veeam Backup & Replication', product: 'Veeam B&R', licenseType: 'Multiple Machines', purchaseCount: 10, allocationCount: 8, installationCount: 8, expiryDate: '11/04/2027' },
   { id: 'LIC-67', name: 'Citrix Virtual Apps', product: 'Citrix DaaS', licenseType: 'Concurrent Users', purchaseCount: 60, allocationCount: 52, installationCount: 48, expiryDate: '07/03/2027' },
   { id: 'LIC-66', name: 'Power BI Pro', product: 'Microsoft Power BI', licenseType: 'Enterprise Subscription', purchaseCount: 130, allocationCount: 118, installationCount: 102, expiryDate: '30/11/2026' },
-  { id: 'LIC-65', name: 'Dell SupportAssist', product: 'SupportAssist Enterprise', licenseType: 'Single Machine', purchaseCount: 5, allocationCount: 4, installationCount: null, expiryDate: '29/10/2026' },
+  { id: 'LIC-65', name: 'Dell SupportAssist', product: 'SupportAssist Enterprise', licenseType: 'Single Machine', purchaseCount: 5, allocationCount: 4, installationCount: null, expiryDate: '09/07/2026' },
   { id: 'LIC-64', name: 'Sophos Intercept X', product: 'Sophos Endpoint', licenseType: 'Volume Users', purchaseCount: 300, allocationCount: 286, installationCount: 271, expiryDate: '16/05/2027' },
-  { id: 'LIC-63', name: 'Grammarly Business', product: 'Grammarly Workspace', licenseType: 'Volume Users', purchaseCount: 50, allocationCount: 38, installationCount: null, expiryDate: '22/09/2026' },
+  { id: 'LIC-63', name: 'Grammarly Business', product: 'Grammarly Workspace', licenseType: 'Volume Users', purchaseCount: 50, allocationCount: 38, installationCount: null, expiryDate: '19/07/2026' },
   { id: 'LIC-62', name: 'Microsoft Visio Plan 2', product: 'Microsoft Visio', licenseType: 'Volume Users', purchaseCount: 35, allocationCount: 29, installationCount: 26, expiryDate: '31/07/2026' },
   { id: 'LIC-61', name: 'Postman Enterprise', product: 'Postman API Platform', licenseType: 'Enterprise Subscription', purchaseCount: 40, allocationCount: 33, installationCount: 0, expiryDate: '13/02/2027' },
   { id: 'LIC-60', name: 'TeamViewer Tensor', product: 'TeamViewer Remote', licenseType: 'Concurrent Users', purchaseCount: 20, allocationCount: 15, installationCount: 14, expiryDate: '05/10/2026' },

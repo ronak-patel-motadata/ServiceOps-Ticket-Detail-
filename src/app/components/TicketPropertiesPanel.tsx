@@ -8,7 +8,7 @@ import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, Bell, SquareCheckBig } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, SquareCheckBig } from 'lucide-react';
 import { NotificationsPanel } from './NotificationsPanel';
 import type { EmailNotification } from './SendEmailModal';
 
@@ -205,6 +205,8 @@ interface TicketPropertiesPanelProps {
   propertiesTitle?: string;
   // Show the Notifications (email) group at the end of the right rail.
   showNotifications?: boolean;
+  // Add a finished Work Tracker session to the Work History list (ticket page).
+  onAddWorkLog?: (log: any) => void;
   getCurrentStatusColor: () => string;
   getCurrentPriorityColor: () => string;
   getCurrentAssigneeColor: () => string;
@@ -372,6 +374,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     getGroupTitle,
     propertiesTitle,
     showNotifications = false,
+    onAddWorkLog,
     getCurrentStatusColor,
     getCurrentPriorityColor,
     getCurrentAssigneeColor,
@@ -553,6 +556,52 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Email notifications sent for this record (Notifications group)
   const [emailNotifications, setEmailNotifications] = useState<EmailNotification[]>([]);
   const [showSendEmail, setShowSendEmail] = useState(false);
+
+  // Work Tracker — multiple tasks, but only one can run at a time.
+  const [trackerTasks, setTrackerTasks] = useState<{ id: string; description: string; elapsed: number; isRunning: boolean; startMs: number }[]>([]);
+  const [showTrackerPopup, setShowTrackerPopup] = useState(false);
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
+  const anyTrackerRunning = trackerTasks.some((t) => t.isRunning);
+  useEffect(() => {
+    if (!anyTrackerRunning) return;
+    const iv = setInterval(() => {
+      setTrackerTasks((prev) => prev.map((t) => (t.isRunning ? { ...t, elapsed: t.elapsed + 1 } : t)));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [anyTrackerRunning]);
+  // Starting a new task pauses every other task.
+  const startNewTrackerTask = () => {
+    const now = Date.now();
+    setTrackerTasks((prev) => [
+      ...prev.map((t) => ({ ...t, isRunning: false })),
+      { id: `tt-${now}`, description: newTaskDesc.trim(), elapsed: 0, isRunning: true, startMs: now },
+    ]);
+    setNewTaskDesc('');
+    setShowTrackerPopup(false);
+  };
+  // Playing a task makes it the only running one (auto-pauses the rest).
+  const playTrackerTask = (id: string) => setTrackerTasks((prev) => prev.map((t) => ({ ...t, isRunning: t.id === id })));
+  const pauseTrackerTask = (id: string) => setTrackerTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isRunning: false } : t)));
+  const stopTrackerTask = (id: string) => {
+    const task = trackerTasks.find((t) => t.id === id);
+    if (task && task.elapsed > 0 && onAddWorkLog) {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const s = task.elapsed;
+      const m = Math.round(s / 60), h = Math.round(s / 3600), days = Math.round(s / 86400);
+      const dur = s < 60 ? `${s} second${s !== 1 ? 's' : ''}` : s < 3600 ? `${m} minute${m !== 1 ? 's' : ''}` : s < 86400 ? `${h} hour${h !== 1 ? 's' : ''}` : `${days} day${days !== 1 ? 's' : ''}`;
+      onAddWorkLog({
+        id: `wl-${Date.now()}`,
+        technician: { name: 'Arnav Desai', initials: 'AD', color: '#3D8BD0' },
+        start: toLocal(new Date(task.startMs)),
+        end: toLocal(new Date(task.startMs + s * 1000)),
+        description: task.description || 'Work Tracker session',
+        timeTaken: dur,
+      });
+    }
+    setTrackerTasks((prev) => prev.filter((t) => t.id !== id));
+  };
   const [chatMessages, setChatMessages] = useState<Array<{ id: number; text: string; isUser: boolean; timestamp: string; isTyping?: boolean; fullText?: string; displayedText?: string; followUpActions?: string[] }>>([]);
   const [previousGroup, setPreviousGroup] = useState<'properties' | 'activity' | 'suggestions'>('suggestions');
   // Asset-only Notes group
@@ -1893,96 +1942,112 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
           {workTrackerExpanded && (
           <div className="px-4 pb-4 relative">
-            {/* Timer Display */}
-            <div className="flex items-center gap-3">
-              <span className="text-[22px] font-medium text-[#364658] tabular-nums">{formatTime(elapsedTime)}</span>
-              
-              {elapsedTime === 0 && !isTimerRunning ? (
-                <button 
-                  onClick={() => setShowTimerPopup(!showTimerPopup)}
+            {trackerTasks.length === 0 ? (
+              /* No active task — initial display + start button */
+              <div className="flex items-center gap-3">
+                <span className="text-[22px] font-medium text-[#364658] tabular-nums">{formatTime(0)}</span>
+                <button
+                  onClick={() => { setNewTaskDesc(''); setShowTrackerPopup(true); }}
                   className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
+                  title="Start a task"
                 >
                   <Play size={14} className="text-white fill-white ml-0.5" />
                 </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {isTimerRunning ? (
-                    <button 
-                      onClick={handlePauseTimer}
-                      className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
-                    >
-                      <Pause size={14} className="text-white fill-white" />
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={handleStartTimer}
-                      className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
-                    >
-                      <Play size={14} className="text-white fill-white ml-0.5" />
-                    </button>
-                  )}
-                  <button 
-                    onClick={handleStopTimer}
-                    className="size-8 rounded-full bg-[#E74C3C] hover:bg-[#C0392B] flex items-center justify-center transition-colors"
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {trackerTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`rounded-lg border p-3 transition-colors ${t.isRunning ? 'border-[#3D8BD0] bg-[#F5FAFF]' : 'border-[#EEF1F5] bg-white'}`}
                   >
-                    <Square size={14} className="text-white fill-white" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Technician Info - Show when timer is running or paused */}
-            {timerStartTime && (elapsedTime > 0 || isTimerRunning) && (
-              <div className="mt-5">
-                <div className="flex items-center gap-2">
-                  <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
-                    AD
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
-                    <span className="text-[11px] text-[#7B8FA5]">Started at {formatStartTime(timerStartTime)}</span>
-                  </div>
-                </div>
-                {/* What the timer is tracking — one line, truncated, full text in tooltip */}
-                {workDescription.trim() && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#EEF1F5] cursor-default">
-                        <SquareCheckBig size={13} className="text-[#7B8FA5] flex-shrink-0" />
-                        <span className="text-[12px] text-[#364658] truncate min-w-0">{workDescription}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[18px] font-medium text-[#364658] tabular-nums">{formatTime(t.elapsed)}</span>
+                      <div className="flex items-center gap-2">
+                        {t.isRunning ? (
+                          <button onClick={() => pauseTrackerTask(t.id)} className="size-7 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors" title="Pause">
+                            <Pause size={13} className="text-white fill-white" />
+                          </button>
+                        ) : (
+                          <button onClick={() => playTrackerTask(t.id)} className="size-7 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors" title="Play">
+                            <Play size={13} className="text-white fill-white ml-0.5" />
+                          </button>
+                        )}
+                        <div className="relative">
+                          <button onClick={() => setConfirmStopId(confirmStopId === t.id ? null : t.id)} className="size-7 rounded-full bg-[#E74C3C] hover:bg-[#C0392B] flex items-center justify-center transition-colors" title="Stop & log">
+                            <Square size={13} className="text-white fill-white" />
+                          </button>
+                          {confirmStopId === t.id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setConfirmStopId(null)} />
+                              <div className="absolute right-0 top-full mt-2 z-50 w-[224px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-3">
+                                <div className="absolute -top-1.5 right-2.5 size-3 bg-white border-l border-t border-[#DFE5ED] rotate-45" />
+                                <p className="relative text-[12px] text-[#364658]">Are you sure, you want to stop timer?</p>
+                                <div className="relative mt-2.5 flex items-center justify-end gap-2">
+                                  <button onClick={() => setConfirmStopId(null)} className="px-2.5 py-1 border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded-md hover:bg-[#F3F4F6] transition-colors">Cancel</button>
+                                  <button onClick={() => { stopTrackerTask(t.id); setConfirmStopId(null); }} className="px-2.5 py-1 bg-[#E74C3C] text-white text-[12px] font-medium rounded-md hover:bg-[#C0392B] transition-colors">Stop</button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[280px]">{workDescription}</TooltipContent>
-                  </Tooltip>
-                )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">AD</div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
+                        <span className={`text-[11px] ${t.isRunning ? 'text-[#22A06B]' : 'text-[#7B8FA5]'}`}>{t.isRunning ? 'Running' : 'Paused'}</span>
+                      </div>
+                    </div>
+                    {t.description && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#EEF1F5] cursor-default">
+                            <SquareCheckBig size={13} className="text-[#7B8FA5] flex-shrink-0" />
+                            <span className="text-[12px] text-[#364658] truncate min-w-0">{t.description}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[280px]">{t.description}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                ))}
+                {/* Add another task — starting it pauses the others */}
+                <button
+                  onClick={() => { setNewTaskDesc(''); setShowTrackerPopup(true); }}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#3D8BD0] border border-dashed border-[#BBD7EE] rounded-md hover:bg-[#EBF5FF] transition-colors"
+                >
+                  <Plus size={14} /> Add Tracker
+                </button>
               </div>
             )}
 
             {/* Work History Link */}
             <div className="mt-3">
-              <button 
+              <button
                 onClick={() => setShowWorkHistory(true)}
-                className="flex items-center gap-2 px-3 py-2 mt-3 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+                className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
               >
                 <Clock size={14} />
                 Work History
               </button>
             </div>
 
-            {/* Timer Popup */}
-            {showTimerPopup && !isTimerRunning && elapsedTime === 0 && (
-              <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999]" onClick={() => setShowTimerPopup(false)}>
+            {/* New-task popup */}
+            {showTrackerPopup && (
+              <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999]" onClick={() => setShowTrackerPopup(false)}>
                 <div className="bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-4 w-[400px] max-w-[90%]" onClick={(e) => e.stopPropagation()}>
                   <div className="space-y-3">
                     <label className="text-[13px] font-medium text-[#7B8FA5]">Work Description</label>
                     <textarea
-                      value={workDescription}
-                      onChange={(e) => setWorkDescription(e.target.value)}
+                      value={newTaskDesc}
+                      onChange={(e) => setNewTaskDesc(e.target.value)}
                       placeholder="Description your work here"
                       className="w-full h-24 px-3 py-2 text-[13px] text-[#364658] bg-white border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     />
                     <button
-                      onClick={handleStartTimer}
+                      onClick={startNewTrackerTask}
                       className="w-full px-4 py-2 bg-[#3D8BD0] hover:bg-[#2563EB] text-white text-[13px] font-medium rounded-md transition-colors"
                     >
                       Start Timer
@@ -1991,6 +2056,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </div>
               </div>
             )}
+
           </div>
           )}
         </div>
@@ -3484,7 +3550,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
               }`}
             >
-              <Bell size={16} className={activeGroup === 'notifications' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              <svg
+                width={16}
+                height={16}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={activeGroup === 'notifications' ? 'text-[#3D8BD0]' : 'text-[#364658]'}
+              >
+                <path d="M21 12V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h11" />
+                <path d="m2 7 8.4 5.6a2 2 0 0 0 2.2 0L21 7" />
+                <path d="M16 19h6" />
+                <path d="m19 16 3 3-3 3" />
+              </svg>
               {emailNotifications.length > 0 && activeGroup !== 'notifications' && (
                 <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0]"></span>
               )}

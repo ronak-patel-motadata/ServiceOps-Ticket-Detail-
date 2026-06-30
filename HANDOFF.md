@@ -1,43 +1,35 @@
-# Handoff — 2026-06-30 01:51
+# Handoff — 2026-07-01 01:37
 
 ## Read first
-CLAUDE.md "Key context" — the **new bullets just above `## Deployment`** cover everything built this session (header Edit icon, AI summaries, 50+ custom fields, SLA penalty, Change Item, Work Tracker, Relations pills, **email Notifications group**, attachment preview, inline description images). Also the "Shared feature components added later" line under Structure lists the new files.
+Focus on the **"Two-line header KPI row"** and **"Drawer minimize + open-item tabs"** bullets under `CLAUDE.md` → Key context — both were updated this session and cover the bulk of the work. Everything is mock/in-component as usual.
 
 ## What we worked on this session
-A long polish/feature session across the detail drawers — added the **email Notifications group** (Bell rail icon + Send Email + collapsible cards), an **asset Overview AI summary**, **50+ demo custom fields** with a rich Description field, **Work Tracker** (add/history/edit work logs), **Relations filter pills**, an **SLA penalty**, a header **Edit icon**, **Change Item** on Service Request, and fixed a bug where the **Non-IT detail page wouldn't open**.
+Finished the per-module **header KPI rows** for the three procurement detail pages (Software License, Contract, Purchase), then reworked the **drawer window controls** to a grouped, Windows-style layout (minimize · maximize/restore · close) and polished the minimized rail.
 
 ## Completed
-- **Header Edit icon** — square-pen icon left of Add Relation on all 12 drawers (32px, bordered to match Add Relation height).
-- **Inline-image long descriptions** — `DescriptionInlineImage` embedded in 12-paragraph descriptions (Ticket INC-32 + Problem/Change/Release defaults).
-- **50+ custom form fields** (ticket only) — `demoCustomFields.ts`; Additional Fields → Form Fields, gated by `demoCustomFields` prop. Collapsible (View more after 6), **pinnable**, **searchable**, truncated values. Includes a read-only **Description** field → `DescriptionExpandModal` (textarea + toolbar).
-- **SLA penalty** — `getSlaPenaltyAmount`/`formatPenaltyAmount` in `TicketDrawerUtils`; Penalty row on SLA card (only when > 0) synced to `SLAHistoryModal` `penaltyAmount`. Ticket/Problem/Change/Release.
-- **Attachment preview** — `AttachmentPreviewModal` (Eye icon) in right-panel Attachments + notification cards.
-- **Service Request "Change Item"** — replaced Delete; opens Service Catalog, replaces item in place (`changingItemId`). TicketDrawer.
-- **Work Tracker** — `AddWorkLogModal` (+ icon) and `WorkHistoryModal` (Work History button) in TicketDrawer; add/edit/delete + table grid; edit reopens as "Edit Work Log".
-- **Relations filter pills** — type pills w/ counts (only types with data) + always-first All pill in wide view; container-query (`@2xl`) falls back to the All ▾ dropdown in narrow view. `RelationsTabContent`.
-- **Asset Overview AI summary** — `AssetAiSummary` (no title) at top of Overview for Hardware/Software/Non-IT/Consumable/License/Contract/Purchase.
-- **Purple KEY POINTS bullets** — Ticket/Problem/Change/Release AI summary bullets changed blue `•` → purple dot, aligned.
-- **Email Notifications group** — Bell rail icon (gated `showNotifications`) on Ticket/Problem/Change/Release/Contract/Purchase. `SendEmailModal` (chip-input recipients, Tech/Requester selects, subject, rich-text content, file attachments) + `NotificationsPanel` (collapsible cards, To `+N` black tooltip, attachment view/download, header `+` to add).
-- **BUG FIX** — `NonItAssetsListPage` never rendered `<NonItAssetDrawer/>`; added it so the Non-IT detail page opens.
+- **Consumable header fix** (`ConsumableAssetDrawer.tsx`): header Stock/Available now read the SAME hardcoded `totalQty=60`/`allocatedQty=54` as the Overview cards (was pulling empty `availableQuantity` → showed 0/Out-of-Stock while Overview showed 6/Low-Stock).
+- **Software License header** (`SoftwareLicenseDrawer.tsx`): `Created · Compliance · Utilization · Available · License Expiry · License Type`, all derived from real license fields. License Expiry shows **only when ≤30 days / Expired**. Also made the Overview **Utilization card** data-driven so it agrees with the header (was hardcoded "Over-utilized").
+- **Contract header** (`ContractDrawer.tsx`): `Created · Status · Expires · Vendor · Cost · Type`. Expires shows **only when near**; the Overview "Contract Expires" card + its AI "Renew contract" answer were made data-driven from real `endDate` to match.
+- **Purchase header** (`PurchaseDrawer.tsx`): `Created · Status · Required By · Outstanding · Total Payable · Vendor`. Required By **always shown**, color-coded (Overdue red / ≤14d amber). Imported `PURCHASE_STATUS_OPTIONS` for the status dot.
+- **Near-expiry demo data**: set several mock dates within ~30 days of today — Licenses LIC-65/75/63/86/81/62 (8–30 days) in `SoftwareLicensesListPage.tsx`; Contracts CON-74/78/97/104 (8–28 days) in `ContractsListPage.tsx`.
+- **Drawer window controls (all 12 drawers)**: moved the minimize button from top-left into a **right-side group**: minimize · maximize/restore · close. Swapped to **Windows-style icons** — minimize `—`, maximize (single square) when small / restore (overlapping squares) when full, close `X`. Each was a 12-file × 2-edit sweep against identical anchors.
+- **Minimized rail polish** (`MinimizedDrawerRail.tsx`): ID chips now top-aligned (`justify-start`), highlight inset with an 8px gutter (`w-[calc(100%-8px)] mx-auto`), and `rounded-sm` corners.
+- All verified: `npm run build` passes each time; headless puppeteer screenshots confirmed LIC-86 (23 days), CON-104 (Expires 28 days, matches Overview), PO-2606-131 (Required By Overdue, Outstanding/Total match Overview), and the new right-side Windows controls.
 
 ## In progress
-Nothing mid-flight. Every change was built (`npm run build` green) and several were verified in a headless Chrome (Non-IT open, AI-summary render, full Send-Email flow, card collapse/expand).
+Nothing mid-flight. The header-KPI series is now complete across **all** modules (Ticket, Problem, Change, Release, Hardware, Software, Non-IT, Consumable, Software License, Contract, Purchase).
 
 ## Next steps
-- **Publish** — none of this session's work is pushed yet (the user has been answering "later").
-- Optionally extend the email Notifications group / AI summaries / 50+ custom fields to the remaining modules if desired.
-- Still **paused** from a prior session: add "Ask for Approval" to the Purchase 3-dot menu (placement unconfirmed).
+- **Push the batch live** — a large unpushed batch has accumulated (this session's procurement headers + Windows drawer controls + rail polish, plus prior unpushed work: multi-task Work Tracker, all earlier header KPIs, email Notifications, Description tooltip, Change/Release section swap). Run `/publish` when ready.
+- Optional: if perpetual "near-expiry" demos are wanted, anchor the day-count math to a fixed reference date instead of `new Date()` (see gotcha).
 
 ## Decisions made
-- **AI summary tab placement** — discovered Non-IT/Consumable/License/Contract/Purchase default to `activeMainTab === 'properties'` (their `'overview'` block is dead clone code), while Hardware/Software default to `'overview'`. Overview content must go in the block matching the drawer's default tab (caught a wrong-block placement via headless verification).
-- **50+ custom fields scoped to the ticket page** via a `demoCustomFields` prop (not all modules) per the request "in the ticket detail page as of now".
-- **Notifications as a new `activeGroup` value** (`'notifications'`) on the shared panel + a `showNotifications` prop, rather than per-drawer panels — keeps it in one place; each of the 6 drawers extends its `activeGroup` `useState` union.
-- **Recipient chip-input** copied from the Contract Expiry Reminder pattern (type + Enter/comma → pill) per the user.
-- Verified risky/structural changes (Non-IT open bug, AI summary, notifications flow) with **puppeteer-core driving the system Chrome** against the dev server, since there's no test suite.
+- **Header chips should not blindly duplicate Overview cards** — they're a glanceable status/risk summary; where a value also appears below (e.g. Contract Expires, Purchase Outstanding) we made the Overview card data-driven so the two can't drift.
+- **Expiry visibility differs by module on purpose**: License & Contract hide the expiry chip unless near (cleaner header); Purchase always shows Required By (a delivery deadline is central to a PO).
+- **Windows-style window controls**: chosen because our three actions map 1:1 onto minimize / maximize↔restore / close, so the familiar glyphs read instantly.
 
 ## Gotchas & notes
-- **Headless viewport matters:** the right properties panel auto-collapses at small widths, so headless checks need a wide viewport (used 1600×1000) or content reads as "not visible".
-- **No typecheck in build** — `vite build` is esbuild (types erased), so the `activeGroup` union mismatches across drawers don't fail the build; they were still updated for correctness.
-- `gh` CLI is **not logged in**; `/publish` can't watch the Actions run, but `git push` works via the Windows credential manager and Pages auto-deploys on push to `main`.
-- `npm run build` is the only verification gate. LF→CRLF git warnings and the >500KB chunk note are harmless. Dev server may land on 5173/5174/5175 if prior instances linger.
-- Live URL: https://ronak-patel-motadata.github.io/ServiceOps-Ticket-Detail-/
+- **Day-counts use real `new Date()`** — the demo near-expiry chips shrink as days pass and eventually disappear/expire. Fine for a near-term demo; anchor to a fixed date for a permanent one.
+- Edits to the 12 drawers rely on **byte-identical anchors** (minimize button line, `toggleDrawerView` block, `<DrawerTabStrip`). They were verified identical before each sweep — re-verify with grep before any future bulk edit.
+- Don't round-trip these files through PowerShell `Get-Content`/`Set-Content` — it corrupts the UTF-8 em-dashes (—) in asset names. Use the editor tools.
+- Verify with `npm run build` (no standalone typecheck). Dev server runs on `http://localhost:5173/`; headless probes live in the session scratchpad.

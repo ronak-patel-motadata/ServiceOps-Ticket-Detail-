@@ -468,16 +468,20 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               {demoCustomFields && (!propertiesSearchQuery || 'description'.includes(propertiesSearchQuery.toLowerCase())) && (
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">Description</div>
-                  <button
-                    onClick={() => setShowDescriptionExpand(true)}
-                    title={descriptionValue || 'Add description'}
-                    className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-md hover:bg-[#F5F7FA] transition-colors text-left"
-                  >
-                    <span className={`truncate ${descriptionValue ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
-                      {descriptionValue || 'Add description'}
-                    </span>
-                    <Maximize2 size={14} className="text-[#7B8FA5] flex-shrink-0" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowDescriptionExpand(true)}
+                        className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-md hover:bg-[#F5F7FA] transition-colors text-left"
+                      >
+                        <span className={`truncate ${descriptionValue ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                          {descriptionValue || 'Add description'}
+                        </span>
+                        <Maximize2 size={14} className="text-[#7B8FA5] flex-shrink-0" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[280px]">{descriptionValue || 'Add description'}</TooltipContent>
+                  </Tooltip>
                 </div>
               )}
 

@@ -1927,7 +1927,6 @@ export function ContractDrawer({
       
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
-        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-r border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
         <DrawerTabStrip
           items={openTickets}
           activeId={activeTicketId}
@@ -1935,24 +1934,22 @@ export function ContractDrawer({
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
           className="p-3 hover:bg-[#e5e7eb]"
           title={drawerWidth > 1080 ? "Switch to small view" : "Switch to full view"}
         >
           {drawerWidth > 1080 ? (
-            // Show half-view icon when in full view
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M19 4C19.5523 4 20 4.44772 20 5V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 20.4477 4 21C4 21.5523 4.44772 22 5 22H19C20.6569 22 22 20.6569 22 19V5C22 3.34315 20.6569 2 19 2H5C4.44772 2 4 2.44772 4 3C4 3.55228 4.44772 4 5 4H19Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M15 2C14.4477 2 14 2.44772 14 3V21C14 21.5523 14.4477 22 15 22C15.5523 22 16 21.5523 16 21V3C16 2.44772 15.5523 2 15 2Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M4.47313 7.13707C4.0826 7.5276 4.0826 8.16076 4.47313 8.55129L7.92178 11.9999L4.47313 15.4486C4.0826 15.8391 4.0826 16.4723 4.47313 16.8628C4.86365 17.2533 5.49682 17.2533 5.88734 16.8628L10.0431 12.707C10.4336 12.3165 10.4336 11.6834 10.0431 11.2928L5.88734 7.13707C5.49682 6.74655 4.86365 6.74655 4.47313 7.13707Z" fill="#364658"/>
+            // Restore icon (overlapping squares) when full -> click shrinks to small
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="8" width="12" height="12" rx="1.5" stroke="#364658" strokeWidth="2"/>
+              <path d="M8 8V6.5A1.5 1.5 0 0 1 9.5 5H18A1.5 1.5 0 0 1 19.5 6.5V15A1.5 1.5 0 0 1 18 16.5H16" stroke="#364658" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           ) : (
-            // Show full-view icon when in small view
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M5 4C4.44772 4 4 4.44772 4 5V19C4 19.5523 4.44772 20 5 20H19C19.5523 20 20 20.4477 20 21C20 21.5523 19.5523 22 19 22H5C3.34315 22 2 20.6569 2 19V5C2 3.34315 3.34315 2 5 2H19C19.5523 2 20 2.44772 20 3C20 3.55228 19.5523 4 19 4H5Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M9 2C9.55228 2 10 2.44772 10 3V21C10 21.5523 9.55228 22 9 22C8.44772 22 8 21.5523 8 21V3C8 2.44772 8.44772 2 9 2Z" fill="#364658"/>
-              <path fillRule="evenodd" clipRule="evenodd" d="M19.5269 7.13707C19.9174 7.5276 19.9174 8.16076 19.5269 8.55129L16.0782 11.9999L19.5269 15.4486C19.9174 15.8391 19.9174 16.4723 19.5269 16.8628C19.1363 17.2533 18.5032 17.2533 18.1127 16.8628L13.9569 12.707C13.5664 12.3165 13.5664 11.6834 13.9569 11.2928L18.1127 7.13707C18.5032 6.74655 19.1363 6.74655 19.5269 7.13707Z" fill="#364658"/>
+            // Maximize icon (single square) when small -> click expands to full
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="5" width="14" height="14" rx="1.5" stroke="#364658" strokeWidth="2"/>
             </svg>
           )}
         </button>
@@ -1972,14 +1969,84 @@ export function ContractDrawer({
             <h1 className="text-[18px] font-semibold text-[#364658] truncate">
               {activeTicket.subject}
             </h1>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
-              {activeContract && (() => {
-                const s = activeContract.status;
-                const c = s === 'Active' ? '#22A06B' : s === 'Not Started' ? '#D97706' : '#9CA3AF';
-                return <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${c}1A`, color: c }}>Status: {s}</span>;
-              })()}
-            </div>
+            {/* Contract KPIs — Created · Status · Expires · Vendor · Cost · Type */}
+            {(() => {
+              const s = activeContract?.status;
+              const statusColor = s === 'Active' ? '#22A06B' : s === 'Not Started' ? '#D97706' : '#9CA3AF';
+              // Expires — only surfaced when the renewal is close (≤30 days) or already expired.
+              const expiry = (() => {
+                const raw = activeContract?.endDate;
+                if (!raw) return { show: false };
+                const [d, m, y] = raw.split('/').map(Number);
+                if (!d || !m || !y) return { show: false };
+                const exp = new Date(y, m - 1, d);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const days = Math.round((exp.getTime() - today.getTime()) / 86400000);
+                if (days < 0) return { show: true, label: 'Expired', color: '#DC2626' };
+                if (days === 0) return { show: true, label: 'Today', color: '#DC2626' };
+                if (days <= 30) return { show: true, label: `${days} days`, color: '#D97706' };
+                return { show: false };
+              })();
+              // Vendor — drop the "VEN-##: " prefix for a clean header chip.
+              const vendorName = activeContract?.vendor ? activeContract.vendor.replace(/^VEN-\d+:\s*/, '') : null;
+              const sep = <span className="h-3 w-px bg-[#E5E7EB]" />;
+              return (
+                <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                    <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025</span>
+                  </span>
+                  {s && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+                        <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                        <span className="text-[12px] font-medium" style={{ color: statusColor }}>{s}</span>
+                      </span>
+                    </>
+                  )}
+                  {expiry.show && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiry.color }} />
+                        <span className="text-[11px] text-[#7B8FA5]">Expires</span>
+                        <span className="text-[12px] font-medium" style={{ color: expiry.color }}>{expiry.label}</span>
+                      </span>
+                    </>
+                  )}
+                  {vendorName && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Vendor</span>
+                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{vendorName}</span>
+                      </span>
+                    </>
+                  )}
+                  {activeContract?.cost && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-[11px] text-[#7B8FA5]">Cost</span>
+                        <span className="text-[12px] font-medium text-[#22A06B]">{activeContract.cost}</span>
+                      </span>
+                    </>
+                  )}
+                  {activeContract?.contractType && (
+                    <>
+                      {sep}
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Type</span>
+                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeContract.contractType}</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <div className="flex items-center gap-2">
             <Tooltip>
@@ -2875,13 +2942,27 @@ export function ContractDrawer({
                       ['Purchase', Math.floor(impactSeed / 7) % 3],
                     ];
                     const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
+                    // Contract Expires — real days-to-go from endDate (matches the header chip).
+                    const expCard = (() => {
+                      const raw = activeContract?.endDate;
+                      if (!raw) return { value: '---', unit: undefined as string | undefined, color: '#9CA3AF', days: null as number | null };
+                      const [d, m, y] = raw.split('/').map(Number);
+                      if (!d || !m || !y) return { value: raw, unit: undefined, color: '#7B8FA5', days: null };
+                      const exp = new Date(y, m - 1, d);
+                      const today = new Date(); today.setHours(0, 0, 0, 0);
+                      const days = Math.round((exp.getTime() - today.getTime()) / 86400000);
+                      if (days < 0) return { value: 'Expired', unit: undefined, color: '#DC2626', days };
+                      if (days === 0) return { value: 'Today', unit: undefined, color: '#DC2626', days };
+                      const color = days <= 30 ? '#D97706' : '#3D8BD0';
+                      return { value: String(days), unit: 'days', color, days };
+                    })();
                     return [
                     { label: 'Contract Type', value: activeContract?.contractType ?? '---', sub: 'Contract type', color: '#3D8BD0', icon: FileText },
                     { label: 'Cost', value: activeContract?.cost ?? '---', sub: 'Total cost', color: '#22A06B', icon: CircleDollarSign },
                     { label: 'Vendor', value: activeContract?.vendor ?? '---', sub: 'Supplier', color: '#8B5CF6', icon: Briefcase, isText: true },
-                    { label: 'Contract Expires', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: Clock,
+                    { label: 'Contract Expires', value: expCard.value, unit: expCard.unit, sub: 'Until expiry', color: expCard.color, icon: Clock,
                       ai: { action: 'Renew contract', q: 'When does this contract expire and how do I renew it?',
-                        a: "**Contract expiry:** Expires in **23 days**.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry\n• Confirm the renewal term with the contract owner\n\nWould you like me to draft a renewal request?" } },
+                        a: `**Contract expiry:** ${expCard.days != null && expCard.days >= 0 ? `Expires in **${expCard.days} days**` : expCard.days != null ? '**Expired**' : 'No end date on record'}.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry\n• Confirm the renewal term with the contract owner\n\nWould you like me to draft a renewal request?` } },
                     ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
                     { label: 'Child Contracts', value: '2', sub: 'Linked contracts', color: '#14B8A6', icon: Copy },
                   ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; isText?: boolean; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
