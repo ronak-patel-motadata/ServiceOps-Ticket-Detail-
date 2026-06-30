@@ -8,7 +8,7 @@ import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
-import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, Bell } from 'lucide-react';
+import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, Bell, SquareCheckBig } from 'lucide-react';
 import { NotificationsPanel } from './NotificationsPanel';
 import type { EmailNotification } from './SendEmailModal';
 
@@ -622,10 +622,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const sectionStorageKey = assetMode
     ? 'assetPropertiesSectionOrderV3'
     : showChangeCalendar
-      ? 'changePropertiesSectionOrder'
+      ? 'changePropertiesSectionOrderV2'
       : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = showChangeCalendar
-    ? ['Change Calendar', 'Ticket Fields', 'Requester Information', 'Additional Fields']
+    ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
     : assetMode
       ? ['Ticket Fields', 'Additional Fields']
       : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
@@ -636,7 +636,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
       if (saved) {
         try {
           const parsed: string[] = JSON.parse(saved);
-          if (showChangeCalendar && !parsed.includes('Change Calendar')) parsed.unshift('Change Calendar');
+          if (showChangeCalendar && !parsed.includes('Change Calendar')) {
+            const fi = parsed.indexOf('Ticket Fields');
+            parsed.splice(fi >= 0 ? fi + 1 : 0, 0, 'Change Calendar');
+          }
           // Change Calendar only ever belongs to the Change detail page.
           const cleaned = showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
           // Agent Information is pinned at the top on the asset page — not a reorderable section.
@@ -1930,14 +1933,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
             {/* Technician Info - Show when timer is running or paused */}
             {timerStartTime && (elapsedTime > 0 || isTimerRunning) && (
-              <div className="mt-5 flex items-center gap-2">
-                <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold">
-                  AD
+              <div className="mt-5">
+                <div className="flex items-center gap-2">
+                  <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
+                    AD
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
+                    <span className="text-[11px] text-[#7B8FA5]">Started at {formatStartTime(timerStartTime)}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
-                  <span className="text-[11px] text-[#7B8FA5]">Started at {formatStartTime(timerStartTime)}</span>
-                </div>
+                {/* What the timer is tracking — one line, truncated, full text in tooltip */}
+                {workDescription.trim() && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="mt-2.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#EEF1F5] cursor-default">
+                        <SquareCheckBig size={13} className="text-[#7B8FA5] flex-shrink-0" />
+                        <span className="text-[12px] text-[#364658] truncate min-w-0">{workDescription}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[280px]">{workDescription}</TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             )}
 

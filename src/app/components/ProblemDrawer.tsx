@@ -2363,11 +2363,36 @@ export function ProblemDrawer({
       {/* Drawer Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
-        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-[18px] font-semibold text-[#364658]">
-            {activeProblem.subject}
-          </h1>
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
+          <div className="min-w-0">
+            <h1 className="text-[18px] font-semibold text-[#364658]">
+              {activeProblem.subject}
+            </h1>
+            {/* Main properties — quick-glance KPIs below the subject */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#EEF1F5]">
+                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
+                <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#EEF1F5]">
+                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
+                <span className="text-[11px] text-[#7B8FA5]">Priority</span>
+                <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#F8FAFC] border border-[#EEF1F5]">
+                <span
+                  className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0"
+                  style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}
+                >
+                  {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
+                </span>
+                <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
+                <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">
