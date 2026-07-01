@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { SoftwareLicensesTable } from './SoftwareLicensesTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { SoftwareLicenseDrawer } from './SoftwareLicenseDrawer';
 
 export interface SoftwareLicense {
@@ -18,7 +19,7 @@ export interface SoftwareLicense {
   expiryDate: string | null;
 }
 
-const mockLicenses: SoftwareLicense[] = [
+export const mockLicenses: SoftwareLicense[] = [
   { id: 'LIC-86', name: 'Microsoft 365 E3', product: 'Microsoft 365 Enterprise', licenseType: 'Volume Users', purchaseCount: 250, allocationCount: 212, installationCount: 198, expiryDate: '24/07/2026' },
   { id: 'LIC-85', name: 'Adobe Creative Cloud', product: 'Adobe CC All Apps', licenseType: 'Volume Users', purchaseCount: 60, allocationCount: 54, installationCount: 49, expiryDate: '15/09/2026' },
   { id: 'LIC-84', name: 'Autodesk AutoCAD 2025', product: 'AutoCAD LT', licenseType: 'Single Machine', purchaseCount: 40, allocationCount: 32, installationCount: 30, expiryDate: '31/05/2027' },
@@ -62,11 +63,14 @@ export function SoftwareLicensesListPage({ onNavigate, onOpenSoftwareAsset }: { 
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenLicense = (license: SoftwareLicense) => {
-    if (!openLicenses.find(l => l.id === license.id)) {
-      setOpenLicenses([...openLicenses, license]);
-    }
-    setActiveLicenseId(license.id);
+    openInStack('software-licenses', license.id, license.name, license);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenLicense({ ...mockLicenses[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockLicenses.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenLicenses([]); setActiveLicenseId(null); };
@@ -171,6 +175,7 @@ export function SoftwareLicensesListPage({ onNavigate, onOpenSoftwareAsset }: { 
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
         onOpenSoftwareAsset={onOpenSoftwareAsset}
       />
     </div>

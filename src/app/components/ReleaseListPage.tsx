@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { ReleaseToolbar } from './ReleaseToolbar';
 import { ReleaseTable } from './ReleaseTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { ReleaseDrawer } from './ReleaseDrawer';
 
 export interface Release {
@@ -29,7 +30,7 @@ export interface Release {
 
 const UN = { name: 'Unassigned', initials: 'UN', color: '#9CA3AF' };
 
-const mockReleases: Release[] = [
+export const mockReleases: Release[] = [
   { id: 'REL-56', subject: 'ServiceOps platform patch upgrade to v8.7.4.22',              requester: 'Diksha Patel',          createdDate: new Date(2026,5,1,18,16),   assignee: { name: 'Dilip Mehta',        initials: 'DM', color: '#6366F1' }, status: 'Planning: In Progress',   priority: 'High',   releaseType: 'Minor',       releaseRisk: 'Low'   },
   { id: 'REL-55', subject: 'Kubernetes cluster upgrade to v1.29',                         requester: 'Manasvi Shah',           createdDate: new Date(2026,4,29,17,4),   assignee: { name: 'Manasvi Shah',       initials: 'MS', color: '#F97316' }, status: 'Submitted: Requested',    priority: 'Medium', releaseType: null,          releaseRisk: 'Low'   },
   { id: 'REL-53', subject: 'Production server infrastructure upgrade',                    requester: 'Pavan Mehta',            createdDate: new Date(2026,3,22,11,31),  assignee: { name: 'Pavan Mehta',        initials: 'PM', color: '#10B981' }, status: 'Planning: Cancelled',     priority: 'P1',     releaseType: 'Major',       releaseRisk: 'Low'   },
@@ -68,14 +69,14 @@ export function ReleaseListPage({ onNavigate }: { onNavigate: (page: string) => 
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenRelease = (release: Release) => {
-    const existing = openReleases.find(r => r.id === release.id);
-    if (existing) {
-      setActiveReleaseId(release.id);
-    } else {
-      setOpenReleases([...openReleases, release]);
-      setActiveReleaseId(release.id);
-    }
+    openInStack('release', release.id, release.subject, release);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenRelease({ ...mockReleases[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockReleases.length], id: rel.ticketId, subject: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenReleases([]); setActiveReleaseId(null); };
@@ -184,6 +185,7 @@ export function ReleaseListPage({ onNavigate }: { onNavigate: (page: string) => 
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

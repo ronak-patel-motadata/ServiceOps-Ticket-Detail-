@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
 
 export interface Ticket {
@@ -22,7 +23,7 @@ export interface Ticket {
 }
 
 // Mock data
-const generateMockTickets = (): Ticket[] => {
+export const generateMockTickets = (): Ticket[] => {
   const subjects = [
     "Don't you hate me too? it name it that...",
     "Employee Onboarding",
@@ -86,18 +87,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     setCurrentPage(1);
   }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenTicket = (ticket: Ticket) => {
-    // Check if ticket is already open
-    const existingTicket = openTickets.find(t => t.id === ticket.id);
-    
-    if (existingTicket) {
-      // Just switch to that tab
-      setActiveTicketId(ticket.id);
-    } else {
-      // Add new ticket to open tickets
-      setOpenTickets([...openTickets, ticket]);
-      setActiveTicketId(ticket.id);
-    }
+    openInStack('request', ticket.id, ticket.subject, ticket);
   };
 
   const handleCloseDrawer = () => {
@@ -121,6 +114,37 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
 
   const handleTabChange = (ticketId: string) => {
     setActiveTicketId(ticketId);
+  };
+
+  // Open a clicked relation (Problem / Change / Release / Asset …) as a new tab in the same drawer.
+  const handleOpenRelation = (rel: { ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => {
+    const mapStatus = (s: string): Ticket['status'] => {
+      const v = (s || '').toLowerCase();
+      if (v.includes('progress')) return 'In Progress';
+      if (v.includes('resolved') || v.includes('complete')) return 'Completed';
+      if (v.includes('pending')) return 'Pending';
+      if (v.includes('closed')) return 'Closed';
+      if (v.includes('cancel')) return 'Cancelled';
+      return 'Open';
+    };
+    const mapPriority = (p: string): Ticket['priority'] => {
+      const v = (p || '').toLowerCase();
+      if (v.includes('urgent') || v === 'p1') return 'Urgent';
+      if (v.includes('high') || v === 'p2') return 'High';
+      if (v.includes('low') || v === 'p4') return 'Low';
+      return 'Medium';
+    };
+    const name = rel.assignedTo?.name || 'Unassigned';
+    handleOpenTicket({
+      id: rel.ticketId,
+      subject: rel.subject,
+      requester: name,
+      dueBy: new Date(),
+      createdBy: new Date(),
+      assignedTo: { name, initials: name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() },
+      status: mapStatus(rel.status),
+      priority: mapPriority(rel.priority),
+    });
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -253,7 +277,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );
 }
+export const MOCK_TICKETS: Ticket[] = generateMockTickets();

@@ -72,7 +72,7 @@ export function DrawerTabStrip({
         return (
           <div
             key={t.id}
-            className={`flex items-center gap-2 px-4 py-3 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'}`}
+            className={`flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'}`}
             onClick={() => onSelect(t.id)}
           >
             <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.id}</span>
@@ -88,7 +88,7 @@ export function DrawerTabStrip({
         <div className="relative flex-shrink-0 border-r border-[#e5e7eb]" ref={moreRef}>
           <button
             onClick={() => setShowMore((s) => !s)}
-            className={`flex items-center gap-1 px-3 py-3 text-[13px] font-medium whitespace-nowrap transition-colors ${activeInOverflow ? 'text-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
+            className={`flex items-center gap-1 px-3 py-2 text-[13px] font-medium whitespace-nowrap transition-colors ${activeInOverflow ? 'text-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
           >
             More ({overflow.length})
             <ChevronDown size={14} className={`transition-transform ${showMore ? 'rotate-180' : ''}`} />

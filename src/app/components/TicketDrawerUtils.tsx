@@ -56,6 +56,21 @@ export const createAITypingEffect = (
   }, thinkingDelay);
 };
 
+/** Build seeded cross-module relations (default 4 per type) so a drawer's Relations tab is populated and items can be opened as same-drawer tabs. */
+export function makeCrossModuleRelations(specs: { type: string; prefix: string; count?: number }[]) {
+  const subs = ['VPN connection timeout', 'Email delivery issues', 'Application access request', 'Network connectivity problem', 'Software license renewal', 'Hardware replacement needed', 'Security patch installation', 'User account creation'];
+  const st = ['Open', 'In Progress', 'Pending', 'Resolved'];
+  const pr = ['High', 'Medium', 'Urgent', 'Low'];
+  const names = ['John Doe', 'Neha Raje', 'Rohan Mehta', 'Priya Nair'];
+  const out: { id: string; type: string; ticketId: string; subject: string; status: string; assignedTo: { name: string }; priority: string }[] = [];
+  specs.forEach(({ type, prefix, count = 4 }) => {
+    for (let i = 0; i < count; i++) {
+      out.push({ id: `def-${type}-${i}`, type, ticketId: `${prefix}-${1001 + i}`, subject: subs[i % subs.length], status: st[i % st.length], assignedTo: { name: names[i % names.length] }, priority: pr[i % pr.length] });
+    }
+  });
+  return out;
+}
+
 // Properties Panel Relation Modal Helper Functions
 export const getPropertiesRelationMockTickets = (type: string) => {
   const prefix = type === 'Request' ? 'REQ' : 

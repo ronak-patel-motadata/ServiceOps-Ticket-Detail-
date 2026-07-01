@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { ProblemToolbar } from './ProblemToolbar';
 import { ProblemTable } from './ProblemTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { ProblemDrawer } from './ProblemDrawer';
 
 export interface Problem {
@@ -17,7 +18,7 @@ export interface Problem {
   urgency: 'Low' | 'Medium' | 'High';
 }
 
-const mockProblems: Problem[] = [
+export const mockProblems: Problem[] = [
   { id: 'PBM-627', subject: 'WiFi dropping connection on 3rd floor repeatedly',        requester: 'Sophie Laurent',   createdDate: new Date(2026,5,5,13,59),  assignee: { name: 'fazu',             initials: 'FA', color: '#F59E0B' }, status: 'Pending',    priority: 'High',   urgency: 'Low' },
   { id: 'PBM-626', subject: 'Email server not receiving incoming messages',            requester: 'Ajith Kumar',      createdDate: new Date(2026,5,3,14,29),  assignee: { name: 'Jay Vegda',        initials: 'JV', color: '#6366F1' }, status: 'Resolved',   priority: 'Medium', urgency: 'Low' },
   { id: 'PBM-625', subject: 'Network connectivity dropping intermittently',            requester: 'Ashini Sharma',    createdDate: new Date(2026,4,21,10,39), assignee: { name: 'naitik',           initials: 'NA', color: '#10B981' }, status: 'Open',       priority: 'Medium', urgency: 'Low' },
@@ -58,14 +59,14 @@ export function ProblemListPage({ onNavigate }: { onNavigate: (page: string) => 
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenProblem = (problem: Problem) => {
-    const existing = openProblems.find(p => p.id === problem.id);
-    if (existing) {
-      setActiveProblemId(problem.id);
-    } else {
-      setOpenProblems([...openProblems, problem]);
-      setActiveProblemId(problem.id);
-    }
+    openInStack('problem', problem.id, problem.subject, problem);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenProblem({ ...mockProblems[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockProblems.length], id: rel.ticketId, subject: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenProblems([]); setActiveProblemId(null); };
@@ -174,6 +175,7 @@ export function ProblemListPage({ onNavigate }: { onNavigate: (page: string) => 
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

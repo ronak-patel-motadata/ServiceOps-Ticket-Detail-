@@ -81,9 +81,17 @@ export function HeaderKpiRow({ items }: { items: HeaderKpiItem[] }) {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-none">
                 <div className="flex flex-col gap-1">
-                  {overflow.map((it) => (
-                    <div key={it.key} className="whitespace-nowrap text-[12px] text-white">{it.tip}</div>
-                  ))}
+                  {overflow.map((it) => {
+                    const idx = it.tip.indexOf(': ');
+                    const label = idx >= 0 ? it.tip.slice(0, idx) : it.tip;
+                    const value = idx >= 0 ? it.tip.slice(idx + 2) : '';
+                    return (
+                      <div key={it.key} className="whitespace-nowrap text-[12px]">
+                        <span className="text-white/75">{label}:</span>
+                        {value && <span className="ml-1.5 font-semibold text-white">{value}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </TooltipContent>
             </Tooltip>

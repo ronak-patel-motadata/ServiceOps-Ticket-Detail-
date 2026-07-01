@@ -27,9 +27,11 @@ interface RelationsTabContentProps {
   externalRelations?: Relation[];
   initialTypeFilter?: string | null;
   onClearTypeFilter?: () => void;
+  /** Open a related item as a new tab in the same drawer. */
+  onOpenRelation?: (rel: Relation) => void;
 }
 
-export function RelationsTabContent({ ticketId, externalRelations = [], initialTypeFilter = null, onClearTypeFilter }: RelationsTabContentProps = {}) {
+export function RelationsTabContent({ ticketId, externalRelations = [], initialTypeFilter = null, onClearTypeFilter, onOpenRelation }: RelationsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
   
@@ -512,11 +514,15 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
               <div className="space-y-3">
                 {/* First Row: ID & Name (left) and Delete Icon (right) */}
                 <div className="flex items-start justify-between gap-3 mb-1">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="text-[14px] font-semibold text-[#3D8BD0] hover:underline cursor-pointer">
+                  <div
+                    className={`flex items-center gap-2 min-w-0 flex-1 ${onOpenRelation ? 'cursor-pointer' : ''}`}
+                    onClick={() => onOpenRelation?.(relation)}
+                    title={onOpenRelation ? `Open ${relation.ticketId} in this drawer` : undefined}
+                  >
+                    <span className="text-[14px] font-semibold text-[#3D8BD0] hover:underline">
                       {relation.ticketId}
                     </span>
-                    <span className="font-semibold text-[#364658] truncate text-[14px]">
+                    <span className="font-semibold text-[#364658] truncate text-[14px] group-hover:text-[#3D8BD0] transition-colors">
                       {relation.subject}
                     </span>
                   </div>

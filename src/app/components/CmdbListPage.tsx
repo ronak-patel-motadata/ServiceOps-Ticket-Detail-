@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { CmdbTable } from './CmdbTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { CmdbDrawer } from './CmdbDrawer';
 
 export type CiStatus = 'Operational' | 'Select';
@@ -33,7 +34,7 @@ const IQ = { name: 'Imran Qureshi', initials: 'IQ', color: '#F59E0B' };
 const NR = { name: 'Neha Raje', initials: 'NR', color: '#EC4899' };
 const FS = { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' };
 
-const mockCis: Ci[] = [
+export const mockCis: Ci[] = [
   { id: 'CI-907', name: 'Email Service', ciType: 'Base CI', status: 'Operational', hostName: '---', ipAddress: '---', usedBy: null, managedByGroup: 'IT Operations', managedBy: null },
   { id: 'CI-906', name: 'SAP ERP — Production', ciType: 'Application', status: 'Operational', hostName: 'SAP-PRD-APP', ipAddress: '10.20.50.11', usedBy: null, managedByGroup: 'Datacenter Team', managedBy: VS },
   { id: 'CI-905', name: 'MacBook Pro 16" — Design', nameDot: GREEN, ciType: 'Mac Laptop', status: 'Operational', hostName: 'DSGN-MAC-0041', ipAddress: '10.20.18.41', usedBy: 'Aarav Sharma', managedByGroup: 'End User Computing', managedBy: RM },
@@ -71,10 +72,15 @@ export function CmdbListPage({ onNavigate }: { onNavigate: (page: string) => voi
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenCi = (ci: Ci) => {
-    if (!openCis.find(c => c.id === ci.id)) setOpenCis([...openCis, ci]);
-    setActiveCiId(ci.id);
+    openInStack('cmdb', ci.id, ci.name, ci);
   };
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenCi({ ...mockCis[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockCis.length], id: rel.ticketId, name: rel.subject });
+  };
+
   const handleCloseDrawer = () => { setOpenCis([]); setActiveCiId(null); };
   const handleCloseTab = (ciId: string) => {
     const updated = openCis.filter(c => c.id !== ciId);
@@ -165,6 +171,7 @@ export function CmdbListPage({ onNavigate }: { onNavigate: (page: string) => voi
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

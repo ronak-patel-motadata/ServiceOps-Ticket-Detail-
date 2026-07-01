@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { NonItAssetsTable } from './NonItAssetsTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { NonItAssetDrawer } from './NonItAssetDrawer';
 
 export type NonItStatus = 'In Use' | 'In Stock' | 'In Store' | 'Not Working';
@@ -22,7 +23,7 @@ export interface NonItAsset {
 
 const U = { name: 'Unassigned' };
 
-const mockAssets: NonItAsset[] = [
+export const mockAssets: NonItAsset[] = [
   { id: 'NON-5966', name: 'Ergonomic Office Chair — Herman Miller Aeron', assetType: 'Furniture', status: 'In Use', impact: 'On Users', managedBy: U, usedBy: 'Priya Nair (priya.nair@mota...)', managedByGroup: 'Facilities' },
   { id: 'NON-5965', name: 'Conference Table — 12 Seater Walnut', assetType: 'Furniture', status: 'In Use', impact: 'On Department', managedBy: { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' }, usedBy: null, managedByGroup: 'Facilities' },
   { id: 'NON-5964', name: 'Toyota Innova Crysta — Pool Car', assetType: 'Vehicles', status: 'In Use', impact: 'On Organization', managedBy: { name: 'Imran Qureshi', initials: 'IQ', color: '#F59E0B' }, usedBy: 'Fleet Pool', managedByGroup: 'Fleet Management' },
@@ -71,11 +72,14 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenAsset = (asset: NonItAsset) => {
-    if (!openAssets.find(a => a.id === asset.id)) {
-      setOpenAssets([...openAssets, asset]);
-    }
-    setActiveAssetId(asset.id);
+    openInStack('non-it-assets', asset.id, asset.name, asset);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenAsset({ ...mockAssets[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockAssets.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
@@ -178,6 +182,7 @@ export function NonItAssetsListPage({ onNavigate }: { onNavigate: (page: string)
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

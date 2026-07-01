@@ -23,7 +23,8 @@ import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
 import { SLAHistoryModal } from './SLAHistoryModal';
-import { getSlaPenaltyAmount } from './TicketDrawerUtils';
+import { getSlaPenaltyAmount, makeCrossModuleRelations } from './TicketDrawerUtils';
+const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Problem',prefix:'PRB'},{type:'Change',prefix:'CHG'},{type:'Asset',prefix:'AST'}]);
 import { ServiceRequestItems } from './ServiceRequestItems';
 import { EditItemPopup } from './EditItemPopup';
 import { InlineReplyEditor } from './InlineReplyEditor';
@@ -98,6 +99,12 @@ interface ReleaseDrawerProps {
   onClose: () => void;
   onCloseTab: (changeId: string) => void;
   onTabChange: (problemId: string) => void;
+  onOpenRelation?: (rel: { ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => void;
+  stackTabs?: { id: string; subject?: string }[];
+  stackWidth?: number;
+  onStackWidthChange?: (w: number) => void;
+  stackMinimized?: boolean;
+  onStackMinimizedChange?: (m: boolean) => void;
 }
 
 interface AnalysisFieldProps {
@@ -638,15 +645,25 @@ export function ReleaseDrawer({
   activeReleaseId,
   onClose,
   onCloseTab,
-  onTabChange
+  onTabChange,
+  onOpenRelation,
+stackTabs,
+stackWidth,
+onStackWidthChange,
+stackMinimized,
+onStackMinimizedChange,
 }: ReleaseDrawerProps) {
   // Alias release props to the internal change-based names so the cloned body works unchanged
   const openChanges = openReleases;
   const activeChangeId = activeReleaseId;
   const activeChange = openChanges.find(c => c.id === activeChangeId);
-  const [minimized, setMinimized] = useState(false);
+  const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const minimized = stackMinimized ?? minimizedLocal;
+  const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeChange?.id]);
-  const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
+  const [drawerWidth, setDrawerWidth] = useState(stackWidth ?? (typeof window !== 'undefined' ? window.innerWidth - 54 : 1546));
+  // Report full/small width changes up to the shared host so the view mode persists across tab switches/closes.
+  useEffect(() => { if (onStackWidthChange) onStackWidthChange(drawerWidth); }, [drawerWidth]);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
   const [accordionWidth, setAccordionWidth] = useState(390);
@@ -1920,7 +1937,7 @@ export function ReleaseDrawer({
   // Reset drawer width to full width only when drawer first opens (not when switching tickets)
   useEffect(() => {
     if (openChanges.length > 0 && !hasDrawerBeenInitialized) {
-      setDrawerWidth(window.innerWidth - 54);
+      setDrawerWidth(stackWidth ?? window.innerWidth - 54);
       setIsAccordionCollapsed(false);
       setAccordionWidth(390); // Reset accordion width to default
       setHasDrawerBeenInitialized(true);
@@ -2746,7 +2763,7 @@ export function ReleaseDrawer({
   }, [showAiSummaryMenu]);
 
   if (openChanges.length === 0 || !activeChange) return null;
-  if (minimized) return <MinimizedDrawerRail items={openChanges} activeId={activeChange?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
+  if (minimized) return <MinimizedDrawerRail items={stackTabs ?? openChanges} activeId={activeChange?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
@@ -2773,16 +2790,16 @@ export function ReleaseDrawer({
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
         <DrawerTabStrip
-          items={openChanges}
+          items={stackTabs ?? openChanges}
           activeId={activeChangeId}
           onSelect={onTabChange}
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
-        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-2 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
           title={drawerWidth > 1080 ? "Switch to small view" : "Switch to full view"}
         >
           {drawerWidth > 1080 ? (
@@ -2800,7 +2817,7 @@ export function ReleaseDrawer({
         </button>
         <button
           onClick={onClose}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
         >
           <X size={18} className="text-[#364658]" />
         </button>
@@ -3806,7 +3823,7 @@ export function ReleaseDrawer({
                     { id: 'conversation', label: 'Conversation' },
                     { id: 'tasks', label: 'Tasks' },
                     { id: 'approvals', label: 'Approvals', condition: activeChange?.id !== 'CHG-993' },
-                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeChange?.id || '']?.length || 0) > 0 },
+                    { id: 'relations', label: 'Relations', condition: true },
                     { id: 'audit', label: 'Audit Trails' },
                     { id: 'resolution', label: 'Planning' },
                   ].filter(tab => tab.condition !== false);
@@ -5549,7 +5566,8 @@ export function ReleaseDrawer({
             {activeMainTab === 'relations' && (
               <RelationsTabContent 
                 ticketId={activeChange?.id} 
-                externalRelations={activeChange?.id ? ticketRelations[activeChange.id] : undefined}
+                externalRelations={activeChange?.id ? (ticketRelations[activeChange.id]?.length ? ticketRelations[activeChange.id] : DEFAULT_REL) : undefined}
+                onOpenRelation={onOpenRelation}
               />
             )}
 

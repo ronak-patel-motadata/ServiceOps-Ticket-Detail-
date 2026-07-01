@@ -93,8 +93,10 @@ import {
   getCurrentRequestChannelColor,
   getFilteredTicketFields,
   getFilteredAdditionalFormFields,
-  getFilteredAdditionalFields
+  getFilteredAdditionalFields,
+  makeCrossModuleRelations,
 } from './TicketDrawerUtils';
+const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Asset',prefix:'AST'},{type:'Contract',prefix:'CNT'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS, PURCHASE_STATUS_OPTIONS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
@@ -106,6 +108,12 @@ interface PurchaseDrawerProps {
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
   onTabChange: (assetId: string) => void;
+  onOpenRelation?: (rel: { ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => void;
+  stackTabs?: { id: string; subject?: string }[];
+  stackWidth?: number;
+  onStackWidthChange?: (w: number) => void;
+  stackMinimized?: boolean;
+  onStackMinimizedChange?: (m: boolean) => void;
 }
 
 /**
@@ -213,13 +221,21 @@ export function PurchaseDrawer({
   activeAssetId,
   onClose,
   onCloseTab,
-  onTabChange
+  onTabChange,
+  onOpenRelation,
+stackTabs,
+stackWidth,
+onStackWidthChange,
+stackMinimized,
+onStackMinimizedChange,
 }: PurchaseDrawerProps) {
   const assetList = openAssets.map(purchaseToAssetShape);
   const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
-  const [minimized, setMinimized] = useState(false);
+  const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const minimized = stackMinimized ?? minimizedLocal;
+  const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
   const activePurchase = openAssets.find(p => p.id === activeAssetId);
@@ -291,7 +307,9 @@ export function PurchaseDrawer({
 
   // Agent Information shown in place of Requester Information on the asset page.
   // Real values from the asset where available; the rest are representative samples for now.
-  const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
+  const [drawerWidth, setDrawerWidth] = useState(stackWidth ?? (typeof window !== 'undefined' ? window.innerWidth - 54 : 1546));
+  // Report full/small width changes up to the shared host so the view mode persists across tab switches/closes.
+  useEffect(() => { if (onStackWidthChange) onStackWidthChange(drawerWidth); }, [drawerWidth]);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
   const [accordionWidth, setAccordionWidth] = useState(390);
@@ -1571,7 +1589,7 @@ export function PurchaseDrawer({
   // Reset drawer width to full width only when drawer first opens (not when switching tickets)
   useEffect(() => {
     if (openTickets.length > 0 && !hasDrawerBeenInitialized) {
-      setDrawerWidth(window.innerWidth - 54);
+      setDrawerWidth(stackWidth ?? window.innerWidth - 54);
       setIsAccordionCollapsed(false);
       setAccordionWidth(390); // Reset accordion width to default
       setHasDrawerBeenInitialized(true);
@@ -1937,7 +1955,7 @@ export function PurchaseDrawer({
   }, [showAiSummaryMenu]);
 
   if (openTickets.length === 0 || !activeTicket) return null;
-  if (minimized) return <MinimizedDrawerRail items={openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
+  if (minimized) return <MinimizedDrawerRail items={stackTabs ?? openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
@@ -1964,16 +1982,16 @@ export function PurchaseDrawer({
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
         <DrawerTabStrip
-          items={openTickets}
+          items={stackTabs ?? openTickets}
           activeId={activeTicketId}
           onSelect={onTabChange}
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
-        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-2 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
           title={drawerWidth > 1080 ? "Switch to small view" : "Switch to full view"}
         >
           {drawerWidth > 1080 ? (
@@ -1991,7 +2009,7 @@ export function PurchaseDrawer({
         </button>
         <button
           onClick={onClose}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
         >
           <X size={18} className="text-[#364658]" />
         </button>
@@ -2565,7 +2583,7 @@ export function PurchaseDrawer({
                     { id: 'approvals', label: 'Approvals' },
                     { id: 'settlements', label: 'Settlements' },
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
-                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
+                    { id: 'relations', label: 'Relations', condition: true },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2971,7 +2989,7 @@ export function PurchaseDrawer({
                                   
                                   <div className="max-h-[260px] overflow-y-auto">
                                     {recs.map((r) => (
-                                      <button key={r.id} onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                                      <button key={r.id} onClick={() => onOpenRelation?.({ ticketId: r.id, subject: r.subject, type: (l === 'Incident' ? 'Request' : String(l)), status: r.status, priority: r.priority, assignedTo: { name: r.assignee } })} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
                                         <div className="flex items-center gap-2 min-w-0">
                                           <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
                                           <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -5903,7 +5921,8 @@ export function PurchaseDrawer({
             {activeMainTab === 'relations' && (
               <RelationsTabContent
                 ticketId={activeTicket?.id}
-                externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+                externalRelations={activeTicket?.id ? (ticketRelations[activeTicket.id]?.length ? ticketRelations[activeTicket.id] : DEFAULT_REL) : undefined}
+                onOpenRelation={onOpenRelation}
                 initialTypeFilter={relationsInitialFilter}
                 onClearTypeFilter={() => setRelationsInitialFilter(null)}
               />

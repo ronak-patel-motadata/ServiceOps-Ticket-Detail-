@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { ChangeToolbar } from './ChangeToolbar';
 import { ChangeTable } from './ChangeTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { ChangeDrawer } from './ChangeDrawer';
 
 export interface Change {
@@ -25,7 +26,7 @@ export interface Change {
   changeRisk: 'Low' | 'Medium' | 'High' | null;
 }
 
-const mockChanges: Change[] = [
+export const mockChanges: Change[] = [
   { id: 'CHG-993', subject: 'Firewall rule update for production DMZ',          requester: 'Sophie Laurent',   createdDate: new Date(2026,5,9,15,2),   assignee: { name: 'Unassigned',       initials: 'UN', color: '#D1D5DB' }, status: 'Submitted: Requested',       priority: 'P1',     changeType: null,        changeRisk: 'Low'  },
   { id: 'CHG-992', subject: 'Database server OS security patching',             requester: 'Sakshi Gupta',     createdDate: new Date(2026,4,27,18,56), assignee: { name: 'Mehmet Can Dut',   initials: 'MD', color: '#6366F1' }, status: 'Approval: Pending',          priority: 'Medium', changeType: null,        changeRisk: 'Low'  },
   { id: 'CHG-991', subject: 'Email server migration to new cluster',            requester: 'Sakshi Joshi',     createdDate: new Date(2026,4,27,18,3),  assignee: { name: 'Shiv Sharma',      initials: 'SH', color: '#10B981' }, status: 'Approval: Pending',          priority: 'Medium', changeType: null,        changeRisk: 'Low'  },
@@ -66,14 +67,14 @@ export function ChangeListPage({ onNavigate }: { onNavigate: (page: string) => v
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenChange = (change: Change) => {
-    const existing = openChanges.find(c => c.id === change.id);
-    if (existing) {
-      setActiveChangeId(change.id);
-    } else {
-      setOpenChanges([...openChanges, change]);
-      setActiveChangeId(change.id);
-    }
+    openInStack('change', change.id, change.subject, change);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenChange({ ...mockChanges[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockChanges.length], id: rel.ticketId, subject: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenChanges([]); setActiveChangeId(null); };
@@ -182,6 +183,7 @@ export function ChangeListPage({ onNavigate }: { onNavigate: (page: string) => v
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

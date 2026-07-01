@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { HardwareAssetsTable } from './HardwareAssetsTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { HardwareAssetDrawer } from './HardwareAssetDrawer';
 
 export type AssetType = 'Hardware' | 'Mac Laptop' | 'Windows Laptop' | 'HyperV Server' | 'UNIX Server' | 'Windows Desktop';
@@ -24,7 +25,7 @@ export interface HardwareAsset {
   serialNumber: string;
 }
 
-const mockAssets: HardwareAsset[] = [
+export const mockAssets: HardwareAsset[] = [
   { id: 'AST-001', name: 'MacBook Pro 16" — Design',                 flagged: true, assetType: 'Mac Laptop',      status: 'In Use',    hostName: 'DSGN-MAC-0041',  ipAddress: '10.20.18.41',  usedBy: { label: 'Aarav Sharma (aarav.sharma...)', more: 3 }, managedByGroup: 'End User Computing', managedBy: { name: 'Rohan Mehta',    initials: 'RM', color: '#6366F1' }, serialNumber: 'C02FJ1ABMD6T' },
   { id: 'AST-002', name: 'Dell Latitude 7440 — Finance',            flagged: true, assetType: 'Windows Laptop',  status: 'In Use',    hostName: 'FIN-LT-0188',    ipAddress: '10.20.22.188', usedBy: { label: 'Priya Nair (priya.nair...)', more: 5 }, managedByGroup: 'End User Computing', managedBy: { name: 'Tabrez Khan',    initials: 'TK', color: '#3D8BD0' }, serialNumber: '7HQ2X63' },
   { id: 'AST-003', name: 'Dell PowerEdge R750 — Virtualization Host',              assetType: 'HyperV Server',   status: 'In Use',    hostName: 'DC1-HV-01',      ipAddress: '10.20.40.11',  usedBy: { label: 'Datacenter Team', more: 25 },          managedByGroup: 'Datacenter Team',    managedBy: { name: 'Vikram Sethi',   initials: 'VS', color: '#10B981' }, serialNumber: 'JK9P2L3' },
@@ -61,11 +62,14 @@ export function HardwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenAsset = (asset: HardwareAsset) => {
-    if (!openAssets.find(a => a.id === asset.id)) {
-      setOpenAssets([...openAssets, asset]);
-    }
-    setActiveAssetId(asset.id);
+    openInStack('hardware-assets', asset.id, asset.name, asset);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenAsset({ ...mockAssets[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockAssets.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
@@ -168,6 +172,7 @@ export function HardwareAssetsListPage({ onNavigate }: { onNavigate: (page: stri
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { ContractsTable } from './ContractsTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { ContractDrawer } from './ContractDrawer';
 
 export type ContractStatus = 'Active' | 'Not Started' | 'Expired';
@@ -22,7 +23,7 @@ export interface Contract {
   cost: string | null;
 }
 
-const mockContracts: Contract[] = [
+export const mockContracts: Contract[] = [
   { id: 'CON-106', name: 'Datacenter Storage Lease', contractType: 'Lease', contractNumber: null, startDate: '01/06/2027', endDate: '01/06/2028', status: 'Not Started', vendor: 'VEN-12: Hitachi Vantara', cost: null },
   { id: 'CON-105', name: 'Datacenter Storage Lease', contractType: 'Lease', contractNumber: '342-HD', startDate: '01/06/2026', endDate: '01/07/2027', status: 'Active', vendor: 'VEN-12: Hitachi Vantara', cost: null },
   { id: 'CON-104', name: 'Core Switch AMC', contractType: 'Annual', contractNumber: '123456789', startDate: '16/05/2026', endDate: '29/07/2026', status: 'Active', vendor: 'VEN-61: Cisco Systems', cost: '500,000.00 INR' },
@@ -55,11 +56,14 @@ export function ContractsListPage({ onNavigate }: { onNavigate: (page: string) =
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenContract = (contract: Contract) => {
-    if (!openContracts.find(c => c.id === contract.id)) {
-      setOpenContracts([...openContracts, contract]);
-    }
-    setActiveContractId(contract.id);
+    openInStack('contracts', contract.id, contract.name, contract);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenContract({ ...mockContracts[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockContracts.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenContracts([]); setActiveContractId(null); };
@@ -161,6 +165,7 @@ export function ContractsListPage({ onNavigate }: { onNavigate: (page: string) =
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

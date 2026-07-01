@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { SoftwareAssetsTable } from './SoftwareAssetsTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { SoftwareAssetDrawer } from './SoftwareAssetDrawer';
 
 export type SoftwareStatus = 'In Use' | 'In Store' | 'Retired';
@@ -25,7 +26,7 @@ export interface SoftwareAsset {
 
 const U = { name: 'Unassigned' };
 
-const mockAssets: SoftwareAsset[] = [
+export const mockAssets: SoftwareAsset[] = [
   { id: 'SWAST-26945', name: 'Microsoft Edge WebView2 Runtime', assetType: 'Application', status: 'In Use', version: '149.0.4022.80', softwareType: 'Managed', managedByGroup: 'Unassigned', managedBy: U, impact: 'On Users', softwareCategory: '---' },
   { id: 'SWAST-26944', name: 'Microsoft Edge', assetType: 'Application', status: 'In Use', version: '149.0.4022.80', softwareType: 'Managed', managedByGroup: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, impact: 'On Users', softwareCategory: 'Web Browser' },
   { id: 'SWAST-26943', name: 'MicrosoftCorporationII.WinAppRuntime', assetType: 'Application', status: 'In Use', version: '2.2.0.0', softwareType: 'Managed', managedByGroup: 'Unassigned', managedBy: U, impact: 'On Users', softwareCategory: '---' },
@@ -76,11 +77,14 @@ export function SoftwareAssetsListPage({ onNavigate, initialOpenId, onInitialOpe
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenAsset = (asset: SoftwareAsset) => {
-    if (!openAssets.find(a => a.id === asset.id)) {
-      setOpenAssets([...openAssets, asset]);
-    }
-    setActiveAssetId(asset.id);
+    openInStack('software-assets', asset.id, asset.name, asset);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenAsset({ ...mockAssets[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockAssets.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
@@ -192,6 +196,7 @@ export function SoftwareAssetsListPage({ onNavigate, initialOpenId, onInitialOpe
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

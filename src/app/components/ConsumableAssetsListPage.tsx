@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { ConsumableAssetsTable } from './ConsumableAssetsTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { ConsumableAssetDrawer } from './ConsumableAssetDrawer';
 
 export interface ConsumableAsset {
@@ -23,7 +24,7 @@ export interface ConsumableAsset {
 
 const U = { name: 'Unassigned' };
 
-const mockAssets: ConsumableAsset[] = [
+export const mockAssets: ConsumableAsset[] = [
   { id: 'CON-000007033', name: 'Logitech K120 Keyboard', assetType: 'Keyboard', managedBy: U, managedByGroup: 'IT Operations', department: 'IT', location: 'India', assetGroup: 'Peripherals', tags: ['IT Stock'], createdDate: 'Wed, May 27, 2026', lastUpdatedDate: 'Wed, May 27, 2026', availableQuantity: 51 },
   { id: 'CON-000007032', name: 'Logitech M90 Wired Mouse', assetType: 'Mouse', managedBy: U, managedByGroup: 'IT Operations', department: 'IT', location: 'India', assetGroup: 'Peripherals', tags: [], createdDate: 'Tue, May 12, 2026', lastUpdatedDate: 'Fri, May 22, 2026', availableQuantity: 7 },
   { id: 'CON-000007031', name: 'Dell KB216 Multimedia Keyboard', assetType: 'Keyboard', managedBy: U, managedByGroup: 'Unassigned', department: 'Select', location: '---', assetGroup: 'Peripherals', tags: [], createdDate: 'Tue, May 12, 2026', lastUpdatedDate: 'Wed, May 13, 2026', availableQuantity: 9 },
@@ -70,11 +71,14 @@ export function ConsumableAssetsListPage({ onNavigate }: { onNavigate: (page: st
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenAsset = (asset: ConsumableAsset) => {
-    if (!openAssets.find(a => a.id === asset.id)) {
-      setOpenAssets([...openAssets, asset]);
-    }
-    setActiveAssetId(asset.id);
+    openInStack('consumable-assets', asset.id, asset.name, asset);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenAsset({ ...mockAssets[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockAssets.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenAssets([]); setActiveAssetId(null); };
@@ -182,6 +186,7 @@ export function ConsumableAssetsListPage({ onNavigate }: { onNavigate: (page: st
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

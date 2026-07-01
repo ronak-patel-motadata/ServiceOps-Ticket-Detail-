@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { AssetsToolbar } from './AssetsToolbar';
 import { PurchasesTable } from './PurchasesTable';
 import { Pagination } from './Pagination';
+import { useDrawerStack } from './DrawerStack';
 import { PurchaseDrawer } from './PurchaseDrawer';
 
 export type PurchaseStatus =
@@ -28,7 +29,7 @@ export interface Purchase {
   requiredBy: string;
 }
 
-const mockPurchases: Purchase[] = [
+export const mockPurchases: Purchase[] = [
   { id: 'PO-2606-132', name: 'Datacenter SSD Storage Expansion', orderNumber: null, status: 'Approved', owner: null, vendor: 'VCAT-12: Hitachi Vantara', requiredBy: '24/06/2026' },
   { id: 'PO-2606-131', name: 'Conference Room AV Equipment', orderNumber: null, status: 'Partially Received', owner: null, vendor: 'VCAT-25: HP Inc.', requiredBy: '30/06/2026' },
   { id: 'PO-2605-129', name: 'Network Cabling & Patch Panels', orderNumber: 'NWK-2026-44', status: 'Partially Received', owner: null, vendor: 'VCAT-61: Cisco Systems', requiredBy: '30/05/2026' },
@@ -69,11 +70,14 @@ export function PurchasesListPage({ onNavigate }: { onNavigate: (page: string) =
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
+  const { open: openInStack } = useDrawerStack();
+
   const handleOpenPurchase = (purchase: Purchase) => {
-    if (!openPurchases.find(p => p.id === purchase.id)) {
-      setOpenPurchases([...openPurchases, purchase]);
-    }
-    setActivePurchaseId(purchase.id);
+    openInStack('purchases', purchase.id, purchase.name, purchase);
+  };
+
+  const handleOpenRelation = (rel: { ticketId: string; subject: string }) => {
+    handleOpenPurchase({ ...mockPurchases[Math.abs([...rel.ticketId].reduce((a, c) => a + c.charCodeAt(0), 0)) % mockPurchases.length], id: rel.ticketId, name: rel.subject });
   };
 
   const handleCloseDrawer = () => { setOpenPurchases([]); setActivePurchaseId(null); };
@@ -175,6 +179,7 @@ export function PurchasesListPage({ onNavigate }: { onNavigate: (page: string) =
         onClose={handleCloseDrawer}
         onCloseTab={handleCloseTab}
         onTabChange={handleTabChange}
+        onOpenRelation={handleOpenRelation}
       />
     </div>
   );

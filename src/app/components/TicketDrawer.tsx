@@ -94,12 +94,29 @@ import {
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
+/** Default seeded relations (4 of each module type) so the Relations tab is populated and cross-module items can be opened as tabs. */
+const DEFAULT_TICKET_RELATIONS = (() => {
+  const subs = ['VPN connection timeout', 'Email delivery issues', 'Application access request', 'Network connectivity problem', 'Software license renewal', 'Hardware replacement needed', 'Security patch installation', 'User account creation'];
+  const st = ['Open', 'In Progress', 'Pending', 'Resolved'];
+  const pr = ['High', 'Medium', 'Urgent', 'Low'];
+  const names = ['John Doe', 'Neha Raje', 'Rohan Mehta', 'Priya Nair'];
+  const mk = (type: string, prefix: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `def-${type}-${i}`, type, ticketId: `${prefix}-${1001 + i}`, subject: subs[i % subs.length], status: st[i % st.length], assignedTo: { name: names[i % names.length] }, priority: pr[i % pr.length] }));
+  return [...mk('Problem', 'PRB', 4), ...mk('Change', 'CHG', 4), ...mk('Release', 'REL', 4), ...mk('Asset', 'AST', 4)];
+})();
+
 interface TicketDrawerProps {
   openTickets: Ticket[];
   activeTicketId: string | null;
   onClose: () => void;
   onCloseTab: (ticketId: string) => void;
   onTabChange: (ticketId: string) => void;
+  /** Open a clicked relation as a new tab in this drawer. */
+  onOpenRelation?: (rel: { ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => void;
+  stackTabs?: { id: string; subject?: string }[];
+  stackWidth?: number;
+  onStackWidthChange?: (w: number) => void;
+  stackMinimized?: boolean;
+  onStackMinimizedChange?: (m: boolean) => void;
 }
 
 export function TicketDrawer({
@@ -107,12 +124,22 @@ export function TicketDrawer({
   activeTicketId,
   onClose,
   onCloseTab,
-  onTabChange
+  onTabChange,
+  onOpenRelation,
+stackTabs,
+stackWidth,
+onStackWidthChange,
+stackMinimized,
+onStackMinimizedChange,
 }: TicketDrawerProps) {
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
-  const [minimized, setMinimized] = useState(false);
+  const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const minimized = stackMinimized ?? minimizedLocal;
+  const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
-  const [drawerWidth, setDrawerWidth] = useState(typeof window !== 'undefined' ? window.innerWidth - 54 : 1546);
+  const [drawerWidth, setDrawerWidth] = useState(stackWidth ?? (typeof window !== 'undefined' ? window.innerWidth - 54 : 1546));
+  // Report full/small width changes up to the shared host so the view mode persists across tab switches/closes.
+  useEffect(() => { if (onStackWidthChange) onStackWidthChange(drawerWidth); }, [drawerWidth]);
   const [isResizing, setIsResizing] = useState(false);
   const [isAccordionCollapsed, setIsAccordionCollapsed] = useState(false);
   const [accordionWidth, setAccordionWidth] = useState(390);
@@ -1402,7 +1429,7 @@ export function TicketDrawer({
   // Reset drawer width to full width only when drawer first opens (not when switching tickets)
   useEffect(() => {
     if (openTickets.length > 0 && !hasDrawerBeenInitialized) {
-      setDrawerWidth(window.innerWidth - 54);
+      setDrawerWidth(stackWidth ?? window.innerWidth - 54);
       setIsAccordionCollapsed(false);
       setAccordionWidth(390); // Reset accordion width to default
       setHasDrawerBeenInitialized(true);
@@ -1768,7 +1795,7 @@ export function TicketDrawer({
   }, [showAiSummaryMenu]);
 
   if (openTickets.length === 0 || !activeTicket) return null;
-  if (minimized) return <MinimizedDrawerRail items={openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
+  if (minimized) return <MinimizedDrawerRail items={stackTabs ?? openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
@@ -1795,16 +1822,16 @@ export function TicketDrawer({
       {/* Tabs Header */}
       <div className="flex items-center bg-[#f9fafb] border-b border-[#e5e7eb]">
         <DrawerTabStrip
-          items={openTickets}
+          items={stackTabs ?? openTickets}
           activeId={activeTicketId}
           onSelect={onTabChange}
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
-        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-3 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
+        <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-2 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
           title={drawerWidth > 1080 ? "Switch to small view" : "Switch to full view"}
         >
           {drawerWidth > 1080 ? (
@@ -1822,7 +1849,7 @@ export function TicketDrawer({
         </button>
         <button
           onClick={onClose}
-          className="p-3 hover:bg-[#e5e7eb]"
+          className="p-2 hover:bg-[#e5e7eb]"
         >
           <X size={18} className="text-[#364658]" />
         </button>
@@ -2843,7 +2870,7 @@ export function TicketDrawer({
                     { id: 'conversation', label: 'Conversation' },
                     { id: 'tasks', label: 'Tasks' },
                     { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
-                    { id: 'relations', label: 'Relations', condition: (ticketRelations[activeTicket?.id || '']?.length || 0) > 0 },
+                    { id: 'relations', label: 'Relations', condition: activeTicket?.id === 'INC-32' ? (ticketRelations['INC-32']?.length || 0) > 0 : true },
                     { id: 'audit', label: 'Audit Trails' },
                     { id: 'resolution', label: 'Resolution' },
                   ].filter(tab => tab.condition !== false);
@@ -4624,9 +4651,10 @@ export function TicketDrawer({
 
             {/* Relations Tab Content */}
             {activeMainTab === 'relations' && (
-              <RelationsTabContent 
-                ticketId={activeTicket?.id} 
-                externalRelations={activeTicket?.id ? ticketRelations[activeTicket.id] : undefined}
+              <RelationsTabContent
+                ticketId={activeTicket?.id}
+                externalRelations={activeTicket?.id ? (ticketRelations[activeTicket.id]?.length ? ticketRelations[activeTicket.id] : (activeTicket.id === 'INC-32' ? undefined : DEFAULT_TICKET_RELATIONS)) : undefined}
+                onOpenRelation={onOpenRelation}
               />
             )}
 

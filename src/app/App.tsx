@@ -11,6 +11,7 @@ import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage'
 import { ContractsListPage } from './components/ContractsListPage';
 import { PurchasesListPage } from './components/PurchasesListPage';
 import { CmdbListPage } from './components/CmdbListPage';
+import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
 type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb';
@@ -24,7 +25,7 @@ export default function App() {
   const openSoftwareAsset = (id: string) => { setPendingSoftwareAssetId(id); setActivePage('software-assets'); };
 
   return (
-    <>
+    <DrawerStackProvider activePage={activePage}>
       {activePage === 'request' && <TicketListPage onNavigate={navigate} />}
       {activePage === 'problem' && <ProblemListPage onNavigate={navigate} />}
       {activePage === 'change' && <ChangeListPage onNavigate={navigate} />}
@@ -38,6 +39,6 @@ export default function App() {
       {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
       <Toaster position="top-right" />
-    </>
+    </DrawerStackProvider>
   );
 }

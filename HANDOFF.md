@@ -1,35 +1,34 @@
-# Handoff — 2026-07-01 01:37
+# Handoff — 2026-07-02 00:53
 
 ## Read first
-Focus on the **"Two-line header KPI row"** and **"Drawer minimize + open-item tabs"** bullets under `CLAUDE.md` → Key context — both were updated this session and cover the bulk of the work. Everything is mock/in-component as usual.
+Focus on the two Key-context bullets in `CLAUDE.md`: **"Cross-module drawer host (`DrawerStack.tsx`)"** (new this session) and **"Drawer minimize + open-item tabs"** (updated). Together they explain how one drawer now hosts items from every module and how the view/minimize state is shared. Everything is mock/in-component as usual.
 
 ## What we worked on this session
-Finished the per-module **header KPI rows** for the three procurement detail pages (Software License, Contract, Purchase), then reworked the **drawer window controls** to a grouped, Windows-style layout (minimize · maximize/restore · close) and polished the minimized rail.
+Finished and hardened the **cross-module drawer** experience: clicking a related item (Relations tab OR the "Open related records" Impact popup) now opens the *real* other-module detail page as a tab in the same drawer. Then fixed three UX follow-ups: view-mode persistence on tab close, auto-minimize when navigating to another module's list, and a shorter tab bar.
 
 ## Completed
-- **Consumable header fix** (`ConsumableAssetDrawer.tsx`): header Stock/Available now read the SAME hardcoded `totalQty=60`/`allocatedQty=54` as the Overview cards (was pulling empty `availableQuantity` → showed 0/Out-of-Stock while Overview showed 6/Low-Stock).
-- **Software License header** (`SoftwareLicenseDrawer.tsx`): `Created · Compliance · Utilization · Available · License Expiry · License Type`, all derived from real license fields. License Expiry shows **only when ≤30 days / Expired**. Also made the Overview **Utilization card** data-driven so it agrees with the header (was hardcoded "Over-utilized").
-- **Contract header** (`ContractDrawer.tsx`): `Created · Status · Expires · Vendor · Cost · Type`. Expires shows **only when near**; the Overview "Contract Expires" card + its AI "Renew contract" answer were made data-driven from real `endDate` to match.
-- **Purchase header** (`PurchaseDrawer.tsx`): `Created · Status · Required By · Outstanding · Total Payable · Vendor`. Required By **always shown**, color-coded (Overdue red / ≤14d amber). Imported `PURCHASE_STATUS_OPTIONS` for the status dot.
-- **Near-expiry demo data**: set several mock dates within ~30 days of today — Licenses LIC-65/75/63/86/81/62 (8–30 days) in `SoftwareLicensesListPage.tsx`; Contracts CON-74/78/97/104 (8–28 days) in `ContractsListPage.tsx`.
-- **Drawer window controls (all 12 drawers)**: moved the minimize button from top-left into a **right-side group**: minimize · maximize/restore · close. Swapped to **Windows-style icons** — minimize `—`, maximize (single square) when small / restore (overlapping squares) when full, close `X`. Each was a 12-file × 2-edit sweep against identical anchors.
-- **Minimized rail polish** (`MinimizedDrawerRail.tsx`): ID chips now top-aligned (`justify-start`), highlight inset with an 8px gutter (`w-[calc(100%-8px)] mx-auto`), and `rounded-sm` corners.
-- All verified: `npm run build` passes each time; headless puppeteer screenshots confirmed LIC-86 (23 days), CON-104 (Expires 28 days, matches Overview), PO-2606-131 (Required By Overdue, Outstanding/Total match Overview), and the new right-side Windows controls.
+- **Impact-popup → same drawer** (`HardwareAssetDrawer`, `SoftwareAssetDrawer`, `NonItAssetDrawer`, `PurchaseDrawer`, `ContractDrawer`, `CmdbDrawer`): the "Open related records" popup record rows now call `onOpenRelation(...)` (Incident→Request mapping) so they open the real detail page as a tab, matching the Relations tab. Verified AST-001 → INC-32 opens as a tab.
+- **Small/full view persists across tab close** (`DrawerStack.tsx` + all 12 drawers): lifted `drawerWidth` intent to the host via **`stackWidth`/`onStackWidthChange`**. Each drawer inits `drawerWidth` from `stackWidth` (falls back to full on first open), uses it in the first-open reset, and reports every toggle back. Closing a tab that swaps in a different-module drawer no longer resets to full. Verified: open INC-31 + PBM-1001 → small view → close active → stayed 1080.
+- **Auto-minimize on navigation** (`DrawerStack.tsx` + `App.tsx` + all 12 drawers): the provider now takes `activePage`; an effect minimizes the open drawer whenever you switch to another module's list page (list shows behind the slim rail). Lifted `minimized` to the host via **`stackMinimized`/`onStackMinimizedChange`** (drawer's local `minimized` defers to host). `open()` clears minimized so clicking any item restores. Verified: open ticket → click Problem nav (drawer minimizes, "All Open Problems" visible) → click PBM-627 (restores, tabs `["INC-31","PBM-627"]`).
+- **Shorter drawer tab bar**: tabs `py-3`→`py-2` in `DrawerTabStrip.tsx` (incl. the "More (N)" button); window-control buttons `p-3`→`p-2` in all 12 drawers. Bar is now ~36px (was ~42px). Verified by screenshot — still comfortable and balanced.
+- All verified: `npm run build` passes each time; headless puppeteer probes confirmed each flow.
 
 ## In progress
-Nothing mid-flight. The header-KPI series is now complete across **all** modules (Ticket, Problem, Change, Release, Hardware, Software, Non-IT, Consumable, Software License, Contract, Purchase).
+Nothing mid-flight. The cross-module drawer host is complete and all three follow-up fixes are in and verified.
 
 ## Next steps
-- **Push the batch live** — a large unpushed batch has accumulated (this session's procurement headers + Windows drawer controls + rail polish, plus prior unpushed work: multi-task Work Tracker, all earlier header KPIs, email Notifications, Description tooltip, Change/Release section swap). Run `/publish` when ready.
-- Optional: if perpetual "near-expiry" demos are wanted, anchor the day-count math to a fixed reference date instead of `new Date()` (see gotcha).
+- **Push the batch live** — this is a LARGE unpushed batch: the whole `DrawerStack` cross-module refactor, Impact-popup wiring, `stackWidth`/`stackMinimized` lifted state, minimize-on-navigate, and the tab-bar height trim. The last `/publish` predates ALL of it. Run `/publish` when ready.
+- Optional: anchor near-expiry day-count math to a fixed date if a permanent demo is wanted (carried over from last session).
 
 ## Decisions made
-- **Header chips should not blindly duplicate Overview cards** — they're a glanceable status/risk summary; where a value also appears below (e.g. Contract Expires, Purchase Outstanding) we made the Overview card data-driven so the two can't drift.
-- **Expiry visibility differs by module on purpose**: License & Contract hide the expiry chip unless near (cleaner header); Purchase always shows Required By (a delivery deadline is central to a PO).
-- **Windows-style window controls**: chosen because our three actions map 1:1 onto minimize / maximize↔restore / close, so the familiar glyphs read instantly.
+- **Full DrawerStack refactor over a cheaper swap** — the user explicitly wanted the actual other-module detail page (not just id/subject swapped), so a single context host that renders the matching module's real drawer was the only faithful option.
+- **Lift view + minimize state to the host, not per-drawer** — because closing a tab or navigating can swap in a *different* module's drawer component (a remount), per-instance state resets. Host-owned `stackWidth`/`stackMinimized` survive the swap.
+- **`REL_MAP` pools are lazy getters** — list pages import `DrawerStack` and vice-versa; eager pool refs threw "Cannot access X before initialization". Access the pool at call time.
+- **Tab bar to ~36px** — `py-2`/`p-2` keeps 32–36px click targets (standard desktop toolbar size) while returning ~6px to content.
 
 ## Gotchas & notes
-- **Day-counts use real `new Date()`** — the demo near-expiry chips shrink as days pass and eventually disappear/expire. Fine for a near-term demo; anchor to a fixed date for a permanent one.
-- Edits to the 12 drawers rely on **byte-identical anchors** (minimize button line, `toggleDrawerView` block, `<DrawerTabStrip`). They were verified identical before each sweep — re-verify with grep before any future bulk edit.
-- Don't round-trip these files through PowerShell `Get-Content`/`Set-Content` — it corrupts the UTF-8 em-dashes (—) in asset names. Use the editor tools.
-- Verify with `npm run build` (no standalone typecheck). Dev server runs on `http://localhost:5173/`; headless probes live in the session scratchpad.
+- **The long-running dev server on :5173 can go stale** after many edits (Vite HMR + the `DrawerStack`↔list-page circular imports). Symptom this session: clicking a list row stopped opening any drawer, with NO console/page error, while a fresh `npm run dev` worked fine. Fix = restart the dev server (killed the stale PID and relaunched on :5173). If detail pages "stop opening," restart before debugging code.
+- **12-drawer sweeps rely on byte-identical anchors** (`stackTabs` interface line + destructure, `drawerWidth` init, `!hasDrawerBeenInitialized` first-open block, `const [minimized, setMinimized] = useState(false)`, `p-3 hover:bg-[#e5e7eb]`). All were grep-verified as 1×/3× per file before each node sweep — re-verify counts before any future bulk edit.
+- Problem list IDs are **`PBM-###`** (not `PRB-`); ID chips across list tables share `bg-[#e8f4fd]` — handy for headless selectors.
+- Don't round-trip files through PowerShell `Get-Content`/`Set-Content` — it corrupts the UTF-8 em-dashes (—) in asset names. Use the editor tools / node.
+- Verify with `npm run build` (no standalone typecheck). Headless puppeteer probes live in the session scratchpad; `element.click()` bypasses the first-run onboarding overlay.
