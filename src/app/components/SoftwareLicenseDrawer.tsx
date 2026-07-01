@@ -25,6 +25,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
@@ -1980,7 +1981,7 @@ export function SoftwareLicenseDrawer({
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate">
               {activeTicket.subject}
             </h1>
@@ -2015,53 +2016,50 @@ export function SoftwareLicenseDrawer({
                 if (days <= 30) return { show: true, label: `${days} days`, color: '#D97706' };
                 return { show: false };
               })();
-              const sep = <span className="h-3 w-px bg-[#E5E7EB]" />;
-              return (
-                <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                    <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025</span>
-                  </span>
-                  {sep}
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: compliance.color }} />
-                    <span className="text-[11px] text-[#7B8FA5]">Compliance</span>
-                    <span className="text-[12px] font-medium" style={{ color: compliance.color }}>{compliance.label}</span>
-                  </span>
-                  {sep}
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Utilization</span>
-                    <span className="text-[12px] font-medium text-[#364658]">{utilPct != null ? `${utilPct}%` : '—'}</span>
-                  </span>
-                  {sep}
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Available</span>
-                    <span className="text-[12px] font-medium" style={{ color: available === 0 ? '#DC2626' : '#364658' }}>{available != null ? available : '—'}</span>
-                  </span>
-                  {expiry.show && (
-                    <>
-                      {sep}
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiry.color }} />
-                        <span className="text-[11px] text-[#7B8FA5]">License Expiry</span>
-                        <span className="text-[12px] font-medium" style={{ color: expiry.color }}>{expiry.label}</span>
-                      </span>
-                    </>
-                  )}
-                  {activeLicense?.licenseType && (
-                    <>
-                      {sep}
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">License Type</span>
-                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{activeLicense.licenseType}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              );
+              const items: HeaderKpiItem[] = [];
+              if (activeLicense?.product) items.push({ key: 'product', tip: `Product: ${activeLicense.product}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Product</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[180px]">{activeLicense.product}</span>
+                </span>
+              ) });
+              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
+                </span>
+              ) });
+              if (activeLicense?.licenseType) items.push({ key: 'lictype', tip: `License Type: ${activeLicense.licenseType}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">License Type</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{activeLicense.licenseType}</span>
+                </span>
+              ) });
+              items.push({ key: 'util', tip: `Utilization: ${utilPct != null ? `${utilPct}%` : '—'}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Utilization</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{utilPct != null ? `${utilPct}%` : '—'}</span>
+                </span>
+              ) });
+              if (expiry.show) items.push({ key: 'expiry', tip: `License Expiry: ${expiry.label}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiry.color }} />
+                  <span className="text-[11px] text-[#7B8FA5]">License Expiry</span>
+                  <span className="text-[12px] font-medium" style={{ color: expiry.color }}>{expiry.label}</span>
+                </span>
+              ) });
+              return <HeaderKpiRow items={items} />;
             })()}
           </div>
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">

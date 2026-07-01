@@ -28,6 +28,8 @@ interface TicketPropertiesPanelProps {
   assetState?: AssetFieldState;
   // Software-asset variant of the asset field set (Software Type, no CI/View more)
   softwareMode?: boolean;
+  // Non-IT variant: like softwareMode but without the Software Type field
+  nonItMode?: boolean;
   // Software-license variant of the asset field set (Product + License Type only)
   licenseMode?: boolean;
   // Contract variant of the asset field set (contract number/dates/cost/type/vendor)
@@ -324,6 +326,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     demoCustomFields = false,
     assetMode = false,
     softwareMode = false,
+    nonItMode = false,
     licenseMode = false,
     contractMode = false,
     purchaseMode = false,
@@ -1607,6 +1610,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           statusGroupLabel={statusGroupLabel}
           assetMode={assetMode}
           softwareMode={softwareMode}
+          nonItMode={nonItMode}
           licenseMode={licenseMode}
           contractMode={contractMode}
           purchaseMode={purchaseMode}

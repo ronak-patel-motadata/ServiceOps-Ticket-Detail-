@@ -742,6 +742,7 @@ export function CmdbDrawer({
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
   const [propertiesRelationType, setPropertiesRelationType] = useState('');
   const [relationMode, setRelationMode] = useState<'existing' | 'create'>('existing');
+  const [showRelationModeMenu, setShowRelationModeMenu] = useState(false);
   const [relationCreateSubject, setRelationCreateSubject] = useState('');
   const [relationCreateDesc, setRelationCreateDesc] = useState('');
   const handleCreateRelation = () => {
@@ -2094,6 +2095,14 @@ export function CmdbDrawer({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
                   <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
                 </button>
               </TooltipTrigger>
@@ -2273,24 +2282,37 @@ export function CmdbDrawer({
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <button
-                onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
-                className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
-              >
-                Add Relation
-              </button>
+              <div className="inline-flex items-stretch">
+                <button
+                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
+                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                >
+                  Add Relation
+                </button>
+                <button
+                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
+                  title="Relation options"
+                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown size={14} className="text-[#6b7280]" />
+                </button>
+              </div>
+              {showRelationModeMenu && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
+                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
+                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
+                  </div>
+                </>
+              )}
               
               {showPropertiesRelationDropdown && (
                 <div
                   className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
                   ref={propertiesRelationDropdownRef}
                 >
-                  <div className="px-2 pt-1.5 pb-2 border-b border-[#F0F2F5]">
-                    <div className="flex w-full items-center gap-0.5 rounded-md border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
-                      <button onClick={() => setRelationMode('existing')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'existing' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Link Existing</button>
-                      <button onClick={() => setRelationMode('create')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'create' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Create New</button>
-                    </div>
-                  </div>
+                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
                   {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
                     <button
                       key={type}

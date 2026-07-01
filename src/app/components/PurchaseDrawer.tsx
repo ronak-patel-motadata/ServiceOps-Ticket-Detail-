@@ -26,6 +26,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
@@ -231,6 +232,7 @@ export function PurchaseDrawer({
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
   const [softwareType, setSoftwareType] = useState('Managed');
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
+    'Cost Center': 'Procurement',
     'Asset Group': 'Anblicks Group',
     'Product': '',
     'Used By': '',
@@ -666,6 +668,7 @@ export function PurchaseDrawer({
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
   const [propertiesRelationType, setPropertiesRelationType] = useState('');
   const [relationMode, setRelationMode] = useState<'existing' | 'create'>('existing');
+  const [showRelationModeMenu, setShowRelationModeMenu] = useState(false);
   const [relationCreateSubject, setRelationCreateSubject] = useState('');
   const [relationCreateDesc, setRelationCreateDesc] = useState('');
   const handleCreateRelation = () => {
@@ -1998,11 +2001,11 @@ export function PurchaseDrawer({
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate">
               {activeTicket.subject}
             </h1>
-            {/* Purchase KPIs — Created · Status · Required By · Outstanding · Total Payable · Vendor */}
+            {/* Purchase KPIs — Created · Status · Total Cost · Cost Center · Vendor · Owner · Approvals */}
             {(() => {
               const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               const s = activePurchase?.status;
@@ -2026,57 +2029,108 @@ export function PurchaseDrawer({
                 return { label, color: '#364658' };
               })();
               const vendorName = activePurchase?.vendor ? activePurchase.vendor.replace(/^VCAT-\d+:\s*/, '') : null;
-              const sep = <span className="h-3 w-px bg-[#E5E7EB]" />;
-              return (
-                <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                    <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025</span>
-                  </span>
-                  {s && (
-                    <>
-                      {sep}
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-                        <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                        <span className="text-[12px] font-medium" style={{ color: statusColor }}>{s}</span>
+              // Creator — who raised this purchase order (shown in the Created hover tooltip).
+              const creator = { name: 'Neha Raje', initials: 'NR', color: '#EC4899' };
+              const costCenter = assetExtra['Cost Center'] || '';
+              const ownerName = activePurchase?.owner || null;
+              const ownerInitials = ownerName ? ownerName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : '';
+              const kpis: HeaderKpiItem[] = [];
+              kpis.push({
+                key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM',
+                node: (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1.5 cursor-default">
+                        <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                        <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
                       </span>
-                    </>
-                  )}
-                  {req && (
-                    <>
-                      {sep}
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: req.color }} />
-                        <span className="text-[11px] text-[#7B8FA5]">Required By</span>
-                        <span className="text-[12px] font-medium" style={{ color: req.color }}>{req.label}</span>
-                      </span>
-                    </>
-                  )}
-                  {sep}
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <div className="flex items-center gap-2">
+                        <span className="size-6 rounded flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: creator.color }}>{creator.initials}</span>
+                        <div className="leading-tight">
+                          <div className="text-[10px] text-white/60">Created by</div>
+                          <div className="text-[12px] font-medium text-white">{creator.name}</div>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ),
+              });
+              if (s) kpis.push({
+                key: 'status', tip: `Status: ${s}`,
+                node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Outstanding</span>
-                    <span className="text-[12px] font-medium" style={{ color: settled ? '#22A06B' : '#D97706' }}>{settled ? 'Settled' : `${money(outstanding)} INR`}</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+                    <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                    <span className="text-[12px] font-medium" style={{ color: statusColor }}>{s}</span>
                   </span>
-                  {sep}
+                ),
+              });
+              kpis.push({
+                key: 'total', tip: `Total Cost: ${money(totalCost)} INR`,
+                node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Total Payable</span>
+                    <span className="text-[11px] text-[#7B8FA5]">Total Cost</span>
                     <span className="text-[12px] font-medium text-[#364658]">{money(totalCost)} INR</span>
                   </span>
-                  {vendorName && (
-                    <>
-                      {sep}
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Vendor</span>
-                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{vendorName}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              );
+                ),
+              });
+              if (costCenter) kpis.push({
+                key: 'cc', tip: `Cost Center: ${costCenter}`,
+                node: (
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Cost Center</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{costCenter}</span>
+                  </span>
+                ),
+              });
+              if (vendorName) kpis.push({
+                key: 'vendor', tip: `Vendor: ${vendorName}`,
+                node: (
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Vendor</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{vendorName}</span>
+                  </span>
+                ),
+              });
+              kpis.push({
+                key: 'owner', tip: `Owner: ${ownerName || 'Unassigned'}`,
+                node: ownerName ? (
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
+                    <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: '#6366F1' }}>{ownerInitials}</span>
+                    <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Owner</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{ownerName}</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Owner</span>
+                    <span className="text-[12px] font-medium text-[#9CA3AF]">Unassigned</span>
+                  </span>
+                ),
+              });
+              if (approvalsCount > 0) kpis.push({
+                key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`,
+                node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
+                    <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
+                    <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
+                  </span>
+                ),
+              });
+              return <HeaderKpiRow items={kpis} />;
             })()}
           </div>
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">
@@ -2151,24 +2205,37 @@ export function PurchaseDrawer({
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <button
-                onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
-                className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
-              >
-                Add Relation
-              </button>
+              <div className="inline-flex items-stretch">
+                <button
+                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
+                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                >
+                  Add Relation
+                </button>
+                <button
+                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
+                  title="Relation options"
+                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown size={14} className="text-[#6b7280]" />
+                </button>
+              </div>
+              {showRelationModeMenu && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
+                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
+                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
+                  </div>
+                </>
+              )}
               
               {showPropertiesRelationDropdown && (
                 <div
                   className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
                   ref={propertiesRelationDropdownRef}
                 >
-                  <div className="px-2 pt-1.5 pb-2 border-b border-[#F0F2F5]">
-                    <div className="flex w-full items-center gap-0.5 rounded-md border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
-                      <button onClick={() => setRelationMode('existing')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'existing' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Link Existing</button>
-                      <button onClick={() => setRelationMode('create')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'create' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Create New</button>
-                    </div>
-                  </div>
+                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
                   {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
                     <button
                       key={type}
@@ -2858,7 +2925,7 @@ export function PurchaseDrawer({
                   const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
                   return [
                     { label: 'Purchased Items', value: String(itemsCount), sub: 'Items in this order', color: '#3D8BD0', icon: ShoppingCart },
-                    { label: 'Total Payable', value: money(totalCost), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
+                    { label: 'Total Cost', value: money(totalCost), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
                     { label: 'Invoiced', value: money(invoicedCost), unit: 'INR', sub: `${PURCHASE_INVOICES.length} invoices billed`, color: '#8B5CF6', icon: ReceiptText },
                     { label: 'Paid', value: money(paidCost), unit: 'INR', sub: `${PURCHASE_PAYMENTS.length} payments made`, color: '#22A06B', icon: CheckCircle },
                     { label: 'Outstanding', value: money(Math.abs(remaining)), unit: 'INR', sub: isExtra ? 'Overpaid' : 'Yet to pay', color: isExtra ? '#8B5CF6' : '#D97706', icon: Clock },
@@ -3113,7 +3180,7 @@ export function PurchaseDrawer({
               const paidTotal = PURCHASE_PAID_TOTAL;
               const outstanding = totalPayable - paidTotal;
               const settlementKpis = [
-                { label: 'Total Payable', value: money(totalPayable), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
+                { label: 'Total Cost', value: money(totalPayable), unit: 'INR', sub: 'Order total', color: '#3D8BD0', icon: CircleDollarSign },
                 { label: 'Invoiced', value: money(invoicedTotal), unit: 'INR', sub: `${invoices.length} invoices billed`, color: '#8B5CF6', icon: ReceiptText },
                 { label: 'Paid', value: money(paidTotal), unit: 'INR', sub: `${payments.length} payments made`, color: '#22A06B', icon: CheckCircle },
                 { label: 'Outstanding', value: money(outstanding), unit: 'INR', sub: outstanding > 0 ? 'Yet to pay' : 'Fully settled', color: outstanding > 0 ? '#D97706' : '#22A06B', icon: Clock },

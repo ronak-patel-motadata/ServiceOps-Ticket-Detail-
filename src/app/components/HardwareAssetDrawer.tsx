@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users } from 'lucide-react';
 import { useState, useRef, useEffect, type ComponentType } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
@@ -24,6 +24,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
@@ -722,6 +723,7 @@ export function HardwareAssetDrawer({
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
   const [propertiesRelationType, setPropertiesRelationType] = useState('');
   const [relationMode, setRelationMode] = useState<'existing' | 'create'>('existing');
+  const [showRelationModeMenu, setShowRelationModeMenu] = useState(false);
   const [relationCreateSubject, setRelationCreateSubject] = useState('');
   const [relationCreateDesc, setRelationCreateDesc] = useState('');
   const handleCreateRelation = () => {
@@ -2058,7 +2060,7 @@ export function HardwareAssetDrawer({
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -2068,48 +2070,125 @@ export function HardwareAssetDrawer({
               </Tooltip>
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Main asset KPIs — Created · Status · Used By · Warranty · Impact · Managed By */}
-            <div className="mt-1 pl-[18px] flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
-                <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5 min-w-0">
-                <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Used By</span>
-                <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">
-                  {activeAsset?.usedBy ? `${activeAsset.usedBy.label.replace(/\s*\(.*\)\s*$/, '')}${activeAsset.usedBy.more ? ` +${activeAsset.usedBy.more}` : ''}` : 'Unassigned'}
+            {/* Main asset KPIs — Asset Type · Created · Status · Used By · Impact · Managed By · CI · Approvals */}
+            {(() => {
+              const items: HeaderKpiItem[] = [];
+              if (activeAsset?.assetType) items.push({ key: 'type', tip: `Asset Type: ${activeAsset.assetType}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Asset Type</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{activeAsset.assetType}</span>
                 </span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
-                <span className="text-[11px] text-[#7B8FA5]">Warranty</span>
-                <span className="text-[12px] font-medium text-[#D97706]">23 days</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
-                <span className="text-[11px] text-[#7B8FA5]">Impact</span>
-                <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5 min-w-0">
-                <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset?.managedBy.color || '#6366F1' }}>
-                  {activeAsset?.managedBy.initials || (activeAsset?.managedBy.name || '').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+              ) });
+              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
                 </span>
-                <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
-                <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeAsset?.managedBy.name || '—'}</span>
-              </span>
-            </div>
+              ) });
+              items.push({ key: 'status', tip: `Status: ${activeAsset?.status || '—'}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
+                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
+                </span>
+              ) });
+              // Used By — single name, or "primary +N" with everyone on hover.
+              {
+                const ub = activeAsset?.usedBy;
+                let node: React.ReactNode; let tip: string;
+                if (!ub) {
+                  tip = 'Used By: Unassigned';
+                  node = (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#7B8FA5]">Used By</span>
+                      <span className="text-[12px] font-medium text-[#9CA3AF]">Unassigned</span>
+                    </span>
+                  );
+                } else {
+                  const primary = ub.label.replace(/\s*\(.*\)\s*$/, '');
+                  const total = 1 + (ub.more ?? 0);
+                  if (total <= 1) {
+                    tip = `Used By: ${primary}`;
+                    node = (
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Used By</span>
+                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{primary}</span>
+                      </span>
+                    );
+                  } else {
+                    const more = ub.more ?? 0;
+                    const POOL = ['Rahul Verma', 'Sneha Iyer', 'Arjun Mehta', 'Kavya Reddy', 'Aarav Sharma', 'Diya Kapoor', 'Karan Malhotra', 'Ananya Iyer', 'Rohan Mehta', 'Neha Raje', 'Vikram Sethi', 'Imran Qureshi'];
+                    const isGroup = /team|desk|group|ops|operations/i.test(primary);
+                    const CAP = 8;
+                    const members: string[] = [];
+                    if (!isGroup) members.push(primary);
+                    let pi = 0;
+                    while (members.length < Math.min(total, CAP)) { members.push(POOL[pi % POOL.length]); pi++; }
+                    const extra = total - members.length;
+                    tip = `Used By: ${primary} +${more}`;
+                    node = (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1.5 cursor-default min-w-0">
+                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Used By</span>
+                            <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{primary}</span>
+                            <span className="text-[11px] font-semibold text-[#3D8BD0] bg-[#3D8BD0]/10 rounded px-1 py-px flex-shrink-0">+{more}</span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[240px]">
+                          {isGroup && <div className="text-[11px] font-semibold mb-1">{primary}</div>}
+                          {members.map((n) => (
+                            <div key={n} className="text-[11px] leading-5">{n}</div>
+                          ))}
+                          {extra > 0 && <div className="text-[11px] text-[#9CA3AF] mt-0.5">+{extra} more</div>}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+                }
+                items.push({ key: 'usedby', tip, node });
+              }
+              items.push({ key: 'impact', tip: `Impact: ${assetImpact}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
+                  <span className="text-[11px] text-[#7B8FA5]">Impact</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
+                </span>
+              ) });
+              items.push({ key: 'managedby', tip: `Managed By: ${activeAsset?.managedBy.name || '—'}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset?.managedBy.color || '#6366F1' }}>
+                    {activeAsset?.managedBy.initials || (activeAsset?.managedBy.name || '').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeAsset?.managedBy.name || '—'}</span>
+                </span>
+              ) });
+              if (assetState.ci) items.push({ key: 'ci', tip: `CI: ${assetState.ci}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">CI</span>
+                  <span className="text-[12px] font-medium text-[#3D8BD0] truncate max-w-[180px]">{assetState.ci}</span>
+                </span>
+              ) });
+              if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
+                  <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
+                  <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
+                </span>
+              ) });
+              return <div className="pl-[18px]"><HeaderKpiRow items={items} /></div>;
+            })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">
@@ -2292,24 +2371,37 @@ export function HardwareAssetDrawer({
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <button
-                onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
-                className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
-              >
-                Add Relation
-              </button>
+              <div className="inline-flex items-stretch">
+                <button
+                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
+                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                >
+                  Add Relation
+                </button>
+                <button
+                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
+                  title="Relation options"
+                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown size={14} className="text-[#6b7280]" />
+                </button>
+              </div>
+              {showRelationModeMenu && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
+                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
+                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
+                  </div>
+                </>
+              )}
               
               {showPropertiesRelationDropdown && (
                 <div
                   className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
                   ref={propertiesRelationDropdownRef}
                 >
-                  <div className="px-2 pt-1.5 pb-2 border-b border-[#F0F2F5]">
-                    <div className="flex w-full items-center gap-0.5 rounded-md border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
-                      <button onClick={() => setRelationMode('existing')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'existing' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Link Existing</button>
-                      <button onClick={() => setRelationMode('create')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'create' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Create New</button>
-                    </div>
-                  </div>
+                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
                   {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
                     <button
                       key={type}

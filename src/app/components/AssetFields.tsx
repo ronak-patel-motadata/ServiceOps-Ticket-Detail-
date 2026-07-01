@@ -98,8 +98,42 @@ export const ASSET_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'ed
   { label: 'Assignment Date', type: 'date' },
 ];
 
-/** Labels whose label text is shown in red (required-style emphasis). */
-const ASSET_REQUIRED_LABELS = ['Under Change Control', 'Business Service'];
+/** "View more" fields for Non-IT assets — like ASSET_MORE_FIELDS but without the network fields (Host Name/IP/MAC/…) and with a Last-Scan field. */
+export const NONIT_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'editable' | 'date' | 'location'; options?: string[] }[] = [
+  { label: 'Asset Group', type: 'static' },
+  { label: 'Product', type: 'static' },
+  { label: 'Used By', type: 'select', options: ['Neha Raje', 'Farah Sheikh', 'Rohan Mehta', 'Priya Nair', 'Vikram Sethi'] },
+  { label: 'Location', type: 'location', options: ['KRISHNAPATNAM', 'AHMEDABAD', 'MUMBAI', 'DELHI', 'BANGALORE'] },
+  { label: 'Category', type: 'select', options: ['Furniture', 'Fixtures', 'Office Equipment', 'Appliance', 'Pantry'] },
+  { label: 'Department', type: 'select', options: ['IT', 'HR', 'Finance', 'Operations', 'Sales', 'Facilities'] },
+  { label: 'Vendor', type: 'select', options: ['Herman Miller', 'Steelcase', 'IKEA', 'Godrej', 'Test vendor'] },
+  { label: 'Asset Condition', type: 'select', options: ['None', 'Good', 'Fair', 'Poor', 'Damaged'] },
+  { label: 'Movement Status', type: 'select', options: ['None', 'In Transit', 'Delivered', 'Returned'] },
+  { label: 'Under Change Control', type: 'select', options: ['Yes', 'No'] },
+  { label: 'Business Service', type: 'select', options: ['Core Banking', 'Payments', 'CRM', 'ERP'] },
+  { label: 'Origin', type: 'static' },
+  { label: 'Acquisition Date', type: 'date' },
+  { label: 'Assignment Date', type: 'date' },
+];
+
+/** "View more" fields for Software assets — Version + Software Category; no network/Used By/Location fields. */
+export const SOFTWARE_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'editable' | 'date' | 'location'; options?: string[] }[] = [
+  { label: 'Asset Group', type: 'static' },
+  { label: 'Product', type: 'static' },
+  { label: 'Version', type: 'editable' },
+  { label: 'Category', type: 'select', options: ['Application', 'Operating System', 'Utility', 'Driver', 'Middleware'] },
+  { label: 'Software Category', type: 'select', options: ['Managed', 'Unmanaged', 'Prohibited', 'Freeware', 'Shareware'] },
+  { label: 'Department', type: 'select', options: ['IT', 'HR', 'Finance', 'Operations', 'Sales'] },
+  { label: 'Vendor', type: 'select', options: ['Microsoft', 'Adobe', 'Google', 'Oracle', 'Atlassian'] },
+  { label: 'Under Change Control', type: 'select', options: ['Yes', 'No'] },
+  { label: 'Business Service', type: 'select', options: ['Core Banking', 'Payments', 'CRM', 'ERP'] },
+  { label: 'Origin', type: 'static' },
+  { label: 'Acquisition Date', type: 'date' },
+  { label: 'Assignment Date', type: 'date' },
+];
+
+/** Labels whose label text is shown in red (required-style emphasis). Empty — all labels use the standard gray. */
+const ASSET_REQUIRED_LABELS: string[] = [];
 
 /** Values shown in the Agent Information block (replaces Requester Information on the asset page). */
 export interface AgentInfo {
@@ -299,6 +333,8 @@ interface AssetFieldsProps {
   propertiesSearchQuery: string;
   // Software-asset variant: shows Software Type and hides CI / "View more" extras.
   softwareMode?: boolean;
+  // Non-IT variant: like softwareMode (CI / "View more" hidden) but WITHOUT the software-only Software Type field.
+  nonItMode?: boolean;
   // Software-license variant: shows ONLY Product (read-only) + License Type (dropdown).
   licenseMode?: boolean;
   // Contract variant: shows ONLY the contract fields (number/dates/cost/type/vendor).
@@ -307,7 +343,7 @@ interface AssetFieldsProps {
   purchaseMode?: boolean;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, licenseMode = false, contractMode = false, purchaseMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -358,7 +394,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
 
   // --- "View more" additional-field renderers (label/input/dropdown match the core asset rows) ---
   const updateExtra = (label: string, value: string) => setExtra({ ...extra, [label]: value });
-  const labelColorFor = (label: string) => (ASSET_REQUIRED_LABELS.includes(label) ? '#C0392B' : undefined);
+  const labelColorFor = (label: string) => (!nonItMode && !softwareMode && ASSET_REQUIRED_LABELS.includes(label) ? '#C0392B' : undefined);
 
   const renderStatic = (label: string) => (
     <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
@@ -958,8 +994,8 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       </FieldRow>
       )}
 
-      {/* Software Type (software assets only) */}
-      {softwareMode && show('Software Type') && (
+      {/* Software Type (software assets only — not Non-IT) */}
+      {softwareMode && !nonItMode && show('Software Type') && (
       <FieldRow label="Software Type" pinned={pinnedFields.includes('Software Type')} onPin={() => togglePinField('Software Type')}>
         <div className="group relative">
           <button className={`${triggerClass} pl-3`} title={softwareType} onClick={() => toggle('softwareType')}>
@@ -1078,11 +1114,11 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       </FieldRow>
       )}
 
-      {/* Additional fields behind "View more" (hardware assets only) */}
-      {!softwareMode && (showMore || q) && ASSET_MORE_FIELDS.map(renderMoreField)}
+      {/* Additional fields behind "View more" — per-module field set (license/contract/purchase render their own set above and never reach here) */}
+      {(showMore || q) && (nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}
 
-      {/* View more / View less toggle (hardware assets only; hidden while searching) */}
-      {!softwareMode && !q && (
+      {/* View more / View less toggle (hidden while searching) */}
+      {!q && (
         <div className="pt-1">
           <button
             onClick={() => setShowMore((v) => !v)}

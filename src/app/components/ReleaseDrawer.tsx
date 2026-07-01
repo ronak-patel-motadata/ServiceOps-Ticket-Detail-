@@ -18,6 +18,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
 import { AISummary } from './AISummary';
@@ -659,7 +660,7 @@ export function ReleaseDrawer({
   const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '', buildPlan: '', testPlan: '' });
   // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
   const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
-  const [changeScheduleEnd, setChangeScheduleEnd] = useState('');
+  const [changeScheduleEnd, setChangeScheduleEnd] = useState('2026-07-01T12:11');
   const [plannedRolloutStart, setPlannedRolloutStart] = useState('');
   const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
   const [actualRolloutStart, setActualRolloutStart] = useState('');
@@ -1006,6 +1007,7 @@ export function ReleaseDrawer({
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
   const [propertiesRelationType, setPropertiesRelationType] = useState('');
   const [relationMode, setRelationMode] = useState<'existing' | 'create'>('existing');
+  const [showRelationModeMenu, setShowRelationModeMenu] = useState(false);
   const [relationCreateSubject, setRelationCreateSubject] = useState('');
   const [relationCreateDesc, setRelationCreateDesc] = useState('');
   const handleCreateRelation = () => {
@@ -2808,75 +2810,101 @@ export function ReleaseDrawer({
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658]">
               {activeChange.subject}
             </h1>
             {/* Main properties — quick-glance KPIs below the subject */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
-                <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
-                <span className="text-[11px] text-[#7B8FA5]">Priority</span>
-                <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
-              </span>
-              <span className="h-3 w-px bg-[#E5E7EB]" />
-              <span className="inline-flex items-center gap-1.5">
-                <span
-                  className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0"
-                  style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}
-                >
-                  {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
-                </span>
-                <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
-                <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
-              </span>
-              {/* Release Type — Minor / Major / Emergency (demo, varies per release) */}
-              {(() => {
-                const types = ['Minor', 'Major', 'Emergency'];
-                const colors: Record<string, string> = { Minor: '#22A06B', Major: '#F59E0B', Emergency: '#E74C3C' };
-                const id = activeChange?.id || 'REL';
-                const relType = types[id.charCodeAt(id.length - 1) % types.length];
-                return (
-                  <>
-                    <span className="h-3 w-px bg-[#E5E7EB]" />
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: colors[relType] }} />
-                      <span className="text-[11px] text-[#7B8FA5]">Type</span>
-                      <span className="text-[12px] font-medium text-[#364658]">{relType}</span>
-                    </span>
-                  </>
-                );
-              })()}
-              {/* Go-Live (rollout) date — bound to the real release schedule */}
-              {(plannedRolloutStart || changeScheduleStart) && (() => {
-                const d = new Date(plannedRolloutStart || changeScheduleStart);
-                if (isNaN(d.getTime())) return null;
+            {(() => {
+              const types = ['Minor', 'Major', 'Emergency'];
+              const typeColors: Record<string, string> = { Minor: '#22A06B', Major: '#F59E0B', Emergency: '#E74C3C' };
+              const rid = activeChange?.id || 'REL';
+              const relType = types[rid.charCodeAt(rid.length - 1) % types.length];
+              const schedule = (() => {
+                if (!(plannedRolloutStart || changeScheduleStart)) return null;
+                const usingRollout = !!plannedRolloutStart;
+                const startVal = usingRollout ? plannedRolloutStart : changeScheduleStart;
+                const endVal = usingRollout ? plannedRolloutEnd : changeScheduleEnd;
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const pad = (n: number) => String(n).padStart(2, '0');
-                let h = d.getHours();
-                const ap = h >= 12 ? 'PM' : 'AM';
-                h = h % 12 || 12;
-                const label = `${months[d.getMonth()]} ${d.getDate()}, ${pad(h)}:${pad(d.getMinutes())} ${ap}`;
-                return (
-                  <>
-                    <span className="h-3 w-px bg-[#E5E7EB]" />
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="size-2 rounded-full flex-shrink-0 bg-[#3D8BD0]" />
-                      <span className="text-[11px] text-[#7B8FA5]">Go-Live</span>
-                      <span className="text-[12px] font-medium text-[#364658]">{label}</span>
+                const fmt = (v: string) => {
+                  const d = new Date(v);
+                  if (isNaN(d.getTime())) return null;
+                  let h = d.getHours();
+                  const ap = h >= 12 ? 'PM' : 'AM';
+                  h = h % 12 || 12;
+                  return `${months[d.getMonth()]} ${d.getDate()}, ${pad(h)}:${pad(d.getMinutes())} ${ap}`;
+                };
+                const startLabel = fmt(startVal);
+                if (!startLabel) return null;
+                const endLabel = endVal ? fmt(endVal) : null;
+                return endLabel ? `${startLabel} → ${endLabel}` : startLabel;
+              })();
+              const items: HeaderKpiItem[] = [
+                { key: 'status', tip: `Status: ${selectedStatus}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
+                    <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
+                  </span>
+                ) },
+                { key: 'priority', tip: `Priority: ${selectedPriority}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
+                    <span className="text-[11px] text-[#7B8FA5]">Priority</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
+                  </span>
+                ) },
+                { key: 'assignee', tip: `Assignee: ${selectedAssignee}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}>
+                      {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
                     </span>
-                  </>
-                );
-              })()}
-            </div>
+                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
+                  </span>
+                ) },
+                { key: 'type', tip: `Type: ${relType}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: typeColors[relType] }} />
+                    <span className="text-[11px] text-[#7B8FA5]">Type</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{relType}</span>
+                  </span>
+                ) },
+              ];
+              if (schedule) items.push({ key: 'schedule', tip: `Release Schedule: ${schedule}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#3D8BD0]" />
+                  <span className="text-[11px] text-[#7B8FA5]">Release Schedule</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{schedule}</span>
+                </span>
+              ) });
+              items.push({ key: 'sla', tip: 'SLA: Overdue 1w 4d', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
+                  <span className="text-[11px] text-[#7B8FA5]">SLA</span>
+                  <span className="text-[12px] font-medium text-[#E74C3C]">Overdue 1w 4d</span>
+                </span>
+              ) });
+              if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
+                  <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
+                  <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
+                </span>
+              ) });
+              return <HeaderKpiRow items={items} />;
+            })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Copy ID</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button className="p-1.5 hover:bg-[#f9fafb] rounded">
@@ -2951,24 +2979,37 @@ export function ReleaseDrawer({
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <button
-                onClick={() => setShowPropertiesRelationDropdown(!showPropertiesRelationDropdown)}
-                className="px-4 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F5F7FA]"
-              >
-                Add Relation
-              </button>
+              <div className="inline-flex items-stretch">
+                <button
+                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
+                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                >
+                  Add Relation
+                </button>
+                <button
+                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
+                  title="Relation options"
+                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown size={14} className="text-[#6b7280]" />
+                </button>
+              </div>
+              {showRelationModeMenu && (
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
+                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
+                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
+                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
+                  </div>
+                </>
+              )}
               
               {showPropertiesRelationDropdown && (
                 <div
                   className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
                   ref={propertiesRelationDropdownRef}
                 >
-                  <div className="px-2 pt-1.5 pb-2 border-b border-[#F0F2F5]">
-                    <div className="flex w-full items-center gap-0.5 rounded-md border border-[#DFE5ED] bg-[#F1F5F9] p-0.5">
-                      <button onClick={() => setRelationMode('existing')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'existing' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Link Existing</button>
-                      <button onClick={() => setRelationMode('create')} className={`flex-1 px-2 py-1 text-[12px] font-medium rounded transition-colors ${relationMode === 'create' ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'}`}>Create New</button>
-                    </div>
-                  </div>
+                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
                   {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
                     <button
                       key={type}
@@ -3511,7 +3552,7 @@ export function ReleaseDrawer({
                   zIndex: 0
                 }}
               />
-              <div className="w-full px-6 py-3 rounded-lg transition-colors flex items-center justify-between relative z-9999">
+              <div className="w-full px-6 py-3 rounded-lg transition-colors flex items-center justify-between relative">
                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => setAiSummaryExpanded(!aiSummaryExpanded)}>
                   <svg width="18" height="18" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
                         <defs>
@@ -3541,7 +3582,7 @@ export function ReleaseDrawer({
                   >
                     <RefreshCw size={14} className={`text-[#7B8FA5] transition-transform ${isRefreshingAiSummary ? 'animate-spin' : ''}`} />
                   </button>
-                  <div className="relative z-[99999]" ref={aiSummaryMenuRef}>
+                  <div className="relative z-20" ref={aiSummaryMenuRef}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -3553,7 +3594,7 @@ export function ReleaseDrawer({
                       <MoreVertical size={14} className="text-[#7B8FA5]" />
                     </button>
                     {showAiSummaryMenu && (
-                      <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[99999] min-w-[200px]">
+                      <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-20 min-w-[200px]">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
