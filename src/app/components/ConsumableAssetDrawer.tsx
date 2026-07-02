@@ -23,6 +23,7 @@ import type { ConsumableAsset } from './ConsumableAssetsListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { HeaderCopyButton } from './HeaderCopyButton';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -274,6 +275,16 @@ onStackMinimizedChange,
   // History tab — selected category (replaces old left sub-nav).
   const [historyCategory, setHistoryCategory] = useState('audit');
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
+  const [histFilterOpen, setHistFilterOpen] = useState(false);
+  const [histDownloadOpen, setHistDownloadOpen] = useState(false);
+  const [histFrom, setHistFrom] = useState('');
+  const [histTo, setHistTo] = useState('');
+  const [histDraftFrom, setHistDraftFrom] = useState('');
+  const [histDraftTo, setHistDraftTo] = useState('');
+  const [histDlFormat, setHistDlFormat] = useState('PDF');
+  const [histDlPw, setHistDlPw] = useState(false);
+  const [histDlPassword, setHistDlPassword] = useState('');
+  const [histShowPw, setHistShowPw] = useState(false);
   // Deleted Software rows (Software tab), keyed by row index.
   const [removedSoftware, setRemovedSoftware] = useState<Set<number>>(new Set());
   // Search across the Software inventory table.
@@ -1949,8 +1960,9 @@ onStackMinimizedChange,
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[18px] font-semibold text-[#364658] truncate">
-              {activeTicket.subject}
+            <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeTicket.id}</span>
+              <span className="truncate">{activeTicket.subject}</span>
             </h1>
             {/* Consumable KPIs — Created · Status · Stock · Available · Impact · Managed By */}
             {(() => {
@@ -2017,39 +2029,13 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Copy ID</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Copy Asset URL
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Share2 size={16} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Share Asset
-              </TooltipContent>
-            </Tooltip>
+            <HeaderCopyButton variant="id" value={activeAsset?.id ?? ''} label="Copy ID" />
+            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <div className="relative">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
-                    className="p-1.5 hover:bg-[#f9fafb] rounded" 
+                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]" 
                     onClick={() => setIsWatching(!isWatching)}
                     onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
                     onMouseLeave={() => setShowWatchersDropdown(false)}
@@ -3100,7 +3086,11 @@ onStackMinimizedChange,
                   'Several units are already allocated to users and teams.',
                   'Consider reordering when stock drops below the configured threshold.',
                 ]}
-              />
+              
+                actions={[
+                  { label: 'Reorder Stock', question: 'Reorder stock for this consumable', answer: 'Availability is still healthy but will drop below the reorder threshold soon. I can raise a purchase request to replenish stock with the usual vendor. Recommended: reorder before stock hits the configured minimum.' },
+                ]}
+                onAction={(q, a) => quickActionHandlerRef.current?.(q, a)}/>
               {/* Group: Quantity & Allocation */}
               <div>
                 <div>
@@ -6405,51 +6395,92 @@ onStackMinimizedChange,
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
-                      <button title="Filter" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Filter size={15} /></button>
-                      <button title="Download" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
+                      <div className="relative">
+                        <button onClick={() => { setHistDownloadOpen(false); setHistDraftFrom(histFrom); setHistDraftTo(histTo); setHistFilterOpen((o) => !o); }} title="Filter" className={`size-8 flex items-center justify-center rounded-md border transition-colors hover:bg-[#F3F4F6] ${histFrom || histTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}><Filter size={15} /></button>
+                        {histFilterOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setHistFilterOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
+                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
+                              <div className="space-y-3">
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><input type="date" value={histDraftFrom} onChange={(e) => setHistDraftFrom(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /></div>
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><input type="date" value={histDraftTo} min={histDraftFrom || undefined} onChange={(e) => setHistDraftTo(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /></div>
+                              </div>
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                                <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                                <button onClick={() => { setHistFrom(histDraftFrom); setHistTo(histDraftTo); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <button onClick={() => { setHistFilterOpen(false); setHistDownloadOpen((o) => !o); }} title="Download" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
+                        {histDownloadOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setHistDownloadOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
+                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+                              <div className="mb-4"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label><div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">{['PDF', 'Excel', 'CSV'].map((ff) => (<button key={ff} onClick={() => setHistDlFormat(ff)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${histDlFormat === ff ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{ff}</button>))}</div></div>
+                              <div className="mb-3"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label><button onClick={() => setHistDlPw((v) => !v)} role="switch" aria-checked={histDlPw} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${histDlPw ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}><span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${histDlPw ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} /></button></div>
+                              {histDlPw && (<div className="mb-1"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label><div className="relative"><Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" /><input type={histShowPw ? 'text' : 'password'} value={histDlPassword} onChange={(e) => setHistDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /><button onClick={() => setHistShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{histShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></div>)}
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]"><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button></div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Content per category */}
                   <div className="mt-2">
-                    {historyCategory === 'audit' && (
-                      <div className="relative">
-                        {auditEntries.map((e, index, array) => (
-                          <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-                            {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
-                            <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: e.color }}>{e.initials}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="py-1">
-                                <div className="flex items-start justify-between gap-3 mb-1">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                      <span className="text-[13px] font-semibold text-[#364658]">{e.user}</span>
-                                      <span className="text-[12px] text-[#7B8FA5]">•</span>
-                                      <span className="text-[12px] text-[#7B8FA5]">{e.action}</span>
-                                    </div>
-                                    <p className="text-[13px] text-[#364658]">{e.details}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{e.time}</span></div>
-                                </div>
-                                {e.field && (
-                                  <div className="mt-2 space-y-1.5">
-                                    <div className="flex items-center gap-2 text-[12px]">
-                                      <span className="text-[#9CA3AF] min-w-[70px]">{e.field}</span>
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-[#EF4444] line-through">{e.from}</span>
-                                        <span className="text-[#D1D5DB]">→</span>
-                                        <span className="text-[#10B981] font-medium">{e.to}</span>
+                    {historyCategory === 'audit' && (() => {
+                      const dayLabel = (t) => t.replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
+                      const timeOf = (t) => (t.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)?.[0] ?? '').replace(/^0/, '');
+                      const inRange = (t) => { const d = new Date(t.substring(t.indexOf(',') + 2)); const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if (histFrom && k < histFrom) return false; if (histTo && k > histTo) return false; return true; };
+                      const grp = [];
+                      for (const e of auditEntries.filter((x) => inRange(x.time))) {
+                        const key = dayLabel(e.time);
+                        let g = grp.find((x) => x.label === key);
+                        if (!g) { g = { label: key, items: [] }; grp.push(g); }
+                        g.items.push(e);
+                      }
+                      return (
+                        <div className="space-y-6">
+                          {grp.map((group) => (
+                            <div key={group.label}>
+                              <div className="flex items-center gap-3 mb-3"><span className="text-[12px] font-semibold text-[#7B8FA5] flex-shrink-0">{group.label}</span><div className="flex-1 h-px bg-[#EEF1F5]" /></div>
+                              <div className="relative">
+                                {group.items.map((e, index, arr) => (
+                                  <div key={index} className="relative flex gap-3 py-3.5 px-2 -mx-2 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                                    {index !== arr.length - 1 && <div className="absolute left-[22px] top-[44px] bottom-[-2px] w-px bg-[#EEF1F5]" />}
+                                    <div className="size-[26px] rounded-[6px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: e.color }}>{e.initials}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[13px] font-semibold text-[#364658]">{e.user}</span>
+                                        <span className="text-[11px] font-medium text-[#64748B] bg-[#F1F5F9] rounded px-1.5 py-0.5">{e.action}</span>
+                                        <span className="inline-flex items-center gap-1 text-[11px] text-[#9CA3AF]"><Clock size={11} />{timeOf(e.time)}</span>
                                       </div>
+                                      <p className="text-[13px] text-[#5A6B7B] mt-1">{e.details}</p>
+                                      {e.field && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          <span className="inline-flex items-center gap-1.5 text-[12px] bg-white border border-[#E8EDF3] rounded-md px-2 py-1">
+                                            <span className="text-[#7B8FA5]">{e.field}</span>
+                                            <span className="text-[#94A3B8] line-through">{e.from}</span>
+                                            <span className="text-[#CBD5E1]">→</span>
+                                            <span className="text-[#059669] font-medium">{e.to}</span>
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
-                                )}
+                                ))}
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {historyCategory === 'change-logs' && (
                       <div className="relative">
                         {changeLogs.map((c, index, array) => {

@@ -561,10 +561,19 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [showSendEmail, setShowSendEmail] = useState(false);
 
   // Work Tracker — multiple tasks, but only one can run at a time.
-  const [trackerTasks, setTrackerTasks] = useState<{ id: string; description: string; elapsed: number; isRunning: boolean; startMs: number }[]>([]);
+  const [trackerTasks, setTrackerTasks] = useState<{ id: string; description: string; elapsed: number; isRunning: boolean; startMs: number; technician: { name: string; initials: string; color: string } }[]>([]);
   const [showTrackerPopup, setShowTrackerPopup] = useState(false);
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
+  // Work Tracker technician — the timer can be started on behalf of another person; defaults to the current user.
+  const TRACKER_TECHNICIANS = [
+    { name: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0' },
+    { name: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6' },
+    { name: 'Michael Chen', initials: 'MC', color: '#22A06B' },
+    { name: 'Priya Sharma', initials: 'PS', color: '#F59E0B' },
+  ];
+  const [trackerTechnician, setTrackerTechnician] = useState(TRACKER_TECHNICIANS[0]);
+  const [trackerTechOpen, setTrackerTechOpen] = useState(false);
   const anyTrackerRunning = trackerTasks.some((t) => t.isRunning);
   useEffect(() => {
     if (!anyTrackerRunning) return;
@@ -578,7 +587,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     const now = Date.now();
     setTrackerTasks((prev) => [
       ...prev.map((t) => ({ ...t, isRunning: false })),
-      { id: `tt-${now}`, description: newTaskDesc.trim(), elapsed: 0, isRunning: true, startMs: now },
+      { id: `tt-${now}`, description: newTaskDesc.trim(), elapsed: 0, isRunning: true, startMs: now, technician: trackerTechnician },
     ]);
     setNewTaskDesc('');
     setShowTrackerPopup(false);
@@ -596,7 +605,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
       const dur = s < 60 ? `${s} second${s !== 1 ? 's' : ''}` : s < 3600 ? `${m} minute${m !== 1 ? 's' : ''}` : s < 86400 ? `${h} hour${h !== 1 ? 's' : ''}` : `${days} day${days !== 1 ? 's' : ''}`;
       onAddWorkLog({
         id: `wl-${Date.now()}`,
-        technician: { name: 'Arnav Desai', initials: 'AD', color: '#3D8BD0' },
+        technician: task.technician ?? { name: 'Arnav Desai', initials: 'AD', color: '#3D8BD0' },
         start: toLocal(new Date(task.startMs)),
         end: toLocal(new Date(task.startMs + s * 1000)),
         description: task.description || 'Work Tracker session',
@@ -1467,17 +1476,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </div>
 
           {slaStatusExpanded && (
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-4 pb-4 space-y-2">
               {/* Response Due In - On Track */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-[#364658]">First response due in</div>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658]">First response due in</div>
+                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                   
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded px-2 py-1 flex-shrink-0 cursor-default">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                    <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded px-2 py-0.5 flex-shrink-0 cursor-default">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none">
                         <g clipPath="url(#clip0_1057_504)">
                           <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#27AE60"/>
                         </g>
@@ -1496,20 +1506,21 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
               {/* Resolution Due In - Conditional based on ticket ID */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-[#364658]">
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658]">
                     {ticketId === 'INC-32' ? 'Resolution due in' : 'Resolution overdue in'}
                   </div>
+                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                  
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className={`flex items-center gap-1.5 rounded px-2 py-1 flex-shrink-0 cursor-default ${
+                    <div className={`flex items-center gap-1.5 rounded px-2 py-0.5 flex-shrink-0 cursor-default ${
                       ticketId === 'INC-32' ? 'bg-[#E8F5E9]' : 'bg-[#FFEBEE]'
                     }`}>
                       {ticketId === 'INC-32' ? (
                         // Green hourglass for INC-32
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none">
                           <g clipPath="url(#clip0_1057_504_inc32)">
                             <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#27AE60"/>
                           </g>
@@ -1521,7 +1532,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </svg>
                       ) : (
                         // Red hourglass for other tickets
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none" style={{ transform: 'scaleY(-1)' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none" style={{ transform: 'scaleY(-1)' }}>
                           <g clipPath="url(#clip0_1057_504_red)">
                             <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#E74C3C"/>
                           </g>
@@ -1547,14 +1558,15 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
               {/* OLA Due In - Warning */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-[#364658]">OLA due in</div>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658]">OLA due in</div>
+                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                   
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 bg-[#FFF3E0] rounded px-2 py-1 flex-shrink-0 cursor-default">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="none">
+                    <div className="flex items-center gap-1.5 bg-[#FFF3E0] rounded px-2 py-0.5 flex-shrink-0 cursor-default">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none">
                         <g clipPath="url(#clip0_1057_504_orange)">
                           <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#F39C12"/>
                         </g>
@@ -1575,9 +1587,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               {getSlaPenaltyAmount(ticketId) > 0 && (
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-[#364658]">Penalty</div>
+                    <div className="text-[12px] font-medium text-[#364658]">Penalty</div>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-[#FFEBEE] rounded px-2 py-1 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 bg-[#FFEBEE] rounded px-2 py-0.5 flex-shrink-0">
                     <span className="text-[12px] font-semibold text-[#E74C3C]">{formatPenaltyAmount(getSlaPenaltyAmount(ticketId))}</span>
                   </div>
                 </div>
@@ -1586,7 +1598,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               {/* SLA History Link */}
               <button
                 onClick={() => setShowSLAHistory(true)}
-                className="flex items-center gap-2 px-3 py-2 mt-3 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+                className="flex items-center gap-2 px-3 py-1.5 mt-2 text-[12px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
               >
                 <Clock size={14} />
                 SLA History
@@ -1951,7 +1963,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="flex items-center gap-3">
                 <span className="text-[22px] font-medium text-[#364658] tabular-nums">{formatTime(0)}</span>
                 <button
-                  onClick={() => { setNewTaskDesc(''); setShowTrackerPopup(true); }}
+                  onClick={() => { setNewTaskDesc(''); setTrackerTechnician(TRACKER_TECHNICIANS[0]); setTrackerTechOpen(false); setShowTrackerPopup(true); }}
                   className="size-8 rounded-full bg-[#3D8BD0] hover:bg-[#2563EB] flex items-center justify-center transition-colors"
                   title="Start a task"
                 >
@@ -1998,9 +2010,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-2">
-                      <div className="size-6 rounded-[4px] bg-[#3D8BD0] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">AD</div>
+                      <div className="size-6 rounded-[4px] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: t.technician?.color ?? '#3D8BD0' }}>{t.technician?.initials ?? 'AD'}</div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-[13px] font-medium text-[#364658]">Arnav Desai</span>
+                        <span className="text-[13px] font-medium text-[#364658]">{t.technician?.name ?? 'Arnav Desai'}</span>
                         <span className={`text-[11px] ${t.isRunning ? 'text-[#22A06B]' : 'text-[#7B8FA5]'}`}>{t.isRunning ? 'Running' : 'Paused'}</span>
                       </div>
                     </div>
@@ -2019,8 +2031,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 ))}
                 {/* Add another task — starting it pauses the others */}
                 <button
-                  onClick={() => { setNewTaskDesc(''); setShowTrackerPopup(true); }}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-[#3D8BD0] border border-dashed border-[#BBD7EE] rounded-md hover:bg-[#EBF5FF] transition-colors"
+                  onClick={() => { setNewTaskDesc(''); setTrackerTechnician(TRACKER_TECHNICIANS[0]); setTrackerTechOpen(false); setShowTrackerPopup(true); }}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3D8BD0] border border-[#3D8BD0] rounded-md hover:bg-[#2E6BA4] transition-colors"
                 >
                   <Plus size={14} /> Add Tracker
                 </button>
@@ -2028,10 +2040,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             )}
 
             {/* Work History Link */}
-            <div className="mt-3">
+            <div className="mt-2">
               <button
                 onClick={() => setShowWorkHistory(true)}
-                className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+                className="flex items-center gap-2 px-3 py-1.5 text-[12px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
               >
                 <Clock size={14} />
                 Work History
@@ -2043,6 +2055,36 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999]" onClick={() => setShowTrackerPopup(false)}>
                 <div className="bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-4 w-[400px] max-w-[90%]" onClick={(e) => e.stopPropagation()}>
                   <div className="space-y-3">
+                    <div>
+                      <label className="text-[13px] font-medium text-[#7B8FA5]">Technician <span className="text-[#EF4444]">*</span></label>
+                      <div className="relative mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setTrackerTechOpen((o) => !o)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] transition-colors"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="size-6 rounded-[4px] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: trackerTechnician.color }}>{trackerTechnician.initials}</span>
+                            <span className="text-[13px] font-medium text-[#364658] truncate">{trackerTechnician.name}</span>
+                          </span>
+                          <ChevronDown size={16} className={`text-[#7B8FA5] flex-shrink-0 transition-transform ${trackerTechOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {trackerTechOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-md shadow-lg py-1 z-10 max-h-[220px] overflow-y-auto">
+                            {TRACKER_TECHNICIANS.map((tech) => (
+                              <button
+                                key={tech.name}
+                                onClick={() => { setTrackerTechnician(tech); setTrackerTechOpen(false); }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#F9FAFB] transition-colors ${tech.name === trackerTechnician.name ? 'bg-[#EAF2FB]' : ''}`}
+                              >
+                                <span className="size-6 rounded-[4px] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: tech.color }}>{tech.initials}</span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{tech.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <label className="text-[13px] font-medium text-[#7B8FA5]">Work Description</label>
                     <textarea
                       value={newTaskDesc}
@@ -2370,9 +2412,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {similarTicketExpanded && (
-                <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
-              )}
               {similarTicketExpanded ? (
                 <ChevronDown size={16} className="text-[#7B8FA5]" />
               ) : (
@@ -2383,32 +2422,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
           {similarTicketExpanded && (
           <div className="px-4 pb-4">
-            {/* Tabs */}
-            <div className="flex gap-1 mb-3 border-b border-[#E5E7EB]">
-              <button
-                onClick={() => setSimilarTicketsTab('similar')}
-                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                  similarTicketsTab === 'similar'
-                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-                }`}
-              >
-                Similar
-              </button>
-              <button
-                onClick={() => setSimilarTicketsTab('linked')}
-                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                  similarTicketsTab === 'linked'
-                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-                }`}
-              >
-                Linked
-              </button>
-            </div>
-
-            {/* Similar Tab Content */}
-            {similarTicketsTab === 'similar' && (
+{/* Similar tickets list */}
+            {(
             <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
               {availableSimilarTickets.map((ticket) => (
                 <div 
@@ -2429,7 +2444,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         onClick={(e) => {
                           e.stopPropagation();
                           handleLinkTicket(ticket.id);
-                          setSimilarTicketsTab('linked');
                         }}
                         className={`p-1.5 rounded hover:bg-[#EBF5FF] transition-all ${
                           hoveredTicketId === ticket.id ? 'opacity-100' : 'opacity-0'
@@ -2459,66 +2473,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
             )}
 
-            {/* Linked Tab Content */}
-            {similarTicketsTab === 'linked' && (
-            <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
-              {/* Static Linked Tickets */}
-              {staticLinkedTickets.map((ticket) => (
-                <div key={ticket.id} className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
-                        {ticket.id}
-                      </span>
-                      <h4 className="text-[13px] font-medium text-[#364658]">{ticket.title}</h4>
-                    </div>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium flex-shrink-0 ${
-                      ticket.status === 'Resolved' 
-                        ? 'bg-[#10B981]/10 text-[#10B981]' 
-                        : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                    }`}>
-                      {ticket.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-5 rounded-[4px] flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: ticket.color }}>
-                      {ticket.initials}
-                    </div>
-                    <span className="text-[12px] text-[#7B8FA5]">{ticket.assignee}</span>
-                    <span className="text-[12px] text-[#7B8FA5]">• {ticket.relationship}</span>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Newly Linked Tickets */}
-              {newlyLinkedTickets.map((ticket) => (
-                <div key={ticket.id} className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
-                        {ticket.id}
-                      </span>
-                      <h4 className="text-[13px] font-medium text-[#364658]">{ticket.title}</h4>
-                    </div>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium flex-shrink-0 ${
-                      ticket.status === 'Resolved' 
-                        ? 'bg-[#10B981]/10 text-[#10B981]' 
-                        : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                    }`}>
-                      {ticket.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="size-5 rounded-[4px] flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: ticket.color }}>
-                      {ticket.initials}
-                    </div>
-                    <span className="text-[12px] text-[#7B8FA5]">{ticket.assignee}</span>
-                    <span className="text-[12px] text-[#7B8FA5]">• {ticket.relationship}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            )}
           </div>
           )}
         </div>
@@ -2539,9 +2493,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {suggestedKnowledgeExpanded && (
-                <Plus size={14} className="text-white bg-[#3D8BD0] rounded w-6 h-6 p-1" />
-              )}
               {suggestedKnowledgeExpanded ? (
                 <ChevronDown size={16} className="text-[#7B8FA5]" />
               ) : (

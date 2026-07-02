@@ -17,6 +17,7 @@ import type { Ticket } from './TicketListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { HeaderCopyButton } from './HeaderCopyButton';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -119,6 +120,27 @@ interface TicketDrawerProps {
   onStackMinimizedChange?: (m: boolean) => void;
 }
 
+// Demo tasks organised into workflow stages so the Tasks tab shows its stage stepper.
+const DEMO_STAGED_TASKS: any[] = [
+  // Stage 0 — Preparation
+  { id: 'TASK-1', subject: 'Collect employee documents & ID proofs', userGroup: 'HR', assignee: 'Sarah Johnson', taskType: 'Documentation', startDate: '2026-06-24', endDate: '2026-06-25', status: 'Closed', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Gather signed offer letter, ID proofs and background-check consent.', completed: true, stage: 0 },
+  { id: 'TASK-2', subject: 'Create employee record in HRMS', userGroup: 'HR', assignee: 'Sarah Johnson', taskType: 'Documentation', startDate: '2026-06-25', endDate: '2026-06-25', status: 'Closed', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Create the master employee record and assign an employee ID.', completed: true, stage: 0 },
+  { id: 'TASK-3', subject: 'Assign employee ID & email alias', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Provisioning', startDate: '2026-06-26', endDate: '2026-06-26', status: 'In Progress', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Reserve the corporate email alias and directory entry.', completed: false, stage: 0 },
+  { id: 'TASK-4', subject: 'Prepare welcome kit & desk allocation', userGroup: 'Facilities', assignee: 'Priya Sharma', taskType: 'Provisioning', startDate: '2026-06-26', endDate: '2026-06-27', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Assign a desk/seat and prepare the welcome kit.', completed: false, stage: 0 },
+  // Stage 1 — Provisioning
+  { id: 'TASK-5', subject: 'Procure & image laptop', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Provisioning', startDate: '2026-06-27', endDate: '2026-06-29', status: 'In Progress', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Allocate a laptop and apply the standard software image.', completed: false, stage: 1 },
+  { id: 'TASK-6', subject: 'Install standard software suite', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Provisioning', startDate: '2026-06-29', endDate: '2026-06-29', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Install Office, browser, and role-specific tools.', completed: false, stage: 1 },
+  { id: 'TASK-7', subject: 'Configure VPN client', userGroup: 'Network', assignee: 'Rahul Verma', taskType: 'Provisioning', startDate: '2026-06-29', endDate: '2026-06-30', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Set up and test the corporate VPN profile.', completed: false, stage: 1 },
+  { id: 'TASK-8', subject: 'Set up phone extension', userGroup: 'IT Support', assignee: 'Priya Sharma', taskType: 'Provisioning', startDate: '2026-06-30', endDate: '2026-06-30', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Assign a phone extension and voicemail.', completed: false, stage: 1 },
+  { id: 'TASK-9', subject: 'Enroll device in MDM', userGroup: 'IT Security', assignee: 'Neha Raje', taskType: 'Security', startDate: '2026-06-30', endDate: '2026-07-01', status: 'Open', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Enroll the laptop into mobile device management and apply policies.', completed: false, stage: 1 },
+  // Stage 2 — Access & Accounts
+  { id: 'TASK-10', subject: 'Create AD account & mailbox', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Access Management', startDate: '2026-07-01', endDate: '2026-07-01', status: 'Open', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Create the Active Directory account and Exchange mailbox.', completed: false, stage: 2 },
+  { id: 'TASK-11', subject: 'Grant application access (Jira/Confluence)', userGroup: 'IT Support', assignee: 'Sarah Johnson', taskType: 'Access Management', startDate: '2026-07-01', endDate: '2026-07-02', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Provision role-based access to the required applications.', completed: false, stage: 2 },
+  // Stage 3 — Verification
+  { id: 'TASK-12', subject: 'First-day login verification', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Verification', startDate: '2026-07-02', endDate: '2026-07-02', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Confirm the employee can log in and access core systems.', completed: false, stage: 3 },
+  { id: 'TASK-13', subject: 'Manager sign-off on onboarding', userGroup: 'Management', assignee: 'Sarah Johnson', taskType: 'Verification', startDate: '2026-07-02', endDate: '2026-07-03', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Reporting manager confirms onboarding completion.', completed: false, stage: 3 },
+];
+
 export function TicketDrawer({
   openTickets,
   activeTicketId,
@@ -148,7 +170,7 @@ onStackMinimizedChange,
   const [showFullForwardText, setShowFullForwardText] = useState(false);
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
-  const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
+  const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician' | 'requester'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
@@ -349,7 +371,7 @@ onStackMinimizedChange,
   // Tasks State
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>(DEMO_STAGED_TASKS);
   const [showServiceRequestItemStatus, setShowServiceRequestItemStatus] = useState<string | null>(null);
   
   // Tasks count - based on current tasks array
@@ -1860,8 +1882,9 @@ onStackMinimizedChange,
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[18px] font-semibold text-[#364658]">
-              {activeTicket.subject}
+            <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeTicket.id}</span>
+              <span className="truncate">{activeTicket.subject}</span>
             </h1>
             {/* Main properties — quick-glance incident KPIs below the subject */}
             {(() => {
@@ -1912,39 +1935,13 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Copy ID</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Copy Ticket URL
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Share2 size={16} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Share Ticket
-              </TooltipContent>
-            </Tooltip>
+            <HeaderCopyButton variant="id" value={activeTicket?.id ?? ''} label="Copy ID" />
+            <HeaderCopyButton variant="link" value={activeTicket?.id ?? ''} label="Copy Ticket URL" />
             <div className="relative">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
-                    className="p-1.5 hover:bg-[#f9fafb] rounded" 
+                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]" 
                     onClick={() => setIsWatching(!isWatching)}
                     onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
                     onMouseLeave={() => setShowWatchersDropdown(false)}
@@ -2491,7 +2488,7 @@ onStackMinimizedChange,
                   {isDescriptionExpanded && (
                     <button 
                       onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
+                      className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[#DFE5ED] bg-[#F5F9FD] text-[13px] font-semibold text-[#3D8BD0] hover:bg-[#EBF3FB] hover:border-[#3D8BD0] transition-colors"
                     >
                       View less
                       <ChevronUp size={14} />
@@ -2991,11 +2988,17 @@ onStackMinimizedChange,
                     >
                       All Activities
                     </button>
-                    <button 
+                    <button
                       className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
                       onClick={() => setActiveConversationTab('technician')}
                     >
                       Technician Conversation
+                    </button>
+                    <button
+                      className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'requester' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
+                      onClick={() => setActiveConversationTab('requester')}
+                    >
+                      Requester Conversation
                     </button>
                   </div>
                   <div className="flex items-center gap-2 relative">
@@ -3081,7 +3084,8 @@ onStackMinimizedChange,
                   <span className="text-xs font-medium text-[#7B8FA5]">Last Week</span>
                   <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.40) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
                 </div>
-                    {/* Comment */}
+                    {/* Comment (internal note — hidden in Requester Conversation) */}
+                    {activeConversationTab !== 'requester' && (
                     <div className="flex gap-3 group relative">
                   <div className="flex flex-col items-center">
                     <div className="size-[24px] rounded bg-[#fbbf24] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
@@ -3118,9 +3122,10 @@ onStackMinimizedChange,
                     </button>
                   </div>
                 </div>
+                    )}
 
                 {/* Reporter Comment */}
-                {activeConversationTab === 'all' && (
+                {activeConversationTab !== 'technician' && (
                 replyingToConversation === 'conversation-5days' ? (
                   <InlineReplyEditor
                     replyContent={inlineReplyContent}
@@ -3287,7 +3292,7 @@ onStackMinimizedChange,
                 )}
 
                 {/* 2 Days Ago Group */}
-                {activeConversationTab === 'all' && (
+                {activeConversationTab !== 'technician' && (
                   <div>
                 {/* 2 Days Ago Divider */}
                 <div className="flex items-center gap-3 pt-2 pb-6">
@@ -3412,7 +3417,8 @@ onStackMinimizedChange,
                   </div>
                 )}
 
-                {/* Yesterday Group */}
+                {/* Yesterday Group (internal note — hidden in Requester Conversation) */}
+                {activeConversationTab !== 'requester' && (
                 <div>
                 {/* 3 Days Ago Divider */}
                 <div className="flex items-center gap-3 pt-2 pb-6">
@@ -3476,9 +3482,10 @@ onStackMinimizedChange,
                   </div>
                 </div>
                 </div>
+                )}
 
                 {/* Today Group */}
-                {activeConversationTab === 'all' && (
+                {activeConversationTab !== 'technician' && (
                   <div>
                 {/* Today Divider */}
                 <div className="flex items-center gap-3 pt-2 pb-6">
@@ -3568,7 +3575,7 @@ onStackMinimizedChange,
                 )}
                 
                 {/* Sent Conversations - shown after Today's messages */}
-                {sentConversations.filter(c => c.ticketId === activeTicketId).map((conversation) => (
+                {sentConversations.filter(c => c.ticketId === activeTicketId && (activeConversationTab === 'all' || (['note', 'collaborate'].includes(c.type) ? activeConversationTab === 'technician' : activeConversationTab === 'requester'))).map((conversation) => (
                   <div key={conversation.id} className="flex gap-3 group relative">
                     <div className="flex flex-col items-center">
                       <div 

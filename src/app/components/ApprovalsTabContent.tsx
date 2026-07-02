@@ -445,6 +445,12 @@ export function ApprovalsTabContent({
                                             className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                                             onClick={() => setOpenDropdownId(null)}
                                           >
+                                            Refer back
+                                          </button>
+                                          <button
+                                            className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                                            onClick={() => setOpenDropdownId(null)}
+                                          >
                                             Ignore
                                           </button>
                                           <button

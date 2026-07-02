@@ -480,7 +480,13 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                         <Maximize2 size={14} className="text-[#7B8FA5] flex-shrink-0" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-[280px]">{descriptionValue || 'Add description'}</TooltipContent>
+                    <TooltipContent className="max-w-[280px]">
+                      {descriptionValue
+                        ? (descriptionValue.length > 240
+                            ? descriptionValue.slice(0, 240).trimEnd() + '…'
+                            : descriptionValue)
+                        : 'Add description'}
+                    </TooltipContent>
                   </Tooltip>
                 </div>
               )}

@@ -1,34 +1,39 @@
-# Handoff — 2026-07-02 00:53
+# Handoff — 2026-07-03 01:37
 
 ## Read first
-Focus on the two Key-context bullets in `CLAUDE.md`: **"Cross-module drawer host (`DrawerStack.tsx`)"** (new this session) and **"Drawer minimize + open-item tabs"** (updated). Together they explain how one drawer now hosts items from every module and how the view/minimize state is shared. Everything is mock/in-component as usual.
+Focus on these new Key-context bullets in `CLAUDE.md`: **"Tasks tab — Service Catalog Task stages"**, **"Audit Trail redesign"**, **"Approval comments popup"**, **"Header polish"**, **"Requester Conversation tab"**, and **"Drawer tab hover card"** — they cover the bulk of this session. Everything is mock/in-component as usual.
 
 ## What we worked on this session
-Finished and hardened the **cross-module drawer** experience: clicking a related item (Relations tab OR the "Open related records" Impact popup) now opens the *real* other-module detail page as a tab in the same drawer. Then fixed three UX follow-ups: view-mode persistence on tab close, auto-minimize when navigating to another module's list, and a shorter tab bar.
+A long polish + feature session across the detail drawers: the **Tasks tab** got a Service Catalog Task stage stepper, the **Audit Trail** was fully redesigned (+ filter/download popups) and rolled out to all modules, **approval comments** were fixed and restyled, plus header polish (ID pills, boxed icons, copy feedback), a third **Requester Conversation** tab, tab hover cards, and SLA-card tidy-ups.
 
 ## Completed
-- **Impact-popup → same drawer** (`HardwareAssetDrawer`, `SoftwareAssetDrawer`, `NonItAssetDrawer`, `PurchaseDrawer`, `ContractDrawer`, `CmdbDrawer`): the "Open related records" popup record rows now call `onOpenRelation(...)` (Incident→Request mapping) so they open the real detail page as a tab, matching the Relations tab. Verified AST-001 → INC-32 opens as a tab.
-- **Small/full view persists across tab close** (`DrawerStack.tsx` + all 12 drawers): lifted `drawerWidth` intent to the host via **`stackWidth`/`onStackWidthChange`**. Each drawer inits `drawerWidth` from `stackWidth` (falls back to full on first open), uses it in the first-open reset, and reports every toggle back. Closing a tab that swaps in a different-module drawer no longer resets to full. Verified: open INC-31 + PBM-1001 → small view → close active → stayed 1080.
-- **Auto-minimize on navigation** (`DrawerStack.tsx` + `App.tsx` + all 12 drawers): the provider now takes `activePage`; an effect minimizes the open drawer whenever you switch to another module's list page (list shows behind the slim rail). Lifted `minimized` to the host via **`stackMinimized`/`onStackMinimizedChange`** (drawer's local `minimized` defers to host). `open()` clears minimized so clicking any item restores. Verified: open ticket → click Problem nav (drawer minimizes, "All Open Problems" visible) → click PBM-627 (restores, tabs `["INC-31","PBM-627"]`).
-- **Shorter drawer tab bar**: tabs `py-3`→`py-2` in `DrawerTabStrip.tsx` (incl. the "More (N)" button); window-control buttons `p-3`→`p-2` in all 12 drawers. Bar is now ~36px (was ~42px). Verified by screenshot — still comfortable and balanced.
-- All verified: `npm run build` passes each time; headless puppeteer probes confirmed each flow.
+- **Cross-module drawer follow-ups**: small/full view + minimized state now persist across tab switch/close (lifted to `DrawerStack` via `stackWidth`/`stackMinimized`); navigating to another module's list auto-minimizes the open drawer; the Impact "open related records" popup opens items in the same drawer.
+- **Drawer tab hover card** (`DrawerTabStrip`): ID · subject · technician · status · priority; compact ~36px tab bar.
+- **Header (all 12 drawers)**: ID pill before subject; Copy ID/URL/Watch icons boxed like Edit; **Share icon removed**; `HeaderCopyButton` with green "Copied!" feedback.
+- **Requester Conversation** sub-tab added to the Ticket conversation area (public vs internal filtering).
+- **Tasks tab** (`TasksTabContent`): single "Service Catalog Task" accordion + top "Task Summary" step selector (number + done/total, no names) showing one stage at a time; **Additional Tasks** (manual, no-stage) render outside the accordion; decluttered task cards (`TaskCardFields` inline meta chips with `title` tooltips, start→end date range). `TicketDrawer` seeds `DEMO_STAGED_TASKS`.
+- **Audit Trail** (`AuditTrailsTabContent` for ticket/problem/change/release + the History-tab audit category in all 8 asset/procurement drawers): day-grouped, inline time, action pills, before→after chips, **Filter** (date range, functional) + **Download** (format + polished password-protect toggle) popups.
+- **Approval comments** (`ApprovalCommentPopup`): send now keeps popup open + shows the comment; orange Note-style blocks with Internal pill; search + sort toolbar; fixed reversed-typing bug (uncontrolled contentEditable); AI-Assist dropdown no longer clipped.
+- **Approvals**: 3-dot menu now `Refer back · Ignore · Remind · Delete`; Similar Tickets "Linked" tab removed; "+" buttons removed from Similar Tickets & Suggested Knowledge headers.
+- **SLA card** compacted + per-row hover pencils; Work Tracker Start Timer gained a Technician selector; right-panel buttons unified size, Add Tracker filled-primary.
+- All verified with `npm run build` (passes) + headless puppeteer probes.
 
 ## In progress
-Nothing mid-flight. The cross-module drawer host is complete and all three follow-up fixes are in and verified.
+Nothing mid-flight. Every item above is complete and builds clean.
 
 ## Next steps
-- **Push the batch live** — this is a LARGE unpushed batch: the whole `DrawerStack` cross-module refactor, Impact-popup wiring, `stackWidth`/`stackMinimized` lifted state, minimize-on-navigate, and the tab-bar height trim. The last `/publish` predates ALL of it. Run `/publish` when ready.
-- Optional: anchor near-expiry day-count math to a fixed date if a permanent demo is wanted (carried over from last session).
+- **Push the batch live** — this is a LARGE unpushed batch (this entire session PLUS the prior cross-module refactor). The last `/publish` predates all of it. Run `/publish` when ready.
+- Optional consistency pass: the Requester Conversation tab was added to Ticket only; Problem/Change/Release have their own conversation timelines if the same third tab is wanted there.
 
 ## Decisions made
-- **Full DrawerStack refactor over a cheaper swap** — the user explicitly wanted the actual other-module detail page (not just id/subject swapped), so a single context host that renders the matching module's real drawer was the only faithful option.
-- **Lift view + minimize state to the host, not per-drawer** — because closing a tab or navigating can swap in a *different* module's drawer component (a remount), per-instance state resets. Host-owned `stackWidth`/`stackMinimized` survive the swap.
-- **`REL_MAP` pools are lazy getters** — list pages import `DrawerStack` and vice-versa; eager pool refs threw "Cannot access X before initialization". Access the pool at call time.
-- **Tab bar to ~36px** — `py-2`/`p-2` keeps 32–36px click targets (standard desktop toolbar size) while returning ~6px to content.
+- **Task stages = one accordion + top step selector, one stage at a time** (after iterating through: stepper → per-stage accordions → single accordion with sections → final selector). Manual tasks live OUTSIDE the accordion because the stages are admin-defined workflow and ad-hoc tasks aren't part of them.
+- **Audit trail: time inline + day grouping** — the old far-right timestamp was hard to associate with its event.
+- **Approval comment editor is uncontrolled** — re-writing a contentEditable's HTML on each keystroke resets the caret (reversed text); read state `onInput` only, clear imperatively.
+- **Reused the same popup code** for the asset History filter/download as the ticket audit trail for consistency.
 
 ## Gotchas & notes
-- **The long-running dev server on :5173 can go stale** after many edits (Vite HMR + the `DrawerStack`↔list-page circular imports). Symptom this session: clicking a list row stopped opening any drawer, with NO console/page error, while a fresh `npm run dev` worked fine. Fix = restart the dev server (killed the stale PID and relaunched on :5173). If detail pages "stop opening," restart before debugging code.
-- **12-drawer sweeps rely on byte-identical anchors** (`stackTabs` interface line + destructure, `drawerWidth` init, `!hasDrawerBeenInitialized` first-open block, `const [minimized, setMinimized] = useState(false)`, `p-3 hover:bg-[#e5e7eb]`). All were grep-verified as 1×/3× per file before each node sweep — re-verify counts before any future bulk edit.
-- Problem list IDs are **`PBM-###`** (not `PRB-`); ID chips across list tables share `bg-[#e8f4fd]` — handy for headless selectors.
-- Don't round-trip files through PowerShell `Get-Content`/`Set-Content` — it corrupts the UTF-8 em-dashes (—) in asset names. Use the editor tools / node.
-- Verify with `npm run build` (no standalone typecheck). Headless puppeteer probes live in the session scratchpad; `element.click()` bypasses the first-run onboarding overlay.
+- ⚠️ **Regex backslashes get stripped in bash heredocs** (`\s`/`\d` → `s`/`d`). This bit the asset audit sweep once (`/s+d{1,2}.../` built fine but never matched). Write bulk-edit scripts to a `.mjs` with the **Write tool**, then `node` it — don't inline regex-containing replacements in `cat << 'EOF'` heredocs.
+- **12/8-drawer node sweeps** rely on byte-identical anchors (clones). Grep-verify counts before each sweep; write scripts via the editor to avoid escaping surprises.
+- **Stale dev server**: the long-running Vite server on :5173 can serve broken/stale modules after many edits (silent — clicks stop opening drawers with no console error). Restart `npm run dev` if the app misbehaves; a fresh server always worked this session.
+- Headless contentEditable: `page.keyboard.type` doesn't insert; use `elementHandle.focus()` + `page.keyboard.sendCharacter()`. Programmatic `:hover` for CSS `group-hover` doesn't reflect in `getComputedStyle` (verify structurally instead).
+- Verify with `npm run build` (no standalone typecheck — esbuild doesn't validate regex semantics or unused code). Don't round-trip files through PowerShell (corrupts em-dashes). Scratch probes live in the session scratchpad.

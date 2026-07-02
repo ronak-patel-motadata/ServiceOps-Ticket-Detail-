@@ -88,26 +88,26 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
 
   return (
     <div>
-      {/* Status, Priority, Assignee, Timeline Row */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr 2fr', marginLeft: '-8px', marginRight: '-8px' }}>
+      {/* Compact inline meta row — status · priority · assignee · due date (each editable) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         {/* Status */}
-        <div className="relative group" ref={statusRef}>
-          <label className="text-[12px] text-[#7B8FA5] mb-1 block pl-2">Status</label>
+        <div className="relative group/f" ref={statusRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowStatusDropdown(!showStatusDropdown);
             }}
-            className="flex items-center gap-1.5 hover:bg-[#F5F7FA] px-2 py-1 rounded transition-colors w-full"
+            title="Status"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
           >
-            <div 
-              className="w-2 h-2 rounded-full flex-shrink-0" 
+            <div
+              className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: statusOptions.find(opt => opt.label === task.status)?.color || '#7B8FA5' }}
             />
-            <span className="text-[13px] font-medium text-[#364658] truncate flex-1 text-left">{task.status}</span>
-            <ChevronDown size={12} className="text-[#7B8FA5] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <span className="text-[13px] font-medium text-[#364658]">{task.status}</span>
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
-          
+
           {showStatusDropdown && (
             <div className="absolute top-full left-0 mt-1 min-w-[160px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {statusOptions.map((option) => (
@@ -136,23 +136,23 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
         </div>
 
         {/* Priority */}
-        <div className="relative group" ref={priorityRef}>
-          <label className="text-[12px] text-[#7B8FA5] mb-1 block pl-2">Priority</label>
+        <div className="relative group/f" ref={priorityRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowPriorityDropdown(!showPriorityDropdown);
             }}
-            className="flex items-center gap-1.5 hover:bg-[#F5F7FA] px-2 py-1 rounded transition-colors"
+            title="Priority"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
           >
-            <div 
-              className="w-2 h-2 rounded-full flex-shrink-0" 
+            <div
+              className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: priorityColors[task.priority] || '#7B8FA5' }}
             />
             <span className="text-[13px] font-medium text-[#364658]">{task.priority}</span>
-            <ChevronDown size={12} className="text-[#7B8FA5] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
-          
+
           {showPriorityDropdown && (
             <div className="absolute top-full left-0 mt-1 w-full min-w-[140px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {priorityOptions.map((option) => (
@@ -177,29 +177,29 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
         </div>
 
         {/* Assignee */}
-        <div className="relative group" ref={assigneeRef}>
-          <label className="text-[12px] text-[#7B8FA5] mb-1 block pl-2">Assignee</label>
+        <div className="relative group/f" ref={assigneeRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowAssigneeDropdown(!showAssigneeDropdown);
             }}
-            className="flex items-center gap-1.5 hover:bg-[#F5F7FA] px-2 py-1 rounded transition-colors w-full"
+            title="Assignee"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors max-w-[180px]"
           >
             {task.assignee === 'Unassigned' ? (
-              <div className="size-[14px] rounded-full border border-dashed border-[#9CA3AF] flex-shrink-0"></div>
+              <div className="size-[16px] rounded-full border border-dashed border-[#9CA3AF] flex-shrink-0"></div>
             ) : (
-              <div 
+              <div
                 className="size-[18px] rounded flex items-center justify-center text-[8px] font-semibold text-white flex-shrink-0"
                 style={{ backgroundColor: assigneeOptions.find(opt => opt.label === task.assignee)?.color || '#3D8BD0' }}
               >
                 {assigneeOptions.find(opt => opt.label === task.assignee)?.initials || task.assignee.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </div>
             )}
-            <span className="text-[13px] font-medium text-[#364658] truncate flex-1 text-left">{task.assignee}</span>
-            <ChevronDown size={12} className="text-[#7B8FA5] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+            <span className={`text-[13px] font-medium truncate ${task.assignee === 'Unassigned' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{task.assignee}</span>
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
-          
+
           {showAssigneeDropdown && (
             <div className="absolute top-full right-0 mt-1 w-full min-w-[240px] max-w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {/* Search Box */}
@@ -275,26 +275,30 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
         </div>
 
         {/* Start Date and End Date */}
-        <div className="relative group" ref={dateRef}>
-          <label className="text-[12px] text-[#7B8FA5] mb-1 block pl-2">Due Date</label>
+        <div className="relative group/f" ref={dateRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowDateDropdown(!showDateDropdown);
             }}
-            className="w-full flex items-center gap-1.5 hover:bg-[#F5F7FA] px-2 py-1 rounded transition-colors"
+            title="Start Date – Due Date"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
           >
-            <Calendar size={14} className="text-[#7B8FA5] flex-shrink-0" />
-            <div className="text-[13px] font-medium text-[#364658] flex-1 text-left">
-              {task.endDate ? (
-                <span>{formatDate(task.endDate)} {new Date(task.endDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-              ) : (
-                <span>Set Due Date</span>
-              )}
-            </div>
-            <ChevronDown size={12} className="text-[#7B8FA5] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Calendar size={13} className="text-[#7B8FA5] flex-shrink-0" />
+            <span className={`text-[13px] font-medium ${task.startDate || task.endDate ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+              {(() => {
+                const fmt = (d: string) => `${formatDate(d)} ${new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+                if (task.startDate && task.endDate) {
+                  return task.startDate === task.endDate ? fmt(task.endDate) : `${fmt(task.startDate)} → ${fmt(task.endDate)}`;
+                }
+                if (task.endDate) return fmt(task.endDate);
+                if (task.startDate) return fmt(task.startDate);
+                return 'Set Due Date';
+              })()}
+            </span>
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
-          
+
           {showDateDropdown && (
             <div className="absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
               <div className="space-y-4">

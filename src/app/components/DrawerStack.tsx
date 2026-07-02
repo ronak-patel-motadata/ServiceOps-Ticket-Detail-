@@ -95,7 +95,16 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
   const closeAll = () => { setStack([]); setActiveKey(null); };
 
   const active = stack.find((s) => s.key === activeKey) || null;
-  const stackTabs = stack.map((s) => ({ id: s.id, subject: s.subject }));
+  // Enrich each tab with status/priority/technician (field names vary by module) for the tab hover card.
+  const tabMeta = (data: any) => {
+    if (!data) return {};
+    const status = typeof data.status === 'string' ? data.status : undefined;
+    const priority = typeof data.priority === 'string' ? data.priority : undefined;
+    const tech = data.assignedTo?.name ?? data.assignee ?? data.managedBy ?? data.owner ?? data.technician ?? (typeof data.usedBy === 'string' ? data.usedBy : data.usedBy?.name);
+    const technician = typeof tech === 'string' && tech.trim() ? tech : undefined;
+    return { status, priority, technician };
+  };
+  const stackTabs = stack.map((s) => ({ id: s.id, subject: s.subject, ...tabMeta(s.data) }));
 
   let drawer: ReactNode = null;
   if (active) {

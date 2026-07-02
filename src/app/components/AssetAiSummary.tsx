@@ -1,14 +1,27 @@
 import { Sparkles } from 'lucide-react';
 
+export interface AiSummaryAction {
+  label: string;
+  /** Prompt shown in the AI chat as the user question (defaults to label). */
+  question?: string;
+  /** Tailored AI answer opened in the chat. */
+  answer?: string;
+}
+
 interface AssetAiSummaryProps {
   summary: string;
   points?: string[];
+  /** Suggested fix/resolve actions derived from the issues in the summary. */
+  actions?: AiSummaryAction[];
+  /** Invoked when a suggested action is clicked (wire to the AI chat handler). */
+  onAction?: (question: string, answer: string) => void;
 }
 
 // Compact AI summary shown at the top of an asset's Overview tab — just the AI
 // (Sparkles) icon, a one/two line summary and a few asset-related points. No
 // "AI Summary" heading, unlike the larger conversation summary on tickets.
-export function AssetAiSummary({ summary, points = [] }: AssetAiSummaryProps) {
+// When `actions` are provided, suggested-fix buttons render below the points.
+export function AssetAiSummary({ summary, points = [], actions = [], onAction }: AssetAiSummaryProps) {
   return (
     <div
       className="rounded-xl border border-[#E7E1F7] p-4"
@@ -27,6 +40,26 @@ export function AssetAiSummary({ summary, points = [] }: AssetAiSummaryProps) {
                 </li>
               ))}
             </ul>
+          )}
+          {actions.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {actions.map((a, i) => (
+                <button
+                  key={i}
+                  onClick={() => onAction?.(a.question ?? a.label, a.answer ?? '')}
+                  style={i === 0 ? {
+                    background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
+                    border: '1px solid transparent',
+                  } : {
+                    background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)',
+                  }}
+                  className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                >
+                  <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                  <span>{a.label}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

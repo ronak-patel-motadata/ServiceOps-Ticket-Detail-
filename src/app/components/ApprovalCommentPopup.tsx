@@ -1,5 +1,6 @@
-import { X, Maximize2, Lock, Sparkles, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, Paperclip, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video } from 'lucide-react';
+import { X, Maximize2, Lock, Sparkles, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, Paperclip, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, MessageSquare, Search, ArrowUpDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 interface ApprovalCommentPopupProps {
   isOpen: boolean;
@@ -10,6 +11,9 @@ interface ApprovalCommentPopupProps {
 
 export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject }: ApprovalCommentPopupProps) {
   const [commentContent, setCommentContent] = useState('');
+  const [comments, setComments] = useState<{ id: number; author: string; initials: string; color: string; content: string; time: string }[]>([]);
+  const [commentSearch, setCommentSearch] = useState('');
+  const [sortNewestFirst, setSortNewestFirst] = useState(false);
   const [showAIAssistMenu, setShowAIAssistMenu] = useState(false);
   const [showToneSubmenu, setShowToneSubmenu] = useState(false);
   const [showFormattingMenu, setShowFormattingMenu] = useState(false);
@@ -40,14 +44,32 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
   if (!isOpen) return null;
 
   const handleSend = () => {
-    console.log('Sending comment for approval:', approvalId, commentContent);
-    // Handle send logic here
+    const text = commentContent.replace(/<[^>]*>/g, '').trim();
+    if (!text) return; // don't add empty comments
+    const now = new Date();
+    setComments((prev) => [
+      ...prev,
+      {
+        id: now.getTime(),
+        author: 'Rakesh Rathod',
+        initials: 'RR',
+        color: '#3D8BD0',
+        content: commentContent,
+        time: now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
+      },
+    ]);
     setCommentContent('');
     if (commentContentRef.current) {
       commentContentRef.current.innerHTML = '';
     }
-    onClose();
+    // keep the popup open so the user sees their comment appear
   };
+
+  // Search + sort (newest-first toggle) applied to the comment thread.
+  const strip = (html: string) => html.replace(/<[^>]*>/g, ' ');
+  const q = commentSearch.trim().toLowerCase();
+  const filteredComments = q ? comments.filter((c) => strip(c.content).toLowerCase().includes(q)) : comments;
+  const visibleComments = sortNewestFirst ? [...filteredComments].reverse() : filteredComments;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end">
@@ -65,43 +87,100 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
           </div>
         </div>
 
+        {/* Search + sort toolbar (shown once there are comments) */}
+        {comments.length > 0 && (
+          <div className="px-4 py-2.5 border-b border-[#DFE5ED] flex items-center gap-2 flex-shrink-0">
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white">
+              <Search size={15} className="text-[#7B8FA5] flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search comments..."
+                value={commentSearch}
+                onChange={(e) => setCommentSearch(e.target.value)}
+                className="outline-none text-sm bg-transparent placeholder:text-[#9CA3AF] text-[#364658] flex-1 min-w-0"
+              />
+              {commentSearch && (
+                <button className="p-0.5 hover:bg-[#F5F7FA] rounded flex-shrink-0" onClick={() => setCommentSearch('')}>
+                  <X size={14} className="text-[#7B8FA5]" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setSortNewestFirst((s) => !s)}
+              title={sortNewestFirst ? 'Newest first' : 'Oldest first'}
+              className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors flex-shrink-0"
+            >
+              <ArrowUpDown size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Comment Form Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {/* This area will be for displaying existing comments in the future */}
+          {comments.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center">
+              <div className="inline-flex items-center justify-center size-14 rounded-full bg-[#F5F7FA] mb-3">
+                <MessageSquare className="size-6 text-[#9CA3AF]" />
+              </div>
+              <p className="text-[13px] text-[#7B8FA5]">No comments yet. Start the conversation below.</p>
+            </div>
+          ) : visibleComments.length === 0 ? (
+            <div className="text-center py-10 text-[13px] text-[#7B8FA5]">No comments match your search.</div>
+          ) : (
+            <div className="space-y-5">
+              {visibleComments.map((c) => (
+                <div key={c.id} className="flex gap-3">
+                  <div className="size-[26px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: c.color }}>
+                    {c.initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-[#364658]">{c.author}</span>
+                      <span className="text-xs text-[#7B8FA5]">{c.time}</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
+                            <Lock className="size-3" />
+                            Internal
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Not Visible to Requester
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div
+                      className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-1 text-sm text-[#364658] leading-relaxed break-words"
+                      dangerouslySetInnerHTML={{ __html: c.content }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Comment Input Form - Fixed at Bottom */}
         <div className="p-4 border-t border-[#DFE5ED]">
-          <div className="border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={commentFormRef}>
+          <div className="border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={commentFormRef}>
             {/* Comment Form */}
             <div className="p-4">
-              {/* Text Area */}
+              {/* Text Area — uncontrolled contentEditable (never re-write its HTML while typing,
+                  or the caret jumps to the start and text appears reversed) */}
               <div className="mb-4">
-                {commentContent ? (
-                  <div
-                    ref={commentContentRef}
-                    contentEditable
-                    dangerouslySetInnerHTML={{ __html: commentContent }}
-                    onInput={(e) => setCommentContent(e.currentTarget.innerHTML)}
-                    className="w-full min-h-[100px] text-sm text-[#364658] focus:outline-none bg-transparent"
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
-                ) : (
-                  <div
-                    ref={commentContentRef}
-                    contentEditable
-                    onInput={(e) => setCommentContent(e.currentTarget.innerHTML)}
-                    className="w-full min-h-[100px] text-sm text-[#9CA3AF] focus:outline-none bg-transparent empty:before:content-[attr(data-placeholder)]"
-                    data-placeholder="Start typing your comment..."
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
-                )}
+                <div
+                  ref={commentContentRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  dir="ltr"
+                  onInput={(e) => setCommentContent(e.currentTarget.innerHTML)}
+                  className="w-full min-h-[100px] text-sm text-[#364658] text-left focus:outline-none bg-transparent empty:before:content-[attr(data-placeholder)] empty:before:text-[#9CA3AF]"
+                  data-placeholder="Start typing your comment..."
+                  style={{
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
+                  }}
+                />
               </div>
 
               {/* Bottom Toolbar */}

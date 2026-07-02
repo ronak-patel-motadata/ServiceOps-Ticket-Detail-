@@ -16,6 +16,7 @@ import type { Problem } from './ProblemListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { HeaderCopyButton } from './HeaderCopyButton';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -2381,8 +2382,9 @@ onStackMinimizedChange,
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[18px] font-semibold text-[#364658]">
-              {activeProblem.subject}
+            <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeProblem.id}</span>
+              <span className="truncate">{activeProblem.subject}</span>
             </h1>
             {/* Main properties — quick-glance KPIs below the subject */}
             {(() => {
@@ -2471,39 +2473,13 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Copy ID</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Link size={16} strokeWidth={2} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Copy Problem URL
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 hover:bg-[#f9fafb] rounded">
-                  <Share2 size={16} className="text-[#6b7280]" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Share Problem
-              </TooltipContent>
-            </Tooltip>
+            <HeaderCopyButton variant="id" value={activeProblem?.id ?? ''} label="Copy ID" />
+            <HeaderCopyButton variant="link" value={activeProblem?.id ?? ''} label="Copy Problem URL" />
             <div className="relative">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button 
-                    className="p-1.5 hover:bg-[#f9fafb] rounded" 
+                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]" 
                     onClick={() => setIsWatching(!isWatching)}
                     onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
                     onMouseLeave={() => setShowWatchersDropdown(false)}
@@ -3045,7 +3021,7 @@ onStackMinimizedChange,
                   {isDescriptionExpanded && (
                     <button 
                       onClick={() => setIsDescriptionExpanded(false)}
-                      className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium mt-2 flex items-center gap-1"
+                      className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[#DFE5ED] bg-[#F5F9FD] text-[13px] font-semibold text-[#3D8BD0] hover:bg-[#EBF3FB] hover:border-[#3D8BD0] transition-colors"
                     >
                       View less
                       <ChevronUp size={14} />
@@ -3131,7 +3107,7 @@ onStackMinimizedChange,
                     <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
                       <div className="max-h-[260px] overflow-y-auto">
                         {recs.slice(0, 3).map((r) => (
-                          <button key={r.ticketId} onClick={() => { setRelationsTypeFilter(t.type); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+                          <button key={r.ticketId} onClick={() => onOpenRelation?.({ ticketId: r.ticketId, subject: r.subject, type: r.type, status: r.status, priority: r.priority, assignedTo: { name: r.assignedTo.name } })} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.ticketId}</span>
                               <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span>

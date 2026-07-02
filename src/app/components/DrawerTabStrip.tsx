@@ -1,10 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, User } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
-interface TabItem { id: string; subject?: string }
+interface TabItem { id: string; subject?: string; status?: string; priority?: string; technician?: string }
 
 const TAB_W = 170;   // fixed tab width (matches the tab styling below)
 const MORE_W = 96;   // approx width reserved for the "More (N)" button
+
+// Colored dots for the tab hover card (matches the relation/impact popups).
+const statusDotColor = (st?: string) => {
+  const s = (st || '').toLowerCase();
+  if (s === 'open' || s === 'pending' || s === 'sent for approval' || s === 'generated') return '#D97706';
+  if (s === 'in progress' || s === 'ordered' || s === 'partially received') return '#3D8BD0';
+  if (s.includes('resolv') || s.includes('close') || s === 'in use' || s === 'completed' || s === 'operational' || s === 'approved' || s === 'received' || s === 'active') return '#22A06B';
+  return '#9CA3AF';
+};
+const priorityDotColor = (pr?: string) => {
+  const p = (pr || '').toLowerCase();
+  if (p === 'high' || p === 'p1' || p === 'urgent') return '#DC2626';
+  if (p === 'medium' || p === 'p2') return '#D97706';
+  if (p === 'low' || p === 'p3' || p === 'p4') return '#22A06B';
+  return '#9CA3AF';
+};
 
 /**
  * Open-item tab strip for the detail drawers. Measures its own width and shows as
@@ -70,17 +87,35 @@ export function DrawerTabStrip({
       {visible.map((t) => {
         const active = t.id === activeId;
         return (
-          <div
-            key={t.id}
-            className={`flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'}`}
-            onClick={() => onSelect(t.id)}
-          >
-            <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.id}</span>
-            <span className="text-[12px] text-[#364658] truncate flex-1">{t.subject}</span>
-            <button onClick={(e) => { e.stopPropagation(); onClose(t.id); }} className="p-0.5 hover:bg-[#e5e7eb] rounded">
-              <X size={14} className="text-[#6b7280]" />
-            </button>
-          </div>
+          <Tooltip key={t.id}>
+            <TooltipTrigger asChild>
+              <div
+                className={`flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'}`}
+                onClick={() => onSelect(t.id)}
+              >
+                <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.id}</span>
+                <span className="text-[12px] text-[#364658] truncate flex-1">{t.subject}</span>
+                <button onClick={(e) => { e.stopPropagation(); onClose(t.id); }} className="p-0.5 hover:bg-[#e5e7eb] rounded">
+                  <X size={14} className="text-[#6b7280]" />
+                </button>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start" sideOffset={4} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg max-w-[280px]">
+              <div className="px-3 py-2">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{t.id}</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate">{t.subject}</span>
+                </div>
+                {(t.technician || t.status || t.priority) && (
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#7B8FA5]">
+                    {t.technician && <span className="inline-flex items-center gap-1"><User size={11} />{t.technician}</span>}
+                    {t.status && <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: statusDotColor(t.status) }} />{t.status}</span>}
+                    {t.priority && <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: priorityDotColor(t.priority) }} />{t.priority}</span>}
+                  </div>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
         );
       })}
 

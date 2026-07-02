@@ -509,11 +509,11 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
           {relations.filter((relation) => !typeFilter || relation.type === typeFilter).map((relation) => (
             <div
               key={relation.id}
-              className="p-4 bg-white border border-[#E5E7EB] rounded-lg hover:border-[#3D8BD0] transition-colors group"
+              className="p-3 bg-white border border-[#E5E7EB] rounded-lg hover:border-[#3D8BD0] transition-colors group"
             >
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* First Row: ID & Name (left) and Delete Icon (right) */}
-                <div className="flex items-start justify-between gap-3 mb-1">
+                <div className="flex items-start justify-between gap-3">
                   <div
                     className={`flex items-center gap-2 min-w-0 flex-1 ${onOpenRelation ? 'cursor-pointer' : ''}`}
                     onClick={() => onOpenRelation?.(relation)}
@@ -535,12 +535,12 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   </button>
                 </div>
 
-                {/* Second Row: Requester, Status, Priority */}
-                <div className="flex items-start gap-10">
+                {/* Second Row: Requester, Status, Priority — inline label: value */}
+                <div className="flex items-center flex-wrap gap-x-8 gap-y-1.5">
                   {/* Assigned To */}
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-[#7B8FA5] font-medium text-[12px]">Assignee:</span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[#7B8FA5] font-medium text-[12px] flex-shrink-0">Assignee:</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <div className="flex-shrink-0 w-[18px] h-[18px] rounded bg-[#3D8BD0] flex items-center justify-center text-white text-[8px] font-medium">
                         {relation.assignedTo.name.split(' ').map(n => n[0]).join('')}
                       </div>
@@ -551,18 +551,18 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   </div>
 
                   {/* Status */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[#7B8FA5] font-medium text-[12px]">Status:</span>
-                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-[#364658]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#7B8FA5] font-medium text-[12px] flex-shrink-0">Status:</span>
+                    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
                       <span className={`size-2 rounded-full ${getStatusDotColor(relation.status)}`}></span>
                       {relation.status}
                     </span>
                   </div>
 
                   {/* Priority */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[#7B8FA5] font-medium text-[12px]">Priority:</span>
-                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-[#364658]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[#7B8FA5] font-medium text-[12px] flex-shrink-0">Priority:</span>
+                    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
                       <span className={`size-2 rounded-full ${getPriorityDotColor(relation.priority)}`}></span>
                       {relation.priority}
                     </span>

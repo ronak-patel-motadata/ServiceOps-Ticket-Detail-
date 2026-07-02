@@ -1,4 +1,5 @@
-import { Clock } from 'lucide-react';
+import { Clock, ArrowRight, Filter, Download, Lock, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 
 interface AuditTrailsTabContentProps {
   ticketId?: string;
@@ -7,7 +8,7 @@ interface AuditTrailsTabContentProps {
 export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
-  
+
   const auditTrails = isBlankTicket ? [] : [
     {
       id: '1',
@@ -99,88 +100,228 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
     }
   ];
 
+  // Filter (date range) + download popups
+  const [showFilter, setShowFilter] = useState(false);
+  const [showDownload, setShowDownload] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [draftFrom, setDraftFrom] = useState('');
+  const [draftTo, setDraftTo] = useState('');
+  const [dlFormat, setDlFormat] = useState<'PDF' | 'Excel' | 'CSV'>('PDF');
+  const [dlPwProtected, setDlPwProtected] = useState(false);
+  const [dlPassword, setDlPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+
+  const openFilter = () => { setShowDownload(false); setDraftFrom(fromDate); setDraftTo(toDate); setShowFilter((v) => !v); };
+  const applyFilter = () => { setFromDate(draftFrom); setToDate(draftTo); setShowFilter(false); };
+  const clearFilter = () => { setFromDate(''); setToDate(''); setDraftFrom(''); setDraftTo(''); setShowFilter(false); };
+  const isFiltered = !!(fromDate || toDate);
+
+  // Apply the date-range filter, then group entries by day for a scannable timeline.
+  const parse = (ts: string) => new Date(ts.replace(' ', 'T'));
+  const fmtTime = (ts: string) => parse(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const filteredTrails = auditTrails.filter((a) => {
+    const d = a.timestamp.slice(0, 10);
+    if (fromDate && d < fromDate) return false;
+    if (toDate && d > toDate) return false;
+    return true;
+  });
+  const groups: { key: string; label: string; items: typeof auditTrails }[] = [];
+  for (const a of filteredTrails) {
+    const key = a.timestamp.slice(0, 10);
+    let g = groups.find((x) => x.key === key);
+    if (!g) {
+      g = { key, label: parse(a.timestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }), items: [] as typeof auditTrails };
+      groups.push(g);
+    }
+    g.items.push(a);
+  }
+
+  const iconBtn = 'size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors';
+
   return (
-    <div className="px-6 py-6">
-      <div className="space-y-4">
-        {/* Empty State */}
-        {auditTrails.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
-              <Clock className="size-8 text-[#7B8FA5]" />
-            </div>
-            <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No Audit Trails Yet</h3>
-            <p className="text-[13px] text-[#7B8FA5] max-w-[300px]">
-              Audit trail entries will appear here as actions are performed on this ticket.
-            </p>
+    <div className="px-6 py-5">
+      {/* Toolbar — filter + download */}
+      {auditTrails.length > 0 && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[12px] text-[#7B8FA5]">
+            {filteredTrails.length} {filteredTrails.length === 1 ? 'entry' : 'entries'}{isFiltered ? ' · filtered' : ''}
           </div>
-        ) : (
-          /* Timeline */
-          <div className="relative">
-            {/* Audit Trail Items */}
-            {auditTrails.map((audit, index, array) => (
-            <div key={audit.id} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-              {/* Timeline Line */}
-              {index !== array.length - 1 && (
-                <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />
-              )}
-              
-              {/* User Avatar */}
-              <div 
-                className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10"
-                style={{ backgroundColor: audit.userColor }}
-              >
-                {audit.userInitials}
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="py-1">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-3 mb-1">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[13px] font-semibold text-[#364658]">{audit.user}</span>
-                        <span className="text-[12px] text-[#7B8FA5]">•</span>
-                        <span className="text-[12px] text-[#7B8FA5]">
-                          {audit.action}
-                        </span>
+          <div className="flex items-center gap-2">
+            {/* Filter */}
+            <div className="relative">
+              <button onClick={openFilter} className={`${iconBtn} ${isFiltered ? 'border-[#3D8BD0] text-[#3D8BD0]' : ''}`} title="Filter by date">
+                <Filter size={16} />
+              </button>
+              {showFilter && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFilter(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                    <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label>
+                        <input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
                       </div>
-                      <p className="text-[13px] text-[#364658]">{audit.details}</p>
+                      <div>
+                        <label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label>
+                        <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(e) => setDraftTo(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap">
-                      <Clock size={11} />
-                      <span>{audit.timestamp}</span>
+                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                      <button onClick={clearFilter} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                      <button onClick={applyFilter} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
                     </div>
                   </div>
-                  
-                  {/* Changes Table */}
-                  {audit.changes.length > 0 && (
-                    <div className="mt-2 pl-0">
-                      <div className="space-y-1.5">
-                        {audit.changes.map((change, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-[12px]">
-                            <span className="text-[#9CA3AF] min-w-[70px]">{change.field}</span>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[#EF4444] line-through">
-                                {change.oldValue}
-                              </span>
-                              <span className="text-[#D1D5DB]">→</span>
-                              <span className="text-[#10B981] font-medium">
-                                {change.newValue}
-                              </span>
-                            </div>
-                          </div>
+                </>
+              )}
+            </div>
+
+            {/* Download */}
+            <div className="relative">
+              <button onClick={() => { setShowFilter(false); setShowDownload((v) => !v); }} className={iconBtn} title="Download audit trail">
+                <Download size={16} />
+              </button>
+              {showDownload && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowDownload(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                    <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+
+                    {/* Format */}
+                    <div className="mb-4">
+                      <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
+                      <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
+                        {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
+                          <button
+                            key={f}
+                            onClick={() => setDlFormat(f)}
+                            className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${dlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
+                          >
+                            {f}
+                          </button>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Password Protected toggle */}
+                    <div className="mb-3">
+                      <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label>
+                      <button
+                        onClick={() => setDlPwProtected((v) => !v)}
+                        role="switch"
+                        aria-checked={dlPwProtected}
+                        className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${dlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}
+                      >
+                        <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${dlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+                      </button>
+                    </div>
+
+                    {/* Attachment password */}
+                    {dlPwProtected && (
+                      <div className="mb-1">
+                        <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
+                        <div className="relative">
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                          <input
+                            type={showPw ? 'text' : 'password'}
+                            value={dlPassword}
+                            onChange={(e) => setDlPassword(e.target.value)}
+                            placeholder="Attachment Password"
+                            className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                          />
+                          <button onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">
+                            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button>
+                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {auditTrails.length === 0 ? (
+        /* Empty State */
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
+            <Clock className="size-8 text-[#7B8FA5]" />
+          </div>
+          <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No Audit Trails Yet</h3>
+          <p className="text-[13px] text-[#7B8FA5] max-w-[300px]">
+            Audit trail entries will appear here as actions are performed on this ticket.
+          </p>
+        </div>
+      ) : filteredTrails.length === 0 ? (
+        <div className="text-center py-16 text-[13px] text-[#7B8FA5]">No audit trail entries in the selected date range.</div>
+      ) : (
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <div key={group.key}>
+              {/* Day header */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-[12px] font-semibold text-[#7B8FA5] flex-shrink-0">{group.label}</span>
+                <div className="flex-1 h-px bg-[#EEF1F5]" />
+              </div>
+
+              {/* Entries for the day */}
+              <div className="relative">
+                {group.items.map((audit, index, arr) => (
+                  <div key={audit.id} className="relative flex gap-3 py-3.5 px-2 -mx-2 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                    {/* Connecting line */}
+                    {index !== arr.length - 1 && (
+                      <div className="absolute left-[22px] top-[44px] bottom-[-2px] w-px bg-[#EEF1F5]" />
+                    )}
+
+                    {/* Avatar */}
+                    <div
+                      className="size-[26px] rounded-[6px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10"
+                      style={{ backgroundColor: audit.userColor }}
+                    >
+                      {audit.userInitials}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[13px] font-semibold text-[#364658]">{audit.user}</span>
+                        <span className="text-[11px] font-medium text-[#64748B] bg-[#F1F5F9] rounded px-1.5 py-0.5">{audit.action}</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-[#9CA3AF]">
+                          <Clock size={11} />
+                          {fmtTime(audit.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-[#5A6B7B] mt-1">{audit.details}</p>
+
+                      {/* Before → after change chips */}
+                      {audit.changes.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {audit.changes.map((change, idx) => (
+                            <span key={idx} className="inline-flex items-center gap-1.5 text-[12px] bg-white border border-[#E8EDF3] rounded-md px-2 py-1">
+                              <span className="text-[#7B8FA5]">{change.field}</span>
+                              <span className="text-[#94A3B8] line-through">{change.oldValue}</span>
+                              <ArrowRight size={11} className="text-[#CBD5E1] flex-shrink-0" />
+                              <span className="text-[#059669] font-medium">{change.newValue}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
