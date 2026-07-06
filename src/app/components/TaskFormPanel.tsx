@@ -1,4 +1,5 @@
 import { X, ChevronDown, Clock } from 'lucide-react';
+import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 
 interface Task {
@@ -245,28 +246,12 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                 <label className="block text-xs text-[#7B8FA5] mb-1.5">
                   Start Date <span className="text-[#E74C3C]">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="datetime-local"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 pr-8 text-sm border border-[#DFE5ED] rounded focus:outline-none focus:border-[#3D8BD0] transition-colors"
-                  />
-                  <Clock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
-                </div>
+                <DateField mode="datetime" value={formData.startDate} onChange={(v) => setFormData({ ...formData, startDate: v })} />
               </div>
 
               <div>
                 <label className="block text-xs text-[#7B8FA5] mb-1.5">End Date</label>
-                <div className="relative">
-                  <input
-                    type="datetime-local"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 pr-8 text-sm border border-[#DFE5ED] rounded focus:outline-none focus:border-[#3D8BD0] transition-colors"
-                  />
-                  <Clock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
-                </div>
+                <DateField mode="datetime" value={formData.endDate} onChange={(v) => setFormData({ ...formData, endDate: v })} />
               </div>
             </div>
 

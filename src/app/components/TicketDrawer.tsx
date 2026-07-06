@@ -7,6 +7,7 @@
  * to help reduce the file size where possible.
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, ArrowRightLeft } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
@@ -18,6 +19,8 @@ import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { HeaderCopyButton } from './HeaderCopyButton';
+import { HeaderIdPill } from './HeaderIdPill';
+import { SentimentBadge } from './SentimentBadge';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -417,6 +420,7 @@ onStackMinimizedChange,
   const [showBuildingDropdown, setShowBuildingDropdown] = useState(false);
   const [showRequestChannelDropdown, setShowRequestChannelDropdown] = useState(false);
   const [showBadgeStatusDropdown, setShowBadgeStatusDropdown] = useState(false);
+  const [showHeaderStatusDropdown, setShowHeaderStatusDropdown] = useState(false);
   const [showBadgePriorityDropdown, setShowBadgePriorityDropdown] = useState(false);
   const [showBadgeAssigneeDropdown, setShowBadgeAssigneeDropdown] = useState(false);
   
@@ -1883,8 +1887,9 @@ onStackMinimizedChange,
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
-              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeTicket.id}</span>
+              <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
+              <SentimentBadge id={activeTicket.id} />
             </h1>
             {/* Main properties — quick-glance incident KPIs below the subject */}
             {(() => {
@@ -1935,7 +1940,6 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <HeaderCopyButton variant="id" value={activeTicket?.id ?? ''} label="Copy ID" />
             <HeaderCopyButton variant="link" value={activeTicket?.id ?? ''} label="Copy Ticket URL" />
             <div className="relative">
               <Tooltip>
@@ -2038,26 +2042,59 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                if (selectedStatus === 'Closed') {
-                  setSelectedStatus('Open');
-                } else {
-                  // Check if solution exists before closing
-                  if (!solutionData) {
-                    toast('Please add a solution in the Resolution tab before closing the request', {
-                      icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
-                    });
-                    setActiveMainTab('resolution');
-                  } else {
-                    setSelectedStatus('Closed');
-                  }
-                }
-              }}
-              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2d7bc0]"
-            >
-              {selectedStatus === 'Closed' ? 'Reopen Request' : 'Close Request'}
-            </button>
+            {/* Status split-button dropdown (replaces the old Close Request button) */}
+            <div className="relative">
+              <div className={`inline-flex items-stretch rounded-md border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+                <button
+                  onClick={() => setShowHeaderStatusDropdown((v) => !v)}
+                  className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"
+                  title="Update status"
+                >
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusBadgeColors().dot }} />
+                  <span className="text-[13px] font-medium text-[#364658]">{selectedStatus}</span>
+                </button>
+                <button
+                  onClick={() => setShowHeaderStatusDropdown((v) => !v)}
+                  className={`flex items-center px-1.5 border-l hover:bg-[#F9FAFB] transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}
+                  title="Update status"
+                >
+                  <ChevronDown size={14} className={`text-[#7B8FA5] transition-transform ${showHeaderStatusDropdown ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {showHeaderStatusDropdown && (
+                <>
+                  <div className="fixed inset-0 z-[90]" onClick={() => setShowHeaderStatusDropdown(false)} />
+                  <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
+                    {statusOptions.map((option) => {
+                      const isSel = selectedStatus === option.label;
+                      return (
+                        <button
+                          key={option.label}
+                          onClick={() => {
+                            if (option.label === 'Closed' && !solutionData) {
+                              toast('Please add a solution in the Resolution tab before closing the request', {
+                                icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
+                              });
+                              setActiveMainTab('resolution');
+                              setShowHeaderStatusDropdown(false);
+                              return;
+                            }
+                            setSelectedStatus(option.label);
+                            setShowHeaderStatusDropdown(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#F9FAFB] text-left transition-colors"
+                        >
+                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: option.color }} />
+                          <span className="text-[13px] text-[#364658]">{option.label}</span>
+                          {isSel && <Check size={14} className="ml-auto text-[#3D8BD0]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
             <TicketActionsMenu
               ticketId={activeTicket?.id}
               onOpenApprovalPopup={() => {
@@ -3004,13 +3041,13 @@ onStackMinimizedChange,
                   <div className="flex items-center gap-2 relative">
                     {!showSubTabSearch ? (
                       <button 
-                        className="p-1.5 hover:bg-[#f9fafb] rounded"
+                        className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
                         onClick={() => setShowSubTabSearch(true)}
                       >
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="absolute right-[68px] top-1/2 -translate-y-1/2 flex items-center gap-2 h-[30px] px-3 border border-[#DFE5ED] rounded-[6px] bg-white shadow-sm min-w-[280px]">
+                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -3031,11 +3068,11 @@ onStackMinimizedChange,
                         </button>
                       </div>
                     )}
-                    <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                    <button className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors">
                       <Filter size={16} className="text-[#6b7280]" />
                     </button>
                     <button 
-                      className="p-1.5 hover:bg-[#f9fafb] rounded"
+                      className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
                       onClick={() => setIsSortedFromTop(!isSortedFromTop)}
                       title={isSortedFromTop ? 'Sort from bottom' : 'Sort from top'}
                     >
@@ -3879,10 +3916,10 @@ onStackMinimizedChange,
                         <div className="relative" ref={aiAssistMenuForwardRef}>
                           <button 
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                            style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                             onClick={() => setShowAIAssistMenuForward(!showAIAssistMenuForward)}
                           >
-                            <Sparkles size={14} className="text-[#3D8BD0]" />
+                            <AiSparkle size={14} />
                             <span>AI Assist</span>
                             <ChevronDown size={12} className="text-[#7B8FA5]" />
                           </button>
@@ -4074,10 +4111,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuCollaborateRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuCollaborate(!showAIAssistMenuCollaborate)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>
@@ -4357,10 +4394,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuNoteRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuNote(!showAIAssistMenuNote)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>
@@ -4739,10 +4776,10 @@ onStackMinimizedChange,
                               <div className="relative" ref={aiAssistMenuDiagnosisRef}>
                                 <button 
                                   className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                  style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                                  style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                                   onClick={() => setShowAIAssistMenuDiagnosis(!showAIAssistMenuDiagnosis)}
                                 >
-                                  <Sparkles size={14} className="text-[#3D8BD0]" />
+                                  <AiSparkle size={14} />
                                   <span>AI Assist</span>
                                   <ChevronDown size={12} className="text-[#7B8FA5]" />
                                 </button>
@@ -5029,10 +5066,10 @@ onStackMinimizedChange,
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
                               <button 
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                                 onClick={() => setShowAIAssistMenuSolution(!showAIAssistMenuSolution)}
                               >
-                                <Sparkles size={14} className="text-[#3D8BD0]" />
+                                <AiSparkle size={14} />
                                 <span>AI Assist</span>
                                 <ChevronDown size={12} className="text-[#7B8FA5]" />
                               </button>

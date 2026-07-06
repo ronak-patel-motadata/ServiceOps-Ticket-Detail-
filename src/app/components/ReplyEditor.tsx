@@ -1,4 +1,5 @@
 import { X, Maximize2, Sparkles, ChevronDown, ChevronRight, Paperclip, Image as ImageIcon, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Code, CheckCircle, FileText, Mail, XCircle, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Plus } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
 import { useRef, useEffect, useState } from 'react';
 
 interface ReplyEditorProps {
@@ -280,10 +281,10 @@ export function ReplyEditor({
             <div className="relative" ref={aiAssistMenuRef}>
               <button 
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                 onClick={() => setShowAIAssistMenu(!showAIAssistMenu)}
               >
-                <Sparkles size={14} className="text-[#3D8BD0]" />
+                <AiSparkle size={14} />
                 <span>AI Assist</span>
                 <ChevronDown size={12} className="text-[#7B8FA5]" />
               </button>

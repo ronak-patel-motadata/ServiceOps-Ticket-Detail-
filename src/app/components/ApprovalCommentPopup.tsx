@@ -1,17 +1,21 @@
 import { X, Maximize2, Lock, Sparkles, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, Paperclip, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, MessageSquare, Search, ArrowUpDown } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
 import { useState, useRef, useEffect } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+
+export interface ApprovalComment { id: number; author: string; initials: string; color: string; content: string; time: string }
 
 interface ApprovalCommentPopupProps {
   isOpen: boolean;
   onClose: () => void;
   approvalId: string;
   approvalSubject: string;
+  comments: ApprovalComment[];
+  onAddComment: (comment: ApprovalComment) => void;
 }
 
-export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject }: ApprovalCommentPopupProps) {
+export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject, comments, onAddComment }: ApprovalCommentPopupProps) {
   const [commentContent, setCommentContent] = useState('');
-  const [comments, setComments] = useState<{ id: number; author: string; initials: string; color: string; content: string; time: string }[]>([]);
   const [commentSearch, setCommentSearch] = useState('');
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
   const [showAIAssistMenu, setShowAIAssistMenu] = useState(false);
@@ -47,17 +51,14 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
     const text = commentContent.replace(/<[^>]*>/g, '').trim();
     if (!text) return; // don't add empty comments
     const now = new Date();
-    setComments((prev) => [
-      ...prev,
-      {
-        id: now.getTime(),
-        author: 'Rakesh Rathod',
-        initials: 'RR',
-        color: '#3D8BD0',
-        content: commentContent,
-        time: now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
-      },
-    ]);
+    onAddComment({
+      id: now.getTime(),
+      author: 'Rakesh Rathod',
+      initials: 'RR',
+      color: '#3D8BD0',
+      content: commentContent,
+      time: now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }),
+    });
     setCommentContent('');
     if (commentContentRef.current) {
       commentContentRef.current.innerHTML = '';
@@ -190,10 +191,10 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                   <div className="relative" ref={aiAssistMenuRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenu(!showAIAssistMenu)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>

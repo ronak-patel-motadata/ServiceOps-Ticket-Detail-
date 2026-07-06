@@ -11,6 +11,8 @@
  * to help reduce the file size where possible.
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
+import { DateField } from './DateField';
 import { useState, useRef, useEffect, type ComponentType } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
@@ -23,6 +25,7 @@ import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { HeaderCopyButton } from './HeaderCopyButton';
+import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { DiagnosisCard } from './DiagnosisCard';
@@ -2110,7 +2113,7 @@ onStackMinimizedChange,
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div className="min-w-0">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate flex items-center gap-2">
-              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeTicket.id}</span>
+              <HeaderIdPill id={activeTicket.id} />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
@@ -2122,7 +2125,6 @@ onStackMinimizedChange,
             <span className="text-[12px] text-[#6b7280] block mt-0.5 pl-[18px]">Created at 26/02/2025 15:02 (6 days ago)</span>
           </div>
           <div className="flex items-center gap-2">
-            <HeaderCopyButton variant="id" value={activeAsset?.id ?? ''} label="Copy ID" />
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <div className="relative">
               <Tooltip>
@@ -4147,14 +4149,7 @@ onStackMinimizedChange,
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[13px] text-[#364658] mb-1.5">Date <span className="text-[#DC2626]">*</span></label>
-                        <input
-                          type="date"
-                          value={newCost.date}
-                          onChange={(e) => setNewCost((c) => ({ ...c, date: e.target.value }))}
-                          onClick={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; el.showPicker?.(); }}
-                          onFocus={(e) => { const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void }; el.showPicker?.(); }}
-                          className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                        />
+                        <DateField value={newCost.date} onChange={(v) => setNewCost((c) => ({ ...c, date: v }))} />
                       </div>
                       <div>
                         <label className="block text-[13px] text-[#364658] mb-1.5">Amount <span className="text-[#DC2626]">*</span></label>
@@ -4442,7 +4437,7 @@ onStackMinimizedChange,
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="absolute right-[68px] top-1/2 -translate-y-1/2 flex items-center gap-2 h-[30px] px-3 border border-[#DFE5ED] rounded-[6px] bg-white shadow-sm min-w-[280px]">
+                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -5307,10 +5302,10 @@ onStackMinimizedChange,
                         <div className="relative" ref={aiAssistMenuForwardRef}>
                           <button 
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                            style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                             onClick={() => setShowAIAssistMenuForward(!showAIAssistMenuForward)}
                           >
-                            <Sparkles size={14} className="text-[#3D8BD0]" />
+                            <AiSparkle size={14} />
                             <span>AI Assist</span>
                             <ChevronDown size={12} className="text-[#7B8FA5]" />
                           </button>
@@ -5502,10 +5497,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuCollaborateRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuCollaborate(!showAIAssistMenuCollaborate)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>
@@ -5785,10 +5780,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuNoteRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuNote(!showAIAssistMenuNote)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>
@@ -6179,8 +6174,8 @@ onStackMinimizedChange,
                             <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
                               <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
                               <div className="space-y-3">
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><input type="date" value={histDraftFrom} onChange={(e) => setHistDraftFrom(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /></div>
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><input type="date" value={histDraftTo} min={histDraftFrom || undefined} onChange={(e) => setHistDraftTo(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /></div>
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><DateField value={histDraftFrom} onChange={setHistDraftFrom} /></div>
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={histDraftTo} min={histDraftFrom || undefined} onChange={setHistDraftTo} /></div>
                               </div>
                               <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
                                 <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Clear</button>
@@ -6442,10 +6437,10 @@ onStackMinimizedChange,
                               <div className="relative" ref={aiAssistMenuDiagnosisRef}>
                                 <button 
                                   className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                  style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                                  style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                                   onClick={() => setShowAIAssistMenuDiagnosis(!showAIAssistMenuDiagnosis)}
                                 >
-                                  <Sparkles size={14} className="text-[#3D8BD0]" />
+                                  <AiSparkle size={14} />
                                   <span>AI Assist</span>
                                   <ChevronDown size={12} className="text-[#7B8FA5]" />
                                 </button>
@@ -6732,10 +6727,10 @@ onStackMinimizedChange,
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
                               <button 
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                                style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                                 onClick={() => setShowAIAssistMenuSolution(!showAIAssistMenuSolution)}
                               >
-                                <Sparkles size={14} className="text-[#3D8BD0]" />
+                                <AiSparkle size={14} />
                                 <span>AI Assist</span>
                                 <ChevronDown size={12} className="text-[#7B8FA5]" />
                               </button>

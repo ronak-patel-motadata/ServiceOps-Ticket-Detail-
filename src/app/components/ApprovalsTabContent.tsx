@@ -1,7 +1,7 @@
-import { ChevronDown, ChevronRight, Mail, X, Clock, MoreVertical, Edit2, Plus, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, Mail, X, Clock, MoreVertical, Edit2, Plus, MessageSquare, Check, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { CreateApprovalPopup } from './CreateApprovalPopup';
-import { ApprovalCommentPopup } from './ApprovalCommentPopup';
+import { ApprovalCommentPopup, ApprovalComment } from './ApprovalCommentPopup';
 
 interface Approver {
   id: string;
@@ -53,6 +53,13 @@ export function ApprovalsTabContent({
   const [editingApproval, setEditingApproval] = useState<Approval | null>(null);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  // Comments per approval (lifted here so the accordion header can show a count).
+  const [approvalComments, setApprovalComments] = useState<Record<string, ApprovalComment[]>>({
+    '1': [
+      { id: 1, author: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', content: 'Please prioritise this — the requester needs the device for a client demo next week.', time: 'Mar 11, 7:02 PM' },
+      { id: 2, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Confirmed the budget is available under the Q1 hardware allocation.', time: 'Mar 12, 9:15 AM' },
+    ],
+  });
 
   // Use external popup state if provided, otherwise use internal state
   const showCreateApprovalPopup = externalShowPopup !== undefined ? externalShowPopup : internalShowPopup;
@@ -124,15 +131,22 @@ export function ApprovalsTabContent({
           level: 1,
           approvers: [
             { id: '1', name: 'John Doe', email: 'john.doe@company.com', status: 'Approved', statusChangedAt: 'Wed, 11 Mar 11:06 PM' },
-            { id: '2', name: 'Jane Smith', email: 'jane.smith@company.com', status: 'Pending', statusChangedAt: 'Wed, 11 Mar 6:34 PM' },
-            { id: '3', name: 'Mike Johnson', email: 'mike.johnson@company.com', status: 'Pending', statusChangedAt: 'Wed, 11 Mar 6:34 PM' },
+            { id: '2', name: 'Jane Smith', email: 'jane.smith@company.com', status: 'Approved', statusChangedAt: 'Wed, 11 Mar 11:20 PM' },
+            { id: '3', name: 'Mike Johnson', email: 'mike.johnson@company.com', status: 'Approved', statusChangedAt: 'Wed, 11 Mar 11:34 PM' },
           ]
         },
         {
           level: 2,
           approvers: [
             { id: '4', name: 'Sarah Johnson', email: 'sarah.johnson@company.com', status: 'Pending', statusChangedAt: 'Wed, 11 Mar 6:34 PM' },
-            { id: '5', name: 'Tom Brown', email: 'tom.brown@company.com', status: 'Pending', statusChangedAt: 'Wed, 11 Mar 6:34 PM' },
+            { id: '5', name: 'Tom Brown', email: 'tom.brown@company.com', status: 'Approved', statusChangedAt: 'Thu, 12 Mar 9:10 AM' },
+          ]
+        },
+        {
+          level: 3,
+          approvers: [
+            { id: '9', name: 'David Miller', email: 'david.miller@company.com', status: 'Pending', statusChangedAt: 'Wed, 11 Mar 6:34 PM' },
+            { id: '10', name: 'Nina Patel', email: 'nina.patel@company.com', status: 'Approved', statusChangedAt: 'Thu, 12 Mar 10:02 AM' },
           ]
         }
       ]
@@ -233,7 +247,15 @@ export function ApprovalsTabContent({
       setExpandedApprovalId(null);
     } else {
       setExpandedApprovalId(approvalId);
-      setSelectedLevel(2);
+      // Land on the first not-yet-complete level (its earlier levels are all approved,
+      // so it is unlocked); if every level is complete, land on the last one.
+      const appr = approvals.find((a) => a.id === approvalId);
+      if (appr) {
+        const firstOpen = appr.levels.find((l) => !(l.approvers.length > 0 && l.approvers.every((a) => a.status === 'Approved')));
+        setSelectedLevel(firstOpen ? firstOpen.level : (appr.levels[appr.levels.length - 1]?.level ?? 1));
+      } else {
+        setSelectedLevel(1);
+      }
     }
   };
 
@@ -305,10 +327,15 @@ export function ApprovalsTabContent({
                         setSelectedApprovalId(approval.id);
                         setShowCommentPopup(true);
                       }}
-                      className="p-1 hover:bg-[#E5E7EB] rounded transition-colors flex-shrink-0"
-                      title="Approval Comment"
+                      className="relative p-1 hover:bg-[#E5E7EB] rounded transition-colors flex-shrink-0"
+                      title={`Approval Comment${(approvalComments[approval.id]?.length || 0) > 0 ? ` (${approvalComments[approval.id].length})` : ''}`}
                     >
                       <MessageSquare size={14} className="text-[#7B8FA5]" />
+                      {(approvalComments[approval.id]?.length || 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-[#3D8BD0] text-white text-[9px] font-semibold flex items-center justify-center leading-none">
+                          {approvalComments[approval.id].length}
+                        </span>
+                      )}
                     </button>
                   </div>
                   <p className="text-[12px] text-[#7B8FA5]">
@@ -316,10 +343,10 @@ export function ApprovalsTabContent({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 text-[12px] font-medium rounded border ${getTypeColor(approval.type)}`}>
+                  <span className={`px-2.5 py-1 text-[12px] font-medium rounded ${getTypeColor(approval.type)}`}>
                     {approval.type}
                   </span>
-                  <span className={`px-2.5 py-1 text-[12px] font-medium rounded border ${getStatusColor(approval.status)}`}>
+                  <span className={`px-2.5 py-1 text-[12px] font-medium rounded ${getStatusColor(approval.status)}`}>
                     {approval.status}
                   </span>
                   <button 
@@ -341,26 +368,38 @@ export function ApprovalsTabContent({
               {/* Expanded Content */}
               {isExpanded && (
                 <div className="border-t border-[#E5E7EB]">
-                  {/* Level Tabs */}
+                  {/* Level Tabs — folder tabs matching the Task Summary stage stepper: the
+                      active level is a white tab that merges into the approvers table below;
+                      a fully-approved level turns green with a check. */}
                   {approval.levels.length > 1 && (
-                    <div className="px-4 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[13px] font-medium text-[#6B7280] mr-2">
+                    <div className="px-4 pt-3 bg-gradient-to-b from-[#F9FBFD] to-[#F4F7FA] border-b border-[#E5E7EB]">
+                      <div className="flex flex-wrap items-end gap-1">
+                        <span className="text-[13px] font-semibold text-[#6B7280] mr-3 flex-shrink-0 self-center pb-3">
                           Approval Level
                         </span>
-                        {approval.levels.map((level) => (
-                          <button
-                            key={level.level}
-                            onClick={() => setSelectedLevel(level.level)}
-                            className={`px-2.5 py-1 text-[12px] font-medium rounded transition-colors ${
-                              selectedLevel === level.level
-                                ? 'bg-[#3D8BD0] text-white'
-                                : 'bg-white text-[#364658] border border-[#DFE5ED] hover:border-[#3D8BD0]'
-                            }`}
-                          >
-                            Level {level.level}
-                          </button>
-                        ))}
+                        {approval.levels.map((level, idx) => {
+                          const active = selectedLevel === level.level;
+                          const complete = level.approvers.length > 0 && level.approvers.every((a) => a.status === 'Approved');
+                          // Sequential approval — a level unlocks only once every earlier level is fully approved.
+                          const locked = !approval.levels.slice(0, idx).every((l) => l.approvers.length > 0 && l.approvers.every((a) => a.status === 'Approved'));
+                          return (
+                            <button
+                              key={level.level}
+                              onClick={() => { if (!locked) setSelectedLevel(level.level); }}
+                              disabled={locked}
+                              title={locked ? 'Complete the previous level to unlock this level' : undefined}
+                              className={`relative inline-flex items-center gap-2 px-3.5 pt-2 pb-2.5 -mb-px rounded-t-lg text-[12px] font-medium border border-b-0 transition-colors flex-shrink-0 ${locked ? 'border-transparent opacity-50 cursor-not-allowed' : active ? 'bg-white border-[#E5E7EB] shadow-[0_-2px_6px_rgba(31,42,61,0.05)] z-10' : 'border-transparent hover:bg-white/60'}`}
+                            >
+                              <span className={`size-5 rounded-md flex items-center justify-center text-[10px] font-bold ${complete ? 'bg-[#16A34A] text-white' : active && !locked ? 'bg-gradient-to-br from-[#4F93FF] to-[#2F6FED] text-white' : 'bg-white border border-[#CBD5E1] text-[#475569]'}`}>
+                                {complete ? <Check size={11} /> : level.level}
+                              </span>
+                              <span className={`flex items-center gap-1 ${complete ? 'text-[#16A34A]' : active && !locked ? 'text-[#2F6FED]' : 'text-[#5A6A82]'}`}>
+                                Level {level.level}
+                                {locked && <Lock size={11} className="text-[#9CA3AF]" />}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -402,7 +441,7 @@ export function ApprovalsTabContent({
                               </td>
                               <td className="py-3">
                                 <div className="group relative inline-block">
-                                  <span className={`inline-flex items-center px-2.5 py-1 text-[12px] font-medium rounded border ${getStatusColor(approver.status)}`}>
+                                  <span className={`inline-flex items-center px-2.5 py-1 text-[12px] font-medium rounded ${getStatusColor(approver.status)}`}>
                                     {approver.status}
                                   </span>
                                   {approver.statusChangedAt && (
@@ -415,7 +454,7 @@ export function ApprovalsTabContent({
                               </td>
                               <td className="py-3">
                                 <div className="flex items-center justify-end gap-2">
-                                  {approver.status === 'Pending' && approver.name === 'Sarah Johnson' && (
+                                  {approver.status === 'Pending' && (approver.name === 'Sarah Johnson' || approver.name === 'David Miller') && (
                                     <>
                                       <button 
                                         onClick={() => updateApproverStatus(approval.id, approver.id, 'Approved')}
@@ -506,6 +545,8 @@ export function ApprovalsTabContent({
           onClose={() => setShowCommentPopup(false)}
           approvalId={selectedApprovalId}
           approvalSubject={approvals.find(a => a.id === selectedApprovalId)?.subject || ''}
+          comments={approvalComments[selectedApprovalId] || []}
+          onAddComment={(comment) => setApprovalComments((prev) => ({ ...prev, [selectedApprovalId]: [...(prev[selectedApprovalId] || []), comment] }))}
         />
       )}
     </div>

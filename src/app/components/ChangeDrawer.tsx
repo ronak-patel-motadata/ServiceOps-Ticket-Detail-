@@ -7,6 +7,8 @@
  * to help reduce the file size where possible.
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
+import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
@@ -17,6 +19,7 @@ import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { HeaderCopyButton } from './HeaderCopyButton';
+import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -197,24 +200,7 @@ function ScheduleDateField({ label, value, onChange, required }: ScheduleDateFie
   return (
     <div>
       <div className="text-[12px] text-[#4A5568] mb-1.5">{label}{required && <span className="text-[#E5484D] ml-0.5">*</span>}</div>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => { const el = ref.current as any; el?.showPicker ? el.showPicker() : el?.focus(); }}
-          className="w-full pl-3 pr-9 py-2 text-[13px] text-left border border-[#DFE5ED] rounded-md bg-white hover:border-[#3D8BD0] focus:outline-none focus:border-[#3D8BD0] transition-colors"
-        >
-          <span className={value ? 'text-[#364658]' : 'text-[#9CA3AF]'}>{value ? formatScheduleDate(value) : 'Select'}</span>
-        </button>
-        <Clock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-[#7B8FA5] pointer-events-none" />
-        <input
-          ref={ref}
-          type="datetime-local"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none"
-          tabIndex={-1}
-        />
-      </div>
+      <DateField mode="datetime" value={value} onChange={onChange} placeholder="Select" />
     </div>
   );
 }
@@ -911,6 +897,7 @@ onStackMinimizedChange,
   const [showBuildingDropdown, setShowBuildingDropdown] = useState(false);
   const [showRequestChannelDropdown, setShowRequestChannelDropdown] = useState(false);
   const [showBadgeStatusDropdown, setShowBadgeStatusDropdown] = useState(false);
+  const [showHeaderStatusDropdown, setShowHeaderStatusDropdown] = useState(false);
   const [showBadgePriorityDropdown, setShowBadgePriorityDropdown] = useState(false);
   const [showBadgeAssigneeDropdown, setShowBadgeAssigneeDropdown] = useState(false);
   
@@ -925,7 +912,7 @@ onStackMinimizedChange,
       { label: 'Submitted',      opts: [['Requested', '#3D8BD0'], ['Accepted', '#22A06B'], ['Rejected', '#E5484D']] },
       { label: 'Planning',       opts: [['In Progress', '#F59E0B'], ['Pre Approved', '#9CA3AF'], ['Cancelled', '#E5484D'], ['Completed', '#22A06B']] },
       { label: 'Approval',       opts: [['Pending', '#F59E0B'], ['Approved', '#22A06B'], ['Rejected', '#E5484D']] },
-      { label: 'Implementation', opts: [['In Progress', '#F97316'], ['Build', '#8B5CF6'], ['Deployment', '#F59E0B'], ['Completed', '#22A06B']] },
+      { label: 'Implementation', opts: [['In Progress', '#F97316'], ['Build', '#8B5CF6'], ['Deployment', '#F59E0B'], ['Rejected', '#E5484D'], ['Completed', '#22A06B']] },
       { label: 'In Review',      opts: [['In Progress', '#F59E0B'], ['Testing', '#22A06B'], ['Failed', '#E5484D'], ['Passed', '#22A06B']] },
       { label: 'Closed',         opts: [['Closed', '#6B7280'], ['Cancelled', '#E5484D']] },
     ];
@@ -2826,7 +2813,7 @@ onStackMinimizedChange,
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
-              <span className="inline-flex items-center rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0] flex-shrink-0">{activeChange.id}</span>
+              <HeaderIdPill id={activeChange.id} />
               <span className="truncate">{activeChange.subject}</span>
             </h1>
             {/* Main properties — quick-glance KPIs below the subject */}
@@ -2909,7 +2896,6 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <HeaderCopyButton variant="id" value={activeChange?.id ?? ''} label="Copy ID" />
             <HeaderCopyButton variant="link" value={activeChange?.id ?? ''} label="Copy Change URL" />
             <div className="relative">
               <Tooltip>
@@ -3012,26 +2998,59 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                if (selectedStatus === 'Closed') {
-                  setSelectedStatus('Open');
-                } else {
-                  // Check if solution exists before closing
-                  if (!solutionData) {
-                    toast('Please add a solution in the Resolution tab before closing the request', {
-                      icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
-                    });
-                    setActiveMainTab('resolution');
-                  } else {
-                    setSelectedStatus('Closed');
-                  }
-                }
-              }}
-              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2d7bc0]"
-            >
-              {selectedStatus === 'Closed' ? 'Reopen Change' : 'Close Change'}
-            </button>
+            {/* Status split-button dropdown (replaces the old Close button) */}
+            <div className="relative">
+              <div className={`inline-flex items-stretch rounded-md border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+                <button
+                  onClick={() => setShowHeaderStatusDropdown((v) => !v)}
+                  className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"
+                  title="Update status"
+                >
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusBadgeColors().dot }} />
+                  <span className="text-[13px] font-medium text-[#364658]">{selectedStatus}</span>
+                </button>
+                <button
+                  onClick={() => setShowHeaderStatusDropdown((v) => !v)}
+                  className={`flex items-center px-1.5 border-l hover:bg-[#F9FAFB] transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}
+                  title="Update status"
+                >
+                  <ChevronDown size={14} className={`text-[#7B8FA5] transition-transform ${showHeaderStatusDropdown ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {showHeaderStatusDropdown && (
+                <>
+                  <div className="fixed inset-0 z-[90]" onClick={() => setShowHeaderStatusDropdown(false)} />
+                  <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
+                    {statusOptions.map((option) => {
+                      const isSel = selectedStatus === option.label;
+                      return (
+                        <button
+                          key={option.label}
+                          onClick={() => {
+                            if (option.label === 'Closed' && !solutionData) {
+                              toast('Please add a solution in the Resolution tab before closing the request', {
+                                icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
+                              });
+                              setActiveMainTab('resolution');
+                              setShowHeaderStatusDropdown(false);
+                              return;
+                            }
+                            setSelectedStatus(option.label);
+                            setShowHeaderStatusDropdown(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#F9FAFB] text-left transition-colors"
+                        >
+                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: option.color }} />
+                          <span className="text-[13px] text-[#364658]">{option.label}</span>
+                          {isSel && <Check size={14} className="ml-auto text-[#3D8BD0]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
             <ChangeActionsMenu
               ticketId={activeChange?.id}
               onOpenApprovalPopup={() => {
@@ -3909,13 +3928,13 @@ onStackMinimizedChange,
                   <div className="flex items-center gap-2 relative">
                     {!showSubTabSearch ? (
                       <button 
-                        className="p-1.5 hover:bg-[#f9fafb] rounded"
+                        className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
                         onClick={() => setShowSubTabSearch(true)}
                       >
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="absolute right-[68px] top-1/2 -translate-y-1/2 flex items-center gap-2 h-[30px] px-3 border border-[#DFE5ED] rounded-[6px] bg-white shadow-sm min-w-[280px]">
+                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -3936,11 +3955,11 @@ onStackMinimizedChange,
                         </button>
                       </div>
                     )}
-                    <button className="p-1.5 hover:bg-[#f9fafb] rounded">
+                    <button className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors">
                       <Filter size={16} className="text-[#6b7280]" />
                     </button>
                     <button 
-                      className="p-1.5 hover:bg-[#f9fafb] rounded"
+                      className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
                       onClick={() => setIsSortedFromTop(!isSortedFromTop)}
                       title={isSortedFromTop ? 'Sort from bottom' : 'Sort from top'}
                     >
@@ -4757,10 +4776,10 @@ onStackMinimizedChange,
                         <div className="relative" ref={aiAssistMenuForwardRef}>
                           <button 
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                            style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                             onClick={() => setShowAIAssistMenuForward(!showAIAssistMenuForward)}
                           >
-                            <Sparkles size={14} className="text-[#3D8BD0]" />
+                            <AiSparkle size={14} />
                             <span>AI Assist</span>
                             <ChevronDown size={12} className="text-[#7B8FA5]" />
                           </button>
@@ -4952,10 +4971,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuCollaborateRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuCollaborate(!showAIAssistMenuCollaborate)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>
@@ -5235,10 +5254,10 @@ onStackMinimizedChange,
                   <div className="relative" ref={aiAssistMenuNoteRef}>
                     <button 
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
-                      style={{ background: 'linear-gradient(125deg, rgba(61, 139, 208, 0.12) 9.82%, rgba(108, 229, 232, 0.12) 73.33%, rgba(28, 229, 177, 0.12) 136.84%)' }}
+                      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       onClick={() => setShowAIAssistMenuNote(!showAIAssistMenuNote)}
                     >
-                      <Sparkles size={14} className="text-[#3D8BD0]" />
+                      <AiSparkle size={14} />
                       <span>AI Assist</span>
                       <ChevronDown size={12} className="text-[#7B8FA5]" />
                     </button>

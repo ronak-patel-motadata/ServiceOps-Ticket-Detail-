@@ -1,4 +1,5 @@
-import { Calendar, User, ChevronDown, Search, Check } from 'lucide-react';
+import { Calendar, User, ChevronDown, Search, Check, Tag, Users } from 'lucide-react';
+import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 
 interface Task {
@@ -29,12 +30,16 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showTaskTypeDropdown, setShowTaskTypeDropdown] = useState(false);
+  const [showUserGroupDropdown, setShowUserGroupDropdown] = useState(false);
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
-  
+
   const statusRef = useRef<HTMLDivElement>(null);
   const priorityRef = useRef<HTMLDivElement>(null);
   const assigneeRef = useRef<HTMLDivElement>(null);
   const dateRef = useRef<HTMLDivElement>(null);
+  const taskTypeRef = useRef<HTMLDivElement>(null);
+  const userGroupRef = useRef<HTMLDivElement>(null);
 
   const statusOptions = [
     { label: 'Open', color: '#F59E0B' },
@@ -59,6 +64,9 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
     { label: 'Emily Rodriguez', initials: 'ER', color: '#EC4899', statusColor: '#F59E0B' },
   ];
 
+  const taskTypeOptions = ['General', 'Implementation', 'Documentation', 'Provisioning', 'Access Management', 'Security', 'Verification', 'Approval Processing'];
+  const userGroupOptions = ['Unassigned', 'IT Support', 'HR', 'Facilities', 'Network', 'IT Security', 'Management'];
+
   // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -74,6 +82,12 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
       if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
         setShowDateDropdown(false);
       }
+      if (taskTypeRef.current && !taskTypeRef.current.contains(event.target as Node)) {
+        setShowTaskTypeDropdown(false);
+      }
+      if (userGroupRef.current && !userGroupRef.current.contains(event.target as Node)) {
+        setShowUserGroupDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -88,10 +102,10 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
 
   return (
     <div>
-      {/* Compact inline meta row — status · priority · assignee · due date (each editable) */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* Meta — fixed-width columns so fields align across cards; wraps to the next line on narrow screens */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* Status */}
-        <div className="relative group/f" ref={statusRef}>
+        <div className="relative group/f w-[110px]" ref={statusRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -136,7 +150,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
         </div>
 
         {/* Priority */}
-        <div className="relative group/f" ref={priorityRef}>
+        <div className="relative group/f w-[105px]" ref={priorityRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -176,8 +190,64 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           )}
         </div>
 
+        {/* Task Type */}
+        <div className="relative group/f w-[150px]" ref={taskTypeRef}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowTaskTypeDropdown(!showTaskTypeDropdown); }}
+            title="Task Type"
+            className="flex w-full items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
+          >
+            <Tag size={13} className="text-[#7B8FA5] flex-shrink-0" />
+            <span className="text-[13px] font-medium text-[#364658] truncate flex-1 text-left">{task.taskType || '—'}</span>
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
+          </button>
+          {showTaskTypeDropdown && (
+            <div className="absolute top-full left-0 mt-1 min-w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
+              {taskTypeOptions.map((opt) => (
+                <button
+                  key={opt}
+                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onUpdateTask({ ...task, taskType: opt }); setShowTaskTypeDropdown(false); }}
+                >
+                  <Tag size={13} className="text-[#7B8FA5] flex-shrink-0" />
+                  <span className="text-[13px] text-[#364658]">{opt}</span>
+                  {task.taskType === opt && <Check size={14} className="text-[#3D8BD0] ml-auto flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* User Group */}
+        <div className="relative group/f w-[135px]" ref={userGroupRef}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowUserGroupDropdown(!showUserGroupDropdown); }}
+            title="User Group"
+            className="flex w-full items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
+          >
+            <Users size={13} className="text-[#7B8FA5] flex-shrink-0" />
+            <span className={`text-[13px] font-medium truncate flex-1 text-left ${task.userGroup && task.userGroup !== 'Unassigned' ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{task.userGroup || 'Unassigned'}</span>
+            <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
+          </button>
+          {showUserGroupDropdown && (
+            <div className="absolute top-full left-0 mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
+              {userGroupOptions.map((opt) => (
+                <button
+                  key={opt}
+                  className="w-full flex items-center gap-2 px-4 py-2 hover:bg-[#F9FAFB] text-left transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onUpdateTask({ ...task, userGroup: opt }); setShowUserGroupDropdown(false); }}
+                >
+                  <Users size={13} className="text-[#7B8FA5] flex-shrink-0" />
+                  <span className="text-[13px] text-[#364658]">{opt}</span>
+                  {task.userGroup === opt && <Check size={14} className="text-[#3D8BD0] ml-auto flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Assignee */}
-        <div className="relative group/f" ref={assigneeRef}>
+        <div className="relative group/f w-[160px]" ref={assigneeRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -274,8 +344,8 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           )}
         </div>
 
-        {/* Start Date and End Date */}
-        <div className="relative group/f" ref={dateRef}>
+        {/* Start Date and End Date — flexes to fill the remaining card width so the range stays on one line */}
+        <div className="relative group/f flex-1 min-w-[200px]" ref={dateRef}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -285,7 +355,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
             className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
           >
             <Calendar size={13} className="text-[#7B8FA5] flex-shrink-0" />
-            <span className={`text-[13px] font-medium ${task.startDate || task.endDate ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+            <span className={`text-[13px] font-medium whitespace-nowrap ${task.startDate || task.endDate ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
               {(() => {
                 const fmt = (d: string) => `${formatDate(d)} ${new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
                 if (task.startDate && task.endDate) {
@@ -305,31 +375,13 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
                 {/* Start Date */}
                 <div>
                   <label className="text-[12px] text-[#7B8FA5] mb-1 block">Start Date</label>
-                  <input
-                    type="datetime-local"
-                    value={task.startDate}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      onUpdateTask({ ...task, startDate: e.target.value });
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full text-[13px] text-[#364658] font-medium bg-white border border-[#DFE5ED] rounded px-3 py-2 outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
-                  />
+                  <DateField mode="datetime" value={task.startDate} onChange={(v) => onUpdateTask({ ...task, startDate: v })} />
                 </div>
                 
                 {/* End Date */}
                 <div>
                   <label className="text-[12px] text-[#7B8FA5] mb-1 block">Due Date</label>
-                  <input
-                    type="datetime-local"
-                    value={task.endDate}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      onUpdateTask({ ...task, endDate: e.target.value });
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full text-[13px] text-[#364658] font-medium bg-white border border-[#DFE5ED] rounded px-3 py-2 outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
-                  />
+                  <DateField mode="datetime" value={task.endDate} onChange={(v) => onUpdateTask({ ...task, endDate: v })} />
                 </div>
               </div>
             </div>

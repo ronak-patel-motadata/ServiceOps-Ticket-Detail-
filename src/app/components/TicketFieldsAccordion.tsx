@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft } from 'lucide-react';
 import { AssetFields } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -513,6 +513,21 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+          )}
+
+          {/* Move Stage — shortcut back to Planning when a Change is Rejected during Implementation */}
+          {selectedStatus === 'Implementation: Rejected' && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">Move Stage</div>
+            <div className="flex-1 min-w-0">
+              <button
+                onClick={() => setSelectedStatus('Planning: In Progress')}
+                className="inline-flex items-center gap-1 pl-3 py-1 text-[13px] font-medium text-[#3D8BD0] hover:text-[#2F7AB8] hover:underline"
+              >
+                <ArrowLeft size={14} /> Back to Planning
+              </button>
             </div>
           </div>
           )}

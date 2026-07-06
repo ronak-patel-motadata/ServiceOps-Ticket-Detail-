@@ -1,4 +1,5 @@
-import { Clock, ArrowRight, Filter, Download, Lock, Eye, EyeOff } from 'lucide-react';
+import { Clock, ArrowRight, Filter, Download, Lock, Eye, EyeOff, Calendar, X } from 'lucide-react';
+import { DateField } from './DateField';
 import { useState } from 'react';
 
 interface AuditTrailsTabContentProps {
@@ -116,6 +117,8 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
   const applyFilter = () => { setFromDate(draftFrom); setToDate(draftTo); setShowFilter(false); };
   const clearFilter = () => { setFromDate(''); setToDate(''); setDraftFrom(''); setDraftTo(''); setShowFilter(false); };
   const isFiltered = !!(fromDate || toDate);
+  const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const rangeLabel = fromDate && toDate ? `${fmtDate(fromDate)} – ${fmtDate(toDate)}` : fromDate ? `From ${fmtDate(fromDate)}` : toDate ? `Until ${fmtDate(toDate)}` : '';
 
   // Apply the date-range filter, then group entries by day for a scannable timeline.
   const parse = (ts: string) => new Date(ts.replace(' ', 'T'));
@@ -145,9 +148,19 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
       {auditTrails.length > 0 && (
         <div className="flex items-center justify-between mb-4">
           <div className="text-[12px] text-[#7B8FA5]">
-            {filteredTrails.length} {filteredTrails.length === 1 ? 'entry' : 'entries'}{isFiltered ? ' · filtered' : ''}
+            {filteredTrails.length} {filteredTrails.length === 1 ? 'entry' : 'entries'}
           </div>
           <div className="flex items-center gap-2">
+            {/* Applied date range chip (left of the filter icon) */}
+            {isFiltered && (
+              <span className="inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-md bg-[#EAF2FB] text-[#3D8BD0] text-[12px] font-medium">
+                <Calendar size={13} className="flex-shrink-0" />
+                <span className="whitespace-nowrap">{rangeLabel}</span>
+                <button onClick={clearFilter} title="Clear filter" className="p-0.5 rounded hover:bg-[#3D8BD0]/10 transition-colors">
+                  <X size={13} />
+                </button>
+              </span>
+            )}
             {/* Filter */}
             <div className="relative">
               <button onClick={openFilter} className={`${iconBtn} ${isFiltered ? 'border-[#3D8BD0] text-[#3D8BD0]' : ''}`} title="Filter by date">
@@ -161,11 +174,11 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                     <div className="space-y-3">
                       <div>
                         <label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label>
-                        <input type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                        <DateField value={draftFrom} onChange={setDraftFrom} />
                       </div>
                       <div>
                         <label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label>
-                        <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(e) => setDraftTo(e.target.value)} className="w-full border border-[#DFE5ED] rounded-md px-3 py-2 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                        <DateField value={draftTo} min={draftFrom || undefined} onChange={setDraftTo} />
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">

@@ -5,6 +5,7 @@ import { TicketFieldsAccordion } from './TicketFieldsAccordion';
 import type { AssetFieldState, AgentInfo } from './AssetFields';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
+import { DateTimePickerPopup } from './DateTimePickerPopup';
 import { PinnedFieldsAccordion } from './PinnedFieldsAccordion';
 import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
@@ -563,6 +564,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Work Tracker — multiple tasks, but only one can run at a time.
   const [trackerTasks, setTrackerTasks] = useState<{ id: string; description: string; elapsed: number; isRunning: boolean; startMs: number; technician: { name: string; initials: string; color: string } }[]>([]);
   const [showTrackerPopup, setShowTrackerPopup] = useState(false);
+  // SLA due-date editing (calendar popup opened from each row's pencil)
+  const [editingSlaRow, setEditingSlaRow] = useState<null | 'first' | 'resolution' | 'ola'>(null);
+  const [slaAnchorRect, setSlaAnchorRect] = useState<DOMRect | null>(null);
+  const [slaDates, setSlaDates] = useState<Record<string, Date>>(() => ({
+    first: new Date(Date.now() + 3 * 86400000 + 5 * 3600000),
+    resolution: new Date(Date.now() + 11 * 86400000),
+    ola: new Date(Date.now() + 4 * 3600000),
+  }));
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [confirmStopId, setConfirmStopId] = useState<string | null>(null);
   // Work Tracker technician — the timer can be started on behalf of another person; defaults to the current user.
@@ -1481,7 +1490,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
                   <div className="text-[12px] font-medium text-[#364658]">First response due in</div>
-                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                  <div className="relative">
+                    <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'first' ? null : 'first'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                    {editingSlaRow === 'first' && <DateTimePickerPopup value={slaDates.first} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, first: d }))} onClose={() => setEditingSlaRow(null)} />}
+                  </div>
                   
                 </div>
                 <Tooltip>
@@ -1510,7 +1522,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <div className="text-[12px] font-medium text-[#364658]">
                     {ticketId === 'INC-32' ? 'Resolution due in' : 'Resolution overdue in'}
                   </div>
-                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                  <div className="relative">
+                    <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'resolution' ? null : 'resolution'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                    {editingSlaRow === 'resolution' && <DateTimePickerPopup value={slaDates.resolution} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, resolution: d }))} onClose={() => setEditingSlaRow(null)} />}
+                  </div>
                  
                 </div>
                 <Tooltip>
@@ -1560,7 +1575,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
                   <div className="text-[12px] font-medium text-[#364658]">OLA due in</div>
-                  <button title="Edit" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                  <div className="relative">
+                    <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'ola' ? null : 'ola'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
+                    {editingSlaRow === 'ola' && <DateTimePickerPopup value={slaDates.ola} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, ola: d }))} onClose={() => setEditingSlaRow(null)} />}
+                  </div>
                   
                 </div>
                 <Tooltip>
@@ -2568,6 +2586,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </div>
               </div>
             </div>
+
+            {/* View all Knowledge */}
+            <button
+              className="flex items-center gap-2 px-3 py-1.5 mt-3 text-[12px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+            >
+              <BookOpen size={14} />
+              View all Knowledge
+            </button>
           </div>
           )}
         </div>
@@ -3477,7 +3503,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
               }`}
             >
-              <BookOpen size={16} className={activeGroup === 'suggestions' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              <Lightbulb size={16} className={activeGroup === 'suggestions' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
               {/* Notification dot for AI suggestions */}
               {(hasSimilarTickets() || hasSuggestedKnowledgeMatch()) && activeGroup !== 'suggestions' && (
                 <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0]"></span>

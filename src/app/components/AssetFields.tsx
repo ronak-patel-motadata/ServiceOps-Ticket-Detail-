@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { DateField } from './DateField';
 import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
@@ -451,15 +452,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
   const renderDate = (label: string) => (
     <FieldRow key={label} label={label} pinned={pinnedFields.includes(label)} onPin={() => togglePinField(label)} labelColor={labelColorFor(label)}>
       <div className="relative group">
-        <input
-          type="date"
-          value={extra[label] || ''}
-          onChange={(e) => updateExtra(label, e.target.value)}
-          onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-          className={`w-full pl-3 pr-8 py-2 text-[13px] bg-transparent border-none rounded-md hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${extra[label] ? 'text-[#364658]' : 'text-transparent'}`}
-        />
-        {!extra[label] && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
-        <CalendarIcon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+        <DateField value={extra[label] || ''} onChange={(v) => updateExtra(label, v)} className="!border-0 !bg-transparent hover:!bg-[#F3F4F6]" />
       </div>
     </FieldRow>
   );
@@ -552,15 +545,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
         <div className="flex-1 min-w-0">
           <div className="relative group">
-            <input
-              type="date"
-              value={extra[label] || ''}
-              onChange={(e) => updateExtra(label, e.target.value)}
-              onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-              className={`w-full pl-3 pr-8 py-2 text-[13px] bg-transparent border-none rounded-md hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${extra[label] ? 'text-[#364658]' : 'text-transparent'}`}
-            />
-            {!extra[label] && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
-            <CalendarIcon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+            <DateField value={extra[label] || ''} onChange={(v) => updateExtra(label, v)} className="!border-0 !bg-transparent hover:!bg-[#F3F4F6]" />
           </div>
         </div>
       </div>
@@ -738,15 +723,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
         <div className="flex-1 min-w-0">
           <div className="relative group">
-            <input
-              type="date"
-              value={extra[label] || ''}
-              onChange={(e) => updateExtra(label, e.target.value)}
-              onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-              className={`w-full pl-3 pr-8 py-2 text-[13px] bg-transparent border-none rounded-md hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${extra[label] ? 'text-[#364658]' : 'text-transparent'}`}
-            />
-            {!extra[label] && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
-            <CalendarIcon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
+            <DateField value={extra[label] || ''} onChange={(v) => updateExtra(label, v)} className="!border-0 !bg-transparent hover:!bg-[#F3F4F6]" />
           </div>
         </div>
       </div>

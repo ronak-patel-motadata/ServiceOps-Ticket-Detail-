@@ -30,7 +30,7 @@ const STAGES: Stage[] = [
   { key: 'approval', label: 'Approval', icon: (s) => <FileCheck style={{ width: s, height: s }} />, date: 'Fri, Feb 28, 2025 02:15 PM',
     options: [{ label: 'Pending', color: '#F59E0B' }, { label: 'Approved', color: '#22A06B' }, { label: 'Rejected', color: '#E5484D' }], completedLabel: 'Approved' },
   { key: 'implementation', label: 'Implementation', icon: (s) => <Wrench style={{ width: s, height: s }} />, date: 'Mon, Mar 03, 2025 10:00 AM',
-    options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Build', color: '#8B5CF6' }, { label: 'Deployment', color: '#F97316' }, { label: 'Completed', color: '#22A06B' }], completedLabel: 'Completed' },
+    options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Build', color: '#8B5CF6' }, { label: 'Deployment', color: '#F97316' }, { label: 'Rejected', color: '#E5484D' }, { label: 'Completed', color: '#22A06B' }], completedLabel: 'Completed' },
   { key: 'review', label: 'In Review', icon: (s) => <ScanSearch style={{ width: s, height: s }} />, date: 'Tue, Mar 04, 2025 04:45 PM',
     options: [{ label: 'In Progress', color: '#F59E0B' }, { label: 'Testing', color: '#22A06B' }, { label: 'Failed', color: '#E5484D' }, { label: 'Passed', color: '#22A06B' }], completedLabel: 'Passed' },
   { key: 'closed', label: 'Closed', icon: (s) => <CheckCheck style={{ width: s, height: s }} />, date: 'Wed, Mar 05, 2025 01:20 PM',

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DateField } from './DateField';
 import { X, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -153,33 +154,13 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
               <label className="block text-[13px] text-[#4A5568] mb-1.5">
                 Start Date <span className="text-[#EF4444]">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="datetime-local"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                  className={`w-full pl-3 pr-9 py-2 border border-[#DFE5ED] rounded-lg text-[13px] focus:outline-none focus:border-[#3D8BD0] cursor-pointer transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 ${startDate ? 'text-[#364658]' : 'text-transparent'}`}
-                />
-                {!startDate && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
-                <CalendarIcon size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
-              </div>
+              <DateField mode="datetime" value={startDate} onChange={setStartDate} placeholder="Select" />
             </div>
             <div>
               <label className="block text-[13px] text-[#4A5568] mb-1.5">
                 End Date <span className="text-[#EF4444]">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
-                  className={`w-full pl-3 pr-9 py-2 border border-[#DFE5ED] rounded-lg text-[13px] focus:outline-none focus:border-[#3D8BD0] cursor-pointer transition-colors [&::-webkit-calendar-picker-indicator]:opacity-0 ${endDate ? 'text-[#364658]' : 'text-transparent'}`}
-                />
-                {!endDate && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-[#9CA3AF] pointer-events-none">Select</span>}
-                <CalendarIcon size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
-              </div>
+              <DateField mode="datetime" value={endDate} onChange={setEndDate} placeholder="Select" />
             </div>
           </div>
 
