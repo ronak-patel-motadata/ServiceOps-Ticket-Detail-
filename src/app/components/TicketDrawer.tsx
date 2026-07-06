@@ -20,7 +20,7 @@ import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
-import { SentimentBadge } from './SentimentBadge';
+import { getSentiment } from './SentimentBadge';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
@@ -1889,31 +1889,38 @@ onStackMinimizedChange,
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
-              <SentimentBadge id={activeTicket.id} />
             </h1>
             {/* Main properties — quick-glance incident KPIs below the subject */}
             {(() => {
+              const sentiment = getSentiment(activeTicket.id);
               const items: HeaderKpiItem[] = [
+                { key: 'sentiment', tip: `Requester sentiment: ${sentiment.label}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Sentiment</span>
+                    <span className="text-[13px] leading-none">{sentiment.emoji}</span>
+                    <span className="text-[12px] font-medium" style={{ color: sentiment.text }}>{sentiment.label}</span>
+                  </span>
+                ) },
                 { key: 'status', tip: `Status: ${selectedStatus}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
                     <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
                     <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
                   </span>
                 ) },
                 { key: 'priority', tip: `Priority: ${selectedPriority}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
                     <span className="text-[11px] text-[#7B8FA5]">Priority</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
                     <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
                   </span>
                 ) },
                 { key: 'assignee', tip: `Assignee: ${selectedAssignee}`, node: (
                   <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
                     <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}>
                       {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
                     </span>
-                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
                     <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
                   </span>
                 ) },
@@ -1921,8 +1928,8 @@ onStackMinimizedChange,
               if (activeTicket?.id === 'INC-35') {
                 items.push({ key: 'approval', tip: 'Approval: Pending', node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
                     <span className="text-[11px] text-[#7B8FA5]">Approval</span>
+                    <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
                     <span className="text-[12px] font-medium text-[#364658]">Pending</span>
                   </span>
                 ) });
@@ -1930,8 +1937,8 @@ onStackMinimizedChange,
                 const slaLabel = activeTicket?.id === 'INC-32' ? 'Due in 4d 5h' : 'Overdue 1w 4d';
                 items.push({ key: 'sla', tip: `SLA: ${slaLabel}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeTicket?.id === 'INC-32' ? '#22A06B' : '#E74C3C' }} />
                     <span className="text-[11px] text-[#7B8FA5]">SLA</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeTicket?.id === 'INC-32' ? '#22A06B' : '#E74C3C' }} />
                     <span className="text-[12px] font-medium" style={{ color: activeTicket?.id === 'INC-32' ? '#364658' : '#E74C3C' }}>{slaLabel}</span>
                   </span>
                 ) });
@@ -2044,7 +2051,7 @@ onStackMinimizedChange,
             </div>
             {/* Status split-button dropdown (replaces the old Close Request button) */}
             <div className="relative">
-              <div className={`inline-flex items-stretch rounded-md border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+              <div className={`inline-flex items-stretch rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
                 <button
                   onClick={() => setShowHeaderStatusDropdown((v) => !v)}
                   className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"

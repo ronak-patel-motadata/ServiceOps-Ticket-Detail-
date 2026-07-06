@@ -2842,53 +2842,53 @@ onStackMinimizedChange,
               const items: HeaderKpiItem[] = [
                 { key: 'status', tip: `Status: ${selectedStatus}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
                     <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
                     <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
                   </span>
                 ) },
                 { key: 'priority', tip: `Priority: ${selectedPriority}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
                     <span className="text-[11px] text-[#7B8FA5]">Priority</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
                     <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
                   </span>
                 ) },
                 { key: 'assignee', tip: `Assignee: ${selectedAssignee}`, node: (
                   <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
                     <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}>
                       {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
                     </span>
-                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
                     <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
                   </span>
                 ) },
                 { key: 'type', tip: `Type: ${chgType}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: typeColors[chgType] }} />
                     <span className="text-[11px] text-[#7B8FA5]">Type</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: typeColors[chgType] }} />
                     <span className="text-[12px] font-medium text-[#364658]">{chgType}</span>
                   </span>
                 ) },
               ];
               if (schedule) items.push({ key: 'scheduled', tip: `Scheduled: ${schedule}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#3D8BD0]" />
                   <span className="text-[11px] text-[#7B8FA5]">Scheduled</span>
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#3D8BD0]" />
                   <span className="text-[12px] font-medium text-[#364658]">{schedule}</span>
                 </span>
               ) });
               items.push({ key: 'sla', tip: 'SLA: Overdue 1w 4d', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
                   <span className="text-[11px] text-[#7B8FA5]">SLA</span>
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
                   <span className="text-[12px] font-medium text-[#E74C3C]">Overdue 1w 4d</span>
                 </span>
               ) });
               if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
                   <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
                   <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
                 </span>
               ) });
@@ -3000,7 +3000,7 @@ onStackMinimizedChange,
             </div>
             {/* Status split-button dropdown (replaces the old Close button) */}
             <div className="relative">
-              <div className={`inline-flex items-stretch rounded-md border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+              <div className={`inline-flex items-stretch rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
                 <button
                   onClick={() => setShowHeaderStatusDropdown((v) => !v)}
                   className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"

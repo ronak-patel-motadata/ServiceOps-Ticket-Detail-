@@ -6,11 +6,38 @@ interface AuditTrailsTabContentProps {
   ticketId?: string;
 }
 
+interface AuditEntry {
+  id: string;
+  timestamp: string;
+  user: string;
+  userInitials: string;
+  userColor: string;
+  action: string;
+  details: string;
+  changes: { field: string; oldValue: string; newValue: string }[];
+  /** A long-text before/after change (Description / comment) shown via the "View Changes" toggle. */
+  descriptionChange?: { old: string; new: string };
+}
+
 export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
 
-  const auditTrails = isBlankTicket ? [] : [
+  const auditTrails: AuditEntry[] = isBlankTicket ? [] : [
+    {
+      id: '0',
+      timestamp: '2024-03-10 15:10:00',
+      user: 'Rakesh Rathod',
+      userInitials: 'RR',
+      userColor: '#3D8BD0',
+      action: 'Description Updated',
+      details: 'Updated the ticket description',
+      changes: [],
+      descriptionChange: {
+        old: "I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.",
+        new: "I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.\n\nThis is significantly impacting my ability to work as I cannot access emails, cloud applications, or collaborate with my team. I've checked with colleagues nearby and they don't seem to be experiencing any connectivity issues. I need urgent assistance to resolve this problem as I have several critical tasks and meetings scheduled today that require internet access.",
+      },
+    },
     {
       id: '1',
       timestamp: '2024-03-10 14:32:15',
@@ -100,6 +127,9 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
       changes: []
     }
   ];
+
+  // The before/after description change shown in the centered "View Changes" popup.
+  const [diff, setDiff] = useState<{ old: string; new: string } | null>(null);
 
   // Filter (date range) + download popups
   const [showFilter, setShowFilter] = useState(false);
@@ -314,6 +344,16 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                       </div>
                       <p className="text-[13px] text-[#5A6B7B] mt-1">{audit.details}</p>
 
+                      {/* View Changes — opens a centered before/after comparison popup */}
+                      {audit.descriptionChange && (
+                        <button
+                          onClick={() => setDiff(audit.descriptionChange!)}
+                          className="mt-1.5 text-[12px] font-medium text-[#3D8BD0] hover:underline"
+                        >
+                          View Changes
+                        </button>
+                      )}
+
                       {/* Before → after change chips */}
                       {audit.changes.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -333,6 +373,35 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* View Changes — centered before/after comparison popup */}
+      {diff && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/40" onClick={() => setDiff(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[920px] max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h3 className="text-[16px] font-semibold text-[#111827]">Description Changes</h3>
+              <button onClick={() => setDiff(null)} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5 overflow-auto @container">
+              <div className="flex flex-col @2xl:flex-row items-stretch gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[#DC2626] mb-1.5">Before</div>
+                  <div className="rounded-lg bg-[#FDECEC] px-4 py-3 text-[13px] leading-relaxed text-[#7F1D1D] whitespace-pre-line">{diff.old}</div>
+                </div>
+                <div className="flex items-center justify-center flex-shrink-0">
+                  <ArrowRight size={18} className="text-[#94A3B8] rotate-90 @2xl:rotate-0" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[#16A34A] mb-1.5">After</div>
+                  <div className="rounded-lg bg-[#EAF7EE] px-4 py-3 text-[13px] leading-relaxed text-[#14532D] whitespace-pre-line">{diff.new}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

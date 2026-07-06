@@ -2094,8 +2094,8 @@ onStackMinimizedChange,
                 key: 'status', tip: `Status: ${s}`,
                 node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
                     <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
                     <span className="text-[12px] font-medium" style={{ color: statusColor }}>{s}</span>
                   </span>
                 ),
@@ -2131,8 +2131,8 @@ onStackMinimizedChange,
                 key: 'owner', tip: `Owner: ${ownerName || 'Unassigned'}`,
                 node: ownerName ? (
                   <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Owner</span>
                     <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: '#6366F1' }}>{ownerInitials}</span>
-                    <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Owner</span>
                     <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{ownerName}</span>
                   </span>
                 ) : (

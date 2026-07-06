@@ -2,6 +2,7 @@ import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, Calenda
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
+import { KnowledgeBaseModal } from './KnowledgeBaseModal';
 import type { AssetFieldState, AgentInfo } from './AssetFields';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
@@ -555,6 +556,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   // Attachment that is open in the centered preview popup
   const [previewAttachment, setPreviewAttachment] = useState<any>(null);
   // Email notifications sent for this record (Notifications group)
@@ -2589,6 +2591,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
             {/* View all Knowledge */}
             <button
+              onClick={() => setShowKnowledgeModal(true)}
               className="flex items-center gap-2 px-3 py-1.5 mt-3 text-[12px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
             >
               <BookOpen size={14} />
@@ -3556,6 +3559,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </Tooltip>
         )}
       </div>
+
+      {/* Knowledge Base — side drawer (opened from "View all Knowledge") */}
+      <KnowledgeBaseModal isOpen={showKnowledgeModal} onClose={() => setShowKnowledgeModal(false)} />
 
       {/* Add Note — side drawer (asset Notes group) */}
       {showAddNote && (

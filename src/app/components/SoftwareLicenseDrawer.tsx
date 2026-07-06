@@ -2076,8 +2076,8 @@ onStackMinimizedChange,
               ) });
               if (expiry.show) items.push({ key: 'expiry', tip: `License Expiry: ${expiry.label}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiry.color }} />
                   <span className="text-[11px] text-[#7B8FA5]">License Expiry</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiry.color }} />
                   <span className="text-[12px] font-medium" style={{ color: expiry.color }}>{expiry.label}</span>
                 </span>
               ) });

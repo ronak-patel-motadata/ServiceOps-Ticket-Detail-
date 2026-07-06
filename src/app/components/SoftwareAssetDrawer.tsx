@@ -2000,8 +2000,8 @@ onStackMinimizedChange,
               ) });
               items.push({ key: 'status', tip: `Status: ${activeAsset?.status || '—'}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
                   <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
                   <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
                 </span>
               ) });
@@ -2013,8 +2013,8 @@ onStackMinimizedChange,
               ) });
               items.push({ key: 'impact', tip: `Impact: ${assetImpact}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
                   <span className="text-[11px] text-[#7B8FA5]">Impact</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
                   <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
                 </span>
               ) });
@@ -2022,10 +2022,10 @@ onStackMinimizedChange,
               items.push({ key: 'managedby', tip: `Managed By: ${mbName && mbName !== 'Unassigned' ? mbName : 'Unassigned'}`, node: (
                 mbName && mbName !== 'Unassigned' ? (
                   <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
                     <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset!.managedBy.color || '#6366F1' }}>
                       {activeAsset!.managedBy.initials || mbName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </span>
-                    <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
                     <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{mbName}</span>
                   </span>
                 ) : (

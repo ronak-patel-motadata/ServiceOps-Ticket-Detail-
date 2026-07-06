@@ -14,14 +14,14 @@ const SENTIMENTS = [
   { emoji: '😠', label: 'Frustrated', bg: '#FEF2F2', text: '#B91C1C' },
 ];
 
-function pickSentiment(seed: string) {
+export function getSentiment(seed: string) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return SENTIMENTS[h % SENTIMENTS.length];
 }
 
 export function SentimentBadge({ id }: { id: string }) {
-  const s = pickSentiment(id);
+  const s = getSentiment(id);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
