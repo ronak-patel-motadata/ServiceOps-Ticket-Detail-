@@ -2958,10 +2958,10 @@ onStackMinimizedChange,
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <div className="inline-flex items-stretch">
+              <div className="inline-flex items-stretch h-8">
                 <button
                   onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
                 >
                   Add Relation
                 </button>
@@ -3007,10 +3007,10 @@ onStackMinimizedChange,
             </div>
             {/* Status split-button dropdown (replaces the old Close button) */}
             <div className="relative">
-              <div className={`inline-flex items-stretch rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+              <div className={`inline-flex items-stretch h-8 rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
                 <button
                   onClick={() => setShowHeaderStatusDropdown((v) => !v)}
-                  className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"
+                  className="flex items-center gap-2 pl-3 pr-2.5 hover:bg-[#F9FAFB] transition-colors"
                   title="Update status"
                 >
                   <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusBadgeColors().dot }} />
@@ -3029,27 +3029,23 @@ onStackMinimizedChange,
                 <>
                   <div className="fixed inset-0 z-[90]" onClick={() => setShowHeaderStatusDropdown(false)} />
                   <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
-                    {statusOptions.map((option) => {
+                    {/* Current lifecycle stage — keeps the status tied to its stage */}
+                    <div className="px-3 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
+                      {changeStageStatus.label}
+                    </div>
+                    {changeStageStatus.options.map((option) => {
                       const isSel = selectedStatus === option.label;
                       return (
                         <button
                           key={option.label}
                           onClick={() => {
-                            if (option.label === 'Closed' && !solutionData) {
-                              toast('Please add a solution in the Resolution tab before closing the request', {
-                                icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
-                              });
-                              setActiveMainTab('resolution');
-                              setShowHeaderStatusDropdown(false);
-                              return;
-                            }
                             setSelectedStatus(option.label);
                             setShowHeaderStatusDropdown(false);
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#F9FAFB] text-left transition-colors"
                         >
                           <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: option.color }} />
-                          <span className="text-[13px] text-[#364658]">{option.label}</span>
+                          <span className="text-[13px] text-[#364658]">{option.display}</span>
                           {isSel && <Check size={14} className="ml-auto text-[#3D8BD0]" />}
                         </button>
                       );

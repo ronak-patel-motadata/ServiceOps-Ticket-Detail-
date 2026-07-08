@@ -554,6 +554,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     onboardingStep,
   } = props;
 
+  // A closed ticket has finished its lifecycle, so each SLA target reads as an outcome
+  // (Met / Breached with the time taken) instead of a running "due in" countdown.
+  const slaClosed = /closed|resolved|completed/i.test(selectedStatus || '');
+
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
@@ -1270,7 +1274,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <Search size={16} className="text-[#7B8FA5]" />
                 <input
                   type="text"
-                  placeholder={activeGroup === 'activity' ? 'Search...' : 'Search fields...'}
+                  placeholder={activeGroup === 'activity' || activeGroup === 'suggestions' ? 'Search...' : 'Search fields...'}
                   value={propertiesSearchQuery}
                   onChange={(e) => setPropertiesSearchQuery(e.target.value)}
                   className="flex-1 outline-none text-[13px] text-[#364658] placeholder:text-[#7B8FA5]"
@@ -1490,13 +1494,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <div className="px-4 pb-4 space-y-2">
               {/* Response Due In - On Track */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
-                  <div className="text-[12px] font-medium text-[#364658]">First response due in</div>
+                <div className="flex items-center gap-1.5 min-w-0 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658] truncate">First response</div>
+                  <span className="text-[12px] font-medium text-[#364658] flex-shrink-0">Met</span>
                   <div className="relative">
                     <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'first' ? null : 'first'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                     {editingSlaRow === 'first' && <DateTimePickerPopup value={slaDates.first} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, first: d }))} onClose={() => setEditingSlaRow(null)} />}
                   </div>
-                  
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1511,24 +1515,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           </clipPath>
                         </defs>
                       </svg>
-                      <span className="text-[12px] font-semibold text-[#27AE60]">3d 5h</span>
+                      <span className="text-[12px] font-semibold text-[#27AE60]">{slaClosed ? '2h' : '3d 5h'}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>Thursday, February 20, 2026 at 12:30 AM</TooltipContent>
+                  <TooltipContent>
+                    <div className="text-left divide-y divide-white/15 min-w-[180px]">
+                      <div className="pb-1.5">{slaClosed ? 'Responded Thursday, February 20, 2026 at 12:30 AM' : 'Due by Thursday, February 20, 2026 at 12:30 AM'}</div>
+                      <div className="py-1.5"><span className="opacity-60">Total time:</span> {slaClosed ? '5 hours' : '4 days'}</div>
+                      <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> P1 Critical – Response SLA</div>
+                    </div>
+                  </TooltipContent>
                 </Tooltip>
               </div>
 
               {/* Resolution Due In - Conditional based on ticket ID */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
-                  <div className="text-[12px] font-medium text-[#364658]">
-                    {ticketId === 'INC-32' ? 'Resolution due in' : 'Resolution overdue in'}
-                  </div>
+                <div className="flex items-center gap-1.5 min-w-0 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658] truncate">Resolution</div>
+                  <span className="text-[12px] font-medium text-[#364658] flex-shrink-0">{getSlaPenaltyAmount(ticketId) > 0 ? 'Breached' : 'Met'}</span>
                   <div className="relative">
                     <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'resolution' ? null : 'resolution'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                     {editingSlaRow === 'resolution' && <DateTimePickerPopup value={slaDates.resolution} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, resolution: d }))} onClose={() => setEditingSlaRow(null)} />}
                   </div>
-                 
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1563,25 +1571,29 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <span className={`text-[12px] font-semibold ${
                         ticketId === 'INC-32' ? 'text-[#27AE60]' : 'text-[#E74C3C]'
                       }`}>
-                        {ticketId === 'INC-32' ? '4d 5h' : '1w 4d'}
+                        {slaClosed ? (getSlaPenaltyAmount(ticketId) > 0 ? '4d 6h' : '2d 4h') : (ticketId === 'INC-32' ? '4d 5h' : '1w 4d')}
                       </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {ticketId === 'INC-32' ? 'Saturday, March 23, 2026 at 2:30 PM' : 'Saturday, February 7, 2026 at 11:45 AM'}
+                    <div className="text-left divide-y divide-white/15 min-w-[180px]">
+                      <div className="pb-1.5">{slaClosed ? (getSlaPenaltyAmount(ticketId) > 0 ? 'Resolved Friday, February 27, 2026 at 03:15 PM' : 'Resolved Tuesday, February 24, 2026 at 05:30 PM') : (ticketId === 'INC-32' ? 'Due by Saturday, March 23, 2026 at 2:30 PM' : 'Due by Saturday, February 7, 2026 at 11:45 AM')}</div>
+                      <div className="py-1.5"><span className="opacity-60">Total time:</span> {slaClosed ? '3 days' : '5 days'}</div>
+                      <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> P1 Critical – Resolution SLA</div>
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               </div>
 
               {/* OLA Due In - Warning */}
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/sla">
-                  <div className="text-[12px] font-medium text-[#364658]">OLA due in</div>
+                <div className="flex items-center gap-1.5 min-w-0 group/sla">
+                  <div className="text-[12px] font-medium text-[#364658] truncate">{slaClosed ? 'OLA' : 'OLA due in'}</div>
+                  {slaClosed && <span className="text-[12px] font-medium text-[#364658] flex-shrink-0">Met</span>}
                   <div className="relative">
                     <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'ola' ? null : 'ola'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                     {editingSlaRow === 'ola' && <DateTimePickerPopup value={slaDates.ola} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, ola: d }))} onClose={() => setEditingSlaRow(null)} />}
                   </div>
-                  
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1596,13 +1608,19 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           </clipPath>
                         </defs>
                       </svg>
-                      <span className="text-[12px] font-semibold text-[#F39C12]">4h</span>
+                      <span className="text-[12px] font-semibold text-[#F39C12]">{slaClosed ? '5h' : '4h'}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>Sunday, February 15, 2026 at 4:30 PM</TooltipContent>
+                  <TooltipContent>
+                    <div className="text-left divide-y divide-white/15 min-w-[180px]">
+                      <div className="pb-1.5">{slaClosed ? 'Met Thursday, February 20, 2026 at 04:00 PM' : 'Due by Sunday, February 15, 2026 at 4:30 PM'}</div>
+                      <div className="py-1.5"><span className="opacity-60">Total time:</span> 1 week</div>
+                      <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> P1 Critical – OLA</div>
+                    </div>
+                  </TooltipContent>
                 </Tooltip>
               </div>
-            
+
               {/* Penalty Amount — only shown when a penalty has been incurred */}
               {getSlaPenaltyAmount(ticketId) > 0 && (
                 <div className="flex items-center justify-between gap-3">

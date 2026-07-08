@@ -1,39 +1,35 @@
-# Handoff — 2026-07-03 01:37
+# Handoff — 2026-07-08 11:14
 
 ## Read first
-Focus on these new Key-context bullets in `CLAUDE.md`: **"Tasks tab — Service Catalog Task stages"**, **"Audit Trail redesign"**, **"Approval comments popup"**, **"Header polish"**, **"Requester Conversation tab"**, and **"Drawer tab hover card"** — they cover the bulk of this session. Everything is mock/in-component as usual.
+Focus on the new `CLAUDE.md` Key-context bullets added this session: **"Ticket Transition modal"**, **"SLA outcome model (closed vs running)"**, **"Global tooltip delay"**, **"Header control heights are all uniformly 32px"**, and **"Change/Release header status dropdown shows the lifecycle stage"**. Everything is mock/in-component as usual.
 
 ## What we worked on this session
-A long polish + feature session across the detail drawers: the **Tasks tab** got a Service Catalog Task stage stepper, the **Audit Trail** was fully redesigned (+ filter/download popups) and rolled out to all modules, **approval comments** were fixed and restyled, plus header polish (ID pills, boxed icons, copy feedback), a third **Requester Conversation** tab, tab hover cards, and SLA-card tidy-ups.
+Two main threads: (1) built the new **Ticket Transition modal** (Overview/Status/Assignment, clickable distribution-bar → timeline filter, consistent mock data) and iterated its Overview SLA cards heavily; (2) a big **SLA-status redesign** — made the right-panel SLA Status accordion and the modal's SLA cards status-aware (Met/Breached outcomes, defined "total time" targets, rich hover tooltips). Plus header polish: boxed 3-dot menus, uniform 32px control heights, and the Change/Release status dropdown now shows the lifecycle stage.
 
 ## Completed
-- **Cross-module drawer follow-ups**: small/full view + minimized state now persist across tab switch/close (lifted to `DrawerStack` via `stackWidth`/`stackMinimized`); navigating to another module's list auto-minimizes the open drawer; the Impact "open related records" popup opens items in the same drawer.
-- **Drawer tab hover card** (`DrawerTabStrip`): ID · subject · technician · status · priority; compact ~36px tab bar.
-- **Header (all 12 drawers)**: ID pill before subject; Copy ID/URL/Watch icons boxed like Edit; **Share icon removed**; `HeaderCopyButton` with green "Copied!" feedback.
-- **Requester Conversation** sub-tab added to the Ticket conversation area (public vs internal filtering).
-- **Tasks tab** (`TasksTabContent`): single "Service Catalog Task" accordion + top "Task Summary" step selector (number + done/total, no names) showing one stage at a time; **Additional Tasks** (manual, no-stage) render outside the accordion; decluttered task cards (`TaskCardFields` inline meta chips with `title` tooltips, start→end date range). `TicketDrawer` seeds `DEMO_STAGED_TASKS`.
-- **Audit Trail** (`AuditTrailsTabContent` for ticket/problem/change/release + the History-tab audit category in all 8 asset/procurement drawers): day-grouped, inline time, action pills, before→after chips, **Filter** (date range, functional) + **Download** (format + polished password-protect toggle) popups.
-- **Approval comments** (`ApprovalCommentPopup`): send now keeps popup open + shows the comment; orange Note-style blocks with Internal pill; search + sort toolbar; fixed reversed-typing bug (uncontrolled contentEditable); AI-Assist dropdown no longer clipped.
-- **Approvals**: 3-dot menu now `Refer back · Ignore · Remind · Delete`; Similar Tickets "Linked" tab removed; "+" buttons removed from Similar Tickets & Suggested Knowledge headers.
-- **SLA card** compacted + per-row hover pencils; Work Tracker Start Timer gained a Technician selector; right-panel buttons unified size, Add Tracker filled-primary.
-- All verified with `npm run build` (passes) + headless puppeteer probes.
+- **Ticket Transition modal** (`TicketTransitionModal`, new file): merged the 3-dot menu's "Status Transition" + "Assignment Transition" into one **Ticket Transition** item; right drawer with **Overview · Status · Assignment** tabs (same tab styling as the main ticket tabs). Overview = Total Time Elapsed (w/ current-status pill) + full-width flexible **SLA Status** KPI cards. Status/Assignment = `TransitionSection` (clickable `TimeDistribution` bar filters the `Timeline` below). All mock data totals a consistent "4 days 11 hours".
+- **SLA Status accordion redesign** (`TicketPropertiesPanel`, shared Ticket/Problem/Change/Release): each row (First response / Resolution / OLA) now shows a **Met/Breached** word merged inline after the SLA name (plain `#364658`, not a pill), keeps the **same hourglass pill** in both open & closed (only the time value changes), and the pill hover is a **left-aligned, divider-separated tooltip** = completion/due date · Total time (defined target) · SLA Name. Closed → time-taken + "Met"; Running → countdown + "Met/Breached" (OLA stays "due in", never "Met" while open). **OLA total time raised to "1 week"** so it always exceeds Resolution.
+- **Modal SLA cards** mirror the same closed/running model (outcome pill on the right of the label, value = time taken, sub = "Target: …"; Penalty card given a "For SLA breach" sub-line for 3-line alignment).
+- **Global tooltip delay** set to **700ms** (`ui/tooltip.tsx` `TooltipProvider` default; `ui/sidebar.tsx` override bumped 0→700).
+- **Header consistency:** 3-dot menu triggers boxed (`h-8 w-8 border`); Add Relation + Status split-buttons and Barcode/QR buttons all normalized to 32px height.
+- **Change/Release status dropdown** now uses `changeStageStatus.options` so status keeps its stage prefix, with the stage name as a small gray header (matches AI-Assist section label style).
+- All verified with `npm run build` (passes) + headless puppeteer screenshot probes (running INC-31, closed INC-34).
 
 ## In progress
 Nothing mid-flight. Every item above is complete and builds clean.
 
 ## Next steps
-- **Push the batch live** — this is a LARGE unpushed batch (this entire session PLUS the prior cross-module refactor). The last `/publish` predates all of it. Run `/publish` when ready.
-- Optional consistency pass: the Requester Conversation tab was added to Ticket only; Problem/Change/Release have their own conversation timelines if the same third tab is wanted there.
+- **Push the batch live** — this whole session is unpushed, and per the prior handoff there was ALREADY a large unpushed batch before it (Tasks stages, Audit Trail redesign, approval comments, header polish, cross-module refactor). Run `/publish` when ready.
+- Optional: the Ticket Transition modal is Ticket-only; Problem/Change/Release could get it too if wanted (they'd need their own transition mock data).
 
 ## Decisions made
-- **Task stages = one accordion + top step selector, one stage at a time** (after iterating through: stepper → per-stage accordions → single accordion with sections → final selector). Manual tasks live OUTSIDE the accordion because the stages are admin-defined workflow and ad-hoc tasks aren't part of them.
-- **Audit trail: time inline + day grouping** — the old far-right timestamp was hard to associate with its event.
-- **Approval comment editor is uncontrolled** — re-writing a contentEditable's HTML on each keystroke resets the caret (reversed text); read state `onInput` only, clear imperatively.
-- **Reused the same popup code** for the asset History filter/download as the ticket audit trail for consistency.
+- **SLA rows show outcome (Met/Breached) merged in the label color, not a colored pill** — the user found colored pills too loud; color now lives only in the hourglass time pill. OLA is never "Met" while the ticket is open (only "due in"/Breached) because an OLA can't be met before closure.
+- **OLA total time must always exceed Resolution** (user rule) — set OLA to "1 week" vs Resolution's 3 days (closed) / 5 days (running).
+- **Distribution bar filters the timeline** (Status/Assignment tabs) rather than the earlier idea of separate views — one click on a color scopes the timeline.
+- **Tooltip delay 700ms globally** rather than per-tooltip — one change in `TooltipProvider` covers the whole app; the black/white styling was already the default (`bg-primary`).
 
 ## Gotchas & notes
-- ⚠️ **Regex backslashes get stripped in bash heredocs** (`\s`/`\d` → `s`/`d`). This bit the asset audit sweep once (`/s+d{1,2}.../` built fine but never matched). Write bulk-edit scripts to a `.mjs` with the **Write tool**, then `node` it — don't inline regex-containing replacements in `cat << 'EOF'` heredocs.
-- **12/8-drawer node sweeps** rely on byte-identical anchors (clones). Grep-verify counts before each sweep; write scripts via the editor to avoid escaping surprises.
-- **Stale dev server**: the long-running Vite server on :5173 can serve broken/stale modules after many edits (silent — clicks stop opening drawers with no console error). Restart `npm run dev` if the app misbehaves; a fresh server always worked this session.
-- Headless contentEditable: `page.keyboard.type` doesn't insert; use `elementHandle.focus()` + `page.keyboard.sendCharacter()`. Programmatic `:hover` for CSS `group-hover` doesn't reflect in `getComputedStyle` (verify structurally instead).
-- Verify with `npm run build` (no standalone typecheck — esbuild doesn't validate regex semantics or unused code). Don't round-trip files through PowerShell (corrupts em-dashes). Scratch probes live in the session scratchpad.
+- **`slaClosed` is derived from the `status`/`selectedStatus` prop** in both the modal and the panel — a ticket must actually be Closed/Resolved to see the closed layout. In the app the close action is gated by "add a solution first"; for testing, open an already-closed ticket (e.g. **INC-34** or INC-39) instead of trying to close one in the UI.
+- The right-panel SLA rows are heavily **per-ticket hardcoded** (INC-32 special-cases, mock dates/durations) — they are NOT computed from real SLA data. Editing values means touching the JSX literals in `TicketPropertiesPanel`.
+- Verify with `npm run build` (no standalone typecheck — esbuild doesn't validate runtime/unused code; errors only surface in-browser). Don't round-trip files through PowerShell (corrupts em-dashes —). Headless probes: puppeteer-core + Chrome, dev server on :5173, set `sessionStorage.hasSeenTicketDetailsOnboarding='true'` to skip the coach-mark.
+- ⚠️ Radix tooltips render behind modals unless given a high z-index — the modal SLA tooltips pass `className="z-[10002]"` (modal is `z-[10001]`).

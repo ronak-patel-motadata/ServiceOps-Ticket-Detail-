@@ -47,7 +47,7 @@ export function ProblemActionsMenu({ onOpenApprovalPopup }: ProblemActionsMenuPr
     <div className="relative" ref={actionsMenuRef}>
       <button
         onClick={() => setShowActionsMenu(!showActionsMenu)}
-        className="p-1.5 hover:bg-[#f9fafb] rounded"
+        className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
       >
         <MoreVertical size={16} className="text-[#6b7280]" />
       </button>

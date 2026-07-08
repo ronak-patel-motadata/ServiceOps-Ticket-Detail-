@@ -105,8 +105,8 @@ export function SLAHistoryModal({ isOpen, onClose, penaltyAmount = 0 }: SLAHisto
                       </div>
                     </div>
 
-                    {/* Key meta */}
-                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                    {/* Key meta — spread evenly across the full card width */}
+                    <div className="mt-3 grid grid-cols-3 gap-4">
                       <div className="min-w-0">
                         <div className="text-[10px] text-[#9CA3AF] uppercase tracking-wide">Elapsed</div>
                         <div className="text-[12px] font-medium text-[#364658]">{item.elapsedTime}</div>

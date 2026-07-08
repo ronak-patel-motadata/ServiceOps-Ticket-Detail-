@@ -46,6 +46,7 @@ import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
+import { TicketTransitionModal } from './TicketTransitionModal';
 import { ConversationEmptyState } from './ConversationEmptyState';
 import { ReplyEditor } from './ReplyEditor';
 import { BlankTicketConversationView } from './BlankTicketConversationView';
@@ -421,6 +422,7 @@ onStackMinimizedChange,
   const [showRequestChannelDropdown, setShowRequestChannelDropdown] = useState(false);
   const [showBadgeStatusDropdown, setShowBadgeStatusDropdown] = useState(false);
   const [showHeaderStatusDropdown, setShowHeaderStatusDropdown] = useState(false);
+  const [showTicketTransition, setShowTicketTransition] = useState(false);
   const [showBadgePriorityDropdown, setShowBadgePriorityDropdown] = useState(false);
   const [showBadgeAssigneeDropdown, setShowBadgeAssigneeDropdown] = useState(false);
   
@@ -1897,7 +1899,7 @@ onStackMinimizedChange,
                 { key: 'sentiment', tip: `Requester sentiment: ${sentiment.label}`, node: (
                   <span className="inline-flex items-center gap-1.5">
                     <span className="text-[11px] text-[#7B8FA5]">Sentiment</span>
-                    <span className="text-[13px] leading-none">{sentiment.emoji}</span>
+                    <span className="text-[13px] leading-none" style={{ marginTop: '-1px' }}>{sentiment.emoji}</span>
                     <span className="text-[12px] font-medium" style={{ color: sentiment.text }}>{sentiment.label}</span>
                   </span>
                 ) },
@@ -2002,10 +2004,10 @@ onStackMinimizedChange,
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <div className="inline-flex items-stretch">
+              <div className="inline-flex items-stretch h-8">
                 <button
                   onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
                 >
                   Add Relation
                 </button>
@@ -2051,10 +2053,10 @@ onStackMinimizedChange,
             </div>
             {/* Status split-button dropdown (replaces the old Close Request button) */}
             <div className="relative">
-              <div className={`inline-flex items-stretch rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+              <div className={`inline-flex items-stretch h-8 rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
                 <button
                   onClick={() => setShowHeaderStatusDropdown((v) => !v)}
-                  className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"
+                  className="flex items-center gap-2 pl-3 pr-2.5 hover:bg-[#F9FAFB] transition-colors"
                   title="Update status"
                 >
                   <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusBadgeColors().dot }} />
@@ -2104,6 +2106,7 @@ onStackMinimizedChange,
             </div>
             <TicketActionsMenu
               ticketId={activeTicket?.id}
+              onOpenTicketTransition={() => setShowTicketTransition(true)}
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
@@ -2115,6 +2118,7 @@ onStackMinimizedChange,
                 setActiveGroup('properties'); // Open ticket properties for onboarding
               }}
             />
+            <TicketTransitionModal isOpen={showTicketTransition} onClose={() => setShowTicketTransition(false)} ticketId={activeTicket?.id} penaltyAmount={getSlaPenaltyAmount(activeTicket?.id)} status={selectedStatus} />
           </div>
         </div>
 

@@ -17,7 +17,7 @@ const filterFigmaProps = (props: Record<string, any>) => {
 };
 
 function TooltipProvider({
-  delayDuration = 0,
+  delayDuration = 700,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (

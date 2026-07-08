@@ -2531,10 +2531,10 @@ onStackMinimizedChange,
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <div className="inline-flex items-stretch">
+              <div className="inline-flex items-stretch h-8">
                 <button
                   onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
                 >
                   Add Relation
                 </button>
@@ -2580,10 +2580,10 @@ onStackMinimizedChange,
             </div>
             {/* Status split-button dropdown (replaces the old Close button) */}
             <div className="relative">
-              <div className={`inline-flex items-stretch rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
+              <div className={`inline-flex items-stretch h-8 rounded border bg-white overflow-hidden transition-colors ${showHeaderStatusDropdown ? 'border-[#3D8BD0]' : 'border-[#D0D5DD]'}`}>
                 <button
                   onClick={() => setShowHeaderStatusDropdown((v) => !v)}
-                  className="flex items-center gap-2 pl-3 pr-2.5 py-1.5 hover:bg-[#F9FAFB] transition-colors"
+                  className="flex items-center gap-2 pl-3 pr-2.5 hover:bg-[#F9FAFB] transition-colors"
                   title="Update status"
                 >
                   <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusBadgeColors().dot }} />

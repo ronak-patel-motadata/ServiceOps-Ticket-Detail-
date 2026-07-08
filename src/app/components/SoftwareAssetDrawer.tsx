@@ -2097,7 +2097,7 @@ onStackMinimizedChange,
             >
               <button
                 onClick={() => setShowBarcodeMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
               >
                 <Barcode size={16} className="text-[#6b7280]" />
               </button>
@@ -2147,7 +2147,7 @@ onStackMinimizedChange,
             >
               <button
                 onClick={() => setShowQrMenu((v) => !v)}
-                className="p-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
               >
                 <QrCode size={16} className="text-[#6b7280]" />
               </button>
@@ -2202,10 +2202,10 @@ onStackMinimizedChange,
               <Edit size={16} className="text-[#6b7280]" />
             </button>
             <div className="relative">
-              <div className="inline-flex items-stretch">
+              <div className="inline-flex items-stretch h-8">
                 <button
                   onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="px-4 py-1.5 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
+                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
                 >
                   Add Relation
                 </button>
