@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect, type ComponentType } from 'react';
@@ -101,6 +101,7 @@ import {
 const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Problem',prefix:'PRB'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
+import { RelationshipGraph } from './RelationshipGraph';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
@@ -309,6 +310,18 @@ onStackMinimizedChange,
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
   const [showQrMenu, setShowQrMenu] = useState(false);
+  // Relationship tab view controls: layout mode, refresh key, and full-screen toggle.
+  const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
+  const [relFull, setRelFull] = useState(false);
+  const [relKey, setRelKey] = useState(0);
+  const [relZoom, setRelZoom] = useState(1);
+  const [relPan, setRelPan] = useState({ x: 0, y: 0 });
+  // Relationship download popup (same as the audit-trail download).
+  const [showRelDownload, setShowRelDownload] = useState(false);
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV'>('PDF');
+  const [relDlPwProtected, setRelDlPwProtected] = useState(false);
+  const [relDlShowPw, setRelDlShowPw] = useState(false);
+  const [relDlPassword, setRelDlPassword] = useState('');
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
   // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
@@ -2437,9 +2450,9 @@ onStackMinimizedChange,
         {/* Main Content Area - Two Column Layout */}
         <div className="flex flex-1 overflow-hidden" data-onboarding-container>
           {/* Left Content */}
-          <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
+          <div className="flex-1 flex flex-col relative min-w-0 min-h-0" data-onboarding="main-workspace">
             {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -3985,52 +3998,181 @@ onStackMinimizedChange,
                 { label: 'DC1-SW-CORE-01', type: 'asset' },
                 { label: 'LG Monitor', type: 'asset' },
               ];
+              const center = relView === 'tree' ? { x: 50, y: 14 } : { x: 50, y: 50 };
               const positioned = nodes.map((n, i) => {
+                if (relView === 'tree') {
+                  const x = nodes.length === 1 ? 50 : 8 + (i / (nodes.length - 1)) * 84;
+                  return { ...n, x, y: 74 };
+                }
                 const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
                 return { ...n, x: 50 + 36 * Math.cos(angle), y: 50 + 38 * Math.sin(angle) };
               });
-              return (
-                <div className="px-6 py-6">
-                  {/* Legend */}
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    {Object.values(typeMeta).map((t) => (
-                      <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                        <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.label}
-                      </span>
+              type PosNode = typeof positioned[number];
+
+              const nodeCard = (n: PosNode) => {
+                const m = typeMeta[n.type];
+                return (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
+                    <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+                  </div>
+                );
+              };
+              const centerName = activeAsset?.name || activeTicket?.subject || 'This Asset';
+
+              const legend = (
+                <div className="flex flex-wrap items-center gap-4">
+                  {Object.values(typeMeta).map((t) => (
+                    <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                      <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
+                      {t.label}
+                    </span>
+                  ))}
+                </div>
+              );
+
+              const viewBtns = [
+                { key: 'graph', icon: <Share2 size={15} />, title: 'Full view' },
+                { key: 'tree', icon: <Workflow size={15} />, title: 'Tree view' },
+                { key: 'grid', icon: <LayoutGrid size={15} />, title: 'Grid view' },
+              ] as const;
+              const controls = (
+                <div className="flex items-center gap-2">
+                  {/* View-mode segmented group */}
+                  <div className="inline-flex items-center rounded-md border border-[#DFE5ED] bg-white p-0.5">
+                    {viewBtns.map((b) => (
+                      <Tooltip key={b.key}>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => setRelView(b.key)} className={`inline-flex items-center justify-center size-7 rounded transition-colors ${relView === b.key ? 'bg-[#3D8BD0] text-white' : 'text-[#6B7280] hover:bg-[#F5F7FA]'}`}>{b.icon}</button>
+                        </TooltipTrigger>
+                        <TooltipContent>{b.title}</TooltipContent>
+                      </Tooltip>
                     ))}
                   </div>
-
-                  {/* Topology */}
-                  <div className="relative w-full h-[520px] rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] overflow-hidden">
-                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                      {positioned.map((n) => (
-                        <line key={n.label} x1="50%" y1="50%" x2={`${n.x}%`} y2={`${n.y}%`} stroke="#CBD5E1" strokeWidth={1.5} />
-                      ))}
-                    </svg>
-
-                    {/* Center: this asset */}
-                    <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}>
-                      <div className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl bg-[#3D8BD0] text-white shadow-md max-w-[180px]">
-                        <Monitor size={20} />
-                        <span className="text-[12px] font-semibold text-center truncate max-w-[150px]">{activeAsset?.name || activeTicket?.subject || 'This Asset'}</span>
-                        <span className="text-[10px] opacity-90">{activeAsset?.id}</span>
-                      </div>
-                    </div>
-
-                    {/* Connected nodes */}
-                    {positioned.map((n) => {
-                      const m = typeMeta[n.type];
-                      return (
-                        <div key={n.label} className="absolute z-10" style={{ left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)' }}>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
-                            <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
-                            <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+                  {/* Refresh */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelKey((k) => k + 1)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><RefreshCw size={15} className="text-[#6b7280]" /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Refresh</TooltipContent>
+                  </Tooltip>
+                  {/* Full screen */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelFull((v) => !v)} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${relFull ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}>{relFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+                  </Tooltip>
+                  {/* Download */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => setShowRelDownload((v) => !v)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><Download size={15} className="text-[#6b7280]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Download</TooltipContent>
+                    </Tooltip>
+                    {showRelDownload && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelDownload(false)} />
+                        <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                          <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+                          {/* Format */}
+                          <div className="mb-4">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
+                            <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
+                              {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
+                                <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Password Protected toggle */}
+                          <div className="mb-3">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label>
+                            <button onClick={() => setRelDlPwProtected((v) => !v)} role="switch" aria-checked={relDlPwProtected} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${relDlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}>
+                              <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${relDlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+                            </button>
+                          </div>
+                          {/* Attachment password */}
+                          {relDlPwProtected && (
+                            <div className="mb-1">
+                              <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
+                              <div className="relative">
+                                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                                <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                                <button onClick={() => setRelDlShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{relDlShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button>
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </>
+                    )}
                   </div>
+                </div>
+              );
+
+              const graphArea = (
+                <div className={`relative w-full h-full overflow-hidden ${relView === 'grid' ? 'bg-white' : ''}`}>
+                  {relView === 'grid' ? (
+                    <div className="p-4 h-full overflow-auto">
+                      <div className="space-y-2.5 min-w-[720px]">
+                        {positioned.map((n, i) => {
+                          const m = typeMeta[n.type];
+                          const rel = n.type === 'user' ? 'Users' : 'Depends On';
+                          return (
+                            <div key={n.label} className="flex items-center gap-3">
+                              <span className="w-6 text-right text-[13px] text-[#64748B] flex-shrink-0">{i + 1}.</span>
+                              {/* Source (this CI) */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md bg-[#3D8BD0] text-white flex-shrink-0"><HardDrive size={14} /></span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{activeAsset?.id ? `${activeAsset.id}: ${centerName}` : centerName}</span>
+                              </div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Relationship type */}
+                              <div className="w-[200px] flex-shrink-0 text-center px-4 py-2.5 rounded-md bg-[#1E293B] text-white text-[13px] font-medium truncate">{rel}</div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Target */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{n.label}</span>
+                              </div>
+                              {/* Remove */}
+                              <button title="Remove relation" className="flex-shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-md border border-[#FCA5A5] text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"><Trash2 size={15} /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <RelationshipGraph
+                      mode={relView as 'graph' | 'tree'}
+                      refreshSignal={relKey}
+                      nodes={nodes}
+                      typeMeta={typeMeta}
+                      centerName={centerName}
+                      centerId={activeAsset?.id}
+                    />
+                  )}
+                </div>
+              );
+
+              if (relFull) {
+                return (
+                  <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">{legend}{controls}</div>
+                    <div className="flex-1 min-h-0">{graphArea}</div>
+                  </div>
+                );
+              }
+              return (
+                // Fill the viewport below the sticky tab strip (~48px) so the dotted canvas
+                // reaches the bottom edge without making the page scroll.
+                <div className="h-[calc(100%-48px)] flex flex-col">
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]">{legend}{controls}</div>
+                  <div className="flex-1 min-h-0">{graphArea}</div>
                 </div>
               );
             })()}

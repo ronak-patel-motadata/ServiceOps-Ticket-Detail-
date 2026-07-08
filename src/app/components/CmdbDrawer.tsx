@@ -2113,13 +2113,13 @@ onStackMinimizedChange,
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div className="min-w-0">
             <h1 className="text-[18px] font-semibold text-[#364658] truncate flex items-center gap-2">
-              <HeaderIdPill id={activeTicket.id} />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
                 </TooltipTrigger>
                 <TooltipContent>Agent installed</TooltipContent>
               </Tooltip>
+              <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
             <span className="text-[12px] text-[#6b7280] block mt-0.5 pl-[18px]">Created at 26/02/2025 15:02 (6 days ago)</span>
@@ -2176,114 +2176,6 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowBarcodeMenu(true)}
-              onMouseLeave={() => setShowBarcodeMenu(false)}
-            >
-              <button
-                onClick={() => setShowBarcodeMenu((v) => !v)}
-                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <Barcode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showBarcodeMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                  {/* Barcode preview */}
-                  <div className="px-4 pb-2 flex flex-col items-center">
-                    <div
-                      className="h-11 w-full rounded-sm"
-                      style={{
-                        background:
-                          'repeating-linear-gradient(90deg, #1F2937 0px, #1F2937 1px, #fff 1px, #fff 3px, #1F2937 3px, #1F2937 5px, #fff 5px, #fff 6px, #1F2937 6px, #1F2937 9px, #fff 9px, #fff 11px)',
-                      }}
-                    />
-                    <span className="text-[12px] tracking-[0.18em] text-[#364658] mt-1.5 font-medium">88t540565065</span>
-                  </div>
-
-                  <div className="my-1 border-t border-[#F0F2F5]" />
-
-                  {/* Options */}
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Print Barcode</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Copy size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Copy UPC Code</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Settings2 size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Settings</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#DC2626] flex items-center gap-2.5">
-                    <Trash2 size={15} className="text-[#DC2626] flex-shrink-0" />
-                    <span>Remove Barcode</span>
-                  </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowQrMenu(true)}
-              onMouseLeave={() => setShowQrMenu(false)}
-            >
-              <button
-                onClick={() => setShowQrMenu((v) => !v)}
-                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <QrCode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showQrMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                    {/* QR preview */}
-                    <div className="px-4 pb-2 flex flex-col items-center">
-                      <svg viewBox="0 0 33 33" className="w-32 h-32" shapeRendering="crispEdges">
-                        <rect width="33" height="33" fill="#fff" />
-                        {/* Finder patterns (3 corners) */}
-                        {[[0, 0], [26, 0], [0, 26]].map(([fx, fy], i) => (
-                          <g key={i}>
-                            <rect x={fx} y={fy} width="7" height="7" fill="#1F2937" />
-                            <rect x={fx + 1} y={fy + 1} width="5" height="5" fill="#fff" />
-                            <rect x={fx + 2} y={fy + 2} width="3" height="3" fill="#1F2937" />
-                          </g>
-                        ))}
-                        {/* Alignment pattern (bottom-right) */}
-                        <g>
-                          <rect x={24} y={24} width="5" height="5" fill="#1F2937" />
-                          <rect x={25} y={25} width="3" height="3" fill="#fff" />
-                          <rect x={26} y={26} width="1" height="1" fill="#1F2937" />
-                        </g>
-                        {/* Data modules (dense) */}
-                        {Array.from({ length: 33 * 33 }).map((_, idx) => {
-                          const x = idx % 33;
-                          const y = Math.floor(idx / 33);
-                          const inFinder = (x < 8 && y < 8) || (x > 24 && y < 8) || (x < 8 && y > 24);
-                          const inAlign = x >= 24 && x <= 28 && y >= 24 && y <= 28;
-                          if (inFinder || inAlign) return null;
-                          if (((x * 1103 + y * 2741 + x * y * 13 + 7) % 7) < 3)
-                            return <rect key={idx} x={x} y={y} width="1" height="1" fill="#1F2937" />;
-                          return null;
-                        })}
-                      </svg>
-                    </div>
-
-                    <div className="my-1 border-t border-[#F0F2F5]" />
-
-                    {/* Option */}
-                    <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                      <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                      <span>Print QR Code</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
@@ -2336,6 +2228,7 @@ onStackMinimizedChange,
               )}
             </div>
             <HardwareAssetActionsMenu
+              cmdb
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');

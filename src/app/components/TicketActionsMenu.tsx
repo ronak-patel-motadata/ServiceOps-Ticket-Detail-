@@ -44,7 +44,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding, on
       className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors flex items-center gap-2"
     >
       <span className="text-[#6B7280] flex-shrink-0">{icon}</span>
-      <span className="flex-1">{label}</span>
+      <span className="flex-1 whitespace-nowrap">{label}</span>
       {badge}
     </button>
   );
@@ -65,7 +65,7 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding, on
       </button>
 
       {showActionsMenu && (
-        <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="absolute right-0 top-full mt-1 w-[248px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
 
           <Section label="Actions" />
           <Item

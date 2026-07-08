@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   MoreVertical, UserCheck, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
-  Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode, XCircle, PackageCheck,
+  Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode, XCircle, PackageCheck, MinusSquare,
 } from 'lucide-react';
 
 interface HardwareAssetActionsMenuProps {
@@ -15,9 +15,11 @@ interface HardwareAssetActionsMenuProps {
   contract?: boolean;
   // Purchase menu: only Receive Items, Print
   purchase?: boolean;
+  // CMDB / CI menu: Ask for Approval, Sync Warranty, Scan Now, Exclude From Scan, Used By/Location History
+  cmdb?: boolean;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false, cmdb = false }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -91,7 +93,23 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
-      {open && !minimal && !nonIt && !contract && !purchase && (
+      {open && cmdb && (
+        <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Section label="Actions" />
+          <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
+          <Item label="Sync Warranty" icon={<RefreshCw size={15} />} />
+          <Item label="Scan Now" icon={<ScanLine size={15} />} />
+          <Divider />
+          <Section label="Remote" />
+          <Item label="Exclude From Scan" icon={<MinusSquare size={15} />} />
+          <Divider />
+          <Section label="History" />
+          <Item label="Used By History" icon={<History size={15} />} />
+          <Item label="Location History" icon={<History size={15} />} />
+        </div>
+      )}
+
+      {open && !minimal && !nonIt && !contract && !purchase && !cmdb && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
