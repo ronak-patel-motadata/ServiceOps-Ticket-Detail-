@@ -160,7 +160,13 @@ function mockLabel(type: RelType, seed: number): string {
 }
 function genChildren(parentId: string, depth: number): TreeNode[] {
   const h = hash(parentId + '|' + depth);
-  const count = depth === 1 ? 2 + (h % 3) : depth === 2 ? h % 3 : 0; // 2-4, then 0-2, then leaf
+  // Realistic customer mix: most nodes have a handful of connections, but some (a core
+  // switch, hypervisor, …) fan out to 20+ children — the layout wraps those into
+  // multiple staggered rings.
+  const count =
+    depth === 1 ? (h % 4 === 0 ? 20 + (h % 9) : 2 + (h % 3)) // some 20-28, rest 2-4
+    : depth === 2 ? (h % 7 === 0 ? 5 + (h % 3) : h % 3) // occasionally 5-7, rest 0-2
+    : 0;
   const out: TreeNode[] = [];
   for (let k = 0; k < count; k++) {
     const id = `${parentId}.${k}`;
@@ -298,24 +304,31 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       // sub-groups get larger sector padding — so a group expanded inside another group
       // still reads as its own separate cluster instead of merging into the parent's.
       const R1 = 215, RSTEP = 175;
+      // Large fans (20+ children) can't fit on one ring at readable spacing, so children
+      // wrap into up to 4 staggered rings: MIN_ARC = min arc length per child on its ring,
+      // ROW_STEP = radial gap between the staggered rings.
+      const MIN_ARC = 118, ROW_STEP = 125;
       const weight = (t: TreeNode): number => {
         const ch = visChildren(t);
         return ch.length ? ch.reduce((s, c) => s + weight(c), 0) + 0.8 : 1;
       };
-      const place = (t: TreeNode, depth: number, a0: number, a1: number, parentId: string) => {
+      const place = (t: TreeNode, r: number, a0: number, a1: number, parentId: string) => {
         const mid = (a0 + a1) / 2;
-        const r = R1 + (depth - 1) * RSTEP;
         nodesOut.push(makeNode(t, r * Math.cos(mid), r * Math.sin(mid), expanded.has(t.id)));
         edgesOut.push({ id: `e-${t.id}`, source: parentId, target: t.id, type: 'floating' });
         const ch = visChildren(t);
         if (ch.length) {
+          const childR = r + RSTEP;
+          // How many staggered rings this fan needs so every child gets MIN_ARC of room.
+          const usableArc = Math.max((a1 - a0) * childR, 1);
+          const rings = Math.min(4, Math.max(1, Math.ceil((ch.length * MIN_ARC) / usableArc)));
           const tot = ch.reduce((s, c) => s + weight(c), 0);
           let a = a0;
-          ch.forEach((c) => {
+          ch.forEach((c, i) => {
             const span = (a1 - a0) * (weight(c) / tot);
             // A child that is itself expanded gets more padding → clear gap around its group.
             const pad = span * (visChildren(c).length ? 0.16 : 0.07);
-            place(c, depth + 1, a + pad, a + span - pad, t.id);
+            place(c, childR + (i % rings) * ROW_STEP, a + pad, a + span - pad, t.id);
             a += span;
           });
         }
@@ -326,7 +339,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         const span = (2 * Math.PI * weight(t)) / totalW;
         // Generous padding at the first level = breathing room between expanded groups.
         const pad = span * 0.14;
-        place(t, 1, a + pad, a + span - pad, 'center');
+        place(t, R1, a + pad, a + span - pad, 'center');
         a += span;
       });
     }
@@ -526,7 +539,17 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         edges={renderEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={(_, node) => setPinnedId((p) => (p === node.id ? null : node.id))}
+        onNodeClick={(_, node) => {
+          setPinnedId((p) => (p === node.id ? null : node.id));
+          // In a zoomed-out overview, clicking a node zooms in on it (and its open group)
+          // and centres it so the user can actually read it.
+          const vp = rf.getViewport();
+          if (vp.zoom < 0.75) {
+            const t = treeRef.current.get(node.id);
+            const kids = t && expandedRef.current.has(node.id) ? t.children.map((c) => ({ id: c.id })) : [];
+            rf.fitView({ nodes: [{ id: node.id }, ...kids], padding: 0.35, duration: 500, minZoom: 0.85, maxZoom: 1.15 });
+          }
+        }}
         onNodeMouseEnter={(_, node) => setHoverId(node.id)}
         onNodeMouseLeave={() => setHoverId(null)}
         onPaneClick={() => setPinnedId(null)}
