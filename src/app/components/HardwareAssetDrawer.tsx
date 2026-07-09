@@ -314,6 +314,32 @@ onStackMinimizedChange,
   const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
   const [relFull, setRelFull] = useState(false);
   const [relKey, setRelKey] = useState(0);
+  const [relSearch, setRelSearch] = useState('');
+  const relSearchRef = useRef<HTMLInputElement>(null);
+  // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
+  // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
+  useEffect(() => {
+    if (activeMainTab !== 'relationship') return;
+    const onKey = (e: KeyboardEvent) => {
+      const inField = e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setRelFull((v) => !v);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        relSearchRef.current?.focus();
+        return;
+      }
+      if (inField) return;
+      if (e.key === '1') setRelView('graph');
+      else if (e.key === '2') setRelView('tree');
+      else if (e.key === '3') setRelView('grid');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeMainTab]);
   const [relZoom, setRelZoom] = useState(1);
   const [relPan, setRelPan] = useState({ x: 0, y: 0 });
   // Relationship download popup (same as the audit-trail download).
@@ -4020,14 +4046,20 @@ onStackMinimizedChange,
               };
               const centerName = activeAsset?.name || activeTicket?.subject || 'This Asset';
 
+              // NOTE: the type legend (User/Software/Hardware/Asset dots) was removed from
+              // this toolbar — it will be re-placed elsewhere later. A node search sits in
+              // its place: typing highlights matching nodes and fades everything else.
               const legend = (
-                <div className="flex flex-wrap items-center gap-4">
-                  {Object.values(typeMeta).map((t) => (
-                    <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                      <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                      {t.label}
-                    </span>
-                  ))}
+                <div className="relative w-[260px]">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                  <input
+                    ref={relSearchRef}
+                    value={relSearch}
+                    onChange={(e) => setRelSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
+                    placeholder="Search...   Ctrl + F | Esc to clear"
+                    className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                  />
                 </div>
               );
 
@@ -4154,6 +4186,7 @@ onStackMinimizedChange,
                       typeMeta={typeMeta}
                       centerName={centerName}
                       centerId={activeAsset?.id}
+                      searchTerm={relSearch}
                     />
                   )}
                 </div>
