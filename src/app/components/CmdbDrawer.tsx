@@ -115,6 +115,9 @@ interface CmdbDrawerProps {
   onStackWidthChange?: (w: number) => void;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
+  // Lifted active-tab memory (host remembers each open item's detail tab across drawer swaps).
+  stackActiveTab?: string;
+  onStackActiveTabChange?: (t: string) => void;
 }
 
 /**
@@ -171,6 +174,8 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
+  stackActiveTab,
+  onStackActiveTabChange,
 }: CmdbDrawerProps) {
   const assetList = openAssets.map(ciToAssetShape);
   const openTickets = assetList.map(assetToTicket);
@@ -1351,10 +1356,21 @@ onStackMinimizedChange,
     }
   }, [showBadgeAssigneeDropdown]);
 
-  // Asset detail page opens on the Overview tab by default.
+  // When the active record changes, restore the tab the user last left it on (remembered by
+  // the drawer host), else default to Overview. `tabInitRef` marks the programmatic set so the
+  // reporting effect below doesn't echo it back.
+  const tabInitRef = useRef(false);
   useEffect(() => {
-    if (activeAsset) setActiveMainTab('overview');
+    if (!activeAsset) return;
+    const want = (stackActiveTab as typeof activeMainTab | undefined) ?? 'overview';
+    setActiveMainTab((prev) => { if (prev !== want) tabInitRef.current = true; return want; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAssetId]);
+  useEffect(() => {
+    if (tabInitRef.current) { tabInitRef.current = false; return; }
+    onStackActiveTabChange?.(activeMainTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainTab]);
 
   // Update ticket fields when active ticket changes
   useEffect(() => {

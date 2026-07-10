@@ -57,6 +57,10 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
   // Shared minimized state so navigating to another module's list page collapses
   // the open drawer to its rail (revealing the list), and opening an item restores it.
   const [minimized, setMinimized] = useState(false);
+  // Remember each open item's active detail tab (keyed by `module:id`), so returning to a
+  // tab restores the tab the user left it on — even though the host remounts a fresh drawer
+  // instance when switching between modules.
+  const [tabByKey, setTabByKey] = useState<Record<string, string>>({});
 
   // When the user navigates to a different module's list page, minimize any open
   // drawer so the list underneath is visible (the rail stays for quick restore).
@@ -118,6 +122,8 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       onStackWidthChange: setStackWidth,
       stackMinimized: minimized,
       onStackMinimizedChange: setMinimized,
+      stackActiveTab: active ? tabByKey[active.key] : undefined,
+      onStackActiveTabChange: (t: string) => { if (active) setTabByKey((p) => (p[active.key] === t ? p : { ...p, [active.key]: t })); },
     } as any;
     switch (active.module) {
       case 'request': drawer = <TicketDrawer openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;

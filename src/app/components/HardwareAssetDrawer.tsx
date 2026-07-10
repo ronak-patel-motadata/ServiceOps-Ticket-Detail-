@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, Orbit, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect, type ComponentType } from 'react';
@@ -101,7 +101,64 @@ import {
 const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Problem',prefix:'PRB'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
-import { RelationshipGraph } from './RelationshipGraph';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild } from './RelationshipGraph';
+import { AddRelationshipPanel } from './AddRelationshipPanel';
+import * as SliderPrimitive from '@radix-ui/react-slider';
+
+/* Slider row for the Relationship "Advanced Configuration" panel: label + info tooltip,
+ * range slider with min/max scale labels, and a numeric readout box. */
+function RelSliderRow({ label, info, min, max, step, value, onChange }: { label: string; info: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-[13px] font-medium text-[#64748B]">{label}</span>
+        <span className="text-[#EF4444]">*</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-default text-[#9CA3AF]"><Info size={13} /></span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[240px]">{info}</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <SliderPrimitive.Root
+            className="group relative flex h-5 w-full touch-none select-none items-center"
+            min={min}
+            max={max}
+            step={step}
+            value={[value]}
+            onValueChange={(v) => onChange(v[0])}
+          >
+            <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-[#E8EDF3]">
+              <SliderPrimitive.Range className="absolute h-full rounded-full bg-gradient-to-r from-[#3D8BD0] to-[#6FB1E8]" />
+            </SliderPrimitive.Track>
+            <SliderPrimitive.Thumb className="relative block size-4 cursor-grab rounded-full border-2 border-[#3D8BD0] bg-white shadow-[0_1px_4px_rgba(61,139,208,0.45)] outline-none transition-[transform,box-shadow] duration-100 hover:scale-110 hover:ring-4 hover:ring-[#3D8BD0]/15 focus-visible:ring-4 focus-visible:ring-[#3D8BD0]/25 active:scale-110 active:cursor-grabbing active:ring-4 active:ring-[#3D8BD0]/25">
+              {/* Value bubble — appears while hovering/dragging the slider */}
+              <span className="pointer-events-none absolute -top-[30px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#1E293B] px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
+                {value}
+                <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#1E293B]" />
+              </span>
+            </SliderPrimitive.Thumb>
+          </SliderPrimitive.Root>
+          <div className="flex justify-between text-[11px] text-[#9CA3AF] mt-1">
+            <span>{min}</span>
+            <span>{max}</span>
+          </div>
+        </div>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => { const v = +e.target.value; if (!Number.isNaN(v)) onChange(Math.min(max, Math.max(min, v))); }}
+          className="w-[68px] h-8 px-2 border border-[#DFE5ED] rounded-md text-[13px] text-right text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+        />
+      </div>
+    </div>
+  );
+}
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
@@ -117,6 +174,9 @@ interface HardwareAssetDrawerProps {
   onStackWidthChange?: (w: number) => void;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
+  // Lifted active-tab memory (host remembers each open item's detail tab across drawer swaps).
+  stackActiveTab?: string;
+  onStackActiveTabChange?: (t: string) => void;
 }
 
 /**
@@ -154,6 +214,8 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
+  stackActiveTab,
+  onStackActiveTabChange,
 }: HardwareAssetDrawerProps) {
   const openTickets = openAssets.map(assetToTicket);
   const activeTicketId = activeAssetId;
@@ -315,6 +377,17 @@ onStackMinimizedChange,
   const [relFull, setRelFull] = useState(false);
   const [relKey, setRelKey] = useState(0);
   const [relSearch, setRelSearch] = useState('');
+  // Advanced Configuration for the relationship topology: applied config + panel draft.
+  const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [relDraft, setRelDraft] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [showRelSettings, setShowRelSettings] = useState(false);
+  // Topology type filter (toolbar Filter menu): the selected option's label, or null = all.
+  const [relFilter, setRelFilter] = useState<string | null>(null);
+  const [showRelFilter, setShowRelFilter] = useState(false);
+  // Add Relationship: the node whose "+" was clicked (opens the side panel), and the
+  // user-added relationships per source node (grafted into the topology).
+  const [relAddTarget, setRelAddTarget] = useState<{ id: string; name: string } | null>(null);
+  const [relExtras, setRelExtras] = useState<Record<string, ExtraRelChild[]>>({});
   const relSearchRef = useRef<HTMLInputElement>(null);
   // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
   // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
@@ -1371,10 +1444,22 @@ onStackMinimizedChange,
     }
   }, [showBadgeAssigneeDropdown]);
 
-  // Asset detail page opens on the Overview tab by default.
+  // When the active record changes, restore the tab the user last left it on (remembered by
+  // the drawer host), else default to Overview. `tabInitRef` marks this as a programmatic set
+  // so the reporting effect below doesn't echo it back.
+  const tabInitRef = useRef(false);
   useEffect(() => {
-    if (activeAsset) setActiveMainTab('overview');
+    if (!activeAsset) return;
+    const want = (stackActiveTab as typeof activeMainTab | undefined) ?? 'overview';
+    setActiveMainTab((prev) => { if (prev !== want) tabInitRef.current = true; return want; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAssetId]);
+  // Report user-driven tab changes up so the host remembers them per open item.
+  useEffect(() => {
+    if (tabInitRef.current) { tabInitRef.current = false; return; }
+    onStackActiveTabChange?.(activeMainTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainTab]);
 
   // Update ticket fields when active ticket changes
   useEffect(() => {
@@ -4050,23 +4135,68 @@ onStackMinimizedChange,
               // this toolbar — it will be re-placed elsewhere later. A node search sits in
               // its place: typing highlights matching nodes and fades everything else.
               const legend = (
-                <div className="relative w-[260px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                  <input
-                    ref={relSearchRef}
-                    value={relSearch}
-                    onChange={(e) => setRelSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
-                    placeholder="Search...   Ctrl + F | Esc to clear"
-                    className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative w-[260px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <input
+                      ref={relSearchRef}
+                      value={relSearch}
+                      onChange={(e) => setRelSearch(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
+                      placeholder="Search...   Ctrl + F | Esc to clear"
+                      className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                    />
+                  </div>
+                  {/* Filter (node types) — sits right next to the search; shows the selected
+                      option in the pill (same pattern as the Relations tab narrow-view filter) */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setShowRelFilter((v) => !v)}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relFilter ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                        >
+                          <Filter size={14} className={relFilter ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                          <span>{relFilter ?? 'All'}</span>
+                          <ChevronDown size={14} className={`transition-transform ${showRelFilter ? 'rotate-180' : ''} ${relFilter ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Filter</TooltipContent>
+                    </Tooltip>
+                    {showRelFilter && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelFilter(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-[210px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-50 max-h-[320px] overflow-y-auto">
+                          <button
+                            onClick={() => { setRelFilter(null); setShowRelFilter(false); }}
+                            className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relFilter ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                          >
+                            All
+                            {!relFilter && <Check size={14} className="text-[#3D8BD0]" />}
+                          </button>
+                          {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const).map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => { setRelFilter((p) => (p === opt ? null : opt)); setShowRelFilter(false); }}
+                              className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter === opt ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                            >
+                              {opt}
+                              {relFilter === opt && <Check size={14} className="text-[#3D8BD0]" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
 
               const viewBtns = [
-                { key: 'graph', icon: <Share2 size={15} />, title: 'Full view' },
-                { key: 'tree', icon: <Workflow size={15} />, title: 'Tree view' },
-                { key: 'grid', icon: <LayoutGrid size={15} />, title: 'Grid view' },
+                // Icons mirror what each view actually renders: radial orbit graph ·
+                // top-down hierarchy · numbered relationship list.
+                { key: 'graph', icon: <Orbit size={15} />, title: 'Full view' },
+                { key: 'tree', icon: <Network size={15} />, title: 'Tree view' },
+                { key: 'grid', icon: <ListIcon size={15} />, title: 'Grid view' },
               ] as const;
               const controls = (
                 <div className="flex items-center gap-2">
@@ -4087,13 +4217,6 @@ onStackMinimizedChange,
                       <button onClick={() => setRelKey((k) => k + 1)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><RefreshCw size={15} className="text-[#6b7280]" /></button>
                     </TooltipTrigger>
                     <TooltipContent>Refresh</TooltipContent>
-                  </Tooltip>
-                  {/* Full screen */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button onClick={() => setRelFull((v) => !v)} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${relFull ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}>{relFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
-                    </TooltipTrigger>
-                    <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
                   </Tooltip>
                   {/* Download */}
                   <div className="relative">
@@ -4143,6 +4266,20 @@ onStackMinimizedChange,
                       </>
                     )}
                   </div>
+                  {/* Settings → Advanced Configuration side panel */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => { setRelDraft(relConfig); setShowRelSettings(true); }} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${showRelSettings ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}><Settings2 size={15} /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Settings</TooltipContent>
+                  </Tooltip>
+                  {/* Full screen */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelFull((v) => !v)} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${relFull ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}>{relFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+                  </Tooltip>
                 </div>
               );
 
@@ -4187,16 +4324,97 @@ onStackMinimizedChange,
                       centerName={centerName}
                       centerId={activeAsset?.id}
                       searchTerm={relSearch}
+                      config={relConfig}
+                      typeFilter={relFilter ? ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'asset', 'Consumable Asset': 'asset', 'CI': 'asset', 'Department': 'user', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[relFilter] ?? null : null}
+                      onOpenNode={(info) => {
+                        // Open the node's record as a tab in this same drawer (same flow as the
+                        // Impact popup's "Open related records"): CI-style nodes → CMDB, the
+                        // rest → Hardware Asset. The opened record shows its own default
+                        // (Overview) tab; THIS asset keeps its Relationship tab when reselected.
+                        onOpenRelation?.({ ticketId: info.id, subject: info.name, type: info.type === 'asset' ? 'CI' : 'Asset', status: 'In Use', priority: 'Medium', assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                      }}
+                      onAddRelation={(info) => setRelAddTarget(info)}
+                      extraChildren={relExtras}
                     />
                   )}
                 </div>
               );
+
+              // Advanced Configuration side panel: live preview (uses the DRAFT config) +
+              // functional sliders; Apply commits the draft to the real graph.
+              const viewLabel = relView === 'graph' ? 'Full View' : relView === 'tree' ? 'Tree View' : 'Grid View';
+              const settingsPanel = showRelSettings ? (
+                <>
+                  <div className="fixed inset-0 bg-black/30 z-[10004]" onClick={() => setShowRelSettings(false)} />
+                  <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                      <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
+                      <button onClick={() => setShowRelSettings(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {/* Live preview — driven by the draft values */}
+                      <div className="h-[230px] border-b border-[#E5E7EB] overflow-hidden">
+                        <RelationshipGraph
+                          mode={relView === 'tree' ? 'tree' : 'graph'}
+                          nodes={nodes}
+                          typeMeta={typeMeta}
+                          centerName={centerName}
+                          centerId={activeAsset?.id}
+                          config={relDraft}
+                          previewMode
+                        />
+                      </div>
+                      <div className="px-6 py-5 space-y-6">
+                        <div>
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Force Simulation</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Node Distance" info="Extra spacing between nodes on every group ring." min={0} max={200} step={5} value={relDraft.nodeDistance} onChange={(v) => setRelDraft((p) => ({ ...p, nodeDistance: v }))} />
+                            <RelSliderRow label="Repulsion Strength" info="How strongly groups push each other apart when they get close." min={0} max={5} step={0.1} value={relDraft.repulsion} onChange={(v) => setRelDraft((p) => ({ ...p, repulsion: v }))} />
+                            <RelSliderRow label="Gravity" info="How strongly each group is pulled toward its parent node." min={0.02} max={0.9} step={0.01} value={relDraft.gravity} onChange={(v) => setRelDraft((p) => ({ ...p, gravity: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Zoom</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Min Zoom" info="How far the user can zoom out." min={0.05} max={0.5} step={0.01} value={relDraft.minZoom} onChange={(v) => setRelDraft((p) => ({ ...p, minZoom: v }))} />
+                            <RelSliderRow label="Max Zoom" info="How far the user can zoom in." min={2} max={5} step={0.5} value={relDraft.maxZoom} onChange={(v) => setRelDraft((p) => ({ ...p, maxZoom: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Labels</h3>
+                          <div className="grid grid-cols-2 gap-x-8">
+                            <RelSliderRow label="Label Width" info="Maximum width of each node's name label before it truncates." min={20} max={300} step={10} value={relDraft.labelWidth} onChange={(v) => setRelDraft((p) => ({ ...p, labelWidth: v }))} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                      <button onClick={() => setRelDraft(DEFAULT_REL_GRAPH_CONFIG)} className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Reset to Defaults</button>
+                      <button onClick={() => { setRelConfig(relDraft); setShowRelSettings(false); }} className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                    </div>
+                  </div>
+                </>
+              ) : null;
+
+              // Add Relationship side panel (opened from a node's hover "+")
+              const addRelPanel = relAddTarget ? (
+                <AddRelationshipPanel
+                  sourceName={relAddTarget.name}
+                  onClose={() => setRelAddTarget(null)}
+                  onAdd={(items) => {
+                    setRelExtras((p) => ({ ...p, [relAddTarget.id]: [...(p[relAddTarget.id] ?? []), ...items] }));
+                    setRelAddTarget(null);
+                  }}
+                />
+              ) : null;
 
               if (relFull) {
                 return (
                   <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">{legend}{controls}</div>
                     <div className="flex-1 min-h-0">{graphArea}</div>
+                    {settingsPanel}
+                    {addRelPanel}
                   </div>
                 );
               }
@@ -4206,6 +4424,8 @@ onStackMinimizedChange,
                 <div className="h-[calc(100%-48px)] flex flex-col">
                   <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]">{legend}{controls}</div>
                   <div className="flex-1 min-h-0">{graphArea}</div>
+                  {settingsPanel}
+                  {addRelPanel}
                 </div>
               );
             })()}

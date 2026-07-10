@@ -22,7 +22,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  Monitor, Keyboard, Maximize, Plus, Minus, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Map as MapIcon, ChevronDown,
+  Monitor, Keyboard, Maximize, Plus, Minus, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Map as MapIcon, ChevronDown,
   MemoryStick, Cpu, Globe, ShieldCheck, Network, Server, HardDrive, Smartphone, Printer, User, AppWindow, Mouse, Router, Database,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -30,6 +30,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 export type RelType = 'user' | 'software' | 'hardware' | 'asset';
 export interface RelNodeInput { label: string; type: RelType }
 export interface RelTypeMeta { color: string; icon: React.ReactNode; label: string }
+
+/** Tunables exposed by the Advanced Configuration panel — every value feeds the engine. */
+export interface RelGraphConfig {
+  /** Extra spacing (px) added to every group ring. */
+  nodeDistance: number;
+  /** Multiplier for how strongly groups push each other apart. */
+  repulsion: number;
+  /** Spring strength pulling each group toward its parent. */
+  gravity: number;
+  minZoom: number;
+  maxZoom: number;
+  /** Max width (px) of node labels. */
+  labelWidth: number;
+}
+export const DEFAULT_REL_GRAPH_CONFIG: RelGraphConfig = {
+  nodeDistance: 20,
+  repulsion: 1,
+  gravity: 0.22,
+  minZoom: 0.3,
+  maxZoom: 2.5,
+  labelWidth: 150,
+};
 
 interface RelationshipGraphProps {
   mode: 'graph' | 'tree';
@@ -41,6 +63,20 @@ interface RelationshipGraphProps {
   refreshSignal?: number;
   /** Highlights nodes whose label matches; everything else fades out. */
   searchTerm?: string;
+  /** Advanced Configuration values (layout spacing, physics, zoom limits, labels). */
+  config?: Partial<RelGraphConfig>;
+  /** Hides the on-canvas controls (d-pad, zoom, minimap…) — used for the settings preview. */
+  hideControls?: boolean;
+  /** Static preview: one level only, no badges, no expand/drag/pan/zoom interactions. */
+  previewMode?: boolean;
+  /** Type filter (from the toolbar Filter menu): nodes of other types fade out. */
+  typeFilter?: RelType | null;
+  /** Called from the hover card's ↗ button — opens that node's record (e.g. as a drawer tab). */
+  onOpenNode?: (info: { id: string; name: string; type: RelType }) => void;
+  /** Called from a node's hover "+" badge — the host opens the Add Relationship panel. */
+  onAddRelation?: (info: { id: string; name: string }) => void;
+  /** User-added relationships, keyed by source node id ('center' for the root asset). */
+  extraChildren?: Record<string, ExtraRelChild[]>;
 }
 
 /* Pick the most accurate icon from the node's NAME (falls back to its type). */
@@ -67,6 +103,60 @@ function iconForNode(label: string, type: RelType): React.ReactNode {
   return <Network />;
 }
 
+/* -------------------- Hover-card details (deterministic mock) -------------------- */
+const HOVER_OWNERS = ['Tabrez Khan', 'Rohan Mehta', 'Neha Rao', 'Farah Shah', 'Vikram S.'];
+const HOVER_DEPTS = ['IT Operations', 'Finance', 'Engineering', 'HR', 'Sales'];
+const DOT = { green: '#22A06B', amber: '#F59E0B', red: '#EF4444', gray: '#9CA3AF' };
+interface HoverRow { label: string; value: string; dot?: string }
+function hoverRowsFor(label: string, type: RelType): { id: string; rows: HoverRow[] } {
+  const h = hash(label);
+  const owner = HOVER_OWNERS[h % 5];
+  const impact = (['Low', 'Medium', 'High'] as const)[h % 3];
+  const impactDot = { Low: DOT.green, Medium: DOT.amber, High: DOT.red }[impact];
+  if (type === 'user') {
+    return {
+      id: `USR-${100 + (h % 900)}`,
+      rows: [
+        { label: 'Type', value: 'User' },
+        { label: 'Status', value: 'Active', dot: DOT.green },
+        { label: 'Department', value: HOVER_DEPTS[h % 5] },
+        { label: 'VIP', value: h % 4 === 0 ? 'Yes' : 'No' },
+      ],
+    };
+  }
+  if (type === 'software') {
+    return {
+      id: `SWAST-${10000 + (h % 90000)}`,
+      rows: [
+        { label: 'Asset Type', value: 'Software' },
+        { label: 'Status', value: 'Active', dot: DOT.green },
+        { label: 'Version', value: `${1 + (h % 9)}.${h % 10}.${h % 20}` },
+        { label: 'Installations', value: String(1 + (h % 40)) },
+      ],
+    };
+  }
+  if (type === 'asset') {
+    return {
+      id: `CI-${100 + (h % 900)}`,
+      rows: [
+        { label: 'Asset Type', value: 'Network / CI' },
+        { label: 'Status', value: 'Operational', dot: DOT.green },
+        { label: 'IP Address', value: `172.16.${h % 30}.${(h * 7) % 250}` },
+        { label: 'Managed By', value: owner },
+      ],
+    };
+  }
+  return {
+    id: `AST-${100 + (h % 900)}`,
+    rows: [
+      { label: 'Asset Type', value: 'Hardware' },
+      { label: 'Status', value: h % 5 === 0 ? 'Available' : 'In Use', dot: h % 5 === 0 ? DOT.gray : DOT.green },
+      { label: 'Owner', value: owner },
+      { label: 'Impact', value: impact, dot: impactDot },
+    ],
+  };
+}
+
 /* ----------------------------- Custom nodes ----------------------------- */
 
 const hiddenHandle = '!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !bg-transparent';
@@ -74,20 +164,30 @@ const hiddenHandle = '!w-1 !h-1 !min-w-0 !min-h-0 !border-0 !bg-transparent';
 // The label sits below the shape and is absolutely positioned + pointer-events-none so it
 // does NOT contribute to the node's measured box — that keeps the floating edges attached
 // to the icon's centre rather than the (taller) icon+label bounding box.
-function CenterNode({ data }: NodeProps) {
-  const d = data as { name: string; id?: string; size?: number };
+function CenterNode({ id, data }: NodeProps) {
+  const d = data as { name: string; id?: string; size?: number; onAddRel?: (id: string) => void };
   // Deliberately LARGER than every other node — and it GROWS with the graph (data.size is
   // set by the layout from the visible node count), so with 10-15 open groups the root
   // still dominates the zoomed-out view.
   const s = d.size ?? 64;
   return (
-    <div className="relative">
+    <div className="relative group">
       <div
         className="flex items-center justify-center bg-[#3D8BD0] text-white shadow-lg"
         style={{ width: s, height: s, borderRadius: s / 4, boxShadow: `0 0 0 ${Math.round(s / 12)}px rgba(61,139,208,0.15), 0 10px 15px -3px rgba(0,0,0,0.1)` }}
       >
         <Monitor size={Math.round(s * 0.42)} />
       </div>
+      {/* Hover "+" → Add Relationship panel for the root asset */}
+      {d.onAddRel && (
+        <button
+          onClick={(e) => { e.stopPropagation(); d.onAddRel?.(id); }}
+          title="Add Relationship"
+          className="nodrag absolute -bottom-1 -right-1 flex size-5 cursor-pointer items-center justify-center rounded-full bg-white text-[#3D8BD0] shadow-sm ring-2 ring-[#3D8BD0] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#EAF2FB]"
+        >
+          <Plus size={13} strokeWidth={2.75} />
+        </button>
+      )}
       <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-[190px] text-center pointer-events-none">
         <div className="text-[13px] font-semibold text-[#364658] truncate">{d.name}</div>
         {d.id ? <div className="text-[11px] text-[#7B8FA5] truncate">{d.id}</div> : null}
@@ -99,7 +199,7 @@ function CenterNode({ data }: NodeProps) {
 }
 
 function ItemNode({ id, data }: NodeProps) {
-  const d = data as { label: string; color: string; icon: React.ReactNode; childCount?: number; expanded?: boolean; onToggle?: (id: string) => void };
+  const d = data as { label: string; color: string; icon: React.ReactNode; childCount?: number; expanded?: boolean; labelWidth?: number; onToggle?: (id: string) => void; onAddRel?: (id: string) => void };
   const hasChildren = (d.childCount ?? 0) > 0;
   const toggle = (e: React.MouseEvent) => { e.stopPropagation(); d.onToggle?.(id); };
   // Only at the deepest zoom-out levels (the last ~2 steps before minZoom 0.3) are the
@@ -125,7 +225,17 @@ function ItemNode({ id, data }: NodeProps) {
           <button onClick={toggle} className="nodrag absolute -top-1 -right-1 flex min-w-[18px] h-[18px] cursor-pointer items-center justify-center rounded-full bg-[#334155] px-1 text-[10px] font-semibold text-white shadow-sm ring-2 ring-white transition-colors hover:bg-[#1E293B]" title="Expand">{d.childCount}</button>
         )
       )}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-[150px] text-center text-[12px] font-medium text-[#364658] truncate pointer-events-none">{d.label}</div>
+      {/* Hover "+" → Add Relationship panel for this node */}
+      {d.onAddRel && (
+        <button
+          onClick={(e) => { e.stopPropagation(); d.onAddRel?.(id); }}
+          title="Add Relationship"
+          className="nodrag absolute -bottom-1 -right-1 flex size-[18px] cursor-pointer items-center justify-center rounded-full bg-[#3D8BD0] text-white shadow-sm ring-2 ring-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#2F7AB8]"
+        >
+          <Plus size={12} strokeWidth={2.75} />
+        </button>
+      )}
+      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 text-center text-[12px] font-medium text-[#364658] truncate pointer-events-none" style={{ width: d.labelWidth ?? 150 }}>{d.label}</div>
       <Handle type="target" position={Position.Top} className={hiddenHandle} isConnectable={false} />
       <Handle type="source" position={Position.Bottom} className={hiddenHandle} isConnectable={false} />
     </div>
@@ -186,7 +296,10 @@ const edgeTypes = { floating: FloatingEdge };
  * Each node can have further connected nodes. They aren't drawn until the user clicks the node;
  * the node shows a count badge for its (collapsed) children. Clicking expands/collapses them,
  * and expanded children can themselves be expanded — recursively. */
-interface TreeNode { id: string; label: string; type: RelType; parentId: string; children: TreeNode[] }
+interface TreeNode { id: string; label: string; type: RelType; parentId: string; children: TreeNode[]; rel?: string }
+
+/** A user-added relationship (from the Add Relationship panel), keyed by the source node's id. */
+export interface ExtraRelChild { label: string; type: RelType; rel: string }
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -347,7 +460,7 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => setShowMap(true)} className="flex size-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white shadow-md text-[#6B7280] hover:bg-[#F5F7FA] transition-colors">
+              <button onClick={() => setShowMap(true)} className="flex size-8 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white shadow-sm text-[#6B7280] hover:bg-[#F5F7FA] transition-colors">
                 <MapIcon size={15} />
               </button>
             </TooltipTrigger>
@@ -361,8 +474,9 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
 
 /* ------------------------------ Inner (uses hooks) ------------------------------ */
 
-function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm }: RelationshipGraphProps) {
+function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, extraChildren }: RelationshipGraphProps) {
   const rf = useReactFlow();
+  const cfg: RelGraphConfig = { ...DEFAULT_REL_GRAPH_CONFIG, ...(config ?? {}) };
 
   // Build the full (deterministic) topology tree for the current first-level data, and index it.
   const dataSig = data.map((d) => `${d.label}:${d.type}`).join('|');
@@ -370,6 +484,16 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   const treeMap = new Map<string, TreeNode>();
   const indexTree = (t: TreeNode) => { treeMap.set(t.id, t); t.children.forEach(indexTree); };
   tree.forEach(indexTree);
+  // Graft the user-added relationships (Add Relationship panel) onto their source nodes.
+  Object.entries(extraChildren ?? {}).forEach(([pid, list]) => {
+    const parent = pid === 'center' ? null : treeMap.get(pid);
+    if (pid !== 'center' && !parent) return;
+    list.forEach((e, i) => {
+      const node: TreeNode = { id: `${pid}#x${i}`, label: e.label, type: e.type, parentId: pid, children: [], rel: e.rel };
+      if (parent) parent.children.push(node); else tree.push(node);
+      treeMap.set(node.id, node);
+    });
+  });
   const treeRef = useRef(treeMap);
   treeRef.current = treeMap;
   // Which nodes are currently expanded (their children visible).
@@ -383,12 +507,71 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Minimap visibility (bottom-right; toggled by its collapse button or the M key).
   const [showMap, setShowMap] = useState(true);
+  // Rich hover card (icon + id + name + detail rows) — appears after a short delay,
+  // rendered in SCREEN space so it stays readable at any zoom level.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [hoverCard, setHoverCard] = useState<{ left: number; top: number; placement: 'above' | 'below'; arrowLeft: number; id: string; name: string; type: RelType | 'center'; color: string; icon: React.ReactNode; rows: HoverRow[] } | null>(null);
+  const CARD_W = 248;
+  const showHoverCard = (node: Node) => {
+    const d = node.data as { label?: string; name?: string; id?: string; color?: string; icon?: React.ReactNode; nodeType?: RelType };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const w = (node.measured?.width as number | undefined) ?? 56;
+    const h = (node.measured?.height as number | undefined) ?? 56;
+    // Node top-centre and bottom-centre in canvas-local coordinates.
+    const topPt = rf.flowToScreenPosition({ x: node.position.x + w / 2, y: node.position.y });
+    const botPt = rf.flowToScreenPosition({ x: node.position.x + w / 2, y: node.position.y + h });
+    const cx = topPt.x - rect.left;
+    const yTop = topPt.y - rect.top;
+    const yBot = botPt.y - rect.top;
+    const isCenter = node.id === 'center';
+    const name = isCenter ? (d.name ?? '') : (d.label ?? '');
+    const det = isCenter
+      ? { id: d.id ?? '', rows: [
+          { label: 'Asset Type', value: 'Hardware Asset' },
+          { label: 'Status', value: 'In Use', dot: DOT.green },
+          { label: 'Managed By', value: 'Rohan Mehta' },
+          { label: 'Impact', value: 'Low', dot: DOT.green },
+        ] }
+      : hoverRowsFor(name, d.nodeType ?? 'asset');
+    // Dynamic placement so the card is never clipped by the canvas edges.
+    const cardH = 60 + det.rows.length * 22; // estimate (header + divider + rows)
+    const GAP = 12, PAD = 8;
+    // Flip below the node when there isn't room above.
+    const placement: 'above' | 'below' = yTop - GAP - cardH < PAD ? 'below' : 'above';
+    const top = placement === 'above' ? yTop - GAP - cardH : yBot + GAP;
+    // Clamp horizontally inside the canvas; keep the pointer aimed at the node.
+    const left = Math.max(PAD, Math.min(cx - CARD_W / 2, rect.width - CARD_W - PAD));
+    const arrowLeft = Math.max(14, Math.min(cx - left, CARD_W - 14));
+    setHoverCard({
+      left, top, placement, arrowLeft,
+      id: det.id,
+      name,
+      type: isCenter ? 'center' : (d.nodeType ?? 'asset'),
+      color: isCenter ? '#3D8BD0' : (d.color ?? '#64748B'),
+      icon: isCenter ? <Monitor size={14} /> : d.icon,
+      rows: det.rows,
+    });
+  };
   // Stable indirection so node data can call the latest toggleExpand without stale closures.
   const toggleRef = useRef<(id: string) => void>(() => {});
+  // Same for the Add-Relationship hover badge.
+  const addRelRef = useRef(onAddRelation);
+  addRelRef.current = onAddRelation;
+  const addRelFor = onAddRelation && !previewMode
+    ? (nid: string) => {
+        clearTimeout(hoverTimer.current);
+        setHoverCard(null);
+        addRelRef.current?.({ id: nid, name: nid === 'center' ? centerName : (treeRef.current.get(nid)?.label ?? '') });
+      }
+    : undefined;
 
   const makeNode = (t: TreeNode, x: number, y: number, expanded = false): Node => {
     const m = typeMeta[t.type];
-    return { id: t.id, type: 'item', position: { x, y }, data: { label: t.label, color: m.color, icon: iconForNode(t.label, t.type), childCount: t.children.length, expanded, onToggle: (nid: string) => toggleRef.current(nid) } };
+    // In preview mode badges are hidden (childCount 0) so nothing invites expansion.
+    return { id: t.id, type: 'item', position: { x, y }, data: { label: t.label, color: m.color, icon: iconForNode(t.label, t.type), nodeType: t.type, childCount: previewMode ? 0 : t.children.length, expanded, labelWidth: cfg.labelWidth, onToggle: (nid: string) => toggleRef.current(nid), onAddRel: addRelFor } };
   };
 
   // Lay out ALL visible nodes as a tidy radial tree: every subtree gets an angular sector sized by
@@ -401,7 +584,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       const ch = visChildren(t);
       return ch.length ? ch.reduce((s, c) => s + leaves(c), 0) : 1;
     };
-    const nodesOut: Node[] = [{ id: 'center', type: 'center', position: { x: 0, y: 0 }, data: { name: centerName, id: centerId } }];
+    const nodesOut: Node[] = [{ id: 'center', type: 'center', position: { x: 0, y: 0 }, data: { name: centerName, id: centerId, onAddRel: addRelFor } }];
     const edgesOut: Edge[] = [];
 
     if (mode === 'tree') {
@@ -421,7 +604,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
           cursor += 1;
         }
         nodesOut.push(makeNode(t, x, depth * 200, expanded.has(t.id)));
-        edgesOut.push({ id: `e-${t.id}`, source: parentId, target: t.id, type: 'floating', data: { rel: t.type === 'user' ? 'Users' : 'Depends On' } });
+        edgesOut.push({ id: `e-${t.id}`, source: parentId, target: t.id, type: 'floating', data: { rel: t.rel ?? (t.type === 'user' ? 'Users' : 'Depends On') } });
         return x;
       };
       tree.forEach((t) => place(t, 1, 'center'));
@@ -436,7 +619,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       // Compact ring radius for n children: big enough to clear the parent and to seat all
       // children side-by-side. Siblings ALWAYS sit on this ring — expanding one child never
       // moves the others, and expanding a grandchild never moves the group's hub.
-      const ringFor = (n: number, clear: number) => Math.max(clear + 2 * NODE_R, n > 2 ? half / Math.sin(Math.PI / n) : 0);
+      const ringFor = (n: number, clear: number) => Math.max(clear + 2 * NODE_R, n > 2 ? half / Math.sin(Math.PI / n) : 0) + (cfg.nodeDistance - 20);
       // Ring ordering: nodes that CAN expand are spread EVENLY around the ring so their
       // discs open far apart from each other; ordering key is static (potential children).
       const orderIdx = (list: TreeNode[]): number[] => {
@@ -489,14 +672,14 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       };
       seed(centerHub, -Math.PI / 2);
       // Relaxation: parent springs + disc-vs-disc collision.
-      const GROUP_GAP = 70;
+      const GROUP_GAP = 70 * cfg.repulsion;
       for (let iter = 0; iter < 280; iter++) {
         hubs.forEach((h) => {
           if (!h.parent || h.fixed) return;
           const L = h.parent.ringR + h.discR + PUSH;
           const dx = h.x - h.parent.x, dy = h.y - h.parent.y;
           const d = Math.hypot(dx, dy) || 1;
-          const f = ((L - d) / d) * 0.22;
+          const f = ((L - d) / d) * cfg.gravity;
           h.x += dx * f;
           h.y += dy * f;
         });
@@ -534,7 +717,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
           const cx = sub ? sub.x : h.x + h.ringR * Math.cos(ang);
           const cy = sub ? sub.y : h.y + h.ringR * Math.sin(ang);
           nodesOut.push(makeNode(c, cx, cy, expanded.has(c.id)));
-          edgesOut.push({ id: `e-${c.id}`, source: h.id, target: c.id, type: 'floating', data: { rel: c.type === 'user' ? 'Users' : 'Depends On' } });
+          edgesOut.push({ id: `e-${c.id}`, source: h.id, target: c.id, type: 'floating', data: { rel: c.rel ?? (c.type === 'user' ? 'Users' : 'Depends On') } });
           if (sub) emitRing(sub);
         });
       };
@@ -631,6 +814,8 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     return out;
   };
   const onNodeDragStart = (_: unknown, node: Node) => {
+    clearTimeout(hoverTimer.current);
+    setHoverCard(null);
     if (node.id === 'center') { dragState.current = null; return; }
     dragState.current = { id: node.id, start: { ...node.position }, last: { ...node.position }, descendants: visibleDescendants(node.id) };
   };
@@ -718,16 +903,21 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         return `${d.label ?? ''} ${d.name ?? ''} ${d.id ?? ''}`.toLowerCase().includes(q);
       }).map((n) => n.id))
     : null;
+  // Type filter (toolbar Filter menu): nodes of the chosen type stay lit; centre always stays.
+  const filterIds = typeFilter
+    ? new Set(['center', ...nodes.filter((n) => (n.data as { nodeType?: string }).nodeType === typeFilter).map((n) => n.id)])
+    : null;
+  const dimSet = matchIds ?? filterIds;
   const renderEdges = activeId
     ? edges.map((e) =>
         e.source === activeId || e.target === activeId
           ? { ...e, data: { ...e.data, hl: true, outward: e.source === activeId } }
           : { ...e, data: { ...e.data, dim: true } },
       )
-    : matchIds
-      ? edges.map((e) => (matchIds.has(e.source) || matchIds.has(e.target) ? e : { ...e, data: { ...e.data, dim: true } }))
+    : dimSet
+      ? edges.map((e) => (dimSet.has(e.target) ? e : { ...e, data: { ...e.data, dim: true } }))
       : edges;
-  const focusIds = connectedIds ?? matchIds;
+  const focusIds = connectedIds ?? dimSet;
   const renderNodes = focusIds
     ? nodes.map((n) => (focusIds.has(n.id) ? n : { ...n, style: { ...n.style, opacity: 0.18, transition: 'opacity 0.2s' } }))
     : nodes;
@@ -743,6 +933,46 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchKey]);
+
+  // When relationships are ADDED (Add Relationship panel), expand the source node so the
+  // new connections are immediately visible, and re-layout preserving expansions + pins.
+  const extraSig = JSON.stringify(extraChildren ?? {});
+  const prevExtraRef = useRef(extraSig);
+  useEffect(() => {
+    if (prevExtraRef.current === extraSig) return;
+    const prev = JSON.parse(prevExtraRef.current) as Record<string, unknown[]>;
+    prevExtraRef.current = extraSig;
+    const grew = Object.entries(extraChildren ?? {}).filter(([k, v]) => (prev[k]?.length ?? 0) < v.length).map(([k]) => k);
+    grew.forEach((pid) => { if (pid !== 'center') expandedRef.current.add(pid); });
+    const l = layoutAll();
+    setNodes(l.nodes);
+    setEdges(l.edges);
+    const focus = grew[0];
+    const t = setTimeout(() => {
+      if (focus && focus !== 'center') {
+        const src = treeRef.current.get(focus);
+        rf.fitView({ nodes: [{ id: focus }, ...(src?.children.map((c) => ({ id: c.id })) ?? [])], padding: 0.35, duration: 400, minZoom: 0.6 });
+      } else {
+        rf.fitView({ padding: 0.2, duration: 400 });
+      }
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extraSig]);
+
+  // Applying new Advanced-Configuration values re-runs the layout WITHOUT resetting the
+  // user's expansions or pins (unlike Refresh / mode change).
+  const cfgSig = JSON.stringify(cfg);
+  const cfgFirst = useRef(true);
+  useEffect(() => {
+    if (cfgFirst.current) { cfgFirst.current = false; return; }
+    const l = layoutAll();
+    setNodes(l.nodes);
+    setEdges(l.edges);
+    const t = setTimeout(() => rf.fitView({ padding: 0.2, duration: 300 }), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfgSig]);
 
   const panBy = (dx: number, dy: number, duration = 150) => {
     const vp = rf.getViewport();
@@ -791,7 +1021,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   };
 
   return (
-    <div className="relative w-full h-full outline-none" tabIndex={0} onKeyDown={onKeyDown}>
+    <div ref={wrapRef} className="relative w-full h-full outline-none" tabIndex={previewMode ? -1 : 0} onKeyDown={previewMode ? undefined : onKeyDown}>
       {/* Dash-flow animations for highlighted connection lines */}
       <style>{`
         @keyframes rel-dash-fwd { to { stroke-dashoffset: -24; } }
@@ -802,20 +1032,40 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         edges={renderEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={(_, node) => {
+        onNodeClick={previewMode ? undefined : (_, node) => {
+          clearTimeout(hoverTimer.current);
+          setHoverCard(null);
+          const t = treeRef.current.get(node.id);
+          // Node-click only EXPANDS (never collapses) — collapse is exclusively the minus
+          // badge. This way a click while zoomed out reliably expands + focuses the node
+          // instead of accidentally collapsing an already-open group.
+          if (t && t.children.length && !expandedRef.current.has(node.id)) {
+            toggleExpand(node.id);
+            return;
+          }
+          // Already-expanded parent, leaf, or centre: pin the connection spotlight; in a
+          // zoomed-out overview also zoom in and centre it (with its children) so it's readable.
           setPinnedId((p) => (p === node.id ? null : node.id));
-          // In a zoomed-out overview, clicking a node zooms in on it (and its open group)
-          // and centres it so the user can actually read it.
           const vp = rf.getViewport();
           if (vp.zoom < 0.75) {
-            const t = treeRef.current.get(node.id);
             const kids = t && expandedRef.current.has(node.id) ? t.children.map((c) => ({ id: c.id })) : [];
             rf.fitView({ nodes: [{ id: node.id }, ...kids], padding: 0.35, duration: 500, minZoom: 0.85, maxZoom: 1.15 });
           }
         }}
-        onNodeMouseEnter={(_, node) => setHoverId(node.id)}
-        onNodeMouseLeave={() => setHoverId(null)}
-        onPaneClick={() => setPinnedId(null)}
+        onNodeMouseEnter={previewMode ? undefined : (_, node) => {
+          setHoverId(node.id);
+          clearTimeout(hoverTimer.current);
+          clearTimeout(hideTimer.current);
+          hoverTimer.current = setTimeout(() => showHoverCard(node), 550);
+        }}
+        onNodeMouseLeave={previewMode ? undefined : () => {
+          setHoverId(null);
+          clearTimeout(hoverTimer.current);
+          // Grace period so the pointer can travel INTO the card (its ↗ button is clickable).
+          clearTimeout(hideTimer.current);
+          hideTimer.current = setTimeout(() => setHoverCard(null), 220);
+        }}
+        onPaneClick={previewMode ? undefined : () => setPinnedId(null)}
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
@@ -823,21 +1073,80 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.3}
-        maxZoom={2.5}
-        nodesDraggable
+        minZoom={previewMode ? 0.05 : cfg.minZoom}
+        maxZoom={cfg.maxZoom}
+        nodesDraggable={!previewMode}
         nodeDragThreshold={5}
         nodesConnectable={false}
-        elementsSelectable
+        elementsSelectable={!previewMode}
         disableKeyboardA11y
-        zoomOnScroll
-        zoomOnPinch
-        panOnDrag
+        zoomOnScroll={!previewMode}
+        zoomOnPinch={!previewMode}
+        zoomOnDoubleClick={!previewMode}
+        panOnDrag={!previewMode}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#DCE3EC" />
-        <CanvasControls panBy={panBy} showMap={showMap} setShowMap={setShowMap} />
+        {/* Very light gray canvas backdrop behind the dotted grid */}
+        <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#DCE3EC" bgColor="#FAFBFC" />
+        {!(hideControls || previewMode) && <CanvasControls panBy={panBy} showMap={showMap} setShowMap={setShowMap} />}
       </ReactFlow>
+      {/* Rich node hover card — screen-space so it stays crisp at any zoom */}
+      {hoverCard && (
+        <div
+          className="absolute z-30"
+          style={{ left: hoverCard.left, top: hoverCard.top, width: CARD_W }}
+          onMouseEnter={() => clearTimeout(hideTimer.current)}
+          onMouseLeave={() => setHoverCard(null)}
+        >
+          {/* Pointer above the card when the card sits BELOW the node */}
+          {hoverCard.placement === 'below' && (
+            <div className="absolute size-2.5 rotate-45 border-t border-l border-[#E5E7EB] bg-white" style={{ left: hoverCard.arrowLeft - 5, top: -5 }} />
+          )}
+          <div className="w-[248px] rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0 [&_svg]:size-3.5" style={{ backgroundColor: hoverCard.color }}>{hoverCard.icon}</span>
+              {onOpenNode && hoverCard.type !== 'center' && hoverCard.type !== 'user' ? (
+                // The ID pill, name AND the ↗ are one click target → opens the record.
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { const info = { id: hoverCard.id, name: hoverCard.name, type: hoverCard.type as RelType }; setHoverCard(null); onOpenNode(info); }}
+                      className="group/hc flex min-w-0 flex-1 items-center gap-2 rounded text-left"
+                    >
+                      {hoverCard.id && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] flex-shrink-0">{hoverCard.id}</span>}
+                      <span className="truncate text-[12.5px] font-semibold text-[#364658] transition-colors group-hover/hc:text-[#3D8BD0] group-hover/hc:underline">{hoverCard.name}</span>
+                      <span className="ml-auto flex size-5 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors group-hover/hc:bg-[#EAF2FB] group-hover/hc:text-[#3D8BD0]">
+                        <ArrowUpRight size={13} />
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Open record</TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  {hoverCard.id && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] flex-shrink-0">{hoverCard.id}</span>}
+                  <span className="truncate text-[12.5px] font-semibold text-[#364658]">{hoverCard.name}</span>
+                </>
+              )}
+            </div>
+            <div className="mt-2 space-y-1.5 border-t border-[#F0F1F3] pt-2">
+              {hoverCard.rows.map((r) => (
+                <div key={r.label} className="flex items-center justify-between gap-3 text-[11.5px]">
+                  <span className="text-[#7B8FA5] flex-shrink-0">{r.label}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 font-medium text-[#364658]">
+                    {r.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: r.dot }} />}
+                    <span className="truncate">{r.value}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Pointer below the card when the card sits ABOVE the node */}
+          {hoverCard.placement === 'above' && (
+            <div className="absolute size-2.5 rotate-45 border-b border-r border-[#E5E7EB] bg-white" style={{ left: hoverCard.arrowLeft - 5, bottom: -5 }} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
