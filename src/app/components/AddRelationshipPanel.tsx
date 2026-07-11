@@ -15,13 +15,14 @@ export const REL_RELATIONS = [
 const TARGET_TYPES = ['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const;
 type TargetType = (typeof TARGET_TYPES)[number];
 
+// Types collapse into the 4 color groups: Assets / Users / CI / Department.
 const TARGET_TO_RELTYPE: Record<TargetType, RelType> = {
   'Hardware Asset': 'hardware',
   'Software Asset': 'software',
-  'Non-IT Asset': 'asset',
-  'Consumable Asset': 'asset',
+  'Non-IT Asset': 'hardware',
+  'Consumable Asset': 'hardware',
   'CI': 'asset',
-  'Department': 'user',
+  'Department': 'department',
   'Technician': 'user',
   'Requester': 'user',
   'User Group': 'user',
@@ -225,46 +226,44 @@ export function AddRelationshipPanel({ sourceName, onClose, onAdd }: { sourceNam
                 placeholder="Select field or enter a keyword to search..."
                 className="mb-3 h-9 w-full rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
               />
-              <div className="overflow-hidden rounded-lg border border-[#E5E7EB]">
-                <table className="w-full text-left text-[13px]">
-                  <thead>
-                    <tr className="border-b border-[#E5E7EB] text-[12px] text-[#64748B]">
-                      <th className="w-10 px-3 py-2.5"><input type="checkbox" checked={allPageChecked} onChange={togglePage} className="size-3.5 accent-[#3D8BD0]" /></th>
-                      <th className="px-2 py-2.5 font-medium">Name</th>
-                      <th className="px-2 py-2.5 font-medium">Asset Type</th>
-                      <th className="px-2 py-2.5 font-medium">Status</th>
-                      <th className="px-2 py-2.5 font-medium">Created Date</th>
+              <table className="w-full text-left text-[12px]">
+                <thead className="bg-white border-b border-[#e5e7eb]">
+                  <tr>
+                    <th className="w-10 px-3 py-2.5"><input type="checkbox" checked={allPageChecked} onChange={togglePage} className="size-3.5 accent-[#3D8BD0]" /></th>
+                    <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">Name</th>
+                    <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">Asset Type</th>
+                    <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">Status</th>
+                    <th className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">Created Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                  {pageRows.map((r) => (
+                    <tr
+                      key={r.id}
+                      onClick={() => setSelected((p) => { const n = new Set(p); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })}
+                      className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-[#EAF2FB]/60' : 'hover:bg-[#F9FAFB]'}`}
+                    >
+                      <td className="px-3 py-2.5"><input type="checkbox" checked={selected.has(r.id)} onChange={() => {}} className="size-3.5 accent-[#3D8BD0]" /></td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex max-w-full items-center gap-2">
+                          <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
+                          <span className="truncate text-[#364658]">{r.name}</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="text-[#7B8FA5]">{r.icon}</span>{r.kind}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusDot }} />{r.status}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-[#64748B]">{r.created}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {pageRows.map((r) => (
-                      <tr
-                        key={r.id}
-                        onClick={() => setSelected((p) => { const n = new Set(p); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })}
-                        className={`cursor-pointer border-b border-[#F0F2F5] transition-colors last:border-b-0 ${selected.has(r.id) ? 'bg-[#EAF2FB]/60' : 'hover:bg-[#F9FAFB]'}`}
-                      >
-                        <td className="px-3 py-2.5"><input type="checkbox" checked={selected.has(r.id)} onChange={() => {}} className="size-3.5 accent-[#3D8BD0]" /></td>
-                        <td className="px-2 py-2.5">
-                          <span className="inline-flex max-w-full items-center gap-2">
-                            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                            <span className="truncate text-[#364658]">{r.name}</span>
-                          </span>
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="text-[#7B8FA5]">{r.icon}</span>{r.kind}</span>
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusDot }} />{r.status}</span>
-                        </td>
-                        <td className="px-2 py-2.5 text-[#64748B]">{r.created}</td>
-                      </tr>
-                    ))}
-                    {!pageRows.length && (
-                      <tr><td colSpan={5} className="px-3 py-8 text-center text-[13px] text-[#9CA3AF]">No records match your search</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {!pageRows.length && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-[13px] text-[#9CA3AF]">No records match your search</td></tr>
+                  )}
+                </tbody>
+              </table>
               {/* Pagination */}
               <div className="mt-3 flex items-center gap-3 text-[12.5px] text-[#7B8FA5]">
                 <div className="flex items-center gap-1">

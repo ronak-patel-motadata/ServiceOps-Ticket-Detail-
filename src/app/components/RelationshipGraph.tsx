@@ -24,10 +24,11 @@ import '@xyflow/react/dist/style.css';
 import {
   Monitor, Keyboard, Maximize, Plus, Minus, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Map as MapIcon, ChevronDown,
   MemoryStick, Cpu, Globe, ShieldCheck, Network, Server, HardDrive, Smartphone, Printer, User, AppWindow, Mouse, Router, Database,
+  Building2, List, AlertTriangle, ChevronRight,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export type RelType = 'user' | 'software' | 'hardware' | 'asset';
+export type RelType = 'user' | 'software' | 'hardware' | 'asset' | 'department';
 export interface RelNodeInput { label: string; type: RelType }
 export interface RelTypeMeta { color: string; icon: React.ReactNode; label: string }
 
@@ -75,6 +76,8 @@ interface RelationshipGraphProps {
   onOpenNode?: (info: { id: string; name: string; type: RelType }) => void;
   /** Called from a node's hover "+" badge — the host opens the Add Relationship panel. */
   onAddRelation?: (info: { id: string; name: string }) => void;
+  /** Called from the hover card's "N active issues" strip — the host opens the Active Issues panel. */
+  onShowIssues?: (info: { id: string; name: string }) => void;
   /** User-added relationships, keyed by source node id ('center' for the root asset). */
   extraChildren?: Record<string, ExtraRelChild[]>;
 }
@@ -100,7 +103,49 @@ function iconForNode(label: string, type: RelType): React.ReactNode {
   if (type === 'user') return <User />;
   if (type === 'software') return <AppWindow />;
   if (type === 'hardware') return <Cpu />;
+  if (type === 'department') return <Building2 />;
   return <Network />;
+}
+
+/* -------------------- Active issues (open linked Request/Problem/Change) -------------------- */
+export interface ActiveIssue { id: string; subject: string; status: string; priority: string; closed?: boolean }
+export interface ActiveIssues { requests: ActiveIssue[]; problems: ActiveIssue[]; changes: ActiveIssue[]; openCount: number }
+
+const REQ_SUBJECTS = ['Laptop running slow after update', 'VPN disconnects frequently', 'Request additional 16GB RAM', 'Screen flickering on dock', 'Outlook not syncing'];
+const PRB_SUBJECTS = ['Recurring BSOD on boot', 'Battery drains within 2 hours', 'Wi-Fi drops in conference rooms', 'Fan noise under light load'];
+const CHG_SUBJECTS = ['Firmware upgrade to v2.4', 'Migrate to Windows 11 23H2', 'Replace failing SSD', 'BIOS security patch rollout'];
+const OPEN_STATUSES = ['Open', 'In Progress', 'Pending'];
+const ISSUE_PRIORITIES = ['High', 'Medium', 'Low'];
+
+function issueRows(name: string, kind: string, pfx: string, subjects: string[], nOpen: number, nClosed: number): ActiveIssue[] {
+  const h = hashIssues(name + '|' + kind);
+  const out: ActiveIssue[] = [];
+  for (let i = 0; i < nOpen + nClosed; i++) {
+    const closed = i >= nOpen;
+    out.push({
+      id: `${pfx}-${9000 + ((h + i * 97) % 900)}`,
+      subject: subjects[(h + i) % subjects.length],
+      status: closed ? 'Closed' : OPEN_STATUSES[(h + i) % OPEN_STATUSES.length],
+      priority: ISSUE_PRIORITIES[(h + i * 3) % ISSUE_PRIORITIES.length],
+      closed,
+    });
+  }
+  return out;
+}
+function hashIssues(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+/** Deterministic mock: ~1/3 of nodes have OPEN linked records → their circle fills red. */
+export function activeIssuesFor(name: string): ActiveIssues {
+  const h = hashIssues(name + '|issues');
+  if (h % 3 !== 0) return { requests: [], problems: [], changes: [], openCount: 0 };
+  const requests = issueRows(name, 'req', 'SR', REQ_SUBJECTS, 1 + (h % 3), h % 2);
+  const problems = h % 2 === 0 ? issueRows(name, 'prb', 'PRB', PRB_SUBJECTS, 1 + (h % 2), (h >> 2) % 2) : [];
+  const changes = h % 5 < 2 ? issueRows(name, 'chg', 'CHG', CHG_SUBJECTS, 1, (h >> 3) % 2) : [];
+  const openCount = [...requests, ...problems, ...changes].filter((i) => !i.closed).length;
+  return { requests, problems, changes, openCount };
 }
 
 /* -------------------- Hover-card details (deterministic mock) -------------------- */
@@ -121,6 +166,17 @@ function hoverRowsFor(label: string, type: RelType): { id: string; rows: HoverRo
         { label: 'Status', value: 'Active', dot: DOT.green },
         { label: 'Department', value: HOVER_DEPTS[h % 5] },
         { label: 'VIP', value: h % 4 === 0 ? 'Yes' : 'No' },
+      ],
+    };
+  }
+  if (type === 'department') {
+    return {
+      id: `DEP-${100 + (h % 200)}`,
+      rows: [
+        { label: 'Type', value: 'Department' },
+        { label: 'Status', value: 'Active', dot: DOT.green },
+        { label: 'Head', value: HOVER_OWNERS[h % 5] },
+        { label: 'Members', value: String(4 + (h % 60)) },
       ],
     };
   }
@@ -199,18 +255,24 @@ function CenterNode({ id, data }: NodeProps) {
 }
 
 function ItemNode({ id, data }: NodeProps) {
-  const d = data as { label: string; color: string; icon: React.ReactNode; childCount?: number; expanded?: boolean; labelWidth?: number; onToggle?: (id: string) => void; onAddRel?: (id: string) => void };
+  const d = data as { label: string; color: string; icon: React.ReactNode; childCount?: number; expanded?: boolean; labelWidth?: number; hasIssues?: boolean; onToggle?: (id: string) => void; onAddRel?: (id: string) => void };
   const hasChildren = (d.childCount ?? 0) > 0;
   const toggle = (e: React.MouseEvent) => { e.stopPropagation(); d.onToggle?.(id); };
   // Only at the deepest zoom-out levels (the last ~2 steps before minZoom 0.3) are the
   // ring + icon truly indistinguishable — switch to a solid filled circle (white icon on
   // the type color) there; everywhere else keep the normal ring style.
   const compact = useStore((s) => s.transform[2] < 0.45);
+  // Assets with OPEN linked Request/Problem/Change records fill SOLID RED (any zoom).
+  const nodeStyle = d.hasIssues
+    ? { backgroundColor: '#EF4444', borderColor: '#DC2626', color: '#FFFFFF', boxShadow: '0 0 0 4px rgba(239,68,68,0.15)' }
+    : compact
+      ? { backgroundColor: d.color, borderColor: d.color, color: '#FFFFFF' }
+      : { backgroundColor: '#FFFFFF', borderColor: d.color, color: d.color };
   return (
     <div className="relative group cursor-pointer">
       <div
         className="flex items-center justify-center size-14 rounded-full border-2 shadow-sm [&_svg]:size-5 transition-colors duration-150"
-        style={compact ? { backgroundColor: d.color, borderColor: d.color, color: '#FFFFFF' } : { backgroundColor: '#FFFFFF', borderColor: d.color, color: d.color }}
+        style={nodeStyle}
       >
         {d.icon}
       </div>
@@ -306,9 +368,10 @@ function hash(s: string): number {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return Math.abs(h);
 }
-const CHILD_TYPES: RelType[] = ['hardware', 'software', 'asset', 'user'];
+const CHILD_TYPES: RelType[] = ['hardware', 'software', 'asset', 'user', 'department'];
 function mockLabel(type: RelType, seed: number): string {
   if (type === 'user') return ['A. Kumar', 'R. Shah', 'M. Patel', 'S. Iyer', 'N. Rao'][seed % 5];
+  if (type === 'department') return ['IT Operations', 'Finance', 'Engineering', 'HR', 'Sales'][seed % 5];
   if (type === 'software') return ['nginx', 'PostgreSQL', 'Redis', 'Docker', 'MS Office', 'Chrome'][seed % 6];
   const pfx = ['win-', 'linux-', 'srv-', 'vm', ''][seed % 5];
   return pfx ? `${pfx}${(seed % 900) + 100}` : `172.16.${seed % 30}.${(seed * 7) % 250}`;
@@ -353,7 +416,7 @@ function ShortcutRow({ keys, label }: { keys: React.ReactNode; label: string }) 
   );
 }
 
-function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy: number) => void; showMap: boolean; setShowMap: (v: boolean) => void }) {
+function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setShowLegend }: { panBy: (dx: number, dy: number) => void; showMap: boolean; setShowMap: (v: boolean) => void; legend: { label: string; color: string }[]; showLegend: boolean; setShowLegend: (v: boolean) => void }) {
   const rf = useReactFlow();
   const [showKeys, setShowKeys] = useState(false);
   const btn = 'inline-flex items-center justify-center size-7 text-[#6B7280] hover:bg-[#F5F7FA] transition-colors';
@@ -407,6 +470,7 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
                 <ShortcutRow keys={<><Kbd>Ctrl</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>Shift</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>F</Kbd></>} label="Toggle fullscreen" />
                 <div className="mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">UI</div>
                 <ShortcutRow keys={<Kbd>M</Kbd>} label="Toggle minimap" />
+                <ShortcutRow keys={<Kbd>L</Kbd>} label="Toggle type legend" />
                 <ShortcutRow keys={<Kbd>R</Kbd>} label="Reset layout" />
                 <ShortcutRow keys={<><Kbd>Ctrl</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>F</Kbd></>} label="Focus search" />
                 <ShortcutRow keys={<Kbd>Escape</Kbd>} label="Clear search / deselect" />
@@ -436,9 +500,27 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
           </Tooltip>
         </div>
       </div>
-      {/* Bottom-right: minimap (collapsible) */}
-      <div className="absolute bottom-3 right-3 z-20">
-        {showMap ? (
+      {/* Bottom-right: legend (hidden by default, toggled by its icon) + minimap (collapsible) */}
+      <div className="absolute bottom-3 right-3 z-20 flex flex-col items-end gap-2">
+        {showLegend && (
+          <div className="w-[190px] rounded-xl border border-[#E5E7EB] bg-white shadow-lg px-4 py-3.5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="text-[12.5px] font-semibold text-[#364658]">Types</span>
+              <button onClick={() => setShowLegend(false)} className="text-[#9CA3AF] transition-colors hover:text-[#364658]" title="Close">
+                <ChevronDown size={14} />
+              </button>
+            </div>
+            <div className="space-y-2.5">
+              {legend.map((g) => (
+                <div key={g.label} className="flex items-center gap-2.5">
+                  <span className="h-[18px] w-[18px] rounded-md border" style={{ backgroundColor: `${g.color}26`, borderColor: `${g.color}80` }} />
+                  <span className="text-[13px] text-[#364658]">{g.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {showMap && (
           <div className="w-[220px] rounded-lg border border-[#E5E7EB] bg-white shadow-md overflow-hidden">
             <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#F0F1F3]">
               <span className="text-[12px] font-semibold text-[#364658]">Minimap</span>
@@ -452,21 +534,32 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
               pannable
               zoomable
               maskColor="rgba(148,163,184,0.12)"
-              nodeColor={(n) => (n.type === 'center' ? '#3D8BD0' : ((n.data as { color?: string })?.color ?? '#CBD5E1'))}
+              nodeColor={(n) => (n.type === 'center' ? '#3D8BD0' : (n.data as { hasIssues?: boolean })?.hasIssues ? '#EF4444' : ((n.data as { color?: string })?.color ?? '#CBD5E1'))}
               nodeStrokeWidth={2}
               nodeBorderRadius={999}
             />
           </div>
-        ) : (
+        )}
+        {/* Both toggle icons stay visible; the two panels are mutually exclusive —
+            opening one closes the other. */}
+        <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => setShowMap(true)} className="flex size-8 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white shadow-sm text-[#6B7280] hover:bg-[#F5F7FA] transition-colors">
+              <button onClick={() => { const open = !showLegend; setShowLegend(open); if (open) setShowMap(false); }} className={`flex size-8 items-center justify-center rounded-lg border shadow-sm transition-colors ${showLegend ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
+                <List size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Type legend</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => { const open = !showMap; setShowMap(open); if (open) setShowLegend(false); }} className={`flex size-8 items-center justify-center rounded-lg border shadow-sm transition-colors ${showMap ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
                 <MapIcon size={15} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="left">Minimap</TooltipContent>
           </Tooltip>
-        )}
+        </div>
       </div>
     </>
   );
@@ -474,7 +567,7 @@ function CanvasControls({ panBy, showMap, setShowMap }: { panBy: (dx: number, dy
 
 /* ------------------------------ Inner (uses hooks) ------------------------------ */
 
-function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, extraChildren }: RelationshipGraphProps) {
+function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren }: RelationshipGraphProps) {
   const rf = useReactFlow();
   const cfg: RelGraphConfig = { ...DEFAULT_REL_GRAPH_CONFIG, ...(config ?? {}) };
 
@@ -507,12 +600,16 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Minimap visibility (bottom-right; toggled by its collapse button or the M key).
   const [showMap, setShowMap] = useState(true);
+  // Type-color legend (bottom-right): hidden by default, opened via its icon or the L key.
+  // Groups are derived from typeMeta labels — types sharing a label/color collapse into one row.
+  const [showLegend, setShowLegend] = useState(false);
+  const legendGroups = Array.from(new Map(Object.values(typeMeta).map((m) => [m.label, m.color])).entries()).map(([label, color]) => ({ label, color }));
   // Rich hover card (icon + id + name + detail rows) — appears after a short delay,
   // rendered in SCREEN space so it stays readable at any zoom level.
   const wrapRef = useRef<HTMLDivElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [hoverCard, setHoverCard] = useState<{ left: number; top: number; placement: 'above' | 'below'; arrowLeft: number; id: string; name: string; type: RelType | 'center'; color: string; icon: React.ReactNode; rows: HoverRow[] } | null>(null);
+  const [hoverCard, setHoverCard] = useState<{ left: number; top: number; placement: 'above' | 'below'; arrowLeft: number; id: string; name: string; type: RelType | 'center'; color: string; icon: React.ReactNode; rows: HoverRow[]; issues: number } | null>(null);
   const CARD_W = 248;
   const showHoverCard = (node: Node) => {
     const d = node.data as { label?: string; name?: string; id?: string; color?: string; icon?: React.ReactNode; nodeType?: RelType };
@@ -536,8 +633,9 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
           { label: 'Impact', value: 'Low', dot: DOT.green },
         ] }
       : hoverRowsFor(name, d.nodeType ?? 'asset');
+    const issues = isCenter ? 0 : activeIssuesFor(name).openCount;
     // Dynamic placement so the card is never clipped by the canvas edges.
-    const cardH = 60 + det.rows.length * 22; // estimate (header + divider + rows)
+    const cardH = 60 + det.rows.length * 22 + (issues > 0 ? 36 : 0); // estimate (header + divider + rows + alert strip)
     const GAP = 12, PAD = 8;
     // Flip below the node when there isn't room above.
     const placement: 'above' | 'below' = yTop - GAP - cardH < PAD ? 'below' : 'above';
@@ -553,6 +651,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       color: isCenter ? '#3D8BD0' : (d.color ?? '#64748B'),
       icon: isCenter ? <Monitor size={14} /> : d.icon,
       rows: det.rows,
+      issues,
     });
   };
   // Stable indirection so node data can call the latest toggleExpand without stale closures.
@@ -571,7 +670,8 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   const makeNode = (t: TreeNode, x: number, y: number, expanded = false): Node => {
     const m = typeMeta[t.type];
     // In preview mode badges are hidden (childCount 0) so nothing invites expansion.
-    return { id: t.id, type: 'item', position: { x, y }, data: { label: t.label, color: m.color, icon: iconForNode(t.label, t.type), nodeType: t.type, childCount: previewMode ? 0 : t.children.length, expanded, labelWidth: cfg.labelWidth, onToggle: (nid: string) => toggleRef.current(nid), onAddRel: addRelFor } };
+    // hasIssues → the node has OPEN linked Request/Problem/Change records → circle fills red.
+    return { id: t.id, type: 'item', position: { x, y }, data: { label: t.label, color: m.color, icon: iconForNode(t.label, t.type), nodeType: t.type, childCount: previewMode ? 0 : t.children.length, expanded, labelWidth: cfg.labelWidth, hasIssues: previewMode ? false : activeIssuesFor(t.label).openCount > 0, onToggle: (nid: string) => toggleRef.current(nid), onAddRel: addRelFor } };
   };
 
   // Lay out ALL visible nodes as a tidy radial tree: every subtree gets an angular sector sized by
@@ -1004,7 +1104,13 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       rf.fitView({ padding: 0.2, duration: 300 });
     } else if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
+      // Minimap and type legend are mutually exclusive — opening one closes the other.
       setShowMap(!showMap);
+      if (!showMap) setShowLegend(false);
+    } else if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      setShowLegend(!showLegend);
+      if (!showLegend) setShowMap(false);
     } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey) {
       // Reset layout: collapse everything, drop manual pins, back to the tidy default.
       e.preventDefault();
@@ -1088,7 +1194,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       >
         {/* Very light gray canvas backdrop behind the dotted grid */}
         <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#DCE3EC" bgColor="#FAFBFC" />
-        {!(hideControls || previewMode) && <CanvasControls panBy={panBy} showMap={showMap} setShowMap={setShowMap} />}
+        {!(hideControls || previewMode) && <CanvasControls panBy={panBy} showMap={showMap} setShowMap={setShowMap} legend={legendGroups} showLegend={showLegend} setShowLegend={setShowLegend} />}
       </ReactFlow>
       {/* Rich node hover card — screen-space so it stays crisp at any zoom */}
       {hoverCard && (
@@ -1140,6 +1246,17 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
                 </div>
               ))}
             </div>
+            {/* Active-issues strip → opens the Active Issues side panel */}
+            {onShowIssues && hoverCard.issues > 0 && (
+              <button
+                onClick={() => { const info = { id: hoverCard.id, name: hoverCard.name }; setHoverCard(null); onShowIssues(info); }}
+                className="mt-2.5 flex w-full items-center gap-1.5 rounded-md bg-[#FEF2F2] px-2.5 py-1.5 text-[11.5px] font-medium text-[#DC2626] transition-colors hover:bg-[#FEE2E2]"
+              >
+                <AlertTriangle size={13} className="flex-shrink-0" />
+                {hoverCard.issues} active issue{hoverCard.issues > 1 ? 's' : ''} linked
+                <ChevronRight size={13} className="ml-auto flex-shrink-0" />
+              </button>
+            )}
           </div>
           {/* Pointer below the card when the card sits ABOVE the node */}
           {hoverCard.placement === 'above' && (

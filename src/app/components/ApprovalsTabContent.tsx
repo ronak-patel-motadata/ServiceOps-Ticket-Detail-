@@ -46,8 +46,9 @@ export function ApprovalsTabContent({
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
   
-  const [expandedApprovalId, setExpandedApprovalId] = useState<string | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState<number>(1);
+  // Multiple approval accordions can be open at once; each keeps its own selected level.
+  const [expandedApprovalIds, setExpandedApprovalIds] = useState<Set<string>>(new Set());
+  const [selectedLevels, setSelectedLevels] = useState<Record<string, number>>({});
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [internalShowPopup, setInternalShowPopup] = useState(false);
   const [editingApproval, setEditingApproval] = useState<Approval | null>(null);
@@ -243,20 +244,20 @@ export function ApprovalsTabContent({
   };
 
   const toggleAccordion = (approvalId: string) => {
-    if (expandedApprovalId === approvalId) {
-      setExpandedApprovalId(null);
-    } else {
-      setExpandedApprovalId(approvalId);
-      // Land on the first not-yet-complete level (its earlier levels are all approved,
-      // so it is unlocked); if every level is complete, land on the last one.
-      const appr = approvals.find((a) => a.id === approvalId);
-      if (appr) {
-        const firstOpen = appr.levels.find((l) => !(l.approvers.length > 0 && l.approvers.every((a) => a.status === 'Approved')));
-        setSelectedLevel(firstOpen ? firstOpen.level : (appr.levels[appr.levels.length - 1]?.level ?? 1));
+    setExpandedApprovalIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(approvalId)) {
+        next.delete(approvalId);
       } else {
-        setSelectedLevel(1);
+        next.add(approvalId);
+        // Land on the first not-yet-complete level (its earlier levels are all approved,
+        // so it is unlocked); if every level is complete, land on the last one.
+        const appr = approvals.find((a) => a.id === approvalId);
+        const firstOpen = appr?.levels.find((l) => !(l.approvers.length > 0 && l.approvers.every((a) => a.status === 'Approved')));
+        setSelectedLevels((p) => ({ ...p, [approvalId]: firstOpen ? firstOpen.level : (appr?.levels[appr.levels.length - 1]?.level ?? 1) }));
       }
-    }
+      return next;
+    });
   };
 
   if (filteredApprovals.length === 0) {
@@ -281,8 +282,9 @@ export function ApprovalsTabContent({
     <div className="px-6 pb-6 pt-3">
       <div className="space-y-3">
         {filteredApprovals.map((approval) => {
-          const isExpanded = expandedApprovalId === approval.id;
-          const currentLevel = approval.levels.find(l => l.level === selectedLevel);
+          const isExpanded = expandedApprovalIds.has(approval.id);
+          const approvalSelectedLevel = selectedLevels[approval.id] ?? 1;
+          const currentLevel = approval.levels.find(l => l.level === approvalSelectedLevel);
 
           return (
             <div
@@ -378,14 +380,14 @@ export function ApprovalsTabContent({
                           Approval Level
                         </span>
                         {approval.levels.map((level, idx) => {
-                          const active = selectedLevel === level.level;
+                          const active = approvalSelectedLevel === level.level;
                           const complete = level.approvers.length > 0 && level.approvers.every((a) => a.status === 'Approved');
                           // Sequential approval — a level unlocks only once every earlier level is fully approved.
                           const locked = !approval.levels.slice(0, idx).every((l) => l.approvers.length > 0 && l.approvers.every((a) => a.status === 'Approved'));
                           return (
                             <button
                               key={level.level}
-                              onClick={() => { if (!locked) setSelectedLevel(level.level); }}
+                              onClick={() => { if (!locked) setSelectedLevels((p) => ({ ...p, [approval.id]: level.level })); }}
                               disabled={locked}
                               title={locked ? 'Complete the previous level to unlock this level' : undefined}
                               className={`relative inline-flex items-center gap-2 px-3.5 pt-2 pb-2.5 -mb-px rounded-t-lg text-[12px] font-medium border border-b-0 transition-colors flex-shrink-0 ${locked ? 'border-transparent opacity-50 cursor-not-allowed' : active ? 'bg-white border-[#E5E7EB] shadow-[0_-2px_6px_rgba(31,42,61,0.05)] z-10' : 'border-transparent hover:bg-white/60'}`}

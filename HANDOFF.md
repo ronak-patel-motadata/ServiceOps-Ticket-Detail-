@@ -1,47 +1,37 @@
-# Handoff — 2026-07-08 22:51
+# Handoff — 2026-07-11 14:58
 
 ## Read first
-The one big new `CLAUDE.md` Key-context bullet to read: **"Hardware Asset Relationship tab = React Flow topology"** — it documents the whole interactive canvas built this session. Also the new **pnpm warning** under the build/verify bullets and the **"CMDB header/menu specifics"** bullet.
+The rewritten **"Hardware Asset Relationship tab = React Flow topology"** bullet in `CLAUDE.md` — it now documents the complete interactive topology (search/filter pill, Advanced Configuration, hover cards, Add Relationship, Active Issues, 4-group colors + legend, all hotkeys). Also the updated **Cross-module drawer host** bullet (new `stackActiveTab` lifted tab memory) and the **Approvals multi-open** bullet.
 
 ## What we worked on this session
-Morning: published the previous batch (commit `4162408`), widened the ticket 3-dot dropdown, CMDB polish (dot-before-ID, removed Barcode/QR, dedicated `cmdb` 3-dot menu variant with gray section headers). Rest of the session: built a full **interactive Relationship topology** for the Hardware Asset detail page — first hand-rolled (view modes, grid list, dotted canvas, zoom/pan controls, download popup), then **migrated to React Flow (`@xyflow/react` 12)** and iterated it into an expandable, non-overlapping, pinnable, 700-node-ready topology.
+Continued building out the Relationship topology into a full product surface: node hover cards that open records, an Add Relationship flow, red "active issues" nodes with a drill-in panel, merged 4-group node colors with an on-demand legend, an Advanced Configuration panel — plus a multi-open fix for the Approvals tab. Published one batch mid-session (`a0fc951`); a second batch is ready to publish.
 
 ## Completed
-- **Published** the Ticket Transition + SLA outcome batch (commit `4162408`, live).
-- **Ticket 3-dot dropdown** widened `w-[248px]` + `whitespace-nowrap` (no more wrapped "Convert to Service Request").
-- **CMDB drawer**: agent dot before ID pill; Barcode/QR header icons removed; `cmdb` menu variant (Actions/Remote/History sections).
-- **Relationship tab (HardwareAssetDrawer only)** — everything below builds clean and was screenshot-verified:
-  - Toolbar: Full/Tree/Grid segmented view group · Refresh · Full-screen · Download popup (audit-trail clone); black Radix tooltips (700ms global).
-  - **Grid view** = numbered relationship list (source card → dark relation pill → target card, equal widths, delete button).
-  - Full-viewport dotted canvas (no border, full-bleed, NO page scroll — `min-h-0` on the scroll container + `h-[calc(100%-48px)]` for the tab), legend row with bottom border.
-  - **`RelationshipGraph.tsx` (React Flow)**: square center node + circular ringed nodes, name-accurate icons, wheel/pinch zoom, drag-pan, keyboard-arrow pan, d-pad (bottom-left), canvas controls (top-right, smaller `size-7`).
-  - **Expandable levels**: count badge → expand, minus badge → collapse (badges are the ONLY triggers, `nodrag`); deterministic mock children.
-  - **Tidy radial sector layout** with expanded-subtree weight bonus + sector padding (nested expanded groups read as separate clusters) + damped 110px de-overlap pass.
-  - **Manual position pins** survive re-layouts; a pin that would overlap resets to its tidy spot; Refresh clears pins.
-  - **Group drag** (parent carries visible subtree; center node moves alone).
-  - **Scale-aware zoom** for huge graphs: ≤24 nodes fit-all, >24 focus the expanded group (minZoom 0.6), collapse doesn't move the viewport.
-  - **Hover/click highlight**: connected edges become animated dashed `#3D8BD0` lines flowing away from the node (click pins, pane-click clears).
+- **Published in `a0fc951`** (live): Add Relationship flow (`AddRelationshipPanel.tsx`), rich node hover cards (dynamic flip/clamp placement; clickable ID/name/↗ opens the record as a drawer tab), per-item drawer tab memory (`stackActiveTab` in `DrawerStack`), toolbar Filter pill, Advanced Configuration settings panel (functional Radix sliders + locked live preview), node-click = expand-only (minus badge collapses), light-gray canvas (`#FAFBFC`), Orbit/Network/List view icons, 1/2/3 + Ctrl+Shift+F + R hotkeys.
+- **UNPUBLISHED (working tree, builds clean, all headless-verified):**
+  - Approvals tab: **multiple accordions open at once** + per-approval Level selection (`ApprovalsTabContent`).
+  - **4-group node colors** (Assets amber / Users indigo / CI pink / Department green — new `department` RelType) with the 9-option filter kept and remapped.
+  - **Type legend** behind a `List`-icon button bottom-right (hidden by default, `L` toggles, derived from `typeMeta`); legend + minimap are **mutually exclusive**, both toggle icons always visible. (This resolved the old "legend relocation pending" memory — deleted.)
+  - **Active issues**: `activeIssuesFor()` (deterministic, exported from `RelationshipGraph.tsx`) → nodes with open linked records render **solid red** (minimap too); hover card gets a red "N active issues linked" strip → **`ActiveIssuesPanel.tsx`** (NEW file: All + Request/Problem/Change pills in Relations-tab style, 0-count pills hidden, "Status Not In Closed" chip, borderless standard grid, row click opens the real record).
+  - Both side panels' tables restyled to the app-standard borderless grid (like the Software tab).
 
 ## In progress
-Nothing mid-flight — but the ENTIRE Relationship/CMDB/menu batch above is **UNPUSHED** (only `4162408` is live). Modified: `package.json`, `pnpm-lock.yaml`, `CmdbDrawer`, `HardwareAssetActionsMenu`, `HardwareAssetDrawer`, `TicketActionsMenu`; new: `RelationshipGraph.tsx`.
+Nothing mid-flight — the unpublished batch above is complete and verified; it just needs `/publish`.
 
 ## Next steps
-- **Run `/publish`** to ship the Relationship topology batch (remember to commit `package.json` + `pnpm-lock.yaml` for `@xyflow/react`).
-- User mentioned a future "keyboard shortcuts" popup for the canvas ⌨ button (currently visual-only) and possibly porting the React Flow topology to the CMDB/other asset drawers (they still use the old static Relationship view).
-- Real data hookup later: replace `genChildren()` mock tree with API child lookups — the expand/collapse UX stays identical.
+- **Run `/publish`** to ship the unpublished batch (ApprovalsTabContent, RelationshipGraph, HardwareAssetDrawer, AddRelationshipPanel, new ActiveIssuesPanel).
+- Possible future: port the React Flow topology to the CMDB/other asset drawers (still on the old static Relationship view); real API hookups for `genChildren`, `activeIssuesFor`, hover-card details, and the Add Relationship record lists (all deterministic mocks designed to swap cleanly).
 
 ## Decisions made
-- **React Flow (`@xyflow/react` 12) over hand-rolled canvas** — user explicitly asked for a library ("we will do more customization"); it provides wheel/pinch zoom, viewport API, minimap potential.
-- **Badges (count/minus) are the only expand/collapse triggers**; node click/hover = connection highlight instead (animated dashed blue, direction = away from node).
-- **Global tidy radial re-layout on every expand/collapse** (sector per subtree ∝ visible weight) instead of local child placement — the only way groups never overlap; manual pins layered on top with a reset-on-overlap rule (user chose: overlap beats pin).
-- **Zoom policy for 700+ nodes**: never global-fit past 24 nodes; focus the expanded group at ≥0.6 zoom.
-- Layout constants tuned with the user: R1 215, RSTEP 175, first-level pad 14%, expanded-child pad 16%, de-overlap 110px @ 0.55 damping, expanded weight bonus +0.8.
+- **Node click expands but never collapses** (minus badge only) — so click-to-focus on a zoomed-out node can't accidentally close its group.
+- **9 filter categories stay, colors merge to 4 groups** (user's mapping: HW/SW/Non-IT/Consumable→Assets; Technician/Requester/User Group→Users; CI and Department separate). Legend derives from `typeMeta` labels so future changes are one-object edits.
+- **Legend hidden by default** behind an icon (user request), mutually exclusive with the minimap.
+- **Opened records land on their own default (Overview) tab; the ORIGIN asset keeps its Relationship tab** via host-lifted per-item tab memory (an earlier "open on Relationship" approach was explicitly reversed by the user).
+- Active-issue red fill takes precedence over the compact zoom-out fill; red = any OPEN linked Request/Problem/Change (closed ones don't count).
 
 ## Gotchas & notes
-- ⚠️ **`npm install` CRASHES in this repo** (pnpm-managed `node_modules`; "Cannot read properties of null (reading 'matches')"). Use **`pnpm add <pkg>`**.
-- React Flow controlled-nodes trap: you MUST use `useNodesState`/`useEdgesState` + `onNodesChange` or node drags silently snap back.
-- Node labels are absolutely-positioned + `pointer-events-none` so they don't inflate the measured node box (keeps floating edges attached to icon centers).
-- `Date.now()`-free determinism matters for the mock tree (`hash()` of ids) so expand results are stable across re-layouts.
-- `disableKeyboardA11y` on ReactFlow frees the arrow keys for viewport panning (wrapper div is `tabIndex={0}`).
-- Headless probes: badge = `div.absolute.-top-1` inside `.react-flow__node`; zoom = `.react-flow__viewport` transform scale; there are TWO "Download" title buttons on the page (list toolbar behind + relationship toolbar, pick by `y>150`).
-- The old hand-rolled zoom/pan state (`relZoom`/`relPan`) in `HardwareAssetDrawer` is now unused by the graph (React Flow owns it) but harmless.
+- The IDE's TS server shows a bogus `react/jsx-runtime` "implicit any" error in `RelationshipGraph.tsx` (pnpm/@types resolution) — **esbuild `npm run build` is the source of truth** and passes.
+- `activeIssuesFor` has its own private `hashIssues` (same FNV as `hash`); the hover-card issue COUNT and the panel's rows both derive from it, so they always agree.
+- The Add Relationship / Active Issues panels render inside the Relationship tab's IIFE (both normal + fullscreen returns get `{settingsPanel}{addRelPanel}{issuesPanel}`).
+- Headless probes: panel root = `div` with `z-[10005]` class; scope table row clicks to it (a background list-page table also has `tbody tr`).
+- `gh` CLI auth intermittently absent in background shells — pushes still deploy via Actions; verify by grepping the live JS bundle for a new marker string.

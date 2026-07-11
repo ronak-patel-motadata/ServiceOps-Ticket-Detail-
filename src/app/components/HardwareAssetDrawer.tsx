@@ -103,6 +103,7 @@ import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild } from './RelationshipGraph';
 import { AddRelationshipPanel } from './AddRelationshipPanel';
+import { ActiveIssuesPanel } from './ActiveIssuesPanel';
 import * as SliderPrimitive from '@radix-ui/react-slider';
 
 /* Slider row for the Relationship "Advanced Configuration" panel: label + info tooltip,
@@ -388,6 +389,8 @@ onStackMinimizedChange,
   // user-added relationships per source node (grafted into the topology).
   const [relAddTarget, setRelAddTarget] = useState<{ id: string; name: string } | null>(null);
   const [relExtras, setRelExtras] = useState<Record<string, ExtraRelChild[]>>({});
+  // Active Issues panel: the (red) node whose hover-card issues strip was clicked.
+  const [relIssuesTarget, setRelIssuesTarget] = useState<{ id: string; name: string } | null>(null);
   const relSearchRef = useRef<HTMLInputElement>(null);
   // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
   // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
@@ -4094,11 +4097,15 @@ onStackMinimizedChange,
             )}
 
             {activeMainTab === 'relationship' && (() => {
+              // Node colors are merged into 4 groups (legend): Assets (hardware+software+non-IT+
+              // consumable), Users (technician/requester/user group), CI, Department. Key order
+              // here IS the legend order.
               const typeMeta: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-                user: { color: '#6366F1', icon: <User size={14} />, label: 'User' },
-                software: { color: '#10B981', icon: <AppWindow size={14} />, label: 'Software' },
-                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Hardware' },
-                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'Asset' },
+                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Assets' },
+                software: { color: '#F59E0B', icon: <AppWindow size={14} />, label: 'Assets' },
+                user: { color: '#6366F1', icon: <User size={14} />, label: 'Users' },
+                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'CI' },
+                department: { color: '#10B981', icon: <Users size={14} />, label: 'Department' },
               };
               const nodes: { label: string; type: keyof typeof typeMeta }[] = [
                 { label: 'J. Doe', type: 'user' },
@@ -4325,7 +4332,7 @@ onStackMinimizedChange,
                       centerId={activeAsset?.id}
                       searchTerm={relSearch}
                       config={relConfig}
-                      typeFilter={relFilter ? ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'asset', 'Consumable Asset': 'asset', 'CI': 'asset', 'Department': 'user', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[relFilter] ?? null : null}
+                      typeFilter={relFilter ? ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[relFilter] ?? null : null}
                       onOpenNode={(info) => {
                         // Open the node's record as a tab in this same drawer (same flow as the
                         // Impact popup's "Open related records"): CI-style nodes → CMDB, the
@@ -4334,6 +4341,7 @@ onStackMinimizedChange,
                         onOpenRelation?.({ ticketId: info.id, subject: info.name, type: info.type === 'asset' ? 'CI' : 'Asset', status: 'In Use', priority: 'Medium', assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
                       }}
                       onAddRelation={(info) => setRelAddTarget(info)}
+                      onShowIssues={(info) => setRelIssuesTarget(info)}
                       extraChildren={relExtras}
                     />
                   )}
@@ -4408,6 +4416,19 @@ onStackMinimizedChange,
                 />
               ) : null;
 
+              // Active Issues side panel (opened from a red node's hover-card strip);
+              // clicking a record opens its real detail page as a tab in this drawer.
+              const issuesPanel = relIssuesTarget ? (
+                <ActiveIssuesPanel
+                  assetName={relIssuesTarget.name}
+                  onClose={() => setRelIssuesTarget(null)}
+                  onOpenIssue={(issue, kind) => {
+                    setRelIssuesTarget(null);
+                    onOpenRelation?.({ ticketId: issue.id, subject: issue.subject, type: kind, status: issue.status, priority: issue.priority, assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                  }}
+                />
+              ) : null;
+
               if (relFull) {
                 return (
                   <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-6">
@@ -4415,6 +4436,7 @@ onStackMinimizedChange,
                     <div className="flex-1 min-h-0">{graphArea}</div>
                     {settingsPanel}
                     {addRelPanel}
+                    {issuesPanel}
                   </div>
                 );
               }
@@ -4426,6 +4448,7 @@ onStackMinimizedChange,
                   <div className="flex-1 min-h-0">{graphArea}</div>
                   {settingsPanel}
                   {addRelPanel}
+                  {issuesPanel}
                 </div>
               );
             })()}
