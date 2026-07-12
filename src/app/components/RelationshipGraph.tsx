@@ -29,7 +29,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 export type RelType = 'user' | 'software' | 'hardware' | 'asset' | 'department';
-export interface RelNodeInput { label: string; type: RelType }
+export interface RelNodeInput { label: string; type: RelType; rel?: string }
 export interface RelTypeMeta { color: string; icon: React.ReactNode; label: string }
 
 /** Tunables exposed by the Advanced Configuration panel — every value feeds the engine. */
@@ -80,6 +80,8 @@ interface RelationshipGraphProps {
   onShowIssues?: (info: { id: string; name: string }) => void;
   /** User-added relationships, keyed by source node id ('center' for the root asset). */
   extraChildren?: Record<string, ExtraRelChild[]>;
+  /** Mock-data profile: 'cmdb' generates CI-style names + varied relation labels. */
+  mockProfile?: 'cmdb';
 }
 
 /* Pick the most accurate icon from the node's NAME (falls back to its type). */
@@ -376,7 +378,40 @@ function mockLabel(type: RelType, seed: number): string {
   const pfx = ['win-', 'linux-', 'srv-', 'vm', ''][seed % 5];
   return pfx ? `${pfx}${(seed % 900) + 100}` : `172.16.${seed % 30}.${(seed * 7) % 250}`;
 }
-function genChildren(parentId: string, depth: number): TreeNode[] {
+/* CMDB profile: CI-style names + a varied, semantically matching relation per child
+ * (Hosts / Hosted On / Connected to / Send Data to / Impacts / Impacted By / Runs On /
+ * Uses / Used By / Users / Depends On). */
+function cmdbChild(type: RelType, seed: number): { label: string; rel: string } {
+  if (type === 'user') {
+    return {
+      label: ['A. Kumar (Admin)', 'S. Iyer', 'R. Shah', 'V. Sethi (DBA)', 'N. Rao'][seed % 5],
+      rel: ['Used By', 'Users'][seed % 2],
+    };
+  }
+  if (type === 'department') {
+    return {
+      label: ['Finance', 'IT Operations', 'HR', 'Sales', 'Engineering'][seed % 5],
+      rel: ['Used By', 'Users'][seed % 2],
+    };
+  }
+  if (type === 'software') {
+    return {
+      label: ['MS SQL Server 2022', 'SAP ERP Client', 'Exchange Connector', 'Redis Cache', 'Payroll Service', 'Auth Service', 'Nginx Gateway', 'Backup Agent'][seed % 8],
+      rel: ['Runs On', 'Uses', 'Send Data to', 'Depends On'][seed % 4],
+    };
+  }
+  if (type === 'hardware') {
+    return {
+      label: [`DC1-APP-0${(seed % 8) + 1}`, `PRDC-ESX-0${(seed % 4) + 1}`, `COMPAST-67${(seed % 90) + 10}`, `LAP-58${(seed % 90) + 10}`][seed % 4],
+      rel: ['Hosts', 'Hosted On', 'Connected to'][seed % 3],
+    };
+  }
+  return {
+    label: ['PROD-DB-CLUSTER', 'LB-EDGE-01', 'SAN-STORAGE-01', `DC2-SW-EDGE-0${(seed % 4) + 1}`, 'Email Relay Service', 'AD-DS-PRIMARY'][seed % 6],
+    rel: ['Depends On', 'Impacts', 'Impacted By', 'Connected to'][seed % 4],
+  };
+}
+function genChildren(parentId: string, depth: number, profile?: 'cmdb'): TreeNode[] {
   const h = hash(parentId + '|' + depth);
   // Realistic customer mix: most nodes have a handful of connections, but some (a core
   // switch, hypervisor, …) fan out to 20+ children — the layout wraps those into
@@ -390,9 +425,14 @@ function genChildren(parentId: string, depth: number): TreeNode[] {
     const id = `${parentId}.${k}`;
     const seed = hash(id);
     const type = CHILD_TYPES[seed % CHILD_TYPES.length];
-    out.push({ id, label: mockLabel(type, seed), type, parentId, children: [] });
+    if (profile === 'cmdb') {
+      const c = cmdbChild(type, seed);
+      out.push({ id, label: c.label, type, parentId, children: [], rel: c.rel });
+    } else {
+      out.push({ id, label: mockLabel(type, seed), type, parentId, children: [] });
+    }
   }
-  out.forEach((c) => { c.children = genChildren(c.id, depth + 1); });
+  out.forEach((c) => { c.children = genChildren(c.id, depth + 1, profile); });
   return out;
 }
 
@@ -567,13 +607,13 @@ function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setSho
 
 /* ------------------------------ Inner (uses hooks) ------------------------------ */
 
-function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren }: RelationshipGraphProps) {
+function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren, mockProfile }: RelationshipGraphProps) {
   const rf = useReactFlow();
   const cfg: RelGraphConfig = { ...DEFAULT_REL_GRAPH_CONFIG, ...(config ?? {}) };
 
   // Build the full (deterministic) topology tree for the current first-level data, and index it.
   const dataSig = data.map((d) => `${d.label}:${d.type}`).join('|');
-  const tree: TreeNode[] = data.map((d, i) => ({ id: `n${i}`, label: d.label, type: d.type, parentId: 'center', children: genChildren(`n${i}`, 1) }));
+  const tree: TreeNode[] = data.map((d, i) => ({ id: `n${i}`, label: d.label, type: d.type, parentId: 'center', rel: d.rel, children: genChildren(`n${i}`, 1, mockProfile) }));
   const treeMap = new Map<string, TreeNode>();
   const indexTree = (t: TreeNode) => { treeMap.set(t.id, t); t.children.forEach(indexTree); };
   tree.forEach(indexTree);
@@ -757,12 +797,16 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         ch.forEach((c) => collect(c, h));
       };
       tree.forEach((t) => collect(t, centerHub));
-      // Deterministic seed: equal-slot angles per parent.
+      // Deterministic seed: the centre spreads its groups on a full circle; every DEEPER
+      // hub seeds its kids in an arc on the AWAY side (continuing outward from its parent),
+      // so expanded groups start out in the whitespace beyond the clicked node.
       const seed = (h: Hub, inAng: number) => {
         const n = Math.max(h.kids.length, 1);
         h.kids.forEach((c, k) => {
           if (!c.fixed) {
-            const ang = inAng - Math.PI + ((2 * Math.PI) / n) * (k + 0.5);
+            const ang = h.parent
+              ? inAng + Math.min((2 * Math.PI) / n, 1.15) * (k + 0.5 - n / 2)
+              : inAng - Math.PI + ((2 * Math.PI) / n) * (k + 0.5);
             const L = h.ringR + c.discR + PUSH;
             c.x = h.x + L * Math.cos(ang);
             c.y = h.y + L * Math.sin(ang);
@@ -782,6 +826,30 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
           const f = ((L - d) / d) * cfg.gravity;
           h.x += dx * f;
           h.y += dy * f;
+        });
+        // OUTWARD CONE: an expanded sub-group must stay on the AWAY side of its parent
+        // (relative to the grandparent) — it may slide around the sides into free whitespace,
+        // but never flip to the inward side, which read as children opening "in the wrong
+        // direction". Runs BEFORE collision so overlap resolution always gets the last word
+        // in each iteration (direction is a bias, overlap-freedom is a guarantee).
+        const MAX_DEV = 1.45; // rad (~83°)
+        hubs.forEach((h) => {
+          if (!h.parent || !h.parent.parent || h.fixed) return;
+          const gp = h.parent.parent;
+          const aAng = Math.atan2(h.parent.y - gp.y, h.parent.x - gp.x);
+          const ux = h.x - h.parent.x, uy = h.y - h.parent.y;
+          const d = Math.hypot(ux, uy) || 1;
+          const uAng = Math.atan2(uy, ux);
+          let diff = uAng - aAng;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          if (Math.abs(diff) > MAX_DEV) {
+            // Damped rotation back to the edge of the allowed cone.
+            const delta = (Math.abs(diff) - MAX_DEV) * -Math.sign(diff) * 0.35;
+            const na = uAng + delta;
+            h.x = h.parent.x + d * Math.cos(na);
+            h.y = h.parent.y + d * Math.sin(na);
+          }
         });
         for (let i = 0; i < hubs.length; i++) {
           for (let j = i + 1; j < hubs.length; j++) {
@@ -855,9 +923,9 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     // this only gently separates the few pairs that actually collide (icon + label footprint),
     // with damped nudges so nodes stay inside their group's wedge. The centre and any
     // manually-placed nodes stay pinned; others are nudged around them.
-    const DAMP = 0.55;
+    const DAMP = 0.6;
     const isFixed = (n: Node) => n.id === 'center' || !!manualPos.current[n.id];
-    for (let iter = 0; iter < 14; iter++) {
+    for (let iter = 0; iter < 30; iter++) {
       let moved = false;
       for (let i = 0; i < nodesOut.length; i++) {
         for (let j = i + 1; j < nodesOut.length; j++) {

@@ -11,7 +11,11 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
+import { Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild } from './RelationshipGraph';
+import { AddRelationshipPanel } from './AddRelationshipPanel';
+import { ActiveIssuesPanel } from './ActiveIssuesPanel';
+import { RelSliderRow } from './RelSliderRow';
 import { AiSparkle } from './AiSparkle';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
@@ -314,6 +318,54 @@ onStackMinimizedChange,
   // Number of baseline variances detected for this asset (0 = none, shows Encryption instead).
   const baselineVarianceCount = 3;
   // Pre-applied relation type filter when navigating from the Impact KPI.
+  const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
+  const [relFull, setRelFull] = useState(false);
+  const [relKey, setRelKey] = useState(0);
+  const [relSearch, setRelSearch] = useState('');
+  // Advanced Configuration for the relationship topology: applied config + panel draft.
+  const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [relDraft, setRelDraft] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [showRelSettings, setShowRelSettings] = useState(false);
+  // Topology type filter (toolbar Filter menu): the selected option's label, or null = all.
+  const [relFilter, setRelFilter] = useState<string | null>(null);
+  const [showRelFilter, setShowRelFilter] = useState(false);
+  // Add Relationship: the node whose "+" was clicked (opens the side panel), and the
+  // user-added relationships per source node (grafted into the topology).
+  const [relAddTarget, setRelAddTarget] = useState<{ id: string; name: string } | null>(null);
+  const [relExtras, setRelExtras] = useState<Record<string, ExtraRelChild[]>>({});
+  // Active Issues panel: the (red) node whose hover-card issues strip was clicked.
+  const [relIssuesTarget, setRelIssuesTarget] = useState<{ id: string; name: string } | null>(null);
+  const relSearchRef = useRef<HTMLInputElement>(null);
+  // Relationship download popup (same as the audit-trail download).
+  const [showRelDownload, setShowRelDownload] = useState(false);
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV'>('PDF');
+  const [relDlPwProtected, setRelDlPwProtected] = useState(false);
+  const [relDlShowPw, setRelDlShowPw] = useState(false);
+  const [relDlPassword, setRelDlPassword] = useState('');
+  // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
+  // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
+  useEffect(() => {
+    if (activeMainTab !== 'relationship') return;
+    const onKey = (e: KeyboardEvent) => {
+      const inField = e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setRelFull((v) => !v);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        relSearchRef.current?.focus();
+        return;
+      }
+      if (inField) return;
+      if (e.key === '1') setRelView('graph');
+      else if (e.key === '2') setRelView('tree');
+      else if (e.key === '3') setRelView('grid');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeMainTab]);
   const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
   // Utilization KPI — color follows the value: Over = red, Under = amber, Optimal = green.
   const utilizationStatus = 'Over-utilized';
@@ -4001,11 +4053,15 @@ onStackMinimizedChange,
             )}
 
             {activeMainTab === 'relationship' && (() => {
+              // Node colors are merged into 4 groups (legend): Assets (hardware+software+non-IT+
+              // consumable), Users (technician/requester/user group), CI, Department. Key order
+              // here IS the legend order.
               const typeMeta: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-                user: { color: '#6366F1', icon: <User size={14} />, label: 'User' },
-                software: { color: '#10B981', icon: <AppWindow size={14} />, label: 'Software' },
-                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Hardware' },
-                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'Asset' },
+                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Assets' },
+                software: { color: '#F59E0B', icon: <AppWindow size={14} />, label: 'Assets' },
+                user: { color: '#6366F1', icon: <User size={14} />, label: 'Users' },
+                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'CI' },
+                department: { color: '#10B981', icon: <Users size={14} />, label: 'Department' },
               };
               const nodes: { label: string; type: keyof typeof typeMeta }[] = [
                 { label: 'J. Doe', type: 'user' },
@@ -4016,52 +4072,339 @@ onStackMinimizedChange,
                 { label: 'DC1-SW-CORE-01', type: 'asset' },
                 { label: 'LG Monitor', type: 'asset' },
               ];
+              const center = relView === 'tree' ? { x: 50, y: 14 } : { x: 50, y: 50 };
               const positioned = nodes.map((n, i) => {
+                if (relView === 'tree') {
+                  const x = nodes.length === 1 ? 50 : 8 + (i / (nodes.length - 1)) * 84;
+                  return { ...n, x, y: 74 };
+                }
                 const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
                 return { ...n, x: 50 + 36 * Math.cos(angle), y: 50 + 38 * Math.sin(angle) };
               });
-              return (
-                <div className="px-6 py-6">
-                  {/* Legend */}
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    {Object.values(typeMeta).map((t) => (
-                      <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                        <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.label}
-                      </span>
+              type PosNode = typeof positioned[number];
+
+              const nodeCard = (n: PosNode) => {
+                const m = typeMeta[n.type];
+                return (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
+                    <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+                  </div>
+                );
+              };
+              const centerName = activeAsset?.name || activeTicket?.subject || 'This Asset';
+
+              // NOTE: the type legend (User/Software/Hardware/Asset dots) was removed from
+              // this toolbar — it will be re-placed elsewhere later. A node search sits in
+              // its place: typing highlights matching nodes and fades everything else.
+              const legend = (
+                <div className="flex items-center gap-2">
+                  <div className="relative w-[260px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <input
+                      ref={relSearchRef}
+                      value={relSearch}
+                      onChange={(e) => setRelSearch(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
+                      placeholder="Search...   Ctrl + F | Esc to clear"
+                      className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                    />
+                  </div>
+                  {/* Filter (node types) — sits right next to the search; shows the selected
+                      option in the pill (same pattern as the Relations tab narrow-view filter) */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => setShowRelFilter((v) => !v)}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relFilter ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                        >
+                          <Filter size={14} className={relFilter ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                          <span>{relFilter ?? 'All'}</span>
+                          <ChevronDown size={14} className={`transition-transform ${showRelFilter ? 'rotate-180' : ''} ${relFilter ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Filter</TooltipContent>
+                    </Tooltip>
+                    {showRelFilter && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelFilter(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-[210px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-50 max-h-[320px] overflow-y-auto">
+                          <button
+                            onClick={() => { setRelFilter(null); setShowRelFilter(false); }}
+                            className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relFilter ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                          >
+                            All
+                            {!relFilter && <Check size={14} className="text-[#3D8BD0]" />}
+                          </button>
+                          {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const).map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => { setRelFilter((p) => (p === opt ? null : opt)); setShowRelFilter(false); }}
+                              className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter === opt ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                            >
+                              {opt}
+                              {relFilter === opt && <Check size={14} className="text-[#3D8BD0]" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+
+              const viewBtns = [
+                // Icons mirror what each view actually renders: radial orbit graph ·
+                // top-down hierarchy · numbered relationship list.
+                { key: 'graph', icon: <Orbit size={15} />, title: 'Full view' },
+                { key: 'tree', icon: <Network size={15} />, title: 'Tree view' },
+                { key: 'grid', icon: <ListIcon size={15} />, title: 'Grid view' },
+              ] as const;
+              const controls = (
+                <div className="flex items-center gap-2">
+                  {/* View-mode segmented group */}
+                  <div className="inline-flex items-center rounded-md border border-[#DFE5ED] bg-white p-0.5">
+                    {viewBtns.map((b) => (
+                      <Tooltip key={b.key}>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => setRelView(b.key)} className={`inline-flex items-center justify-center size-7 rounded transition-colors ${relView === b.key ? 'bg-[#3D8BD0] text-white' : 'text-[#6B7280] hover:bg-[#F5F7FA]'}`}>{b.icon}</button>
+                        </TooltipTrigger>
+                        <TooltipContent>{b.title}</TooltipContent>
+                      </Tooltip>
                     ))}
                   </div>
-
-                  {/* Topology */}
-                  <div className="relative w-full h-[520px] rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] overflow-hidden">
-                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                      {positioned.map((n) => (
-                        <line key={n.label} x1="50%" y1="50%" x2={`${n.x}%`} y2={`${n.y}%`} stroke="#CBD5E1" strokeWidth={1.5} />
-                      ))}
-                    </svg>
-
-                    {/* Center: this asset */}
-                    <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}>
-                      <div className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl bg-[#3D8BD0] text-white shadow-md max-w-[180px]">
-                        <Monitor size={20} />
-                        <span className="text-[12px] font-semibold text-center truncate max-w-[150px]">{activeAsset?.name || activeTicket?.subject || 'This Asset'}</span>
-                        <span className="text-[10px] opacity-90">{activeAsset?.id}</span>
-                      </div>
-                    </div>
-
-                    {/* Connected nodes */}
-                    {positioned.map((n) => {
-                      const m = typeMeta[n.type];
-                      return (
-                        <div key={n.label} className="absolute z-10" style={{ left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)' }}>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
-                            <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
-                            <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+                  {/* Refresh */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelKey((k) => k + 1)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><RefreshCw size={15} className="text-[#6b7280]" /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Refresh</TooltipContent>
+                  </Tooltip>
+                  {/* Download */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => setShowRelDownload((v) => !v)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><Download size={15} className="text-[#6b7280]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Download</TooltipContent>
+                    </Tooltip>
+                    {showRelDownload && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelDownload(false)} />
+                        <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                          <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+                          {/* Format */}
+                          <div className="mb-4">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
+                            <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
+                              {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
+                                <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Password Protected toggle */}
+                          <div className="mb-3">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label>
+                            <button onClick={() => setRelDlPwProtected((v) => !v)} role="switch" aria-checked={relDlPwProtected} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${relDlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}>
+                              <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${relDlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+                            </button>
+                          </div>
+                          {/* Attachment password */}
+                          {relDlPwProtected && (
+                            <div className="mb-1">
+                              <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
+                              <div className="relative">
+                                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                                <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                                <button onClick={() => setRelDlShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{relDlShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button>
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </>
+                    )}
                   </div>
+                  {/* Settings → Advanced Configuration side panel */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => { setRelDraft(relConfig); setShowRelSettings(true); }} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${showRelSettings ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}><Settings2 size={15} /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Settings</TooltipContent>
+                  </Tooltip>
+                  {/* Full screen */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelFull((v) => !v)} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${relFull ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}>{relFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+                  </Tooltip>
+                </div>
+              );
+
+              const graphArea = (
+                <div className={`relative w-full h-full overflow-hidden ${relView === 'grid' ? 'bg-white' : ''}`}>
+                  {relView === 'grid' ? (
+                    <div className="p-4 h-full overflow-auto">
+                      <div className="space-y-2.5 min-w-[720px]">
+                        {positioned.map((n, i) => {
+                          const m = typeMeta[n.type];
+                          const rel = n.type === 'user' ? 'Users' : 'Depends On';
+                          return (
+                            <div key={n.label} className="flex items-center gap-3">
+                              <span className="w-6 text-right text-[13px] text-[#64748B] flex-shrink-0">{i + 1}.</span>
+                              {/* Source (this CI) */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md bg-[#3D8BD0] text-white flex-shrink-0"><HardDrive size={14} /></span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{activeAsset?.id ? `${activeAsset.id}: ${centerName}` : centerName}</span>
+                              </div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Relationship type */}
+                              <div className="w-[200px] flex-shrink-0 text-center px-4 py-2.5 rounded-md bg-[#1E293B] text-white text-[13px] font-medium truncate">{rel}</div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Target */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{n.label}</span>
+                              </div>
+                              {/* Remove */}
+                              <button title="Remove relation" className="flex-shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-md border border-[#FCA5A5] text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"><Trash2 size={15} /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <RelationshipGraph
+                      mode={relView as 'graph' | 'tree'}
+                      refreshSignal={relKey}
+                      nodes={nodes}
+                      typeMeta={typeMeta}
+                      centerName={centerName}
+                      centerId={activeAsset?.id}
+                      searchTerm={relSearch}
+                      config={relConfig}
+                      typeFilter={relFilter ? ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[relFilter] ?? null : null}
+                      onOpenNode={(info) => {
+                        // Open the node's record as a tab in this same drawer (same flow as the
+                        // Impact popup's "Open related records"): CI-style nodes → CMDB, the
+                        // rest → Hardware Asset. The opened record shows its own default
+                        // (Overview) tab; THIS asset keeps its Relationship tab when reselected.
+                        onOpenRelation?.({ ticketId: info.id, subject: info.name, type: info.type === 'asset' ? 'CI' : 'Asset', status: 'In Use', priority: 'Medium', assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                      }}
+                      onAddRelation={(info) => setRelAddTarget(info)}
+                      onShowIssues={(info) => setRelIssuesTarget(info)}
+                      extraChildren={relExtras}
+                    />
+                  )}
+                </div>
+              );
+
+              // Advanced Configuration side panel: live preview (uses the DRAFT config) +
+              // functional sliders; Apply commits the draft to the real graph.
+              const viewLabel = relView === 'graph' ? 'Full View' : relView === 'tree' ? 'Tree View' : 'Grid View';
+              const settingsPanel = showRelSettings ? (
+                <>
+                  <div className="fixed inset-0 bg-black/30 z-[10004]" onClick={() => setShowRelSettings(false)} />
+                  <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                      <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
+                      <button onClick={() => setShowRelSettings(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {/* Live preview — driven by the draft values */}
+                      <div className="h-[230px] border-b border-[#E5E7EB] overflow-hidden">
+                        <RelationshipGraph
+                          mode={relView === 'tree' ? 'tree' : 'graph'}
+                          nodes={nodes}
+                          typeMeta={typeMeta}
+                          centerName={centerName}
+                          centerId={activeAsset?.id}
+                          config={relDraft}
+                          previewMode
+                        />
+                      </div>
+                      <div className="px-6 py-5 space-y-6">
+                        <div>
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Force Simulation</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Node Distance" info="Extra spacing between nodes on every group ring." min={0} max={200} step={5} value={relDraft.nodeDistance} onChange={(v) => setRelDraft((p) => ({ ...p, nodeDistance: v }))} />
+                            <RelSliderRow label="Repulsion Strength" info="How strongly groups push each other apart when they get close." min={0} max={5} step={0.1} value={relDraft.repulsion} onChange={(v) => setRelDraft((p) => ({ ...p, repulsion: v }))} />
+                            <RelSliderRow label="Gravity" info="How strongly each group is pulled toward its parent node." min={0.02} max={0.9} step={0.01} value={relDraft.gravity} onChange={(v) => setRelDraft((p) => ({ ...p, gravity: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Zoom</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Min Zoom" info="How far the user can zoom out." min={0.05} max={0.5} step={0.01} value={relDraft.minZoom} onChange={(v) => setRelDraft((p) => ({ ...p, minZoom: v }))} />
+                            <RelSliderRow label="Max Zoom" info="How far the user can zoom in." min={2} max={5} step={0.5} value={relDraft.maxZoom} onChange={(v) => setRelDraft((p) => ({ ...p, maxZoom: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Labels</h3>
+                          <div className="grid grid-cols-2 gap-x-8">
+                            <RelSliderRow label="Label Width" info="Maximum width of each node's name label before it truncates." min={20} max={300} step={10} value={relDraft.labelWidth} onChange={(v) => setRelDraft((p) => ({ ...p, labelWidth: v }))} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                      <button onClick={() => setRelDraft(DEFAULT_REL_GRAPH_CONFIG)} className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Reset to Defaults</button>
+                      <button onClick={() => { setRelConfig(relDraft); setShowRelSettings(false); }} className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                    </div>
+                  </div>
+                </>
+              ) : null;
+
+              // Add Relationship side panel (opened from a node's hover "+")
+              const addRelPanel = relAddTarget ? (
+                <AddRelationshipPanel
+                  sourceName={relAddTarget.name}
+                  onClose={() => setRelAddTarget(null)}
+                  onAdd={(items) => {
+                    setRelExtras((p) => ({ ...p, [relAddTarget.id]: [...(p[relAddTarget.id] ?? []), ...items] }));
+                    setRelAddTarget(null);
+                  }}
+                />
+              ) : null;
+
+              // Active Issues side panel (opened from a red node's hover-card strip);
+              // clicking a record opens its real detail page as a tab in this drawer.
+              const issuesPanel = relIssuesTarget ? (
+                <ActiveIssuesPanel
+                  assetName={relIssuesTarget.name}
+                  onClose={() => setRelIssuesTarget(null)}
+                  onOpenIssue={(issue, kind) => {
+                    setRelIssuesTarget(null);
+                    onOpenRelation?.({ ticketId: issue.id, subject: issue.subject, type: kind, status: issue.status, priority: issue.priority, assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                  }}
+                />
+              ) : null;
+
+              if (relFull) {
+                return (
+                  <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">{legend}{controls}</div>
+                    <div className="flex-1 min-h-0">{graphArea}</div>
+                    {settingsPanel}
+                    {addRelPanel}
+                    {issuesPanel}
+                  </div>
+                );
+              }
+              return (
+                // Fill the viewport below the sticky tab strip (~48px) so the dotted canvas
+                // reaches the bottom edge without making the page scroll.
+                <div className="h-[calc(100%-48px)] flex flex-col">
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]">{legend}{controls}</div>
+                  <div className="flex-1 min-h-0">{graphArea}</div>
+                  {settingsPanel}
+                  {addRelPanel}
+                  {issuesPanel}
                 </div>
               );
             })()}
