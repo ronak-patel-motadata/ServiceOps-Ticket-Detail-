@@ -2086,43 +2086,6 @@ onStackMinimizedChange,
           </div>
           <div className="flex items-center gap-2">
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy License URL" />
-            <div className="relative">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-                    onClick={() => setIsWatching(!isWatching)}
-                    onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
-                    onMouseLeave={() => setShowWatchersDropdown(false)}
-                  >
-                    {isWatching ? <EyeOff size={16} className="text-[#6b7280]" /> : <Eye size={16} className="text-[#6b7280]" />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{isWatching ? 'Unwatch' : 'Watch'}</TooltipContent>
-              </Tooltip>
-              {showWatchersDropdown && isWatching && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
-                  onMouseEnter={() => setShowWatchersDropdown(true)}
-                  onMouseLeave={() => setShowWatchersDropdown(false)}
-                >
-                  <div className="px-3 py-2 border-b border-[#e5e7eb]">
-                    <div className="text-[13px] font-medium text-[#111827]">Watchers ({watchers.length})</div>
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {watchers.map((watcher) => (
-                      <div key={watcher.id} className="px-3 py-2 hover:bg-[#f9fafb] cursor-pointer flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-[#3D8BD0] text-white flex items-center justify-center text-[11px] font-medium">{watcher.avatar}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#111827] truncate leading-tight">{watcher.name}</div>
-                          <div className="text-[11px] text-[#6b7280] truncate mt-0.5">{watcher.email}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>

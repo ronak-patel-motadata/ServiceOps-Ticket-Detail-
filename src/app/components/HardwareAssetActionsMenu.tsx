@@ -106,6 +106,10 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
           <Section label="History" />
           <Item label="Used By History" icon={<History size={15} />} />
           <Item label="Location History" icon={<History size={15} />} />
+          <Divider />
+          <Section label="Record" />
+          <Item label="Archive" icon={<Archive size={15} />} />
+          <Item label="Print" icon={<Printer size={15} />} />
         </div>
       )}
 

@@ -99,6 +99,26 @@ export const ASSET_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'ed
   { label: 'Assignment Date', type: 'date' },
 ];
 
+/** "View more" fields for CMDB CIs — CI Group instead of Asset Group; no Category /
+ * Asset Condition / Movement Status / Under Change Control / Acquisition Date. */
+export const CMDB_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'editable' | 'date' | 'location'; options?: string[] }[] = [
+  { label: 'CI Group', type: 'static' },
+  { label: 'Product', type: 'static' },
+  { label: 'Used By', type: 'select', options: ['Hemal Patel', 'John Doe', 'Jane Smith', 'Ravi Kumar', 'Sara Lee'] },
+  { label: 'Location', type: 'location', options: ['KRISHNAPATNAM', 'AHMEDABAD', 'MUMBAI', 'DELHI', 'BANGALORE'] },
+  { label: 'Department', type: 'select', options: ['IT', 'HR', 'Finance', 'Operations', 'Sales'] },
+  { label: 'Host Name', type: 'editable' },
+  { label: 'Domain Name', type: 'editable' },
+  { label: 'UUID', type: 'editable' },
+  { label: 'IP Address', type: 'editable' },
+  { label: 'MAC Address', type: 'editable' },
+  { label: 'Subnet Mask', type: 'editable' },
+  { label: 'Vendor', type: 'select', options: ['Lenovo', 'Dell', 'HP', 'Apple', 'Microsoft'] },
+  { label: 'Business Service', type: 'select', options: ['Core Banking', 'Payments', 'CRM', 'ERP'] },
+  { label: 'Origin', type: 'static' },
+  { label: 'Assignment Date', type: 'date' },
+];
+
 /** "View more" fields for Non-IT assets — like ASSET_MORE_FIELDS but without the network fields (Host Name/IP/MAC/…) and with a Last-Scan field. */
 export const NONIT_MORE_FIELDS: { label: string; type: 'static' | 'select' | 'editable' | 'date' | 'location'; options?: string[] }[] = [
   { label: 'Asset Group', type: 'static' },
@@ -342,9 +362,11 @@ interface AssetFieldsProps {
   contractMode?: boolean;
   // Purchase variant: shows ONLY the purchase fields (status/order number/cost/cost center/dates).
   purchaseMode?: boolean;
+  // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
+  cmdbMode?: boolean;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, cmdbMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -875,7 +897,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     <div className="px-4 pb-4 space-y-2" ref={ref}>
       {/* Asset Type */}
       {show('Asset Type') && (
-      <FieldRow label="Asset Type" pinned={pinnedFields.includes('Asset Type')} onPin={() => togglePinField('Asset Type')}>
+      <FieldRow label={cmdbMode ? 'CI Type' : 'Asset Type'} pinned={pinnedFields.includes('Asset Type')} onPin={() => togglePinField('Asset Type')}>
         <div className="group relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none z-10">{assetTypeIcon(assetType)}</span>
           <button className={`${triggerClass} pl-9`} title={assetType} onClick={() => toggle('type')}>{assetType || 'Select'}</button>
@@ -1082,7 +1104,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
 
       {/* CI (hardware assets only) */}
       {!softwareMode && show('CI') && (
-      <FieldRow label="CI" pinned={pinnedFields.includes('CI')} onPin={() => togglePinField('CI')}>
+      <FieldRow label={cmdbMode ? 'Asset' : 'CI'} pinned={pinnedFields.includes('CI')} onPin={() => togglePinField('CI')}>
         <div className="px-0 py-2">
           {ci
             ? <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline">{ci}</span>
@@ -1092,7 +1114,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       )}
 
       {/* Additional fields behind "View more" — per-module field set (license/contract/purchase render their own set above and never reach here) */}
-      {(showMore || q) && (nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}
+      {(showMore || q) && (cmdbMode ? CMDB_MORE_FIELDS : nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}
 
       {/* View more / View less toggle (hidden while searching) */}
       {!q && (

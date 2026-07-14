@@ -2727,7 +2727,7 @@ onStackMinimizedChange,
                       </div>
                     )}
                   </div>
-                  <div className="cursor-pointer" onClick={() => setAiSummaryExpanded(!aiSummaryExpanded)}>
+                  <div title="Toggle AI Summary" className="cursor-pointer" onClick={() => setAiSummaryExpanded(!aiSummaryExpanded)}>
                     {aiSummaryExpanded ? (
                       <ChevronUp size={16} className="text-[#7B8FA5]" />
                     ) : (

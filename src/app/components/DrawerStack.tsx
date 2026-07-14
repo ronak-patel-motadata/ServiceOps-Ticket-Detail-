@@ -19,6 +19,7 @@ import { mockAssets as mockHardware } from './HardwareAssetsListPage';
 import { mockContracts } from './ContractsListPage';
 import { mockPurchases } from './PurchasesListPage';
 import { mockCis } from './CmdbListPage';
+import { DrawerShortcuts } from './DrawerShortcuts';
 
 export type StackModule =
   | 'request' | 'problem' | 'change' | 'release'
@@ -141,10 +142,27 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     }
   }
 
+  // Cycle the open records (also serves "next/prev tab" since open items ARE the records here).
+  const cycleRecord = (dir: 1 | -1) => {
+    if (!active || stack.length < 2) return;
+    const i = stack.findIndex((s) => s.key === active.key);
+    setActiveKey(stack[(i + dir + stack.length) % stack.length].key);
+  };
+
   return (
     <Ctx.Provider value={{ open, openRelation }}>
       {children}
       {drawer}
+      <DrawerShortcuts
+        active={!!active}
+        minimized={minimized}
+        toggleMinimize={() => setMinimized((m) => !m)}
+        closeActive={() => active && closeByStackId(active.id)}
+        closeAll={closeAll}
+        nextRecord={() => cycleRecord(1)}
+        prevRecord={() => cycleRecord(-1)}
+        activeId={active?.id}
+      />
     </Ctx.Provider>
   );
 }

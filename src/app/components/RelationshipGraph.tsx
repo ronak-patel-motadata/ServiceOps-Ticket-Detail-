@@ -675,7 +675,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       : hoverRowsFor(name, d.nodeType ?? 'asset');
     const issues = isCenter ? 0 : activeIssuesFor(name).openCount;
     // Dynamic placement so the card is never clipped by the canvas edges.
-    const cardH = 60 + det.rows.length * 22 + (issues > 0 ? 36 : 0); // estimate (header + divider + rows + alert strip)
+    const cardH = 76 + det.rows.length * 22 + (issues > 0 ? 36 : 0); // estimate (two-line header + divider + rows + alert strip)
     const GAP = 12, PAD = 8;
     // Flip below the node when there isn't room above.
     const placement: 'above' | 'below' = yTop - GAP - cardH < PAD ? 'below' : 'above';
@@ -1277,30 +1277,32 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
             <div className="absolute size-2.5 rotate-45 border-t border-l border-[#E5E7EB] bg-white" style={{ left: hoverCard.arrowLeft - 5, top: -5 }} />
           )}
           <div className="w-[248px] rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.12)]">
-            <div className="flex items-center gap-2">
-              <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0 [&_svg]:size-3.5" style={{ backgroundColor: hoverCard.color }}>{hoverCard.icon}</span>
+            <div className="flex items-start gap-2">
+              <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0 mt-0.5 [&_svg]:size-3.5" style={{ backgroundColor: hoverCard.color }}>{hoverCard.icon}</span>
               {onOpenNode && hoverCard.type !== 'center' && hoverCard.type !== 'user' ? (
-                // The ID pill, name AND the ↗ are one click target → opens the record.
+                // Two-line header (ID on top, subject below) — the whole block opens the record.
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => { const info = { id: hoverCard.id, name: hoverCard.name, type: hoverCard.type as RelType }; setHoverCard(null); onOpenNode(info); }}
-                      className="group/hc flex min-w-0 flex-1 items-center gap-2 rounded text-left"
+                      className="group/hc flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded text-left"
                     >
-                      {hoverCard.id && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] flex-shrink-0">{hoverCard.id}</span>}
-                      <span className="truncate text-[12.5px] font-semibold text-[#364658] transition-colors group-hover/hc:text-[#3D8BD0] group-hover/hc:underline">{hoverCard.name}</span>
-                      <span className="ml-auto flex size-5 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors group-hover/hc:bg-[#EAF2FB] group-hover/hc:text-[#3D8BD0]">
-                        <ArrowUpRight size={13} />
+                      <span className="flex w-full items-center gap-1.5">
+                        {hoverCard.id && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] flex-shrink-0">{hoverCard.id}</span>}
+                        <span className="ml-auto flex size-5 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors group-hover/hc:bg-[#EAF2FB] group-hover/hc:text-[#3D8BD0]">
+                          <ArrowUpRight size={13} />
+                        </span>
                       </span>
+                      <span className="w-full break-words text-[12.5px] font-semibold leading-snug text-[#364658] transition-colors group-hover/hc:text-[#3D8BD0]">{hoverCard.name}</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Open record</TooltipContent>
                 </Tooltip>
               ) : (
-                <>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                   {hoverCard.id && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] flex-shrink-0">{hoverCard.id}</span>}
-                  <span className="truncate text-[12.5px] font-semibold text-[#364658]">{hoverCard.name}</span>
-                </>
+                  <span className="w-full break-words text-[12.5px] font-semibold leading-snug text-[#364658]">{hoverCard.name}</span>
+                </div>
               )}
             </div>
             <div className="mt-2 space-y-1.5 border-t border-[#F0F1F3] pt-2">

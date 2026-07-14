@@ -13,6 +13,7 @@ interface TicketFieldsAccordionProps {
   assetState?: AssetFieldState;
   // When true (software assets), render the software field set (Software Type, no CI/View more).
   softwareMode?: boolean;
+  cmdbMode?: boolean;
   // When true (Non-IT assets), like softwareMode but without the Software Type field.
   nonItMode?: boolean;
   licenseMode?: boolean;
@@ -195,6 +196,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     assetMode = false,
     assetState,
     softwareMode = false,
+    cmdbMode = false,
     nonItMode = false,
     licenseMode = false,
     contractMode = false,
@@ -439,6 +441,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           togglePinField={togglePinField}
           propertiesSearchQuery={propertiesSearchQuery}
           softwareMode={softwareMode}
+          cmdbMode={cmdbMode}
           nonItMode={nonItMode}
           licenseMode={licenseMode}
           contractMode={contractMode}

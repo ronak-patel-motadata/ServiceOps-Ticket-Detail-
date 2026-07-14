@@ -30,6 +30,7 @@ interface TicketPropertiesPanelProps {
   assetState?: AssetFieldState;
   // Software-asset variant of the asset field set (Software Type, no CI/View more)
   softwareMode?: boolean;
+  cmdbMode?: boolean;
   // Non-IT variant: like softwareMode but without the Software Type field
   nonItMode?: boolean;
   // Software-license variant of the asset field set (Product + License Type only)
@@ -328,6 +329,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     demoCustomFields = false,
     assetMode = false,
     softwareMode = false,
+    cmdbMode = false,
     nonItMode = false,
     licenseMode = false,
     contractMode = false,
@@ -1223,6 +1225,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </h2>
             {activeGroup === 'chatbot' && (
               <button
+                title="Close AI"
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 onClick={() => {
                   // Start closing animation
@@ -1660,6 +1663,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           statusGroupLabel={statusGroupLabel}
           assetMode={assetMode}
           softwareMode={softwareMode}
+          cmdbMode={cmdbMode}
           nonItMode={nonItMode}
           licenseMode={licenseMode}
           contractMode={contractMode}

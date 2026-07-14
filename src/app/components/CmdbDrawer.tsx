@@ -11,7 +11,8 @@
  * to help reduce the file size where possible.
  */
 import { Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
-import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild } from './RelationshipGraph';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, activeIssuesFor } from './RelationshipGraph';
+import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { AddRelationshipPanel } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
 import { RelSliderRow } from './RelSliderRow';
@@ -212,25 +213,20 @@ onStackMinimizedChange,
   const [assetGroup, setAssetGroup] = useState('Unassigned');
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
-    'Asset Group': 'Anblicks Group',
+    'CI Group': 'Unassigned',
     'Product': '',
     'Used By': '',
-    'Location': 'KRISHNAPATNAM',
-    'Category': '',
+    'Location': '',
     'Department': '',
-    'Host Name': 'DESKTOP-7ABJPOF',
-    'Domain Name': 'WORKGROUP',
-    'UUID': '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093',
-    'IP Address': '192.168.1.60',
-    'MAC Address': 'C8:09:A8:65:58:E7',
-    'Subnet Mask': '255.255.255.0',
+    'Host Name': 'inmu01vmipam-p01',
+    'Domain Name': '',
+    'UUID': '',
+    'IP Address': '192.168.100.180',
+    'MAC Address': '',
+    'Subnet Mask': '',
     'Vendor': '',
-    'Asset Condition': 'Good',
-    'Movement Status': 'None',
-    'Under Change Control': 'Yes',
-    'Business Service': 'Core Banking',
-    'Origin': 'Agent',
-    'Acquisition Date': '',
+    'Business Service': '',
+    'Origin': 'Manual',
     'Assignment Date': '',
   });
 
@@ -1194,9 +1190,11 @@ onStackMinimizedChange,
         allTabs = [...baseTabsForOthers];
       }
       
-      // Add Approvals tab after Relationship (if not INC-32)
+      // Add Approvals tab after Running Process (if not INC-32) — Running Process must stay
+      // immediately next to Software, so dynamic tabs insert AFTER it.
       if (activeTicket?.id !== 'INC-32') {
-        const anchor = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship')
+        const anchor = allTabs.indexOf('running-process') !== -1 ? allTabs.indexOf('running-process')
+          : allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship')
           : allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline')
           : allTabs.indexOf('software');
         allTabs.splice(anchor + 1, 0, 'approvals');
@@ -2583,81 +2581,70 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            <span className="text-[12px] text-[#6b7280] block mt-0.5 pl-[18px]">Created at 26/02/2025 15:02 (6 days ago)</span>
+            {/* CI header KPI strip — CI Type · Status · Impact · Managed By Group · Managed By
+                · Open Issues · Created (mirrors the Hardware asset header row). */}
+            {(() => {
+              const items: HeaderKpiItem[] = [];
+              const impactDot = assetImpact === 'High' ? '#EF4444' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B';
+              const statusDot = assetStatus === 'In Use' ? '#22A06B' : assetStatus === 'Available' ? '#3D8BD0' : '#6B7280';
+              const openIssues = activeIssuesFor(activeAsset?.name ?? '').openCount;
+              if (activeAsset?.assetType) items.push({ key: 'citype', tip: `CI Type: ${activeAsset.assetType}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">CI Type</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{activeAsset.assetType}</span>
+                </span>
+              ) });
+              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
+                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
+                </span>
+              ) });
+              items.push({ key: 'status', tip: `Status: ${assetStatus || '—'}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusDot }} />
+                  <span className="text-[12px] font-medium text-[#364658]">{assetStatus || '—'}</span>
+                </span>
+              ) });
+              items.push({ key: 'impact', tip: `Impact: ${assetImpact}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Impact</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: impactDot }} />
+                  <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
+                </span>
+              ) });
+              if (assetGroup) items.push({ key: 'group', tip: `Managed By Group: ${assetGroup}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By Group</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{assetGroup}</span>
+                </span>
+              ) });
+              items.push({ key: 'managedby', tip: `Managed By: ${assetManager.name}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
+                  <span className={`text-[12px] font-medium truncate max-w-[140px] ${assetManager.name === 'Unassigned' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{assetManager.name}</span>
+                </span>
+              ) });
+              if (openIssues > 0) items.push({ key: 'issues', tip: `${openIssues} open linked issue${openIssues > 1 ? 's' : ''}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Open Issues</span>
+                  <span className="size-2 rounded-full flex-shrink-0 bg-[#EF4444]" />
+                  <span className="text-[12px] font-medium text-[#DC2626]">{openIssues}</span>
+                </span>
+              ) });
+              return <div className="pl-[18px] mt-0.5"><HeaderKpiRow items={items} /></div>;
+            })()}
           </div>
           <div className="flex items-center gap-2">
-            {/* Layout toggle — ServiceNow-style "Dependency Views": map-first CI experience */}
-            <div className="inline-flex h-8 items-center rounded-md border border-[#DFE5ED] bg-white p-0.5 mr-1">
-              <button
-                onClick={() => setCiView('map')}
-                className={`inline-flex h-full items-center gap-1.5 rounded px-3 text-[12.5px] font-medium transition-colors ${ciView === 'map' ? 'bg-[#3D8BD0] text-white shadow-sm' : 'text-[#6B7280] hover:bg-[#F5F7FA]'}`}
-              >
-                <Network size={14} />
-                Dependency Map
-              </button>
-              <button
-                onClick={() => setCiView('details')}
-                className={`inline-flex h-full items-center gap-1.5 rounded px-3 text-[12.5px] font-medium transition-colors ${ciView === 'details' ? 'bg-[#3D8BD0] text-white shadow-sm' : 'text-[#6B7280] hover:bg-[#F5F7FA]'}`}
-              >
-                <LayoutGrid size={14} />
-                CI Details
-              </button>
-            </div>
-            {ciView === 'details' && (<>
+            {/* Header actions render in BOTH views so the layout toggle doesn't shift on switch */}
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
-            <div className="relative">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]" 
-                    onClick={() => setIsWatching(!isWatching)}
-                    onMouseEnter={() => isWatching && setShowWatchersDropdown(true)}
-                    onMouseLeave={() => setShowWatchersDropdown(false)}
-                  >
-                    {isWatching ? (
-                      <EyeOff size={16} className="text-[#6b7280]" />
-                    ) : (
-                      <Eye size={16} className="text-[#6b7280]" />
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isWatching ? 'Unwatch' : 'Watch'}
-                </TooltipContent>
-              </Tooltip>
-              
-              {/* Watchers Dropdown */}
-              {showWatchersDropdown && isWatching && (
-                <div 
-                  className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
-                  onMouseEnter={() => setShowWatchersDropdown(true)}
-                  onMouseLeave={() => setShowWatchersDropdown(false)}
-                >
-                  <div className="px-3 py-2 border-b border-[#e5e7eb]">
-                    <div className="text-[13px] font-medium text-[#111827]">Watchers ({watchers.length})</div>
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {watchers.map((watcher) => (
-                      <div 
-                        key={watcher.id} 
-                        className="px-3 py-2 hover:bg-[#f9fafb] cursor-pointer flex items-center gap-2"
-                      >
-                        <div className="w-6 h-6 rounded bg-[#3D8BD0] text-white flex items-center justify-center text-[11px] font-medium">
-                          {watcher.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#111827] truncate leading-tight">{watcher.name}</div>
-                          <div className="text-[11px] text-[#6b7280] truncate mt-0.5">{watcher.email}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
+            {/* Add Relation is hidden in the Dependency Map view (relationships are added there
+                via the on-node "+" affordance); it shows only in CI Details. */}
+            {ciView === 'details' && (
             <div className="relative">
               <div className="inline-flex items-stretch h-8">
                 <button
@@ -2706,6 +2693,25 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
+            )}
+            {/* Layout toggle — segmented control (both views visible, active one highlighted),
+                positioned right of Add Relation. */}
+            <div className="inline-flex h-8 items-center rounded border border-[#DFE5ED] bg-[#F1F3F6] p-0.5">
+              <button
+                onClick={() => setCiView('map')}
+                className={`inline-flex h-full items-center gap-1.5 rounded px-3 text-[12.5px] font-medium transition-colors ${ciView === 'map' ? 'bg-[#3D8BD0] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#364658]'}`}
+              >
+                <Network size={14} />
+                Dependency Map
+              </button>
+              <button
+                onClick={() => setCiView('details')}
+                className={`inline-flex h-full items-center gap-1.5 rounded px-3 text-[12.5px] font-medium transition-colors ${ciView === 'details' ? 'bg-[#3D8BD0] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#364658]'}`}
+              >
+                <LayoutGrid size={14} />
+                CI Details
+              </button>
+            </div>
             <HardwareAssetActionsMenu
               cmdb
               onOpenApprovalPopup={() => {
@@ -2714,7 +2720,6 @@ onStackMinimizedChange,
               }}
               onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
             />
-            </>)}
           </div>
         </div>
 
@@ -3252,45 +3257,8 @@ onStackMinimizedChange,
               </div>
               </div>
 
-              {/* Group: Financials & Contracts */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
-                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                        <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                      { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                    ].map((c) => (
-                      <button
-                        key={c.label}
-                        onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                        className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                      >
-                        <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                        <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              </div>
+              {/* CMDB has no Financial snapshot / Contracts & Purchases cards — those are
+                  asset-financial concerns; CIs focus on configuration & dependencies. */}
 
             </div>
             )}
@@ -7715,6 +7683,7 @@ onStackMinimizedChange,
             showSla={false}
             fieldsTitle="Asset Fields"
             assetMode={true}
+            cmdbMode={true}
             assetState={assetState}
             agentInfo={agentInfo}
             activeGroup={activeGroup}
