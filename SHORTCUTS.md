@@ -44,7 +44,7 @@ Implemented once in **`src/app/components/DrawerShortcuts.tsx`**, mounted by
 | `Alt + N` | Add Note |
 | `Alt + A` | Expand / collapse the AI Summary card (Ticket / Problem / Change / Release) |
 | `Alt + O` | Open the 3-dot actions menu |
-| `?` | Show the shortcuts cheat-sheet popup |
+| `Shift + ?` | Show the shortcuts cheat-sheet popup |
 
 **Notes**
 - Open items *are* the records in the drawer-stack architecture, so **next/prev record**

@@ -14,7 +14,7 @@ import {
   useEdgesState,
   useInternalNode,
   useStore,
-  getStraightPath,
+  getSmoothStepPath,
   type Node,
   type Edge,
   type EdgeProps,
@@ -44,6 +44,8 @@ export interface RelGraphConfig {
   maxZoom: number;
   /** Max width (px) of node labels. */
   labelWidth: number;
+  /** When true, nodes can't be dragged/moved manually (the layout is locked for everyone). */
+  locked: boolean;
 }
 export const DEFAULT_REL_GRAPH_CONFIG: RelGraphConfig = {
   nodeDistance: 20,
@@ -52,6 +54,7 @@ export const DEFAULT_REL_GRAPH_CONFIG: RelGraphConfig = {
   minZoom: 0.3,
   maxZoom: 2.5,
   labelWidth: 150,
+  locked: false,
 };
 
 interface RelationshipGraphProps {
@@ -82,6 +85,10 @@ interface RelationshipGraphProps {
   extraChildren?: Record<string, ExtraRelChild[]>;
   /** Mock-data profile: 'cmdb' generates CI-style names + varied relation labels. */
   mockProfile?: 'cmdb';
+  /** Bump to expand EVERY node at once (toolbar "Expand all"). */
+  expandAllSignal?: number;
+  /** Bump to collapse every node back to the first level (toolbar "Collapse all"). */
+  collapseAllSignal?: number;
 }
 
 /* Pick the most accurate icon from the node's NAME (falls back to its type). */
@@ -317,8 +324,28 @@ function FloatingEdge({ id, source, target, style, data }: EdgeProps) {
   const sy = s.internals.positionAbsolute.y + (s.measured.height ?? 0) / 2;
   const tx = t.internals.positionAbsolute.x + (t.measured.width ?? 0) / 2;
   const ty = t.internals.positionAbsolute.y + (t.measured.height ?? 0) / 2;
-  const [path] = getStraightPath({ sourceX: sx, sourceY: sy, targetX: tx, targetY: ty });
-  const d = data as { hl?: boolean; outward?: boolean; dim?: boolean; rel?: string } | undefined;
+  const d = data as { hl?: boolean; outward?: boolean; dim?: boolean; rel?: string; tree?: boolean } | undefined;
+  let path: string;
+  let mlx: number, mly: number; // point on the line for the relation label
+  if (d?.tree) {
+    // TREE view: rounded-elbow org-chart connector — parent drops from its BOTTOM to a horizontal
+    // bus at the mid-height, then down into each child's TOP, with rounded corners on both sides.
+    const sBottom = s.internals.positionAbsolute.y + (s.measured.height ?? 0);
+    const tTop = t.internals.positionAbsolute.y;
+    const [p, lx, ly] = getSmoothStepPath({ sourceX: sx, sourceY: sBottom, sourcePosition: Position.Bottom, targetX: tx, targetY: tTop, targetPosition: Position.Top, borderRadius: 16 });
+    path = p; mlx = lx; mly = ly;
+  } else {
+    // FULL view: swirled quadratic Bézier — control point bowed PERPENDICULAR to the straight
+    // line with a consistent handedness, so every spoke sweeps out the same rotational way and
+    // the graph reads as a smooth pinwheel/spiral (Motadata topology style).
+    const dxE = tx - sx, dyE = ty - sy;
+    const len = Math.hypot(dxE, dyE) || 1;
+    const bow = len * 0.22;
+    const cpx = (sx + tx) / 2 + (-dyE / len) * bow;
+    const cpy = (sy + ty) / 2 + (dxE / len) * bow;
+    path = `M ${sx},${sy} Q ${cpx},${cpy} ${tx},${ty}`;
+    mlx = 0.25 * sx + 0.5 * cpx + 0.25 * tx; mly = 0.25 * sy + 0.5 * cpy + 0.25 * ty;
+  }
   const st = d?.hl
     ? {
         stroke: '#3D8BD0',
@@ -331,8 +358,9 @@ function FloatingEdge({ id, source, target, style, data }: EdgeProps) {
   // the edge is highlighted by a hover/click on one of its nodes.
   let labelEl: React.ReactNode = null;
   if (d?.hl && d?.rel) {
-    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-    let angle = (Math.atan2(ty - sy, tx - sx) * 180) / Math.PI;
+    // Label rides on the actual line (curve midpoint for full view, bus point for tree view).
+    const mx = mlx, my = mly;
+    let angle = d?.tree ? 0 : (Math.atan2(ty - sy, tx - sx) * 180) / Math.PI;
     if (angle > 90 || angle < -90) angle += 180; // keep the text readable left-to-right
     labelEl = (
       <EdgeLabelRenderer>
@@ -607,7 +635,7 @@ function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setSho
 
 /* ------------------------------ Inner (uses hooks) ------------------------------ */
 
-function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren, mockProfile }: RelationshipGraphProps) {
+function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren, mockProfile, expandAllSignal, collapseAllSignal }: RelationshipGraphProps) {
   const rf = useReactFlow();
   const cfg: RelGraphConfig = { ...DEFAULT_REL_GRAPH_CONFIG, ...(config ?? {}) };
 
@@ -744,7 +772,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
           cursor += 1;
         }
         nodesOut.push(makeNode(t, x, depth * 200, expanded.has(t.id)));
-        edgesOut.push({ id: `e-${t.id}`, source: parentId, target: t.id, type: 'floating', data: { rel: t.rel ?? (t.type === 'user' ? 'Users' : 'Depends On') } });
+        edgesOut.push({ id: `e-${t.id}`, source: parentId, target: t.id, type: 'floating', data: { rel: t.rel ?? (t.type === 'user' ? 'Users' : 'Depends On'), tree: true } });
         return x;
       };
       tree.forEach((t) => place(t, 1, 'center'));
@@ -781,8 +809,11 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       // springs pulling each disc toward its parent + collision pushing discs apart — lets
       // the clusters settle organically (like classic topology tools) with no overlaps and
       // no reserved space. It is fully deterministic: fixed seed layout + fixed iterations.
-      interface Hub { id: string; t: TreeNode | null; parent: Hub | null; ringR: number; discR: number; x: number; y: number; fixed: boolean; kids: Hub[] }
-      const centerHub: Hub = { id: 'center', t: null, parent: null, ringR: ringFor(tree.length, CENTER_CLEAR), discR: ringFor(tree.length, CENTER_CLEAR) + NODE_R, x: 0, y: 0, fixed: true, kids: [] };
+      // `footR` = radius of the hub's WHOLE expanded subtree (computed bottom-up below); it's
+      // used for sibling/cousin separation so big subtrees repel by their true footprint, not
+      // just the immediate ring. `path` = ancestor ids (for skipping ancestor-descendant pairs).
+      interface Hub { id: string; t: TreeNode | null; parent: Hub | null; ringR: number; discR: number; footR: number; x: number; y: number; fixed: boolean; kids: Hub[]; path: Set<string> }
+      const centerHub: Hub = { id: 'center', t: null, parent: null, ringR: ringFor(tree.length, CENTER_CLEAR), discR: ringFor(tree.length, CENTER_CLEAR) + NODE_R, footR: 0, x: 0, y: 0, fixed: true, kids: [], path: new Set(['center']) };
       const hubs: Hub[] = [centerHub];
       const hubMap = new Map<string, Hub>();
       const collect = (t: TreeNode, parentHub: Hub) => {
@@ -790,13 +821,50 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         if (!ch.length) return;
         const ringR = ringFor(ch.length, CLEAR);
         const pin = manualPos.current[t.id];
-        const h: Hub = { id: t.id, t, parent: parentHub, ringR, discR: ringR + NODE_R, x: pin?.x ?? 0, y: pin?.y ?? 0, fixed: !!pin, kids: [] };
+        const h: Hub = { id: t.id, t, parent: parentHub, ringR, discR: ringR + NODE_R, footR: ringR + NODE_R, x: pin?.x ?? 0, y: pin?.y ?? 0, fixed: !!pin, kids: [], path: new Set(parentHub.path).add(t.id) };
         parentHub.kids.push(h);
         hubs.push(h);
         hubMap.set(t.id, h);
         ch.forEach((c) => collect(c, h));
       };
       tree.forEach((t) => collect(t, centerHub));
+      // Bottom-up subtree footprint: a hub extends by its ring + its largest child hub's footprint.
+      // hubs are in DFS (parent-before-child) order, so iterate in reverse to fill children first.
+      for (let i = hubs.length - 1; i >= 0; i--) {
+        const h = hubs[i];
+        let maxChild = 0;
+        h.kids.forEach((c) => { if (c.footR > maxChild) maxChild = c.footR; });
+        h.footR = Math.max(h.discR, h.ringR + maxChild);
+      }
+      // SECTOR PINNING (first level): give each first-level branch its own angular wedge sized
+      // by its subtree footprint, and PIN the branch root there. Big branches get proportionally
+      // more of the circle (blended with an equal-share floor so tiny branches aren't flung far
+      // out), and each root sits at a radius where its whole footprint fits inside its wedge — so
+      // two large subtrees can never crowd the same arc. Deeper hubs still relax (spring + cone +
+      // collision) around their pinned root, staying inside the wedge. This is the fix for
+      // "node groups overlap on Expand all": the force sim alone couldn't reliably pull two big
+      // adjacent branches apart, so we reserve non-overlapping angular territory up front.
+      {
+        const roots = centerHub.kids.filter((h) => !h.fixed);
+        if (roots.length > 1) {
+          const totalFoot = roots.reduce((s, h) => s + h.footR, 0) || 1;
+          const n = roots.length;
+          let acc = 0;
+          roots.forEach((h) => {
+            const frac = 0.6 * (h.footR / totalFoot) + 0.4 * (1 / n); // ∝ footprint, floored at ~equal share
+            const theta = 2 * Math.PI * frac;                          // this branch's angular width
+            const ang = -Math.PI / 2 + 2 * Math.PI * (acc + frac / 2); // its wedge centre
+            acc += frac;
+            // Radius so the footprint fits inside the wedge (R·sin(θ/2) ≥ footR), never closer
+            // than the normal spring rest length.
+            const fit = h.footR / Math.max(Math.sin(theta / 2), 0.06);
+            const R = Math.max(centerHub.ringR + h.discR + PUSH, fit);
+            h.x = centerHub.x + R * Math.cos(ang);
+            h.y = centerHub.y + R * Math.sin(ang);
+            h.fixed = true; // pin the branch root; its subtree still relaxes around it
+          });
+        }
+      }
       // Deterministic seed: the centre spreads its groups on a full circle; every DEEPER
       // hub seeds its kids in an arc on the AWAY side (continuing outward from its parent),
       // so expanded groups start out in the whitespace beyond the clicked node.
@@ -816,8 +884,10 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       };
       seed(centerHub, -Math.PI / 2);
       // Relaxation: parent springs + disc-vs-disc collision.
-      const GROUP_GAP = 70 * cfg.repulsion;
-      for (let iter = 0; iter < 280; iter++) {
+      const GROUP_GAP = 88 * cfg.repulsion;
+      // Dense (expand-all) graphs need more relaxation to fully separate all the subtrees.
+      const ITERS = Math.min(650, 280 + hubs.length * 6);
+      for (let iter = 0; iter < ITERS; iter++) {
         hubs.forEach((h) => {
           if (!h.parent || h.fixed) return;
           const L = h.parent.ringR + h.discR + PUSH;
@@ -856,7 +926,11 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
             const A = hubs[i], B = hubs[j];
             let dx = B.x - A.x, dy = B.y - A.y;
             let d = Math.hypot(dx, dy);
-            const min = A.discR + B.discR + GROUP_GAP;
+            // Siblings/cousins repel by their FULL subtree footprint (footR) so expanded groups
+            // never overlap; ancestor-descendant pairs only use the small immediate disc (they're
+            // meant to sit close, child on parent's ring).
+            const related = A.path.has(B.id) || B.path.has(A.id);
+            const min = (related ? A.discR + B.discR : A.footR + B.footR) + GROUP_GAP;
             if (d >= min) continue;
             if (d < 1) { dx = 1; dy = 0; d = 1; }
             const push = ((min - d) / d) * 0.5;
@@ -898,7 +972,9 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     const vis = nodesOut.length;
     (nodesOut[0].data as Record<string, unknown>).size = vis <= 15 ? 64 : vis <= 30 ? 80 : vis <= 60 ? 96 : 112;
 
-    const MIN_DIST = 110;
+    // Floor spacing between any two nodes. Set wide enough that the labels below each node
+    // (up to `labelWidth`, default 150) don't collide either — not just the circles.
+    const MIN_DIST = Math.max(120, Math.min(cfg.labelWidth, 160) - 10);
 
     // Nodes the user placed by hand keep their exact positions (pinned) — remembering the
     // computed layout spot so we can fall back to it.
@@ -1142,6 +1218,35 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfgSig]);
 
+  // "Expand all" — mark every node that has children as expanded, then re-layout + fit.
+  const expandAllPrev = useRef(expandAllSignal);
+  useEffect(() => {
+    if (expandAllSignal === undefined || expandAllSignal === expandAllPrev.current) return;
+    expandAllPrev.current = expandAllSignal;
+    treeRef.current.forEach((node: TreeNode, id: string) => { if (node.children.length) expandedRef.current.add(id); });
+    const l = layoutAll();
+    setNodes(l.nodes);
+    setEdges(l.edges);
+    const t = setTimeout(() => rf.fitView({ padding: 0.2, duration: 400 }), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandAllSignal]);
+
+  // "Collapse all" — clear every expansion (and pins) back to the first level.
+  const collapseAllPrev = useRef(collapseAllSignal);
+  useEffect(() => {
+    if (collapseAllSignal === undefined || collapseAllSignal === collapseAllPrev.current) return;
+    collapseAllPrev.current = collapseAllSignal;
+    expandedRef.current = new Set();
+    manualPos.current = {};
+    const l = layoutAll();
+    setNodes(l.nodes);
+    setEdges(l.edges);
+    const t = setTimeout(() => rf.fitView({ padding: 0.2, duration: 400 }), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseAllSignal]);
+
   const panBy = (dx: number, dy: number, duration = 150) => {
     const vp = rf.getViewport();
     rf.setViewport({ x: vp.x + dx, y: vp.y + dy, zoom: vp.zoom }, { duration });
@@ -1249,7 +1354,7 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         fitViewOptions={{ padding: 0.2 }}
         minZoom={previewMode ? 0.05 : cfg.minZoom}
         maxZoom={cfg.maxZoom}
-        nodesDraggable={!previewMode}
+        nodesDraggable={!previewMode && !cfg.locked}
         nodeDragThreshold={5}
         nodesConnectable={false}
         elementsSelectable={!previewMode}

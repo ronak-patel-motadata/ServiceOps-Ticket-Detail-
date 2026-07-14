@@ -279,7 +279,7 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications' | 'integration'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -422,6 +422,8 @@ onStackMinimizedChange,
   const [showRequestChannelDropdown, setShowRequestChannelDropdown] = useState(false);
   const [showBadgeStatusDropdown, setShowBadgeStatusDropdown] = useState(false);
   const [showHeaderStatusDropdown, setShowHeaderStatusDropdown] = useState(false);
+  // Keyboard navigation for the header status dropdown (↑/↓ move, Enter selects, Esc closes).
+  const [statusHighlight, setStatusHighlight] = useState(0);
   const [showTicketTransition, setShowTicketTransition] = useState(false);
   const [showBadgePriorityDropdown, setShowBadgePriorityDropdown] = useState(false);
   const [showBadgeAssigneeDropdown, setShowBadgeAssigneeDropdown] = useState(false);
@@ -499,7 +501,41 @@ onStackMinimizedChange,
   const [diagnosisData, setDiagnosisData] = useState<{ content: string; timestamp: string } | null>(null);
   const [solutionText, setSolutionText] = useState('');
   const [solutionData, setSolutionData] = useState<{ content: string; timestamp: string } | null>(null);
-  
+
+  // Apply a status choice from the header dropdown (shared by click + Enter-key selection).
+  const applyHeaderStatus = (option: { label: string; color: string }) => {
+    if (option.label === 'Closed' && !solutionData) {
+      toast('Please add a solution in the Resolution tab before closing the request', {
+        icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />,
+      });
+      setActiveMainTab('resolution');
+      setShowHeaderStatusDropdown(false);
+      return;
+    }
+    setSelectedStatus(option.label);
+    setShowHeaderStatusDropdown(false);
+  };
+  // When the dropdown opens, highlight the current status; then ↑/↓ move, Enter selects, Esc closes.
+  useEffect(() => {
+    if (showHeaderStatusDropdown) {
+      const i = statusOptions.findIndex((o) => o.label === selectedStatus);
+      setStatusHighlight(i < 0 ? 0 : i);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHeaderStatusDropdown]);
+  useEffect(() => {
+    if (!showHeaderStatusDropdown) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setStatusHighlight((h) => (h + 1) % statusOptions.length); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setStatusHighlight((h) => (h - 1 + statusOptions.length) % statusOptions.length); }
+      else if (e.key === 'Enter') { e.preventDefault(); applyHeaderStatus(statusOptions[statusHighlight]); }
+      else if (e.key === 'Escape') { e.preventDefault(); setShowHeaderStatusDropdown(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHeaderStatusDropdown, statusHighlight, solutionData]);
+
   // Properties Panel Add Relation
   const [showPropertiesRelationDropdown, setShowPropertiesRelationDropdown] = useState(false);
   const [showPropertiesRelationModal, setShowPropertiesRelationModal] = useState(false);
@@ -2075,24 +2111,14 @@ onStackMinimizedChange,
                 <>
                   <div className="fixed inset-0 z-[90]" onClick={() => setShowHeaderStatusDropdown(false)} />
                   <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
-                    {statusOptions.map((option) => {
+                    {statusOptions.map((option, idx) => {
                       const isSel = selectedStatus === option.label;
                       return (
                         <button
                           key={option.label}
-                          onClick={() => {
-                            if (option.label === 'Closed' && !solutionData) {
-                              toast('Please add a solution in the Resolution tab before closing the request', {
-                                icon: <Info size={20} style={{ color: '#3D8BD0', fill: 'none', strokeWidth: 2 }} />
-                              });
-                              setActiveMainTab('resolution');
-                              setShowHeaderStatusDropdown(false);
-                              return;
-                            }
-                            setSelectedStatus(option.label);
-                            setShowHeaderStatusDropdown(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#F9FAFB] text-left transition-colors"
+                          onClick={() => applyHeaderStatus(option)}
+                          onMouseEnter={() => setStatusHighlight(idx)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors ${statusHighlight === idx ? 'bg-[#F0F6FC]' : 'hover:bg-[#F9FAFB]'}`}
                         >
                           <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: option.color }} />
                           <span className="text-[13px] text-[#364658]">{option.label}</span>
@@ -2429,12 +2455,11 @@ onStackMinimizedChange,
                         setIsDescriptionExpanded(true);
                         setAttachmentsExpanded(true);
                         setHighlightAttachments(true);
+                        // Wait for the expanded description + attachments to render, then scroll
+                        // the attachments into view (block: 'center' so they sit mid-viewport).
                         setTimeout(() => {
-                          const attachmentsSection = document.getElementById('attachments-section');
-                          if (attachmentsSection) {
-                            attachmentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }, 100);
+                          document.getElementById('attachments-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 200);
                         setTimeout(() => {
                           setHighlightAttachments(false);
                         }, 3000);
@@ -2545,7 +2570,7 @@ onStackMinimizedChange,
                   
                   {/* Attachments */}
                   {isDescriptionExpanded && activeTicket?.id !== 'INC-35' && (
-                  <div className="mt-3 flex items-center gap-2">
+                  <div id="attachments-section" className="mt-3 flex items-center gap-2 scroll-mt-4">
                     <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
                       highlightAttachments 
                         ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
@@ -5813,6 +5838,7 @@ onStackMinimizedChange,
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Ticket Properties"
             showNotifications={true}
+            showIntegration={true}
             onAddWorkLog={handleAddWorkLog}
             demoCustomFields={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}

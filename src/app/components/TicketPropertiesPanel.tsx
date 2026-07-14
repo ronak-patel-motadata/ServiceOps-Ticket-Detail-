@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -52,8 +52,8 @@ interface TicketPropertiesPanelProps {
   // Calendar section title (e.g. "Change Calendar" or "Release Calendar")
   changeCalendarTitle?: string;
   // State
-  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications';
-  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications') => void;
+  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration';
+  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration') => void;
   pinnedFields: string[];
   setPinnedFields: (fields: string[]) => void;
   showPropertiesSearch: boolean;
@@ -210,6 +210,8 @@ interface TicketPropertiesPanelProps {
   propertiesTitle?: string;
   // Show the Notifications (email) group at the end of the right rail.
   showNotifications?: boolean;
+  // Show the Integration (Jira) group at the end of the right rail (ticket page).
+  showIntegration?: boolean;
   // Add a finished Work Tracker session to the Work History list (ticket page).
   onAddWorkLog?: (log: any) => void;
   getCurrentStatusColor: () => string;
@@ -381,6 +383,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     getGroupTitle,
     propertiesTitle,
     showNotifications = false,
+    showIntegration = false,
     onAddWorkLog,
     getCurrentStatusColor,
     getCurrentPriorityColor,
@@ -681,6 +684,23 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [newUser, setNewUser] = useState({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
   // Accordion: which asset users are expanded (showing account type / domain / SID / description)
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [expandedIntegrations, setExpandedIntegrations] = useState<Set<string>>(new Set());
+  const [similarFilter, setSimilarFilter] = useState<'All' | 'Request' | 'Problem' | 'Change'>('All');
+  // Jira integration — a record can be linked to at most ONE Jira issue (starts empty).
+  type JiraIntegration = { id: string; project: string; issueType: string; priority: string; subject: string; application: string };
+  const [integration, setIntegration] = useState<JiraIntegration | null>(null);
+  const [showAddIntegration, setShowAddIntegration] = useState(false);
+  const [intgSubject, setIntgSubject] = useState('Cannot Create KB Article');
+  const [intgProject, setIntgProject] = useState('JIRA-TESTING');
+  const [intgIssueType, setIntgIssueType] = useState('Bug');
+  const [intgPriority, setIntgPriority] = useState('Medium');
+  const saveIntegration = () => {
+    const prefix = intgProject.split(/[-\s]+/).map((w) => w[0]).join('').toUpperCase().slice(0, 3) || 'JT';
+    const id = `${prefix}-104`;
+    setIntegration({ id, project: intgProject, issueType: intgIssueType, priority: intgPriority, subject: intgSubject, application: 'jira' });
+    setExpandedIntegrations(new Set([id]));
+    setShowAddIntegration(false);
+  };
   const openAddUser = () => {
     setNewUser({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
     setShowAddUser(true);
@@ -1221,7 +1241,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <path fill="url(#sparkle-gradient-properties)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
                 </svg>
               )}
-              {activeGroup === 'notifications' ? 'Notifications' : getGroupTitle()}
+              {activeGroup === 'notifications' ? 'Notifications' : activeGroup === 'integration' ? 'Integration' : getGroupTitle()}
             </h2>
             {activeGroup === 'chatbot' && (
               <button
@@ -2410,6 +2430,74 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           />
         )}
 
+        {/* Integration Group Content (Jira — ticket page, card view, single entry) */}
+        {activeGroup === 'integration' && (
+          integration ? (
+            (() => {
+              const it = integration;
+              const open = expandedIntegrations.has(it.id);
+              const pri = it.priority === 'High' || it.priority === 'Urgent'
+                ? 'bg-[#FDECEC] text-[#DC2626]'
+                : it.priority === 'Low'
+                ? 'bg-[#E7F6EE] text-[#22A06B]'
+                : 'bg-[#FEF3E2] text-[#D97706]';
+              return (
+                <div className="group relative rounded-[10px] bg-[#F9FAFB]">
+                  <div
+                    onClick={() => setExpandedIntegrations((prev) => { const n = new Set(prev); n.has(it.id) ? n.delete(it.id) : n.add(it.id); return n; })}
+                    className="w-full text-left px-3 py-2.5 flex items-center gap-3 cursor-pointer"
+                  >
+                    <span className="flex size-6 items-center justify-center flex-shrink-0">
+                      <svg width={18} height={18} viewBox="0 0 256 256" fill="#2684FF" xmlns="http://www.w3.org/2000/svg" aria-label="Jira">
+                        <path d="M244.658 0H121.707a55.502 55.502 0 0 0 55.502 55.502h22.649V77.37c.02 30.625 24.841 55.447 55.466 55.467V10.666C255.324 4.776 250.55 0 244.658 0z" />
+                        <path d="M183.822 61.262H60.872c.019 30.625 24.84 55.447 55.466 55.467h22.649v21.938c.039 30.625 24.877 55.43 55.502 55.43V71.93c0-5.891-4.776-10.667-10.667-10.667z" />
+                        <path d="M122.951 122.489H0c0 30.653 24.85 55.502 55.502 55.502h22.72v21.867c.02 30.597 24.798 55.408 55.396 55.466V133.156c0-5.892-4.776-10.667-10.667-10.667z" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-[#3D8BD0]">{it.id}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${pri}`}>{it.priority}</span>
+                        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                          <button title="Delete" onClick={(e) => { e.stopPropagation(); setIntegration(null); }} className="hidden group-hover:flex size-6 items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
+                          <span className="text-[#9CA3AF]">{open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
+                        </div>
+                      </div>
+                      <div className="text-[12px] text-[#7B8FA5] truncate">{it.subject}</div>
+                    </div>
+                  </div>
+                  {open && (
+                    <div className="px-3 pb-3 space-y-2 border-t border-[#EEF1F4] pt-2.5">
+                      {[
+                        ['Jira ID', it.id],
+                        ['Project', it.project],
+                        ['Issue Type', it.issueType],
+                        ['Priority', it.priority],
+                        ['Subject', it.subject],
+                        ['Application', it.application],
+                      ].map(([l, v]) => (
+                        <div key={l} className="flex items-start gap-3">
+                          <span className="text-[11px] text-[#7B8FA5] flex-shrink-0 w-[90px]">{l}</span>
+                          <span className={`text-[12px] flex-1 min-w-0 break-words ${l === 'Jira ID' ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center py-16 px-4">
+              <div className="flex size-14 items-center justify-center rounded-full bg-[#F3F4F6] mb-4"><Blocks size={24} className="text-[#9CA3AF]" /></div>
+              <div className="text-[15px] font-semibold text-[#364658] mb-1">No Integration Yet</div>
+              <div className="text-[13px] text-[#7B8FA5] mb-5 max-w-[240px]">Get started by linking a Jira issue to this record.</div>
+              <button onClick={() => setShowAddIntegration(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded-md text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
+                <Plus size={15} /> Add Integration
+              </button>
+            </div>
+          )
+        )}
+
         {/* Notes Group Content (asset only) */}
         {activeGroup === 'notes' && (
           <div className="space-y-3">
@@ -2464,10 +2552,30 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
           {similarTicketExpanded && (
           <div className="px-4 pb-4">
+            {/* Type filter pills */}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {(['All', 'Request', 'Problem', 'Change'] as const).map((f) => {
+                const count = f === 'All' ? availableSimilarTickets.length : availableSimilarTickets.filter((t) => t.type === f).length;
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setSimilarFilter(f)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] font-medium border transition-colors ${
+                      similarFilter === f
+                        ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                        : 'border-[#DFE5ED] bg-white text-[#7B8FA5] hover:bg-[#F5F7FA]'
+                    }`}
+                  >
+                    {f}
+                    <span className={`text-[10px] ${similarFilter === f ? 'text-[#3D8BD0]' : 'text-[#9CA3AF]'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
 {/* Similar tickets list */}
             {(
             <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
-              {availableSimilarTickets.map((ticket) => (
+              {availableSimilarTickets.filter((t) => similarFilter === 'All' || t.type === similarFilter).map((ticket) => (
                 <div 
                   key={ticket.id}
                   className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer relative group"
@@ -3580,10 +3688,82 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipContent>Notifications</TooltipContent>
         </Tooltip>
         )}
+        {showIntegration && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('integration');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+                activeGroup === 'integration'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <Blocks size={16} className={activeGroup === 'integration' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Integration</TooltipContent>
+        </Tooltip>
+        )}
       </div>
 
       {/* Knowledge Base — side drawer (opened from "View all Knowledge") */}
       <KnowledgeBaseModal isOpen={showKnowledgeModal} onClose={() => setShowKnowledgeModal(false)} />
+
+      {/* Add Integration — side drawer (Jira, ticket page) */}
+      {showAddIntegration && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300" onClick={() => setShowAddIntegration(false)} />
+          <div className="fixed top-0 right-0 h-full w-[460px] max-w-[92vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[18px] font-semibold text-[#3D8BD0]">Add Integration</h2>
+              <button onClick={() => setShowAddIntegration(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">Subject</label>
+                <input
+                  type="text"
+                  value={intgSubject}
+                  onChange={(e) => setIntgSubject(e.target.value)}
+                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] text-[#7B8FA5] mb-1">Description</label>
+                <p className="text-[13px] text-[#364658]">Unable to create a KB article.</p>
+              </div>
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">Project <span className="text-[#DC2626]">*</span></label>
+                <select value={intgProject} onChange={(e) => setIntgProject(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                  {['JIRA-TESTING', 'Service Desk', 'Infrastructure', 'Product Backlog'].map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">Issue Type <span className="text-[#DC2626]">*</span></label>
+                <select value={intgIssueType} onChange={(e) => setIntgIssueType(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                  {['Bug', 'Task', 'Story', 'Incident', 'Epic'].map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[13px] text-[#364658] mb-1.5">Priority <span className="text-[#DC2626]">*</span></label>
+                <select value={intgPriority} onChange={(e) => setIntgPriority(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                  {['Low', 'Medium', 'High', 'Urgent'].map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+              <button onClick={saveIntegration} disabled={!intgSubject.trim()} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
+              <button onClick={() => setShowAddIntegration(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Add Note — side drawer (asset Notes group) */}
       {showAddNote && (

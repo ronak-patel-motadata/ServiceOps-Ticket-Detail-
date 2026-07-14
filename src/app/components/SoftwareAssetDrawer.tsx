@@ -11,7 +11,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild } from './RelationshipGraph';
 import { AddRelationshipPanel } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
@@ -273,6 +273,47 @@ onStackMinimizedChange,
   const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
+  // Per-row Software Type for the Consolidated Software table (borderless field, hover-gray).
+  const [consolidatedTypes, setConsolidatedTypes] = useState<Record<number, string>>({});
+  const [openTypeRow, setOpenTypeRow] = useState<number | null>(null);
+  // Card / list view toggles for the Consolidated Software + Installation tabs (like the
+  // Software tab in the Hardware asset drawer). Both default to card view.
+  const [consolidatedView, setConsolidatedView] = useState<'card' | 'list'>('card');
+  const [consolidatedSearch, setConsolidatedSearch] = useState('');
+  const [installationView, setInstallationView] = useState<'card' | 'list'>('card');
+  // Borderless Software Type dropdown — shared by the consolidated card + list views.
+  const renderSwType = (rowKey: number, up: boolean) => {
+    const val = consolidatedTypes[rowKey] ?? 'Managed';
+    return (
+      <div className="relative inline-block">
+        <button
+          onClick={() => setOpenTypeRow(openTypeRow === rowKey ? null : rowKey)}
+          className="group inline-flex items-center justify-between gap-2 min-w-[120px] rounded-md px-2.5 py-1.5 text-[12px] text-[#364658] hover:bg-[#F1F5F9] transition-colors"
+        >
+          {val}<ChevronDown size={13} className={`text-[#7B8FA5] transition-opacity ${openTypeRow === rowKey ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+        </button>
+        {openTypeRow === rowKey && (
+          <>
+            <div className="fixed inset-0 z-[40]" onClick={() => setOpenTypeRow(null)} />
+            <div className={`absolute left-0 z-[50] min-w-[150px] bg-white border border-[#DFE5ED] rounded-md shadow-lg py-1 ${up ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+              {['Managed', 'Discovered', 'Unmanaged'].map((opt) => {
+                const sel = val === opt;
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => { setConsolidatedTypes((p) => ({ ...p, [rowKey]: opt })); setOpenTypeRow(null); }}
+                    className={`w-full flex items-center justify-between gap-4 px-3 py-1.5 text-left text-[12px] hover:bg-[#F5F7FA] transition-colors ${sel ? 'text-[#3D8BD0]' : 'text-[#364658]'}`}
+                  >
+                    {opt}{sel && <Check size={14} className="text-[#3D8BD0]" />}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
   // Baseline attached to this asset (max one); Variance rows are empty by default.
   const [baselines, setBaselines] = useState<{ id: string; name: string; createdOn: string; createdBy: string }[]>([
     { id: 'BAS-31', name: 'New Base Line - 64 Bit', createdOn: 'Mon, Apr 27, 2026 11:44 AM', createdBy: 'System' },
@@ -321,6 +362,10 @@ onStackMinimizedChange,
   const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
   const [relFull, setRelFull] = useState(false);
   const [relKey, setRelKey] = useState(0);
+  // Expand-all / Collapse-all toolbar toggle (bulk expand every node at once).
+  const [relExpandKey, setRelExpandKey] = useState(0);
+  const [relCollapseKey, setRelCollapseKey] = useState(0);
+  const [relAllExpanded, setRelAllExpanded] = useState(false);
   const [relSearch, setRelSearch] = useState('');
   // Advanced Configuration for the relationship topology: applied config + panel draft.
   const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
@@ -3543,18 +3588,52 @@ onStackMinimizedChange,
                 { id: 'AST-292', name: '7-Zip 24.09 (x64)', version: '24.09', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Fri, Sep 05, 2025 04:30 PM' },
                 { id: 'AST-274', name: 'Notepad++ (64-bit)', version: '8.7.5', group: 'IT Operations', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Wed, Aug 27, 2025 09:05 AM' },
               ].map((r, i) => ({ ...r, i })).filter((r) => !removedConsolidated.has(r.i));
+              const cq = consolidatedSearch.trim().toLowerCase();
+              const shown = cq ? rows.filter((r) => r.name.toLowerCase().includes(cq) || r.id.toLowerCase().includes(cq) || r.version.toLowerCase().includes(cq) || r.group.toLowerCase().includes(cq)) : rows;
               const headers = ['Name', 'Asset Type', 'Status', 'Version', 'Software Type', 'Managed By Group', 'Managed By', 'Created Date', 'Actions'];
+              const managedByInline = (mb: { name: string; initials?: string; color?: string }) => (
+                <span className="inline-flex items-center gap-2">
+                  {mb.initials ? (
+                    <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: mb.color }}>{mb.initials}</span>
+                  ) : (
+                    <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
+                  )}
+                  <span className="text-[#364658] truncate">{mb.name}</span>
+                </span>
+              );
               return (
-                <div className="px-6 py-6">
+                <div className="px-6 py-6 @container">
+                  {/* Toolbar: search (left) + view toggle (right) */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="relative flex-1 max-w-[360px]">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                      <input
+                        type="text"
+                        placeholder="Search software..."
+                        value={consolidatedSearch}
+                        onChange={(e) => setConsolidatedSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      />
+                    </div>
+                    <button
+                      title={consolidatedView === 'list' ? 'Card view' : 'List view'}
+                      onClick={() => setConsolidatedView((v) => (v === 'list' ? 'card' : 'list'))}
+                      className="ml-auto size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                    >
+                      {consolidatedView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
+                    </button>
+                  </div>
+
+                  {consolidatedView === 'list' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[1100px] text-[12px]">
                       <thead className="bg-white border-b border-[#e5e7eb]">
                         <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
                       </thead>
                       <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                        {rows.length === 0 ? (
+                        {shown.length === 0 ? (
                           <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No consolidated software.</td></tr>
-                        ) : rows.map((r) => (
+                        ) : shown.map((r, idx) => (
                           <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className="inline-flex items-center gap-2">
@@ -3565,18 +3644,9 @@ onStackMinimizedChange,
                             <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><AppWindow size={14} className="text-[#6B7280]" />Application</span></td>
                             <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
                             <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.version}</td>
-                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center justify-between gap-2 min-w-[110px] rounded-md border border-[#DFE5ED] px-2.5 py-1.5 text-[#364658]">Managed<ChevronDown size={13} className="text-[#7B8FA5]" /></span></td>
+                            <td className="px-4 py-3 whitespace-nowrap">{renderSwType(r.i, idx >= shown.length - 2 && shown.length > 2)}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="inline-flex items-center gap-2">
-                                {r.managedBy.initials ? (
-                                  <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
-                                ) : (
-                                  <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
-                                )}
-                                <span className="text-[#364658]">{r.managedBy.name}</span>
-                              </span>
-                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">{managedByInline(r.managedBy)}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <button title="Unconsolidate" onClick={() => setRemovedConsolidated((p) => new Set(p).add(r.i))} className="text-[#EF4444] hover:text-[#DC2626]"><Unlink size={15} /></button>
@@ -3586,6 +3656,36 @@ onStackMinimizedChange,
                       </tbody>
                     </table>
                   </div>
+                  ) : (
+                    shown.length === 0 ? (
+                      <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No consolidated software.</div>
+                    ) : (
+                    <div className="grid gap-4 grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3">
+                      {shown.map((r) => (
+                        <div key={r.id} className="group relative rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all">
+                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button title="Unconsolidate" onClick={() => setRemovedConsolidated((p) => new Set(p).add(r.i))} className="size-7 flex items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#EF4444] hover:border-[#EF4444]"><Unlink size={14} /></button>
+                          </div>
+                          <div className="flex items-start gap-3 pr-10">
+                            <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><AppWindow size={20} /></span>
+                            <div className="min-w-0">
+                              <span className="inline-block rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                              <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={r.name}>{r.name}</button>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Asset Type</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><AppWindow size={14} className="text-[#6B7280]" />Application</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Status</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Version</div><div className="text-[12px] text-[#364658] truncate">{r.version}</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Software Type</div><div className="-ml-2.5 -mt-0.5">{renderSwType(r.i, false)}</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Managed By Group</div><div className="text-[12px] text-[#364658] truncate">{r.group}</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Managed By</div><div className="text-[12px] mt-0.5">{managedByInline(r.managedBy)}</div></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    )
+                  )}
                 </div>
               );
             })()}
@@ -3602,17 +3702,28 @@ onStackMinimizedChange,
               const rows = q ? all.filter((r) => r.id.toLowerCase().includes(q) || r.host.toLowerCase().includes(q) || r.ip.includes(q) || r.type.toLowerCase().includes(q)) : all;
               const headers = ['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date'];
               return (
-                <div className="px-6 py-6">
-                  <div className="relative mb-4">
-                    <input
-                      type="text"
-                      value={installationSearch}
-                      onChange={(e) => setInstallationSearch(e.target.value)}
-                      placeholder="Select field or enter a keyword to search..."
-                      className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
-                    />
-                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+                <div className="px-6 py-6 @container">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="relative flex-1 max-w-[360px]">
+                      <input
+                        type="text"
+                        value={installationSearch}
+                        onChange={(e) => setInstallationSearch(e.target.value)}
+                        placeholder="Search installations..."
+                        className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                      />
+                      <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+                    </div>
+                    <button
+                      title={installationView === 'list' ? 'Card view' : 'List view'}
+                      onClick={() => setInstallationView((v) => (v === 'list' ? 'card' : 'list'))}
+                      className="ml-auto size-9 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                    >
+                      {installationView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
+                    </button>
                   </div>
+
+                  {installationView === 'list' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[1100px] text-[12px]">
                       <thead className="bg-white border-b border-[#e5e7eb]">
@@ -3647,9 +3758,33 @@ onStackMinimizedChange,
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex items-center justify-end mt-4 text-[12px] text-[#7B8FA5]">
-                    Showing 1-{rows.length} of {rows.length} items
-                  </div>
+                  ) : (
+                    rows.length === 0 ? (
+                      <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No installations found.</div>
+                    ) : (
+                    <div className="grid gap-4 grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3">
+                      {rows.map((r) => (
+                        <div key={r.id} className="rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all">
+                          <div className="flex items-start gap-3">
+                            <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><Laptop size={20} /></span>
+                            <div className="min-w-0">
+                              <span className="inline-block rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                              <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={r.host}>{r.host}</button>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Asset Type</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><Laptop size={14} className="text-[#6B7280]" /><span className="truncate">{r.type}</span></div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Status</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="text-[12px] text-[#364658] truncate">{r.ip}</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Used By</div><div className="text-[12px] text-[#9ca3af]">---</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Managed By Group</div><div className="text-[12px] text-[#364658] truncate">{r.group}</div></div>
+                            <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Managed By</div><div className="text-[12px] mt-0.5 inline-flex items-center gap-2 min-w-0"><span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span><span className="text-[#364658] truncate">{r.managedBy.name}</span></div></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    )
+                  )}
                 </div>
               );
             })()}
@@ -4113,6 +4248,17 @@ onStackMinimizedChange,
               ] as const;
               const controls = (
                 <div className="flex items-center gap-2">
+                  {relConfig.locked && (
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#F59E0B]/50 bg-[#FEF3C7] px-2.5 text-[12px] font-medium text-[#B45309]">
+                        <Lock size={13} />
+                        Locked
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Node layout is locked (Advanced Configuration)</TooltipContent>
+                  </Tooltip>
+                  )}
                   {/* View-mode segmented group */}
                   <div className="inline-flex items-center rounded-md border border-[#DFE5ED] bg-white p-0.5">
                     {viewBtns.map((b) => (
@@ -4124,6 +4270,21 @@ onStackMinimizedChange,
                       </Tooltip>
                     ))}
                   </div>
+                  {/* Expand all / Collapse all */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (relAllExpanded) { setRelCollapseKey((k) => k + 1); setRelAllExpanded(false); }
+                          else { setRelExpandKey((k) => k + 1); setRelAllExpanded(true); }
+                        }}
+                        className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                      >
+                        {relAllExpanded ? <ChevronsDownUp size={15} className="text-[#6b7280]" /> : <ChevronsUpDown size={15} className="text-[#6b7280]" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relAllExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
+                  </Tooltip>
                   {/* Refresh */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -4232,6 +4393,8 @@ onStackMinimizedChange,
                     <RelationshipGraph
                       mode={relView as 'graph' | 'tree'}
                       refreshSignal={relKey}
+                      expandAllSignal={relExpandKey}
+                      collapseAllSignal={relCollapseKey}
                       nodes={nodes}
                       typeMeta={typeMeta}
                       centerName={centerName}
@@ -4279,6 +4442,23 @@ onStackMinimizedChange,
                         />
                       </div>
                       <div className="px-6 py-5 space-y-6">
+                        {/* Lock Node Visualization — freezes manual node dragging for everyone */}
+                        <div className="flex items-center justify-between gap-4 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                          <div className="flex items-start gap-2.5">
+                            <Lock size={16} className="mt-0.5 flex-shrink-0 text-[#364658]" />
+                            <div>
+                              <div className="text-[13px] font-semibold text-[#364658]">Lock Node Visualization</div>
+                              <div className="text-[12px] text-[#7B8FA5]">When locked, nodes can't be moved manually — the layout stays fixed for everyone.</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRelDraft((p) => ({ ...p, locked: !p.locked }))}
+                            className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${relDraft.locked ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`}
+                          >
+                            <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${relDraft.locked ? 'left-[22px]' : 'left-0.5'}`} />
+                          </button>
+                        </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Force Simulation</h3>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-5">

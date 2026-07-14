@@ -1,4 +1,4 @@
-import { CheckSquare, Plus, Search, Filter, X, Check, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { CheckSquare, Plus, Search, Filter, X, Check, ChevronDown, ChevronRight, GripVertical, ArrowUpDown } from 'lucide-react';
 import { TaskCardFields } from './TaskCardFields';
 import { useState, useRef, useEffect } from 'react';
 
@@ -36,6 +36,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
   const [tasksGroupOpen, setTasksGroupOpen] = useState(true);
   const [activeStage, setActiveStage] = useState(0);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [taskSortDesc, setTaskSortDesc] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
   // Drag-to-reorder — a local ordering of task ids (kept in sync with the tasks
@@ -57,7 +58,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskIdsKey]);
   const orderRank = (id: string) => { const i = orderIds.indexOf(id); return i === -1 ? Number.MAX_SAFE_INTEGER : i; };
-  const sortByOrder = (list: Task[]) => [...list].sort((a, b) => orderRank(a.id) - orderRank(b.id));
+  const sortByOrder = (list: Task[]) => { const s = [...list].sort((a, b) => orderRank(a.id) - orderRank(b.id)); return taskSortDesc ? s.reverse() : s; };
   const reorderTasks = (dragId: string | null, targetId: string) => {
     if (!dragId || dragId === targetId) return;
     setOrderIds((prev) => {
@@ -306,6 +307,15 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
             </div>
           )}
         </div>
+
+        {/* Sort Icon (toggle task order, same icon as the Conversation tab) */}
+        <button
+          onClick={() => setTaskSortDesc((v) => !v)}
+          className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors"
+          title={taskSortDesc ? 'Sort ascending' : 'Sort descending'}
+        >
+          <ArrowUpDown size={16} />
+        </button>
 
         {/* Active filter chip */}
         {taskFilter !== 'all' && (

@@ -257,9 +257,11 @@ export const staticLinkedTickets = [
 ];
 
 export const availableSimilarTickets = [
-  { id: 'REQ-8901', title: 'Laptop Network Connectivity Problem', status: 'Open', assignee: 'David Martinez', initials: 'DM', color: '#F59E0B', match: '85% match' },
-  { id: 'REQ-7890', title: 'Cannot Connect to WiFi Network', status: 'Resolved', assignee: 'Lisa Anderson', initials: 'LA', color: '#10B981', match: '78% match' },
-  { id: 'REQ-6789', title: 'Network Adapter Not Working', status: 'In Progress', assignee: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', match: '72% match' },
+  { id: 'REQ-8901', type: 'Request', title: 'Laptop Network Connectivity Problem', status: 'Open', assignee: 'David Martinez', initials: 'DM', color: '#F59E0B', match: '85% match' },
+  { id: 'REQ-7890', type: 'Request', title: 'Cannot Connect to WiFi Network', status: 'Resolved', assignee: 'Lisa Anderson', initials: 'LA', color: '#10B981', match: '78% match' },
+  { id: 'PRB-4412', type: 'Problem', title: 'Recurring Network Drops on Floor 3', status: 'In Progress', assignee: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', match: '74% match' },
+  { id: 'REQ-6789', type: 'Request', title: 'Network Adapter Not Working', status: 'In Progress', assignee: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', match: '72% match' },
+  { id: 'CHG-2091', type: 'Change', title: 'Core Switch Firmware Upgrade', status: 'Open', assignee: 'Michael Chen', initials: 'MC', color: '#8B5CF6', match: '68% match' },
 ];
 
 // Helper Functions

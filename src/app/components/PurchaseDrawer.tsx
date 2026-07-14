@@ -2208,12 +2208,6 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
-            <button
-              onClick={() => toast.success('Purchase order closed')}
-              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
-            >
-              Close Order
-            </button>
             <HardwareAssetActionsMenu purchase />
           </div>
         </div>

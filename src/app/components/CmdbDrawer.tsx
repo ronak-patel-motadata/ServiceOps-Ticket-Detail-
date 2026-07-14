@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, activeIssuesFor } from './RelationshipGraph';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { AddRelationshipPanel } from './AddRelationshipPanel';
@@ -359,6 +359,10 @@ onStackMinimizedChange,
   const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
   const [relFull, setRelFull] = useState(false);
   const [relKey, setRelKey] = useState(0);
+  // Expand-all / Collapse-all toolbar toggle (bulk expand every node at once).
+  const [relExpandKey, setRelExpandKey] = useState(0);
+  const [relCollapseKey, setRelCollapseKey] = useState(0);
+  const [relAllExpanded, setRelAllExpanded] = useState(false);
   const [relSearch, setRelSearch] = useState('');
   // Advanced Configuration for the relationship topology: applied config + panel draft.
   const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
@@ -2259,6 +2263,17 @@ onStackMinimizedChange,
               ] as const;
               const controls = (
                 <div className="flex items-center gap-2">
+                  {relConfig.locked && (
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#F59E0B]/50 bg-[#FEF3C7] px-2.5 text-[12px] font-medium text-[#B45309]">
+                        <Lock size={13} />
+                        Locked
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Node layout is locked (Advanced Configuration)</TooltipContent>
+                  </Tooltip>
+                  )}
                   {/* View-mode segmented group */}
                   <div className="inline-flex items-center rounded-md border border-[#DFE5ED] bg-white p-0.5">
                     {viewBtns.map((b) => (
@@ -2270,6 +2285,21 @@ onStackMinimizedChange,
                       </Tooltip>
                     ))}
                   </div>
+                  {/* Expand all / Collapse all */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (relAllExpanded) { setRelCollapseKey((k) => k + 1); setRelAllExpanded(false); }
+                          else { setRelExpandKey((k) => k + 1); setRelAllExpanded(true); }
+                        }}
+                        className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                      >
+                        {relAllExpanded ? <ChevronsDownUp size={15} className="text-[#6b7280]" /> : <ChevronsUpDown size={15} className="text-[#6b7280]" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relAllExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
+                  </Tooltip>
                   {/* Refresh */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2378,6 +2408,8 @@ onStackMinimizedChange,
                     <RelationshipGraph
                       mode={relView as 'graph' | 'tree'}
                       refreshSignal={relKey}
+                      expandAllSignal={relExpandKey}
+                      collapseAllSignal={relCollapseKey}
                       nodes={nodes}
                       typeMeta={typeMeta}
                       mockProfile="cmdb"
@@ -2427,6 +2459,23 @@ onStackMinimizedChange,
                         />
                       </div>
                       <div className="px-6 py-5 space-y-6">
+                        {/* Lock Node Visualization — freezes manual node dragging for everyone */}
+                        <div className="flex items-center justify-between gap-4 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                          <div className="flex items-start gap-2.5">
+                            <Lock size={16} className="mt-0.5 flex-shrink-0 text-[#364658]" />
+                            <div>
+                              <div className="text-[13px] font-semibold text-[#364658]">Lock Node Visualization</div>
+                              <div className="text-[12px] text-[#7B8FA5]">When locked, nodes can't be moved manually — the layout stays fixed for everyone.</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRelDraft((p) => ({ ...p, locked: !p.locked }))}
+                            className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${relDraft.locked ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`}
+                          >
+                            <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${relDraft.locked ? 'left-[22px]' : 'left-0.5'}`} />
+                          </button>
+                        </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Force Simulation</h3>
                           <div className="grid grid-cols-2 gap-x-8 gap-y-5">

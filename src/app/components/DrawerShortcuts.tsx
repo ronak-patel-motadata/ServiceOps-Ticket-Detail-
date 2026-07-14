@@ -108,7 +108,7 @@ const SECTIONS: { title: string; rows: { keys: string[]; label: string }[] }[] =
     { keys: ['Alt', '+', 'U'], label: 'Copy link' },
   ] },
   { title: 'Help', rows: [
-    { keys: ['?'], label: 'Show this help' },
+    { keys: ['Shift', '+', '?'], label: 'Show this help' },
   ] },
 ];
 
@@ -177,9 +177,21 @@ export function DrawerShortcuts(props: DrawerShortcutProps) {
   // Auto-close the help popup when the drawer closes.
   useEffect(() => { if (!props.active && showHelp) setShowHelp(false); }, [props.active, showHelp]);
 
-  if (!showHelp) return null;
   return (
     <>
+      {/* Floating shortcuts button — bottom-right of the open drawer (same Keyboard icon as
+          the Relationship map); opens the cheat-sheet. */}
+      {props.active && !props.minimized && !showHelp && (
+        <button
+          onClick={() => setShowHelp(true)}
+          title="Keyboard shortcuts (Shift + ?)"
+          className="fixed bottom-4 right-2 z-[9990] flex size-9 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] shadow-md transition-colors hover:bg-[#F5F7FA] hover:text-[#3D8BD0]"
+        >
+          <Keyboard size={16} />
+        </button>
+      )}
+      {showHelp && (
+      <>
       <div className="fixed inset-0 z-[10050] bg-black/30" onClick={() => setShowHelp(false)} />
       <div className="fixed left-1/2 top-1/2 z-[10051] w-[400px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#E5E7EB] bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#E5E7EB] px-5 py-3.5">
@@ -198,6 +210,8 @@ export function DrawerShortcuts(props: DrawerShortcutProps) {
         </div>
         <div className="border-t border-[#F0F1F3] px-5 py-2.5 text-[11.5px] text-[#9CA3AF]">Shortcuts are disabled while typing in a field.</div>
       </div>
+      </>
+      )}
     </>
   );
 }
