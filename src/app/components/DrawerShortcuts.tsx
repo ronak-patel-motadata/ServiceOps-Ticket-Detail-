@@ -82,25 +82,53 @@ async function copyText(text: string) {
   try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
 }
 
-const SHORTCUTS: { keys: string; label: string }[] = [
-  { keys: 'Alt + M', label: 'Minimize / restore drawer' },
-  { keys: 'Alt + W', label: 'Close current tab' },
-  { keys: 'Alt + Shift + W', label: 'Close all tabs' },
-  { keys: 'Alt + F', label: 'Toggle Small / Full view' },
-  { keys: 'Alt + ] / [', label: 'Next / Previous record (open tab)' },
-  { keys: 'Alt + ↓ / ↑', label: 'Switch right-panel group' },
-  { keys: 'Alt + . / ,', label: 'Next / Previous content tab' },
-  { keys: 'Alt + I', label: 'Open / close AI (Ask AI)' },
-  { keys: 'Alt + C', label: 'Copy ID' },
-  { keys: 'Alt + U', label: 'Copy link' },
-  { keys: 'Alt + S', label: 'Change status' },
-  { keys: 'Alt + E', label: 'Edit' },
-  { keys: 'Alt + R', label: 'Reply (conversation)' },
-  { keys: 'Alt + N', label: 'Add Note' },
-  { keys: 'Alt + A', label: 'Expand / collapse AI Summary' },
-  { keys: 'Alt + O', label: 'Open actions menu' },
-  { keys: '?', label: 'Show this help' },
+/* Grouped like the Relationship-map shortcuts popup (section headers + keycaps, keys on the
+ * left, label on the right). A key token is a keycap unless it's a `+` or `/` separator. */
+const SECTIONS: { title: string; rows: { keys: string[]; label: string }[] }[] = [
+  { title: 'Window', rows: [
+    { keys: ['Alt', '+', 'M'], label: 'Minimize / restore drawer' },
+    { keys: ['Alt', '+', 'F'], label: 'Toggle Small / Full view' },
+    { keys: ['Alt', '+', 'W'], label: 'Close current tab' },
+    { keys: ['Alt', '+', 'Shift', '+', 'W'], label: 'Close all tabs' },
+  ] },
+  { title: 'Navigation', rows: [
+    { keys: ['Alt', '+', ']', '/', '['], label: 'Next / Previous record' },
+    { keys: ['Alt', '+', '↓', '/', '↑'], label: 'Switch right-panel group' },
+    { keys: ['Alt', '+', '.', '/', ','], label: 'Next / Previous content tab' },
+  ] },
+  { title: 'Actions', rows: [
+    { keys: ['Alt', '+', 'I'], label: 'Open / close AI (Ask AI)' },
+    { keys: ['Alt', '+', 'A'], label: 'Expand / collapse AI Summary' },
+    { keys: ['Alt', '+', 'S'], label: 'Change status' },
+    { keys: ['Alt', '+', 'R'], label: 'Reply (conversation)' },
+    { keys: ['Alt', '+', 'N'], label: 'Add Note' },
+    { keys: ['Alt', '+', 'E'], label: 'Edit' },
+    { keys: ['Alt', '+', 'O'], label: 'Open actions menu' },
+    { keys: ['Alt', '+', 'C'], label: 'Copy ID' },
+    { keys: ['Alt', '+', 'U'], label: 'Copy link' },
+  ] },
+  { title: 'Help', rows: [
+    { keys: ['?'], label: 'Show this help' },
+  ] },
 ];
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="inline-flex min-w-[20px] h-[20px] items-center justify-center rounded border border-[#DFE5ED] bg-[#F8FAFC] px-1.5 text-[10px] font-semibold text-[#364658] shadow-[0_1px_0_#DFE5ED]">
+      {children}
+    </kbd>
+  );
+}
+function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-[3px]">
+      <span className="flex flex-shrink-0 items-center gap-1">
+        {keys.map((k, i) => (k === '+' || k === '/' ? <span key={i} className="text-[10px] text-[#9CA3AF]">{k}</span> : <Kbd key={i}>{k}</Kbd>))}
+      </span>
+      <span className="text-[12px] text-[#7B8FA5] text-right">{label}</span>
+    </div>
+  );
+}
 
 export function DrawerShortcuts(props: DrawerShortcutProps) {
   const [showHelp, setShowHelp] = useState(false);
@@ -161,18 +189,10 @@ export function DrawerShortcuts(props: DrawerShortcutProps) {
           <button onClick={() => setShowHelp(false)} className="text-[#6B7280] transition-colors hover:text-[#111827]"><X size={18} /></button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto px-5 py-3">
-          {SHORTCUTS.map((s) => (
-            <div key={s.label} className="flex items-center justify-between gap-4 py-[7px] text-[13px]">
-              <span className="text-[#364658]">{s.label}</span>
-              <span className="flex flex-shrink-0 gap-1">
-                {s.keys.split(' ').map((part, i) =>
-                  part === '+' || part === '/' ? (
-                    <span key={i} className="self-center text-[11px] text-[#9CA3AF]">{part}</span>
-                  ) : (
-                    <kbd key={i} className="inline-flex h-[20px] min-w-[20px] items-center justify-center rounded border border-[#DFE5ED] bg-[#F8FAFC] px-1.5 text-[11px] font-semibold text-[#364658] shadow-[0_1px_0_#DFE5ED]">{part}</kbd>
-                  ),
-                )}
-              </span>
+          {SECTIONS.map((section, si) => (
+            <div key={section.title}>
+              <div className={`${si === 0 ? 'pb-1' : 'mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1'} text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]`}>{section.title}</div>
+              {section.rows.map((r) => <ShortcutRow key={r.label} keys={r.keys} label={r.label} />)}
             </div>
           ))}
         </div>
