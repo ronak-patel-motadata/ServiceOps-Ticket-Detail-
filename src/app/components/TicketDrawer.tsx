@@ -18,6 +18,7 @@ import type { Ticket } from './TicketListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { getSentiment } from './SentimentBadge';
@@ -122,6 +123,8 @@ interface TicketDrawerProps {
   onStackWidthChange?: (w: number) => void;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
+  stackActiveGroup?: string;
+  onStackActiveGroupChange?: (g: string) => void;
 }
 
 // Demo tasks organised into workflow stages so the Tasks tab shows its stage stepper.
@@ -157,6 +160,8 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
+stackActiveGroup,
+onStackActiveGroupChange,
 }: TicketDrawerProps) {
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
   const [minimizedLocal, setMinimizedLocal] = useState(false);
@@ -279,7 +284,12 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications' | 'integration'>('properties');
+  type RightGroup = 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications' | 'integration';
+  const [activeGroupLocal, setActiveGroupLocal] = useState<RightGroup>('properties');
+  // Defer to the DrawerStack's shared group so it persists when opening a related record.
+  const activeGroup = (stackActiveGroup as RightGroup | undefined) ?? activeGroupLocal;
+  // User-driven selection (rail icons, panel) → also persist to the host.
+  const setActiveGroup = (g: RightGroup) => { setActiveGroupLocal(g); onStackActiveGroupChange?.(g); };
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -856,16 +866,18 @@ onStackMinimizedChange,
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (!hasSeenOnboarding && activeTicketId) {
-      setActiveGroup('properties'); // Open ticket properties by default for first-time users
+      setActiveGroupLocal('properties'); // local-only default; never clobbers a persisted group
       setTimeout(() => setShowOnboarding(true), 500);
     }
   }, [activeTicketId]);
 
-  // Reset to properties when ticket changes (only after onboarding is complete)
+  // Local default when the ticket changes — local-only so a group the user explicitly opened
+  // (e.g. Suggestions) persists across opening a related record; only applies when the host has
+  // no shared group set.
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (hasSeenOnboarding && activeTicketId) {
-      setActiveGroup('properties');
+      setActiveGroupLocal('properties');
     }
   }, [activeTicketId]);
 
@@ -3231,19 +3243,19 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,...</div>
+                          <div><CopyableEmails text="Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: infrastructure.team@motadata.com</div>
-                            <div className="ml-4">devops@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: infrastructure.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="devops@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">database.team@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="database.team@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>
@@ -3319,6 +3331,8 @@ onStackMinimizedChange,
                           <div className="text-xs text-[#7B8FA5] mb-2">
                             <div><span className="font-medium">From:</span> Sarah Chen</div>
                             <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
+                            <div><span className="font-medium">To:</span><CopyableEmails text=" servicedesk@motadata.com" /></div>
+                            <div><span className="font-medium">Subject:</span> Monitoring migration to SolarWinds Observability</div>
                           </div>
                           <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
                             <p className="text-sm text-[#364658] leading-relaxed">
@@ -3407,19 +3421,19 @@ onStackMinimizedChange,
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                            <div>Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,...</div>
+                            <div><CopyableEmails text="Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,..." /></div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="text-xs">
                             <div className="mb-2">
-                              <div className="font-medium">To: sarah.chen@motadata.com</div>
-                              <div className="ml-4">ops.team@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="To: sarah.chen@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="ops.team@motadata.com" /></div>
                             </div>
                             <div>
-                              <div className="font-medium">Cc: infrastructure.team@motadata.com</div>
-                              <div className="ml-4">keertan@motadata.com</div>
-                              <div className="ml-4">saahil.pandya@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="Cc: infrastructure.team@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
                             </div>
                           </div>
                         </TooltipContent>
@@ -3598,21 +3612,21 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,...</div>
+                          <div><CopyableEmails text="Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: database.team@motadata.com</div>
-                            <div className="ml-4">kenil.patel@motadata.com</div>
-                            <div className="ml-4">ronak.patel@motadata.com</div>
-                            <div className="ml-4">saahil.pandya@motadata.com</div>
-                            <div className="ml-4">nirav.bhatt@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: database.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="kenil.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="ronak.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="nirav.bhatt@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>
@@ -5839,6 +5853,7 @@ onStackMinimizedChange,
             propertiesTitle="Ticket Properties"
             showNotifications={true}
             showIntegration={true}
+            onOpenRelation={onOpenRelation}
             onAddWorkLog={handleAddWorkLog}
             demoCustomFields={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}

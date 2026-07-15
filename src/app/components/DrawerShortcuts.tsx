@@ -177,19 +177,16 @@ export function DrawerShortcuts(props: DrawerShortcutProps) {
   // Auto-close the help popup when the drawer closes.
   useEffect(() => { if (!props.active && showHelp) setShowHelp(false); }, [props.active, showHelp]);
 
+  // Open the cheat-sheet when the right-rail Keyboard button dispatches this event (the button
+  // lives in the properties-panel rail so it flows with the panel instead of a floating overlay).
+  useEffect(() => {
+    const open = () => setShowHelp(true);
+    window.addEventListener('open-drawer-shortcuts', open);
+    return () => window.removeEventListener('open-drawer-shortcuts', open);
+  }, []);
+
   return (
     <>
-      {/* Floating shortcuts button — bottom-right of the open drawer (same Keyboard icon as
-          the Relationship map); opens the cheat-sheet. */}
-      {props.active && !props.minimized && !showHelp && (
-        <button
-          onClick={() => setShowHelp(true)}
-          title="Keyboard shortcuts (Shift + ?)"
-          className="fixed bottom-4 right-2 z-[9990] flex size-9 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] shadow-md transition-colors hover:bg-[#F5F7FA] hover:text-[#3D8BD0]"
-        >
-          <Keyboard size={16} />
-        </button>
-      )}
       {showHelp && (
       <>
       <div className="fixed inset-0 z-[10050] bg-black/30" onClick={() => setShowHelp(false)} />

@@ -1,67 +1,37 @@
-# Handoff — 2026-07-14 22:38
+# Handoff — 2026-07-15 22:23
 
 ## Read first
-Focus CLAUDE.md's `## Key context` bullets on: the **RelationshipGraph** bullet
-(topology layout + curved edges), the new **Integration (Jira) group**, **Similar
-Tickets type filter**, **Tasks sort icon**, **auto-hide scrollbars**, and the
-**Software asset Consolidated/Installation card-list toggle** bullet. These are
-where this session's work lives.
+CLAUDE.md `## Key context` — focus on: the **RelationshipGraph** bullet (Connection pill, Saved Views pill w/ deselect, PNG download, parent→child edge flow), the **Cross-module drawer host** bullet (new 4th lifted pair `stackActiveGroup`), the **Similar Tickets type filter + open-in-drawer** bullet, and the three new bullets after it (right-rail Keyboard button, `.app-select`, Conversation email polish).
 
 ## What we worked on this session
-UI polish + small features across the detail drawers: topology edge curves +
-Expand-all overlap, a Jira Integration panel on the ticket page, a Similar Tickets
-filter, a Tasks sort icon, global auto-hide scrollbars, and card/list views for
-the Software asset's Consolidated Software + Installation tabs.
+Topology power-features (Saved Views, connection-type filter with animated matching edges, PNG export, edge-flow direction), right-panel persistence when opening related records, and conversation/email polish (full quoted-message header, click-to-copy emails) — plus a batch of small consistency fixes.
 
 ## Completed
-- **Topology Expand-all overlap** (`RelationshipGraph.tsx`): added first-level
-  **sector pinning** (each branch gets a footprint-sized angular wedge, root
-  pinned) so big branches don't crowd. Verified 0 node pairs < 130px on Hardware
-  + CMDB expand-all. (A full recursive-balloon rewrite was tried, spread nodes ~5×
-  too far, and was **reverted**.)
-- **Curved edges** (`FloatingEdge`): FULL view = swirled quadratic Bézier
-  (pinwheel, `bow = len*0.22`); TREE view = `getSmoothStepPath` rounded-elbow
-  connectors. Applies to all 5 topology drawers.
-- **Integration (Jira) group** — ticket right rail (Blocks icon, `showIntegration`
-  prop). Blank empty state → Add Integration side drawer (Subject/Description/
-  Project/Issue Type/Priority) → single expandable card with the real Jira logo;
-  one entry max, hover-delete resets to empty.
-- **Similar Tickets filter pills** (All/Request/Problem/Change, `rounded-sm`, live
-  counts) in `TicketPropertiesPanel`; added `type` + PRB/CHG mock rows in
-  `TicketDrawerUtils`.
-- **Tasks tab sort icon** (`ArrowUpDown`) right of the filter icon, toggles order.
-- **Auto-hide scrollbars** globally in `theme.css` (thumb transparent until the
-  scroll area is hovered) — fixes 3 scrollbars showing at once.
-- **Software asset Consolidated Software + Installation tabs**: card/list toggle
-  (default card), borderless hover-gray **Software Type** dropdown, and a series
-  of card-layout tweaks (ID pill on top / subject below, added Asset Type, removed
-  Created Date + redundant Host Name, search width, toggle `ml-auto`).
-- **Removed Close Order** CTA from `PurchaseDrawer` header.
+- **Similar Tickets → open in same drawer**: clicking a card opens the real REQ/PRB/CHG detail page as a tab (via `onOpenRelation` → `DrawerStack.openRelation`, keyed by the item's `type`).
+- **Right-panel group persistence**: new `stackActiveGroup`/`onStackActiveGroupChange` lifted pair in `DrawerStack`; Ticket/Problem/Change/Release defer to it, reset effects made local-only — so AI Suggestions (etc.) stays open when a related record opens.
+- **Keyboard-shortcuts button** moved from a floating fixed overlay to the bottom of the right rail (rail styling, `open-drawer-shortcuts` CustomEvent → `DrawerShortcuts`).
+- **`.app-select`** global CSS utility (light-gray inset chevron) applied to all 21 standalone native selects.
+- **Topology — Saved Views** (`RelSavedViews.tsx` + `snapshotRef` capture/restore API on `RelationshipGraph`): labeled pill after the Connection filter (shows applied view name, blue when active), saves mode + both filters + expansions/pins/viewport to localStorage `relViews:<module>`; **deselect** via "Default view" row or re-clicking the active view (drawer `reset` prop).
+- **Topology — Connection-type filter**: Connection pill (searchable dropdown, `REL_RELATIONS` catalog order — expanded 21→40 relations, shared with Add Relationship); matching edges render with the full hover treatment (animated dash + relation label), rest fades.
+- **Topology misc**: hover/filter dash flow always parent→child; **PNG** added to the Download formats (5 drawers).
+- **CMDB**: right-panel Asset field value now a real asset ref (`AST-4021 Dell PowerEdge R750`).
+- **Conversation**: trimmed message shows **From/Date/To/Subject**; all ~195 conversation email addresses (headers, tooltips, trimmed To) are click-to-copy via new `CopyableEmails` (clipboard + toast). Swept across the 11 drawers with the conversation clone.
 
 ## In progress
-Nothing mid-flight. Every change built clean (`npm run build`).
+Nothing mid-flight — every change built clean (`npm run build`) and was e2e-verified with puppeteer.
 
 ## Next steps
-- None pending. If continuing: nothing outstanding was requested.
+1. **Confirm: remove the "Baseline Variance" KPI card on the CMDB Overview?** The user asked for it, the edit was started, then the user stopped the action and moved on — it was never completed. The card is the ternary at `CmdbDrawer.tsx` ~line 456 (`baselineVarianceCount > 0 ? {Baseline Variance…} : {Encryption…}`; `baselineVarianceCount` const ~line 330 is only used there).
+2. Publish — this session's work is NOT yet pushed (last deploy = commit `14c54cf` from Jul 14).
 
 ## Decisions made
-- **Kept the force-directed topology layout + sector pinning** instead of a pure
-  recursive balloon — the balloon version was mathematically overlap-free but
-  ballooned the graph ~5× (couldn't fit within minZoom). Sector pinning gives
-  clean first-level separation at a compact size; residual density inside a single
-  very dense branch is inherent to 183 nodes.
-- **Auto-hide scrollbars applied globally** (to Tailwind overflow utilities) rather
-  than per-component, so every scroll area behaves consistently.
-- **Integration is one-entry-max** per record (blank state ↔ single card), matching
-  the reference screenshots.
+- **Saved Views deselect** = "Default view" row + toggle-off on the active row; reset = clear both filters + graph mode + bump `relKey` (reuses the Refresh reset path).
+- **Connection filter options derive from the shared `REL_RELATIONS` catalog** (same list + order as Add Relationship) with canvas-only extras appended — single source of truth, and user-added relations always appear.
+- **Right-panel group persistence** uses the same lifted-state pattern as width/minimized/activeTab (4th pair in `DrawerStack`), with local-only reset effects so a fresh open still defaults to Properties.
+- **CopyableEmails swept by regex** over `>(text)<` JSX text nodes containing `@motadata.com` — attributes/options can't match, so it's safe; verified 0 option/value hits first.
 
 ## Gotchas & notes
-- Verify with `npm run build` (no standalone typecheck; the IDE shows a bogus
-  `react/jsx-runtime` implicit-any error — ignore it).
-- The topology layout lives in `RelationshipGraph.tsx` `layoutAll()`; the sector
-  pinning block sits right after the bottom-up footprint loop, before the force
-  sim. Edge shape is in the `FloatingEdge` component (mode-aware on `data.tree`).
-- Puppeteer nav to the Software asset page is flaky in headless — use the Assets
-  sidebar flyout label **"Software Assets"** (not "Software") and open a `SWAST-`
-  row.
-- Nothing published this session (last deploy predates it) — publish when ready.
+- Verify with `npm run build`; IDE's `react/jsx-runtime` implicit-any error is bogus.
+- Topology toolbar changes still need the 5-drawer node sweep (Hardware/Software/Non-IT/Consumable/CMDB — identical anchors). The Saved Views + Connection pill sweeps used: state after `relFilter`, pill after the node-type Filter block, props after `refreshSignal={relKey}`.
+- Radix tooltips have hoverable content by default — that's why clicking emails inside the recipient tooltips works.
+- Puppeteer: the ticket conversation's forward block sits inside the collapsed "N activities" group — expand it first; the topology Refresh button selector is `button.h-8.w-8 svg.lucide-refresh-cw` (a plain `.find` on lucide-refresh-cw hits other refresh icons).

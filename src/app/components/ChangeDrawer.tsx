@@ -18,6 +18,7 @@ import type { Change } from './ChangeListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
@@ -109,6 +110,8 @@ interface ChangeDrawerProps {
   onStackWidthChange?: (w: number) => void;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
+  stackActiveGroup?: string;
+  onStackActiveGroupChange?: (g: string) => void;
 }
 
 interface AnalysisFieldProps {
@@ -639,6 +642,8 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
+stackActiveGroup,
+onStackActiveGroupChange,
 }: ChangeDrawerProps) {
   const activeChange = openChanges.find(c => c.id === activeChangeId);
   const [minimizedLocal, setMinimizedLocal] = useState(false);
@@ -771,7 +776,11 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications'>('properties');
+  type RightGroup = 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'notifications';
+  const [activeGroupLocal, setActiveGroupLocal] = useState<RightGroup>('properties');
+  // Defer to the DrawerStack shared group so it persists when opening a related record.
+  const activeGroup = (stackActiveGroup as RightGroup | undefined) ?? activeGroupLocal;
+  const setActiveGroup = (g: RightGroup) => { setActiveGroupLocal(g); onStackActiveGroupChange?.(g); };
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -1322,7 +1331,7 @@ onStackMinimizedChange,
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (!hasSeenOnboarding && activeChangeId) {
-      setActiveGroup('properties'); // Open ticket properties by default for first-time users
+      setActiveGroupLocal('properties'); // local-only default (never clobbers persisted group)
       setTimeout(() => setShowOnboarding(true), 500);
     }
   }, [activeChangeId]);
@@ -1331,7 +1340,7 @@ onStackMinimizedChange,
   useEffect(() => {
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (hasSeenOnboarding && activeChangeId) {
-      setActiveGroup('properties');
+      setActiveGroupLocal('properties');
     }
   }, [activeChangeId]);
 
@@ -4062,8 +4071,8 @@ onStackMinimizedChange,
                             <div className="ml-4">{thread.to[1]}</div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
                             <div className="ml-4">{thread.to[0]}</div>
                           </div>
                         </div>
@@ -4124,6 +4133,8 @@ onStackMinimizedChange,
                           <div className="text-xs text-[#7B8FA5] mb-2">
                             <div><span className="font-medium">From:</span> {thread.origFrom}</div>
                             <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
+                            <div><span className="font-medium">To:</span><CopyableEmails text=" servicedesk@motadata.com" /></div>
+                            <div><span className="font-medium">Subject:</span> Monitoring migration to SolarWinds Observability</div>
                           </div>
                           <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
                             <p className="text-sm text-[#364658] leading-relaxed">
@@ -4220,8 +4231,8 @@ onStackMinimizedChange,
                               <div className="ml-4">{thread.to[1]}</div>
                             </div>
                             <div>
-                              <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                              <div className="ml-4">keertan@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
                               <div className="ml-4">{thread.to[1]}</div>
                             </div>
                           </div>
@@ -4407,10 +4418,10 @@ onStackMinimizedChange,
                             <div className="ml-4">{thread.to[1]}</div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">network.ops@motadata.com</div>
-                            <div className="ml-4">nirav.bhatt@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="network.ops@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="nirav.bhatt@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>

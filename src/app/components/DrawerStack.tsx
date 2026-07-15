@@ -62,6 +62,10 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
   // tab restores the tab the user left it on — even though the host remounts a fresh drawer
   // instance when switching between modules.
   const [tabByKey, setTabByKey] = useState<Record<string, string>>({});
+  // Shared right-panel group (Properties / Activity / Suggestions / …). Persisted across drawer
+  // instances so opening a related record (e.g. a Similar Ticket) keeps the same group open
+  // instead of resetting to Properties. `undefined` → each drawer falls back to its own default.
+  const [activeGroup, setActiveGroup] = useState<string | undefined>(undefined);
 
   // When the user navigates to a different module's list page, minimize any open
   // drawer so the list underneath is visible (the rail stays for quick restore).
@@ -125,6 +129,8 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       onStackMinimizedChange: setMinimized,
       stackActiveTab: active ? tabByKey[active.key] : undefined,
       onStackActiveTabChange: (t: string) => { if (active) setTabByKey((p) => (p[active.key] === t ? p : { ...p, [active.key]: t })); },
+      stackActiveGroup: activeGroup,
+      onStackActiveGroupChange: setActiveGroup,
     } as any;
     switch (active.module) {
       case 'request': drawer = <TicketDrawer openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;

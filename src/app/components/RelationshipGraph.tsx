@@ -89,6 +89,25 @@ interface RelationshipGraphProps {
   expandAllSignal?: number;
   /** Bump to collapse every node back to the first level (toolbar "Collapse all"). */
   collapseAllSignal?: number;
+  /** The graph fills this ref with a capture/restore API for the toolbar "Saved Views" feature. */
+  snapshotRef?: React.RefObject<RelGraphSnapshotApi | null>;
+  /** Connection-type filter (edge relation label, e.g. "Hosted On"): only edges with that
+   *  relation — and the nodes at their two ends — stay lit; everything else fades out. */
+  connectionFilter?: string | null;
+  /** Reports the DISTINCT connection types currently on the canvas (drives the toolbar
+   *  Connection dropdown, so options always match the real edges incl. user-added ones). */
+  onConnectionTypesChange?: (rels: string[]) => void;
+}
+
+/** Canvas state captured by a Saved View: expansions, manual pins, and the viewport. */
+export interface RelViewSnapshot {
+  expanded: string[];
+  manual: Record<string, { x: number; y: number }>;
+  viewport?: { x: number; y: number; zoom: number };
+}
+export interface RelGraphSnapshotApi {
+  capture: () => RelViewSnapshot;
+  restore: (s: RelViewSnapshot) => void;
 }
 
 /* Pick the most accurate icon from the node's NAME (falls back to its type). */
@@ -635,7 +654,7 @@ function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setSho
 
 /* ------------------------------ Inner (uses hooks) ------------------------------ */
 
-function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren, mockProfile, expandAllSignal, collapseAllSignal }: RelationshipGraphProps) {
+function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, centerId, refreshSignal, searchTerm, config, hideControls, previewMode, typeFilter, onOpenNode, onAddRelation, onShowIssues, extraChildren, mockProfile, expandAllSignal, collapseAllSignal, snapshotRef, connectionFilter, onConnectionTypesChange }: RelationshipGraphProps) {
   const rf = useReactFlow();
   const cfg: RelGraphConfig = { ...DEFAULT_REL_GRAPH_CONFIG, ...(config ?? {}) };
 
@@ -1045,6 +1064,31 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, refreshSignal, dataSig]);
 
+  // Saved Views: expose a capture/restore API to the host toolbar. Re-assigned every render so
+  // the closures always see the current layoutAll/config; capture grabs the expansions + manual
+  // pins + viewport, restore re-applies them and re-lays-out (then pans back to the saved view).
+  useEffect(() => {
+    if (!snapshotRef) return;
+    snapshotRef.current = {
+      capture: () => ({
+        expanded: [...expandedRef.current],
+        manual: { ...manualPos.current },
+        viewport: rf.getViewport(),
+      }),
+      restore: (s) => {
+        expandedRef.current = new Set(s.expanded);
+        manualPos.current = { ...s.manual };
+        const init = layoutAll();
+        setNodes(init.nodes);
+        setEdges(init.edges);
+        setTimeout(() => {
+          if (s.viewport) rf.setViewport(s.viewport, { duration: 300 });
+          else rf.fitView({ padding: 0.2, duration: 300 });
+        }, 60);
+      },
+    };
+  });
+
   // Dragging a parent node carries its whole visible subtree with it (group drag). The centre
   // (root) node is exempt — moving it repositions only itself, never its children.
   const dragState = useRef<{ id: string; start: { x: number; y: number }; last: { x: number; y: number }; descendants: Set<string> } | null>(null);
@@ -1131,9 +1175,10 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   };
   toggleRef.current = toggleExpand;
 
-  // Spotlight for the hovered/selected node: its edges become animated dashed blue lines
-  // (`outward` = dash flow travels away from the node), its directly connected nodes stay
-  // full-strength, and EVERYTHING else — nodes and edges — fades out.
+  // Spotlight for the hovered/selected node: its edges become animated dashed blue lines. The
+  // dash flow ALWAYS travels source→target (parent→child) so the direction is the same whether
+  // you hover the parent or the child. Directly connected nodes stay full-strength; everything
+  // else — nodes and edges — fades out.
   const activeId = hoverId ?? pinnedId;
   const connectedIds = activeId
     ? new Set([activeId, ...edges.flatMap((e) => (e.source === activeId ? [e.target] : e.target === activeId ? [e.source] : []))])
@@ -1151,20 +1196,50 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   const filterIds = typeFilter
     ? new Set(['center', ...nodes.filter((n) => (n.data as { nodeType?: string }).nodeType === typeFilter).map((n) => n.id)])
     : null;
-  const dimSet = matchIds ?? filterIds;
+  // Connection filter (toolbar Connection menu): only edges whose relation label matches — and
+  // the nodes at their two ends — stay lit; the centre always stays as the anchor.
+  const edgeRel = (e: Edge) => (e.data as { rel?: string } | undefined)?.rel;
+  const connIds = connectionFilter
+    ? new Set(['center', ...edges.flatMap((e) => (edgeRel(e) === connectionFilter ? [e.source, e.target] : []))])
+    : null;
+  const dimSet = matchIds ?? filterIds ?? connIds;
   const renderEdges = activeId
     ? edges.map((e) =>
         e.source === activeId || e.target === activeId
-          ? { ...e, data: { ...e.data, hl: true, outward: e.source === activeId } }
+          ? { ...e, data: { ...e.data, hl: true, outward: true } }
           : { ...e, data: { ...e.data, dim: true } },
       )
     : dimSet
-      ? edges.map((e) => (dimSet.has(e.target) ? e : { ...e, data: { ...e.data, dim: true } }))
+      ? edges.map((e) => {
+          // With a connection filter the EDGE's own relation decides; otherwise the target node does.
+          // Matching connections get the full hover treatment — animated dashed direction flow +
+          // the relation name riding on the line — so the filtered relations read at a glance.
+          if (dimSet === connIds) {
+            return edgeRel(e) === connectionFilter
+              ? { ...e, data: { ...e.data, hl: true, outward: true } }
+              : { ...e, data: { ...e.data, dim: true } };
+          }
+          return dimSet.has(e.target) ? e : { ...e, data: { ...e.data, dim: true } };
+        })
       : edges;
   const focusIds = connectedIds ?? dimSet;
   const renderNodes = focusIds
     ? nodes.map((n) => (focusIds.has(n.id) ? n : { ...n, style: { ...n.style, opacity: 0.18, transition: 'opacity 0.2s' } }))
     : nodes;
+
+  // Report the distinct connection types on the canvas whenever the edge set changes, so the
+  // toolbar's Connection dropdown always offers exactly what's really there (incl. relations
+  // added via the Add Relationship panel).
+  const connTypesSig = useRef('');
+  useEffect(() => {
+    if (!onConnectionTypesChange) return;
+    const rels = [...new Set(edges.map(edgeRel).filter((r): r is string => !!r))].sort();
+    const sig = rels.join('|');
+    if (sig !== connTypesSig.current) {
+      connTypesSig.current = sig;
+      onConnectionTypesChange(rels);
+    }
+  });
 
   // When the search finds nodes, centre the canvas on them and zoom in to a readable level
   // (debounced so the view doesn't jump on every keystroke).

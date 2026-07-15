@@ -7,9 +7,12 @@ import type { RelType, ExtraRelChild } from './RelationshipGraph';
  * are added to the topology as children of the source node with the chosen relation label. */
 
 export const REL_RELATIONS = [
-  'Depends On', 'Users', 'Send Data to', 'Runs', 'Connected to', 'Subscribes to', 'Impacts',
-  'Submits', 'Supports', 'Author of', 'Hosted On', 'Enables', 'Includes', 'Contains',
-  'Located In', 'Exchanges data with', 'Managed by', 'Uses', 'Virtualized by', 'Is Edited by', 'Backed Up by',
+  'Depends On', 'Depended On By', 'Users', 'Used By', 'Uses', 'Send Data to', 'Receives Data From',
+  'Runs', 'Runs On', 'Hosts', 'Hosted On', 'Connected to', 'Subscribes to', 'Impacts', 'Impacted By',
+  'Submits', 'Supports', 'Author of', 'Enables', 'Includes', 'Contains', 'Located In',
+  'Exchanges data with', 'Manages', 'Managed by', 'Monitors', 'Monitored By', 'Virtualized by',
+  'Is Edited by', 'Backs Up', 'Backed Up by', 'Powers', 'Powered By', 'Replicates To', 'Fails Over To',
+  'Owns', 'Owned By', 'Member Of', 'Provides', 'Consumes',
 ];
 
 const TARGET_TYPES = ['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const;

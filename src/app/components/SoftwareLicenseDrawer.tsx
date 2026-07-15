@@ -25,6 +25,7 @@ import type { SoftwareLicense } from './SoftwareLicensesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
@@ -4039,7 +4040,7 @@ onStackMinimizedChange,
                       <select
                         value={newCost.factor}
                         onChange={(e) => setNewCost((c) => ({ ...c, factor: e.target.value }))}
-                        className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                        className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                       >
                         <option value="">Select</option>
                         {['Purchase', 'Operation', 'Disposal', 'Repair', 'Upgrade', 'Other'].map((f) => <option key={f}>{f}</option>)}
@@ -4115,7 +4116,7 @@ onStackMinimizedChange,
                           <select
                             value={deprConfig.method}
                             onChange={(e) => setDeprConfig((d) => ({ ...d, method: e.target.value }))}
-                            className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                            className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                           >
                             <option value="">Select</option>
                             {['Straight Line', 'Declining Balance', 'Sum Of The Years Digit', 'Double Declining Balance'].map((m) => <option key={m}>{m}</option>)}
@@ -4482,19 +4483,19 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,...</div>
+                          <div><CopyableEmails text="Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: infrastructure.team@motadata.com</div>
-                            <div className="ml-4">devops@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: infrastructure.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="devops@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">database.team@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="database.team@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>
@@ -4570,6 +4571,8 @@ onStackMinimizedChange,
                           <div className="text-xs text-[#7B8FA5] mb-2">
                             <div><span className="font-medium">From:</span> Sarah Chen</div>
                             <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
+                            <div><span className="font-medium">To:</span><CopyableEmails text=" servicedesk@motadata.com" /></div>
+                            <div><span className="font-medium">Subject:</span> Monitoring migration to SolarWinds Observability</div>
                           </div>
                           <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
                             <p className="text-sm text-[#364658] leading-relaxed">
@@ -4658,19 +4661,19 @@ onStackMinimizedChange,
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                            <div>Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,...</div>
+                            <div><CopyableEmails text="Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,..." /></div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="text-xs">
                             <div className="mb-2">
-                              <div className="font-medium">To: sarah.chen@motadata.com</div>
-                              <div className="ml-4">ops.team@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="To: sarah.chen@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="ops.team@motadata.com" /></div>
                             </div>
                             <div>
-                              <div className="font-medium">Cc: infrastructure.team@motadata.com</div>
-                              <div className="ml-4">keertan@motadata.com</div>
-                              <div className="ml-4">saahil.pandya@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="Cc: infrastructure.team@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
                             </div>
                           </div>
                         </TooltipContent>
@@ -4847,21 +4850,21 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,...</div>
+                          <div><CopyableEmails text="Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: database.team@motadata.com</div>
-                            <div className="ml-4">kenil.patel@motadata.com</div>
-                            <div className="ml-4">ronak.patel@motadata.com</div>
-                            <div className="ml-4">saahil.pandya@motadata.com</div>
-                            <div className="ml-4">nirav.bhatt@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: database.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="kenil.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="ronak.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="nirav.bhatt@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>

@@ -4434,7 +4434,7 @@ onStackMinimizedChange,
                       <select
                         value={newCost.factor}
                         onChange={(e) => setNewCost((c) => ({ ...c, factor: e.target.value }))}
-                        className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                        className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                       >
                         <option value="">Select</option>
                         {['Purchase', 'Operation', 'Disposal', 'Repair', 'Upgrade', 'Other'].map((f) => <option key={f}>{f}</option>)}
@@ -4510,7 +4510,7 @@ onStackMinimizedChange,
                           <select
                             value={deprConfig.method}
                             onChange={(e) => setDeprConfig((d) => ({ ...d, method: e.target.value }))}
-                            className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                            className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                           >
                             <option value="">Select</option>
                             {['Straight Line', 'Declining Balance', 'Sum Of The Years Digit', 'Double Declining Balance'].map((m) => <option key={m}>{m}</option>)}

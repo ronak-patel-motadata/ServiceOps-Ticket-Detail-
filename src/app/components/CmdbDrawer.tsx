@@ -11,9 +11,10 @@
  * to help reduce the file size where possible.
  */
 import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
-import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, activeIssuesFor } from './RelationshipGraph';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, activeIssuesFor, type RelGraphSnapshotApi } from './RelationshipGraph';
+import { RelSavedViews } from './RelSavedViews';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
-import { AddRelationshipPanel } from './AddRelationshipPanel';
+import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
 import { RelSliderRow } from './RelSliderRow';
 import { AiSparkle } from './AiSparkle';
@@ -29,6 +30,7 @@ import type { Ci } from './CmdbListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
@@ -246,7 +248,7 @@ onStackMinimizedChange,
     impact: assetImpact, setImpact: setAssetImpact,
     managedByGroup: assetGroup, setManagedByGroup: setAssetGroup,
     managedBy: assetManager, setManagedBy: setAssetManager,
-    ci: 'CI-778 192.168.1.60',
+    ci: 'AST-4021 Dell PowerEdge R750',
     extra: assetExtra, setExtra: setAssetExtra,
   };
 
@@ -363,6 +365,8 @@ onStackMinimizedChange,
   const [relExpandKey, setRelExpandKey] = useState(0);
   const [relCollapseKey, setRelCollapseKey] = useState(0);
   const [relAllExpanded, setRelAllExpanded] = useState(false);
+  // Saved Views: capture/restore API filled by the RelationshipGraph instance.
+  const relSnapRef = useRef<RelGraphSnapshotApi | null>(null);
   const [relSearch, setRelSearch] = useState('');
   // Advanced Configuration for the relationship topology: applied config + panel draft.
   const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
@@ -370,6 +374,11 @@ onStackMinimizedChange,
   const [showRelSettings, setShowRelSettings] = useState(false);
   // Topology type filter (toolbar Filter menu): the selected option's label, or null = all.
   const [relFilter, setRelFilter] = useState<string | null>(null);
+  // Connection-type filter (edge relation labels; options reported live by the graph).
+  const [relConnFilter, setRelConnFilter] = useState<string | null>(null);
+  const [relConnTypes, setRelConnTypes] = useState<string[]>([]);
+  const [showRelConnMenu, setShowRelConnMenu] = useState(false);
+  const [relConnSearch, setRelConnSearch] = useState('');
   const [showRelFilter, setShowRelFilter] = useState(false);
   // Add Relationship: the node whose "+" was clicked (opens the side panel), and the
   // user-added relationships per source node (grafted into the topology).
@@ -380,7 +389,7 @@ onStackMinimizedChange,
   const relSearchRef = useRef<HTMLInputElement>(null);
   // Relationship download popup (same as the audit-trail download).
   const [showRelDownload, setShowRelDownload] = useState(false);
-  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV'>('PDF');
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV' | 'PNG'>('PDF');
   const [relDlPwProtected, setRelDlPwProtected] = useState(false);
   const [relDlShowPw, setRelDlShowPw] = useState(false);
   const [relDlPassword, setRelDlPassword] = useState('');
@@ -2251,6 +2260,73 @@ onStackMinimizedChange,
                       </>
                     )}
                   </div>
+                  {/* Connection-type filter — options derived from the edges actually on the canvas */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => { setShowRelConnMenu((v) => !v); setRelConnSearch(''); }}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relConnFilter ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                        >
+                          <Link2 size={14} className={relConnFilter ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                          <span>{relConnFilter ?? 'Connection'}</span>
+                          <ChevronDown size={14} className={`transition-transform ${showRelConnMenu ? 'rotate-180' : ''} ${relConnFilter ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Filter by connection type</TooltipContent>
+                    </Tooltip>
+                    {showRelConnMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelConnMenu(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-[230px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 flex flex-col max-h-[380px]">
+                          {/* Search — same affordance as the Add Relationship relation dropdown */}
+                          <div className="relative p-2 border-b border-[#EEF1F4]">
+                            <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                            <input
+                              type="text"
+                              value={relConnSearch}
+                              onChange={(e) => setRelConnSearch(e.target.value)}
+                              placeholder="Search"
+                              className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                            />
+                          </div>
+                          <div className="overflow-y-auto py-1">
+                          <button
+                            onClick={() => { setRelConnFilter(null); setShowRelConnMenu(false); }}
+                            className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relConnFilter ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                          >
+                            All
+                            {!relConnFilter && <Check size={14} className="text-[#3D8BD0]" />}
+                          </button>
+                          {/* Catalog order matches the Add Relationship relation dropdown; canvas-only extras append at the end */}
+                          {[...REL_RELATIONS, ...relConnTypes.filter((r) => !REL_RELATIONS.includes(r))].filter((opt) => opt.toLowerCase().includes(relConnSearch.trim().toLowerCase())).map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => { setRelConnFilter((p) => (p === opt ? null : opt)); setShowRelConnMenu(false); }}
+                              className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relConnFilter === opt ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                            >
+                              {opt}
+                              {relConnFilter === opt && <Check size={14} className="text-[#3D8BD0]" />}
+                            </button>
+                          ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {/* Saved views */}
+                  <RelSavedViews
+                    storageKey="relViews:cmdb"
+                    reset={() => { setRelView('graph'); setRelFilter(null); setRelConnFilter(null); setRelKey((k) => k + 1); }}
+                    capture={() => ({ mode: relView, filter: relFilter, connFilter: relConnFilter, graph: relSnapRef.current?.capture() ?? null })}
+                    apply={(v) => {
+                      setRelView(v.mode as 'graph' | 'tree' | 'grid');
+                      setRelFilter(v.filter);
+                      setRelConnFilter(v.connFilter ?? null);
+                      // Restore canvas state AFTER the mode-change relayout effect has run.
+                      setTimeout(() => { if (v.graph) relSnapRef.current?.restore(v.graph); }, 120);
+                    }}
+                  />
                 </div>
               );
 
@@ -2324,7 +2400,7 @@ onStackMinimizedChange,
                           <div className="mb-4">
                             <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
                             <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
-                              {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
+                              {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
                                 <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
                               ))}
                             </div>
@@ -2408,6 +2484,9 @@ onStackMinimizedChange,
                     <RelationshipGraph
                       mode={relView as 'graph' | 'tree'}
                       refreshSignal={relKey}
+                      snapshotRef={relSnapRef}
+                      connectionFilter={relConnFilter}
+                      onConnectionTypesChange={setRelConnTypes}
                       expandAllSignal={relExpandKey}
                       collapseAllSignal={relCollapseKey}
                       nodes={nodes}
@@ -4516,7 +4595,7 @@ onStackMinimizedChange,
                       <select
                         value={newCost.factor}
                         onChange={(e) => setNewCost((c) => ({ ...c, factor: e.target.value }))}
-                        className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                        className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                       >
                         <option value="">Select</option>
                         {['Purchase', 'Operation', 'Disposal', 'Repair', 'Upgrade', 'Other'].map((f) => <option key={f}>{f}</option>)}
@@ -4592,7 +4671,7 @@ onStackMinimizedChange,
                           <select
                             value={deprConfig.method}
                             onChange={(e) => setDeprConfig((d) => ({ ...d, method: e.target.value }))}
-                            className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                            className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                           >
                             <option value="">Select</option>
                             {['Straight Line', 'Declining Balance', 'Sum Of The Years Digit', 'Double Declining Balance'].map((m) => <option key={m}>{m}</option>)}
@@ -4959,19 +5038,19 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,...</div>
+                          <div><CopyableEmails text="Forwarded to infrastructure.team@motadata.com, devops@motadata.com, Cc: saahil.pandya@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: infrastructure.team@motadata.com</div>
-                            <div className="ml-4">devops@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: infrastructure.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="devops@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
-                            <div className="ml-4">database.team@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="database.team@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>
@@ -5047,6 +5126,8 @@ onStackMinimizedChange,
                           <div className="text-xs text-[#7B8FA5] mb-2">
                             <div><span className="font-medium">From:</span> Sarah Chen</div>
                             <div><span className="font-medium">Date:</span> Feb 4, 2026 at 9:42 AM</div>
+                            <div><span className="font-medium">To:</span><CopyableEmails text=" servicedesk@motadata.com" /></div>
+                            <div><span className="font-medium">Subject:</span> Monitoring migration to SolarWinds Observability</div>
                           </div>
                           <div className="bg-[rgba(223,229,237,0.15)] rounded-lg p-3">
                             <p className="text-sm text-[#364658] leading-relaxed">
@@ -5135,19 +5216,19 @@ onStackMinimizedChange,
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                            <div>Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,...</div>
+                            <div><CopyableEmails text="Replied to sarah.chen@motadata.com, ops.team@motadata.com, Cc: infrastructure.team@motadata.com,..." /></div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="text-xs">
                             <div className="mb-2">
-                              <div className="font-medium">To: sarah.chen@motadata.com</div>
-                              <div className="ml-4">ops.team@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="To: sarah.chen@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="ops.team@motadata.com" /></div>
                             </div>
                             <div>
-                              <div className="font-medium">Cc: infrastructure.team@motadata.com</div>
-                              <div className="ml-4">keertan@motadata.com</div>
-                              <div className="ml-4">saahil.pandya@motadata.com</div>
+                              <div className="font-medium"><CopyableEmails text="Cc: infrastructure.team@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
+                              <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
                             </div>
                           </div>
                         </TooltipContent>
@@ -5324,21 +5405,21 @@ onStackMinimizedChange,
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                          <div>Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,...</div>
+                          <div><CopyableEmails text="Replied to saahil.pandya@motadata.com, keertan@motadata.com, Cc: database.team@motadata.com,..." /></div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs">
                           <div className="mb-2">
-                            <div className="font-medium">To: saahil.pandya@motadata.com</div>
-                            <div className="ml-4">keertan@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="To: saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="keertan@motadata.com" /></div>
                           </div>
                           <div>
-                            <div className="font-medium">Cc: database.team@motadata.com</div>
-                            <div className="ml-4">kenil.patel@motadata.com</div>
-                            <div className="ml-4">ronak.patel@motadata.com</div>
-                            <div className="ml-4">saahil.pandya@motadata.com</div>
-                            <div className="ml-4">nirav.bhatt@motadata.com</div>
+                            <div className="font-medium"><CopyableEmails text="Cc: database.team@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="kenil.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="ronak.patel@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="saahil.pandya@motadata.com" /></div>
+                            <div className="ml-4"><CopyableEmails text="nirav.bhatt@motadata.com" /></div>
                           </div>
                         </div>
                       </TooltipContent>

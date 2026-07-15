@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -212,6 +212,8 @@ interface TicketPropertiesPanelProps {
   showNotifications?: boolean;
   // Show the Integration (Jira) group at the end of the right rail (ticket page).
   showIntegration?: boolean;
+  // Open a Similar Ticket as a tab in the same drawer (DrawerStack.openRelation).
+  onOpenRelation?: (rel: { id: string; type: string; ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => void;
   // Add a finished Work Tracker session to the Work History list (ticket page).
   onAddWorkLog?: (log: any) => void;
   getCurrentStatusColor: () => string;
@@ -384,6 +386,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     propertiesTitle,
     showNotifications = false,
     showIntegration = false,
+    onOpenRelation,
     onAddWorkLog,
     getCurrentStatusColor,
     getCurrentPriorityColor,
@@ -2576,11 +2579,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {(
             <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
               {availableSimilarTickets.filter((t) => similarFilter === 'All' || t.type === similarFilter).map((ticket) => (
-                <div 
+                <div
                   key={ticket.id}
                   className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer relative group"
                   onMouseEnter={() => setHoveredTicketId(ticket.id)}
                   onMouseLeave={() => setHoveredTicketId(null)}
+                  onClick={() => onOpenRelation?.({ id: ticket.id, type: ticket.type ?? 'Request', ticketId: ticket.id, subject: ticket.title, status: ticket.status, priority: 'Medium', assignedTo: { name: ticket.assignee } })}
+                  title={onOpenRelation ? `Open ${ticket.id} in this drawer` : undefined}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1 min-w-0">
@@ -3710,6 +3715,19 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipContent>Integration</TooltipContent>
         </Tooltip>
         )}
+        {/* Keyboard shortcuts — pinned at the bottom of the rail; opens the cheat-sheet
+            (handled by DrawerShortcuts via a custom event). Plain rail styling, no shadow. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-drawer-shortcuts'))}
+              className="mt-auto size-9 flex items-center justify-center rounded-[6px] border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all"
+            >
+              <Keyboard size={16} className="text-[#364658]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Keyboard shortcuts (Shift + ?)</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Knowledge Base — side drawer (opened from "View all Knowledge") */}
@@ -3740,19 +3758,19 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Project <span className="text-[#DC2626]">*</span></label>
-                <select value={intgProject} onChange={(e) => setIntgProject(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgProject} onChange={(e) => setIntgProject(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['JIRA-TESTING', 'Service Desk', 'Infrastructure', 'Product Backlog'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Issue Type <span className="text-[#DC2626]">*</span></label>
-                <select value={intgIssueType} onChange={(e) => setIntgIssueType(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgIssueType} onChange={(e) => setIntgIssueType(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['Bug', 'Task', 'Story', 'Incident', 'Epic'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Priority <span className="text-[#DC2626]">*</span></label>
-                <select value={intgPriority} onChange={(e) => setIntgPriority(e.target.value)} className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgPriority} onChange={(e) => setIntgPriority(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['Low', 'Medium', 'High', 'Urgent'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
@@ -3861,7 +3879,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <select
                     value={newUser.accountType}
                     onChange={(e) => setNewUser((u) => ({ ...u, accountType: e.target.value }))}
-                    className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.accountType ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.accountType ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                   >
                     <option value="">Select</option>
                     <option>Normal Account</option>
@@ -3885,7 +3903,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <select
                     value={newUser.disabled}
                     onChange={(e) => setNewUser((u) => ({ ...u, disabled: e.target.value }))}
-                    className={`w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.disabled ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.disabled ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                   >
                     <option value="">Select</option>
                     <option>No</option>
