@@ -16,6 +16,7 @@ import {
   IconMyTeam,
 } from './SidebarIcons';
 import { Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 // Asset sub-modules surfaced in the hover flyout (grouped with dividers).
 const ASSET_GROUPS: { icon: React.ReactNode; label: string }[][] = [
@@ -50,7 +51,7 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
   const sectionActive = activePage === 'hardware-assets' || activePage === 'software-assets' || activePage === 'non-it-assets' || activePage === 'consumable-assets' || activePage === 'software-licenses' || activePage === 'contracts' || activePage === 'purchases';
   return (
     <div className="relative group">
-      <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" />
+      <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" disableTooltip />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
         <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
@@ -86,12 +87,13 @@ interface NavItemProps {
   active?: boolean;
   onClick?: () => void;
   title?: string;
+  // The Assets item shows its own hover flyout, so it opts out of the tooltip.
+  disableTooltip?: boolean;
 }
 
-function NavItem({ icon, active, onClick, title }: NavItemProps) {
-  return (
+function NavItem({ icon, active, onClick, title, disableTooltip }: NavItemProps) {
+  const button = (
     <button
-      title={title}
       onClick={onClick}
       className={`flex h-[40px] w-full items-center justify-center transition-colors relative ${
         active
@@ -104,6 +106,15 @@ function NavItem({ icon, active, onClick, title }: NavItemProps) {
         {icon}
       </div>
     </button>
+  );
+
+  if (!title || disableTooltip) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="right">{title}</TooltipContent>
+    </Tooltip>
   );
 }
 

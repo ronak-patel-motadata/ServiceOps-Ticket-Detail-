@@ -1,9 +1,10 @@
-import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2, X } from 'lucide-react';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
 import { DescriptionExpandModal } from './DescriptionExpandModal';
+import { toast } from 'sonner';
 
 interface AdditionalFieldsAccordionProps {
   additionalFieldsExpanded: boolean;
@@ -121,6 +122,46 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
   // Description custom field (single-line + expandable rich editor)
   const [descriptionValue, setDescriptionValue] = useState('');
   const [showDescriptionExpand, setShowDescriptionExpand] = useState(false);
+  // Centered popup showing ALL form fields two-per-row
+  const [showExpandFields, setShowExpandFields] = useState(false);
+  // User-created custom fields are editable — edited values live here,
+  // falling back to the mock defaults (shared by the accordion + popup).
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const customVal = (label: string, fallback: string) => customFieldValues[label] ?? fallback;
+  const setCustomVal = (label: string, value: string) =>
+    setCustomFieldValues((prev) => ({ ...prev, [label]: value }));
+  // The popup edits a DRAFT; values reach the accordion only on Update.
+  const [draftFields, setDraftFields] = useState<Record<string, string>>({});
+  const setDraft = (label: string, value: string) =>
+    setDraftFields((prev) => ({ ...prev, [label]: value }));
+  const openExpandFields = () => {
+    const d: Record<string, string> = {
+      'Project Name': selectedProjectName,
+      'Cost Center': selectedCostCenter,
+      'Business Unit': companyValue,
+      'Building': selectedBuilding,
+      'Request Channel': selectedRequestChannel,
+      'Description': descriptionValue,
+    };
+    for (const f of DEMO_CUSTOM_FORM_FIELDS) d[f.label] = customVal(f.label, f.value);
+    setDraftFields(d);
+    setShowExpandFields(true);
+  };
+  const applyExpandFields = () => {
+    setSelectedProjectName(draftFields['Project Name']);
+    setSelectedCostCenter(draftFields['Cost Center']);
+    setCompanyValue(draftFields['Business Unit']);
+    setSelectedBuilding(draftFields['Building']);
+    setSelectedRequestChannel(draftFields['Request Channel']);
+    setDescriptionValue(draftFields['Description']);
+    setCustomFieldValues((prev) => {
+      const next = { ...prev };
+      for (const f of DEMO_CUSTOM_FORM_FIELDS) next[f.label] = draftFields[f.label] ?? f.value;
+      return next;
+    });
+    setShowExpandFields(false);
+    toast.success('Form fields updated');
+  };
 
   useEffect(() => {
     // Close dropdowns when clicking outside
@@ -167,47 +208,68 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
 
   return (
     <div className="border border-[#DFE5ED] rounded-lg" ref={additionalFieldsRef}>
-      <button
-        onClick={() => setAdditionalFieldsExpanded(!additionalFieldsExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
-      >
-        <div className="flex items-center gap-2">
-          <Tag size={16} className="text-[#364658]" />
-          <h3 className="text-[13px] font-semibold text-[#364658]">Additional Fields</h3>
-        </div>
-        {additionalFieldsExpanded ? (
-          <ChevronDown size={16} className="text-[#7B8FA5]" />
-        ) : (
-          <ChevronRight size={16} className="text-[#7B8FA5]" />
+      {/* Header + tabs pin just under the panel's sticky search header (86px tall)
+          while the long field list scrolls beneath them. */}
+      <div className="sticky top-[85px] z-40 rounded-t-lg bg-white">
+        <button
+          onClick={() => setAdditionalFieldsExpanded(!additionalFieldsExpanded)}
+          className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+        >
+          <div className="flex items-center gap-2">
+            <Tag size={16} className="text-[#364658]" />
+            <h3 className="text-[13px] font-semibold text-[#364658]">Additional Fields</h3>
+          </div>
+          {additionalFieldsExpanded ? (
+            <ChevronDown size={16} className="text-[#7B8FA5]" />
+          ) : (
+            <ChevronRight size={16} className="text-[#7B8FA5]" />
+          )}
+        </button>
+
+        {(additionalFieldsExpanded || propertiesSearchQuery) && (
+          <div className="px-4">
+            {/* Tabs */}
+            <div className="flex gap-1 border-b border-[#E5E7EB]">
+              <button
+                onClick={() => setAdditionalFieldsTab('form')}
+                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
+                  additionalFieldsTab === 'form'
+                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
+                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
+                }`}
+              >
+                Form Fields
+              </button>
+              <button
+                onClick={() => setAdditionalFieldsTab('system')}
+                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
+                  additionalFieldsTab === 'system'
+                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
+                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
+                }`}
+              >
+                System Fields
+              </button>
+              {additionalFieldsTab === 'form' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={openExpandFields}
+                      className="ml-auto self-center p-1 mb-1 rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#364658] transition-colors"
+                    >
+                      <Maximize2 size={14} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Expand fields</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </div>
         )}
-      </button>
+      </div>
 
       {(additionalFieldsExpanded || propertiesSearchQuery) && (
-        <div className="px-4 pb-4">
-          {/* Tabs */}
-          <div className="flex gap-1 mb-3 border-b border-[#E5E7EB]">
-            <button
-              onClick={() => setAdditionalFieldsTab('form')}
-              className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                additionalFieldsTab === 'form'
-                  ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                  : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-              }`}
-            >
-              Form Fields
-            </button>
-            <button
-              onClick={() => setAdditionalFieldsTab('system')}
-              className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                additionalFieldsTab === 'system'
-                  ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                  : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-              }`}
-            >
-              System Fields
-            </button>
-          </div>
-
+        <div className="px-4 pb-4 pt-3">
           {/* Form Fields Content */}
           {additionalFieldsTab === 'form' && (
             <div className="space-y-3">
@@ -505,8 +567,15 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                 const visible = expanded ? matches : matches.slice(0, 1);
                 return (
                   <>
-                    {visible.map((f) => (
-                      <div key={f.label} className="flex items-center justify-between gap-3">
+                    {visible.map((f, i) => (
+                      <Fragment key={f.label}>
+                      {/* Group header — the form-builder separator the admin placed between sections */}
+                      {f.group && (i === 0 || visible[i - 1].group !== f.group) && (
+                        <div className="mt-3 border-t border-[#EEF1F4] pt-5 pb-0.5">
+                          <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">{f.group}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-3">
                         <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                           <span>{f.label}</span>
                           <Tooltip>
@@ -526,11 +595,19 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                             </TooltipContent>
                           </Tooltip>
                         </div>
-                        <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-[13px] text-[#364658] rounded-md hover:bg-[#F5F7FA] transition-colors">
-                          {f.color && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
-                          <span className="truncate min-w-0" title={f.value}>{f.value}</span>
+                        <div className="flex-1 min-w-0 relative">
+                          {f.color && (
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: f.color }} />
+                          )}
+                          <input
+                            type="text"
+                            value={customVal(f.label, f.value)}
+                            onChange={(e) => setCustomVal(f.label, e.target.value)}
+                            className={`w-full ${f.color ? 'pl-6' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] bg-transparent rounded-md hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent focus:bg-white transition-colors`}
+                          />
                         </div>
                       </div>
+                      </Fragment>
                     ))}
                     {!propertiesSearchQuery && !showAllFormFields && matches.length > 1 && (
                       <div>
@@ -581,6 +658,154 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
         value={descriptionValue}
         onChange={setDescriptionValue}
       />
+
+      {/* Expanded Form Fields popup — every field in a two-column grid */}
+      {showExpandFields && (
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowExpandFields(false)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[720px] max-h-[82vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[16px] font-semibold text-[#364658]">Form Fields</h2>
+              <button onClick={() => setShowExpandFields(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Project Name</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: projectNameOptions.find((o) => o.label === draftFields['Project Name'])?.color || getCurrentProjectNameColor() }} />
+                    <select
+                      value={draftFields['Project Name'] ?? selectedProjectName}
+                      onChange={(e) => setDraft('Project Name', e.target.value)}
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    >
+                      {projectNameOptions.map((o) => (
+                        <option key={o.label} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Cost Center</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: costCenterOptions.find((o) => o.label === draftFields['Cost Center'])?.color || getCurrentCostCenterColor() }} />
+                    <select
+                      value={draftFields['Cost Center'] ?? selectedCostCenter}
+                      onChange={(e) => setDraft('Cost Center', e.target.value)}
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    >
+                      {costCenterOptions.map((o) => (
+                        <option key={o.label} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Business Unit</label>
+                  <input
+                    type="text"
+                    value={draftFields['Business Unit'] ?? companyValue}
+                    onChange={(e) => setDraft('Business Unit', e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Building</label>
+                  <select
+                    value={draftFields['Building'] ?? selectedBuilding}
+                    onChange={(e) => setDraft('Building', e.target.value)}
+                    className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  >
+                    {buildingOptions.map((o) => (
+                      <option key={o.label} value={o.label}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Request Channel</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: requestChannelOptions.find((o) => o.label === draftFields['Request Channel'])?.color || getCurrentRequestChannelColor() }} />
+                    <select
+                      value={draftFields['Request Channel'] ?? selectedRequestChannel}
+                      onChange={(e) => setDraft('Request Channel', e.target.value)}
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    >
+                      {requestChannelOptions.map((o) => (
+                        <option key={o.label} value={o.label}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {demoCustomFields && (
+                  <div className="col-span-2">
+                    <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
+                    <textarea
+                      value={draftFields['Description'] ?? descriptionValue}
+                      onChange={(e) => setDraft('Description', e.target.value)}
+                      placeholder="Description..."
+                      className="w-full min-h-[84px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white resize-y focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent placeholder:text-[#9CA3AF]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Grouped custom fields */}
+              {demoCustomFields && (() => {
+                const groups: { title: string; fields: typeof DEMO_CUSTOM_FORM_FIELDS }[] = [];
+                for (const f of DEMO_CUSTOM_FORM_FIELDS) {
+                  const last = groups[groups.length - 1];
+                  if (!last || last.title !== (f.group || '')) groups.push({ title: f.group || '', fields: [f] });
+                  else last.fields.push(f);
+                }
+                return groups.map((g) => (
+                  <div key={g.title} className="mt-5 border-t border-[#EEF1F4] pt-4">
+                    <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#1E293B] mb-3">{g.title}</div>
+                    <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                      {g.fields.map((f) => (
+                        <div key={f.label}>
+                          <label className="block text-[13px] text-[#364658] mb-1.5">{f.label}</label>
+                          <div className="relative">
+                            {f.color && (
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: f.color }} />
+                            )}
+                            <input
+                              type="text"
+                              value={draftFields[f.label] ?? customVal(f.label, f.value)}
+                              onChange={(e) => setDraft(f.label, e.target.value)}
+                              className={`w-full ${f.color ? 'pl-7' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Sticky footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#E5E7EB] flex-shrink-0 bg-white">
+              <button
+                onClick={applyExpandFields}
+                className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+              >
+                Update
+              </button>
+              <button
+                onClick={() => setShowExpandFields(false)}
+                className="px-4 py-1.5 border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F3F4F6] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { Lightbulb } from 'lucide-react';
+
 export function IconDashboard({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
@@ -78,12 +80,10 @@ export function IconProject({ size = 20 }: { size?: number }) {
   );
 }
 
+// Uses the lucide Lightbulb so the sidebar "Knowledge" icon matches the
+// "Insert Knowledge" bulb in the editor toolbar (one bulb across the product).
 export function IconKnowledge({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-      <path fill="currentColor" d="M26,10c0,1.11-.9,2-2,2s-2-.89-2-2V6c0-1.11,.9-2,2-2s2,.89,2,2v4Zm0,20.92c0-.71,.38-1.38,1-1.73,1.85-1.06,3-3.05,3-5.19,0-3.31-2.69-6-6-6s-6,2.69-6,6c0,2.14,1.15,4.12,3,5.19,.62,.36,1,1.02,1,1.73v9.08h4v-9.08Zm-12-6.92c0-5.51,4.49-10,10-10s10,4.49,10,10c0,3.16-1.51,6.12-4,7.99v8.01c0,2.21-1.79,4-4,4h-4c-2.21,0-4-1.79-4-4v-8.01c-2.49-1.87-4-4.83-4-7.99Zm28-2h-4c-1.11,0-2,.89-2,2s.89,2,2,2h4c1.11,0,2-.89,2-2s-.89-2-2-2Zm-36,0h4c1.1,0,2,.89,2,2s-.9,2-2,2H6c-1.1,0-2-.89-2-2s.9-2,2-2ZM15.32,12.84l-2.88-2.78c-.79-.77-2.06-.74-2.83,.05-.77,.79-.75,2.06,.05,2.83l2.88,2.78c.39,.38,.89,.56,1.39,.56s1.05-.21,1.44-.61c.77-.79,.75-2.06-.05-2.83Zm20.24-2.78c.79-.77,2.06-.74,2.83,.05,.77,.79,.75,2.06-.05,2.83l-2.88,2.78c-.39,.37-.89,.56-1.39,.56s-1.05-.21-1.44-.61c-.77-.79-.75-2.06,.05-2.83l2.88-2.78Z" />
-    </svg>
-  );
+  return <Lightbulb size={size} aria-hidden="true" />;
 }
 
 export function IconReport({ size = 20 }: { size?: number }) {

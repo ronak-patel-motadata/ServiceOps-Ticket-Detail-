@@ -154,9 +154,9 @@ export function ResolutionTabContent({
       ) : (
         <div className="space-y-4">
           {hasDiagnosis && !diagnosisData && (
-            <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={diagnosisFormRef}>
+            <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={diagnosisFormRef}>
               {/* Diagnosis Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Diagnosis</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -430,9 +430,9 @@ export function ResolutionTabContent({
           )}
 
           {hasSolution && !solutionData && (
-            <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
+            <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={solutionFormRef}>
               {/* Solution Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">

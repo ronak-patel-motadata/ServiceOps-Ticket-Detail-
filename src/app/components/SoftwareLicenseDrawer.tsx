@@ -13,6 +13,7 @@
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Upload, Bell } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
+import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
@@ -1659,19 +1660,19 @@ onStackMinimizedChange,
 
   // Populate content when editors open
   useEffect(() => {
-    if (showReplyEditor && replyContent && replyContentRef.current) {
+    if (showReplyEditor && replyContent && replyContentRef.current && replyContentRef.current.innerHTML !== replyContent) {
       replyContentRef.current.innerHTML = replyContent;
     }
   }, [showReplyEditor, replyContent]);
 
   useEffect(() => {
-    if (showForwardEditor && forwardContent && forwardContentRef.current) {
+    if (showForwardEditor && forwardContent && forwardContentRef.current && forwardContentRef.current.innerHTML !== forwardContent) {
       forwardContentRef.current.innerHTML = forwardContent;
     }
   }, [showForwardEditor, forwardContent]);
 
   useEffect(() => {
-    if (showCollaborateEditor && collaborateContent && collaborateContentRef.current) {
+    if (showCollaborateEditor && collaborateContent && collaborateContentRef.current && collaborateContentRef.current.innerHTML !== collaborateContent) {
       collaborateContentRef.current.innerHTML = collaborateContent;
     }
   }, [showCollaborateEditor, collaborateContent]);
@@ -2152,6 +2153,13 @@ onStackMinimizedChange,
                 </>
               )}
             </div>
+            {/* Allocate — primary header action; jumps to the Allocation tab */}
+            <button
+              onClick={() => setActiveMainTab('allocation')}
+              className="h-8 px-4 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+            >
+              Allocate
+            </button>
           </div>
         </div>
 
@@ -5150,7 +5158,6 @@ onStackMinimizedChange,
                           ref={forwardContentRef}
                           contentEditable
                           dir="ltr"
-                          dangerouslySetInnerHTML={{ __html: forwardContent }}
                           onInput={(e) => setForwardContent(e.currentTarget.innerHTML)}
                           className="w-full min-h-[128px] text-sm text-[#364658] focus:outline-none bg-transparent"
                           style={{
@@ -5328,27 +5335,11 @@ onStackMinimizedChange,
                           )}
                         </div>
 
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                          <Paperclip size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                          <Image size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                          <Link2 size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                          <Smile size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Text Formatting">
-                          <Type size={16} />
-                        </button>
+                        <EditorToolbarActions />
                       </div>
 
                       {/* Right Side - Send Button */}
-                      <button className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium">
-                        Send
-                      </button>
+                      <EditorSendActions />
                     </div>
                   </div>
                 </div>
@@ -5356,9 +5347,9 @@ onStackMinimizedChange,
 
               {/* Collaborate Editor */}
               {showCollaborateEditor && (
-                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={collaborateFormRef}>
+                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={collaborateFormRef}>
               {/* Collaborate Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Collaborate</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -5378,18 +5369,7 @@ onStackMinimizedChange,
               <div className="p-4">
                 {/* Text Area - No To/Cc fields for collaborate */}
                 <div className="mb-4">
-                  <textarea
-                    ref={collaborateContentRef}
-                    value={collaborateContent}
-                    onChange={(e) => setCollaborateContent(e.target.value)}
-                    placeholder="Start typing your collaboration message..."
-                    dir="ltr"
-                    className="w-full min-h-[192px] text-sm text-[#364658] focus:outline-none bg-transparent resize-none placeholder:text-[#9CA3AF]"
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
+                  <RichComposerArea value={collaborateContent} onChange={setCollaborateContent} placeholder="Start typing your collaboration message..." />
                 </div>
 
                 {/* Bottom Toolbar */}
@@ -5543,26 +5523,7 @@ onStackMinimizedChange,
                   {/* Formatting Tools */}
                   <div className="relative flex items-center gap-1" ref={formattingMenuCollaborateRef}>
                     {/* Always visible quick access icons */}
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                      <Paperclip size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                      <Image size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                      <Smile size={16} />
-                    </button>
-                    
-                    {/* Type button to show all formatting options */}
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                      onClick={() => setShowFormattingMenuCollaborate(!showFormattingMenuCollaborate)}
-                    >
-                      <Type size={16} />
-                    </button>
+                    <EditorToolbarActions />
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuCollaborate && (
@@ -5627,12 +5588,7 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <button
-                    onClick={handleSendCollaborate}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                  >
-                    Send
-                  </button>
+                  <EditorSendActions onSend={handleSendCollaborate} />
                 </div>
               </div>
             </div>
@@ -5640,9 +5596,9 @@ onStackMinimizedChange,
 
               {/* Note Editor */}
               {showNoteEditor && (
-                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={noteFormRef}>
+                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={noteFormRef}>
               {/* Note Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Note</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -5662,17 +5618,7 @@ onStackMinimizedChange,
               <div className="p-4">
                 {/* Text Area - No To/Cc fields for note */}
                 <div className="mb-4">
-                  <textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Add your note..."
-                    dir="ltr"
-                    className="w-full min-h-[192px] text-sm text-[#364658] focus:outline-none bg-transparent resize-none placeholder:text-[#9CA3AF]"
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
+                  <RichComposerArea value={noteContent} onChange={setNoteContent} placeholder="Add your note..." />
                 </div>
 
                 {/* Bottom Toolbar */}
@@ -5826,26 +5772,7 @@ onStackMinimizedChange,
                   {/* Formatting Tools */}
                   <div className="relative flex items-center gap-1" ref={formattingMenuNoteRef}>
                     {/* Always visible quick access icons */}
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                      <Paperclip size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                      <Image size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                      <Smile size={16} />
-                    </button>
-                    
-                    {/* Type button to show all formatting options */}
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                      onClick={() => setShowFormattingMenuNote(!showFormattingMenuNote)}
-                    >
-                      <Type size={16} />
-                    </button>
+                    <EditorToolbarActions />
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuNote && (
@@ -5910,12 +5837,7 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <button
-                    onClick={handleSendNote}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                  >
-                    Send
-                  </button>
+                  <EditorSendActions onSend={handleSendNote} />
                 </div>
               </div>
             </div>
@@ -6518,9 +6440,9 @@ onStackMinimizedChange,
                 ) : (
                   <div className="space-y-4">
                     {hasDiagnosis && !diagnosisData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={diagnosisFormRef}>
+                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={diagnosisFormRef}>
                         {/* Diagnosis Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+                        <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[#364658]">Diagnosis</h3>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -6690,26 +6612,7 @@ onStackMinimizedChange,
                               {/* Formatting Tools */}
                               <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
                                 {/* Always visible quick access icons */}
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                  <Paperclip size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                  <Image size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                  <Link2 size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                  <Smile size={16} />
-                                </button>
-                                
-                                {/* Type button to show all formatting options */}
-                                <button 
-                                  className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                  onClick={() => setShowFormattingMenuDiagnosis(!showFormattingMenuDiagnosis)}
-                                >
-                                  <Type size={16} />
-                                </button>
+                                <EditorToolbarActions />
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
@@ -6812,9 +6715,9 @@ onStackMinimizedChange,
                     )}
                     
                     {hasSolution && !solutionData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
+                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={solutionFormRef}>
                         {/* Solution Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+                        <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
                           <div className="flex items-center gap-2">
                             <button className="text-[#7B8FA5] hover:text-[#364658]">
@@ -6988,26 +6891,7 @@ onStackMinimizedChange,
                             {/* Formatting Tools */}
                             <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
                               {/* Always visible quick access icons */}
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                <Paperclip size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                <Image size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                <Link2 size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                <Smile size={16} />
-                              </button>
-                              
-                              {/* Type button to show all formatting options */}
-                              <button 
-                                className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                onClick={() => setShowFormattingMenuSolution(!showFormattingMenuSolution)}
-                              >
-                                <Type size={16} />
-                              </button>
+                              <EditorToolbarActions />
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (

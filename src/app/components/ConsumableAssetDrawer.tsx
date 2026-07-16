@@ -18,6 +18,7 @@ import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
 import { RelSliderRow } from './RelSliderRow';
 import { AiSparkle } from './AiSparkle';
+import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
@@ -273,12 +274,14 @@ onStackMinimizedChange,
   const [relDraft, setRelDraft] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
   const [showRelSettings, setShowRelSettings] = useState(false);
   // Topology type filter (toolbar Filter menu): the selected option's label, or null = all.
-  const [relFilter, setRelFilter] = useState<string | null>(null);
+  const [relFilter, setRelFilter] = useState<string[]>([]);
   // Connection-type filter (edge relation labels; options reported live by the graph).
-  const [relConnFilter, setRelConnFilter] = useState<string | null>(null);
+  const [relConnFilter, setRelConnFilter] = useState<string[]>([]);
   const [relConnTypes, setRelConnTypes] = useState<string[]>([]);
   const [showRelConnMenu, setShowRelConnMenu] = useState(false);
   const [relConnSearch, setRelConnSearch] = useState('');
+  // Active tab inside the merged Filter popup.
+  const [relFilterTab, setRelFilterTab] = useState<'type' | 'connection'>('type');
   const [showRelFilter, setShowRelFilter] = useState(false);
   // Add Relationship: the node whose "+" was clicked (opens the side panel), and the
   // user-added relationships per source node (grafted into the topology).
@@ -391,6 +394,10 @@ onStackMinimizedChange,
   const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
   const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
+  // Allocate Quantity side popup (header Allocate button + the Quantity & Allocation tab button).
+  const [showAllocatePopup, setShowAllocatePopup] = useState(false);
+  const [allocForm, setAllocForm] = useState({ status: 'In Use', qty: '0', to: '', location: '', dept: '', target: '', asset: '', desc: '' });
+  const setAlloc = (k: keyof typeof allocForm, v: string) => setAllocForm((p) => ({ ...p, [k]: v }));
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
   const [showNotifyMenu, setShowNotifyMenu] = useState(false);
   const [notifyEnabled, setNotifyEnabled] = useState(false);
@@ -1672,19 +1679,19 @@ onStackMinimizedChange,
 
   // Populate content when editors open
   useEffect(() => {
-    if (showReplyEditor && replyContent && replyContentRef.current) {
+    if (showReplyEditor && replyContent && replyContentRef.current && replyContentRef.current.innerHTML !== replyContent) {
       replyContentRef.current.innerHTML = replyContent;
     }
   }, [showReplyEditor, replyContent]);
 
   useEffect(() => {
-    if (showForwardEditor && forwardContent && forwardContentRef.current) {
+    if (showForwardEditor && forwardContent && forwardContentRef.current && forwardContentRef.current.innerHTML !== forwardContent) {
       forwardContentRef.current.innerHTML = forwardContent;
     }
   }, [showForwardEditor, forwardContent]);
 
   useEffect(() => {
-    if (showCollaborateEditor && collaborateContent && collaborateContentRef.current) {
+    if (showCollaborateEditor && collaborateContent && collaborateContentRef.current && collaborateContentRef.current.innerHTML !== collaborateContent) {
       collaborateContentRef.current.innerHTML = collaborateContent;
     }
   }, [showCollaborateEditor, collaborateContent]);
@@ -2336,6 +2343,13 @@ onStackMinimizedChange,
                 </div>
               )}
             </div>
+            {/* Allocate — primary header action; opens the Allocate Quantity side popup */}
+            <button
+              onClick={() => setShowAllocatePopup(true)}
+              className="h-8 px-4 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+            >
+              Allocate
+            </button>
             <HardwareAssetActionsMenu
               nonIt
               onOpenApprovalPopup={() => {
@@ -3016,7 +3030,7 @@ onStackMinimizedChange,
                           <Plus size={16} />
                         </button>
                       ) : (
-                        <button className="px-4 py-1.5 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">Allocate</button>
+                        <button onClick={() => setShowAllocatePopup(true)} className="px-4 py-1.5 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors">Allocate</button>
                       )}
                     </div>
                   </div>
@@ -4168,96 +4182,124 @@ onStackMinimizedChange,
                       className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
                     />
                   </div>
-                  {/* Filter (node types) — sits right next to the search; shows the selected
-                      option in the pill (same pattern as the Relations tab narrow-view filter) */}
+                  {/* Filters — node type + connection type in ONE popup with two TABS (side-by-side
+                      columns read as parent→child, so tabs make the two independent filters clear);
+                      selections keep the popup open, a dot marks a tab whose filter is active */}
                   <div className="relative">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => setShowRelFilter((v) => !v)}
-                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relFilter ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                          onClick={() => { setShowRelFilter((v) => !v); setRelConnSearch(''); setRelFilterTab(relConnFilter.length && !relFilter.length ? 'connection' : 'type'); }}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relFilter.length || relConnFilter.length ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
                         >
-                          <Filter size={14} className={relFilter ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
-                          <span>{relFilter ?? 'All'}</span>
-                          <ChevronDown size={14} className={`transition-transform ${showRelFilter ? 'rotate-180' : ''} ${relFilter ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+                          <Filter size={14} className={relFilter.length || relConnFilter.length ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                          <span className="max-w-[200px] truncate">{[relFilter.length ? (relFilter.length === 1 ? relFilter[0] : `${relFilter[0]} +${relFilter.length - 1}`) : null, relConnFilter.length ? (relConnFilter.length === 1 ? relConnFilter[0] : `${relConnFilter[0]} +${relConnFilter.length - 1}`) : null].filter(Boolean).join(' · ') || 'All'}</span>
+                          <ChevronDown size={14} className={`transition-transform ${showRelFilter ? 'rotate-180' : ''} ${relFilter.length || relConnFilter.length ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Filter</TooltipContent>
+                      <TooltipContent>Filter by node type & connection</TooltipContent>
                     </Tooltip>
                     {showRelFilter && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowRelFilter(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-[210px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-50 max-h-[320px] overflow-y-auto">
-                          <button
-                            onClick={() => { setRelFilter(null); setShowRelFilter(false); }}
-                            className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relFilter ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
-                          >
-                            All
-                            {!relFilter && <Check size={14} className="text-[#3D8BD0]" />}
-                          </button>
-                          {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const).map((opt) => (
+                        <div className="absolute left-0 top-full mt-1 w-[280px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 flex flex-col">
+                          {/* Selected filters as removable chips (both tabs combined) */}
+                          {(relFilter.length > 0 || relConnFilter.length > 0) && (
+                            <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-2.5 border-b border-[#EEF1F4]">
+                              {relFilter.map((f) => (
+                                <span key={`t-${f}`} className="inline-flex items-center gap-1 rounded-md bg-[#F1F5F9] pl-2 pr-1 py-0.5 text-[12px] font-medium text-[#364658]">
+                                  {f}
+                                  <button onClick={() => setRelFilter((p) => p.filter((x) => x !== f))} className="rounded p-0.5 text-[#7B8FA5] hover:text-[#364658] hover:bg-black/10 transition-colors"><X size={11} /></button>
+                                </span>
+                              ))}
+                              {relConnFilter.map((f) => (
+                                <span key={`c-${f}`} className="inline-flex items-center gap-1 rounded-md bg-[#F1F5F9] pl-2 pr-1 py-0.5 text-[12px] font-medium text-[#364658]">
+                                  {f}
+                                  <button onClick={() => setRelConnFilter((p) => p.filter((x) => x !== f))} className="rounded p-0.5 text-[#7B8FA5] hover:text-[#364658] hover:bg-black/10 transition-colors"><X size={11} /></button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Tabs */}
+                          <div className="flex border-b border-[#EEF1F4]">
                             <button
-                              key={opt}
-                              onClick={() => { setRelFilter((p) => (p === opt ? null : opt)); setShowRelFilter(false); }}
-                              className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter === opt ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                              onClick={() => setRelFilterTab('type')}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${relFilterTab === 'type' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
                             >
-                              {opt}
-                              {relFilter === opt && <Check size={14} className="text-[#3D8BD0]" />}
+                              Node Type
+                              {relFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
                             </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {/* Connection-type filter — options derived from the edges actually on the canvas */}
-                  <div className="relative">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => { setShowRelConnMenu((v) => !v); setRelConnSearch(''); }}
-                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relConnFilter ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
-                        >
-                          <Link2 size={14} className={relConnFilter ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
-                          <span>{relConnFilter ?? 'Connection'}</span>
-                          <ChevronDown size={14} className={`transition-transform ${showRelConnMenu ? 'rotate-180' : ''} ${relConnFilter ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Filter by connection type</TooltipContent>
-                    </Tooltip>
-                    {showRelConnMenu && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowRelConnMenu(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-[230px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 flex flex-col max-h-[380px]">
-                          {/* Search — same affordance as the Add Relationship relation dropdown */}
-                          <div className="relative p-2 border-b border-[#EEF1F4]">
-                            <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                            <input
-                              type="text"
-                              value={relConnSearch}
-                              onChange={(e) => setRelConnSearch(e.target.value)}
-                              placeholder="Search"
-                              className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
-                            />
+                            <button
+                              onClick={() => setRelFilterTab('connection')}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${relFilterTab === 'connection' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
+                            >
+                              Connection
+                              {relConnFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+                            </button>
                           </div>
-                          <div className="overflow-y-auto py-1">
-                          <button
-                            onClick={() => { setRelConnFilter(null); setShowRelConnMenu(false); }}
-                            className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relConnFilter ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
-                          >
-                            All
-                            {!relConnFilter && <Check size={14} className="text-[#3D8BD0]" />}
-                          </button>
-                          {/* Catalog order matches the Add Relationship relation dropdown; canvas-only extras append at the end */}
-                          {[...REL_RELATIONS, ...relConnTypes.filter((r) => !REL_RELATIONS.includes(r))].filter((opt) => opt.toLowerCase().includes(relConnSearch.trim().toLowerCase())).map((opt) => (
+                          {relFilterTab === 'type' ? (
+                            <div className="overflow-y-auto py-1 max-h-[320px]">
+                              <button
+                                onClick={() => setRelFilter([])}
+                                className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relFilter.length ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                              >
+                                All
+                                {!relFilter.length && <Check size={14} className="text-[#3D8BD0]" />}
+                              </button>
+                              {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const).map((opt) => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setRelFilter((p) => (p.includes(opt) ? p.filter((x) => x !== opt) : [...p, opt]))}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter.includes(opt) ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                >
+                                  {opt}
+                                  {relFilter.includes(opt) && <Check size={14} className="text-[#3D8BD0]" />}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col max-h-[320px]">
+                              <div className="relative px-2 pt-2 pb-1.5">
+                                <Search size={13} className="absolute left-4 top-[17px] text-[#9CA3AF]" />
+                                <input
+                                  type="text"
+                                  value={relConnSearch}
+                                  onChange={(e) => setRelConnSearch(e.target.value)}
+                                  placeholder="Search"
+                                  className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                                />
+                              </div>
+                              <div className="overflow-y-auto py-1">
+                                <button
+                                  onClick={() => setRelConnFilter([])}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relConnFilter.length ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                >
+                                  All
+                                  {!relConnFilter.length && <Check size={14} className="text-[#3D8BD0]" />}
+                                </button>
+                                {[...REL_RELATIONS, ...relConnTypes.filter((r) => !REL_RELATIONS.includes(r))].filter((opt) => opt.toLowerCase().includes(relConnSearch.trim().toLowerCase())).map((opt) => (
+                                  <button
+                                    key={opt}
+                                    onClick={() => setRelConnFilter((p) => (p.includes(opt) ? p.filter((x) => x !== opt) : [...p, opt]))}
+                                    className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relConnFilter.includes(opt) ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                  >
+                                    {opt}
+                                    {relConnFilter.includes(opt) && <Check size={14} className="text-[#3D8BD0]" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Footer: clear both + done */}
+                          <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#EEF1F4]">
                             <button
-                              key={opt}
-                              onClick={() => { setRelConnFilter((p) => (p === opt ? null : opt)); setShowRelConnMenu(false); }}
-                              className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relConnFilter === opt ? 'bg-[#EAF2FB] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                              onClick={() => { setRelFilter([]); setRelConnFilter([]); }}
+                              disabled={!relFilter.length && !relConnFilter.length}
+                              className="text-[12px] font-medium text-[#3D8BD0] hover:underline disabled:text-[#9CA3AF] disabled:no-underline disabled:cursor-not-allowed"
                             >
-                              {opt}
-                              {relConnFilter === opt && <Check size={14} className="text-[#3D8BD0]" />}
+                              Clear all
                             </button>
-                          ))}
+                            <button onClick={() => setShowRelFilter(false)} className="px-3 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[12px] font-medium hover:bg-[#2F7AB8] transition-colors">Done</button>
                           </div>
                         </div>
                       </>
@@ -4266,12 +4308,12 @@ onStackMinimizedChange,
                   {/* Saved views */}
                   <RelSavedViews
                     storageKey="relViews:consumable"
-                    reset={() => { setRelView('graph'); setRelFilter(null); setRelConnFilter(null); setRelKey((k) => k + 1); }}
+                    reset={() => { setRelView('graph'); setRelFilter([]); setRelConnFilter([]); setRelKey((k) => k + 1); }}
                     capture={() => ({ mode: relView, filter: relFilter, connFilter: relConnFilter, graph: relSnapRef.current?.capture() ?? null })}
                     apply={(v) => {
                       setRelView(v.mode as 'graph' | 'tree' | 'grid');
-                      setRelFilter(v.filter);
-                      setRelConnFilter(v.connFilter ?? null);
+                      setRelFilter(Array.isArray(v.filter) ? v.filter : v.filter ? [v.filter] : []);
+                      setRelConnFilter(Array.isArray(v.connFilter) ? v.connFilter : v.connFilter ? [v.connFilter] : []);
                       // Restore canvas state AFTER the mode-change relayout effect has run.
                       setTimeout(() => { if (v.graph) relSnapRef.current?.restore(v.graph); }, 120);
                     }}
@@ -4444,7 +4486,7 @@ onStackMinimizedChange,
                       centerId={activeAsset?.id}
                       searchTerm={relSearch}
                       config={relConfig}
-                      typeFilter={relFilter ? ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[relFilter] ?? null : null}
+                      typeFilter={relFilter.length ? relFilter.map((f) => ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[f as 'CI']).filter(Boolean) : null}
                       onOpenNode={(info) => {
                         // Open the node's record as a tab in this same drawer (same flow as the
                         // Impact popup's "Open related records"): CI-style nodes → CMDB, the
@@ -5901,7 +5943,6 @@ onStackMinimizedChange,
                           ref={forwardContentRef}
                           contentEditable
                           dir="ltr"
-                          dangerouslySetInnerHTML={{ __html: forwardContent }}
                           onInput={(e) => setForwardContent(e.currentTarget.innerHTML)}
                           className="w-full min-h-[128px] text-sm text-[#364658] focus:outline-none bg-transparent"
                           style={{
@@ -6079,27 +6120,11 @@ onStackMinimizedChange,
                           )}
                         </div>
 
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                          <Paperclip size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                          <Image size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                          <Link2 size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                          <Smile size={16} />
-                        </button>
-                        <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Text Formatting">
-                          <Type size={16} />
-                        </button>
+                        <EditorToolbarActions />
                       </div>
 
                       {/* Right Side - Send Button */}
-                      <button className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium">
-                        Send
-                      </button>
+                      <EditorSendActions />
                     </div>
                   </div>
                 </div>
@@ -6107,9 +6132,9 @@ onStackMinimizedChange,
 
               {/* Collaborate Editor */}
               {showCollaborateEditor && (
-                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={collaborateFormRef}>
+                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={collaborateFormRef}>
               {/* Collaborate Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Collaborate</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -6129,18 +6154,7 @@ onStackMinimizedChange,
               <div className="p-4">
                 {/* Text Area - No To/Cc fields for collaborate */}
                 <div className="mb-4">
-                  <textarea
-                    ref={collaborateContentRef}
-                    value={collaborateContent}
-                    onChange={(e) => setCollaborateContent(e.target.value)}
-                    placeholder="Start typing your collaboration message..."
-                    dir="ltr"
-                    className="w-full min-h-[192px] text-sm text-[#364658] focus:outline-none bg-transparent resize-none placeholder:text-[#9CA3AF]"
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
+                  <RichComposerArea value={collaborateContent} onChange={setCollaborateContent} placeholder="Start typing your collaboration message..." />
                 </div>
 
                 {/* Bottom Toolbar */}
@@ -6294,26 +6308,7 @@ onStackMinimizedChange,
                   {/* Formatting Tools */}
                   <div className="relative flex items-center gap-1" ref={formattingMenuCollaborateRef}>
                     {/* Always visible quick access icons */}
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                      <Paperclip size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                      <Image size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                      <Smile size={16} />
-                    </button>
-                    
-                    {/* Type button to show all formatting options */}
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                      onClick={() => setShowFormattingMenuCollaborate(!showFormattingMenuCollaborate)}
-                    >
-                      <Type size={16} />
-                    </button>
+                    <EditorToolbarActions />
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuCollaborate && (
@@ -6378,12 +6373,7 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <button
-                    onClick={handleSendCollaborate}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                  >
-                    Send
-                  </button>
+                  <EditorSendActions onSend={handleSendCollaborate} />
                 </div>
               </div>
             </div>
@@ -6391,9 +6381,9 @@ onStackMinimizedChange,
 
               {/* Note Editor */}
               {showNoteEditor && (
-                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={noteFormRef}>
+                <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={noteFormRef}>
               {/* Note Header */}
-              <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+              <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#364658]">Note</h3>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -6413,17 +6403,7 @@ onStackMinimizedChange,
               <div className="p-4">
                 {/* Text Area - No To/Cc fields for note */}
                 <div className="mb-4">
-                  <textarea
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Add your note..."
-                    dir="ltr"
-                    className="w-full min-h-[192px] text-sm text-[#364658] focus:outline-none bg-transparent resize-none placeholder:text-[#9CA3AF]"
-                    style={{
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                  />
+                  <RichComposerArea value={noteContent} onChange={setNoteContent} placeholder="Add your note..." />
                 </div>
 
                 {/* Bottom Toolbar */}
@@ -6577,26 +6557,7 @@ onStackMinimizedChange,
                   {/* Formatting Tools */}
                   <div className="relative flex items-center gap-1" ref={formattingMenuNoteRef}>
                     {/* Always visible quick access icons */}
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                      <Paperclip size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                      <Image size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                      <Smile size={16} />
-                    </button>
-                    
-                    {/* Type button to show all formatting options */}
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                      onClick={() => setShowFormattingMenuNote(!showFormattingMenuNote)}
-                    >
-                      <Type size={16} />
-                    </button>
+                    <EditorToolbarActions />
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuNote && (
@@ -6661,12 +6622,7 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <button
-                    onClick={handleSendNote}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                  >
-                    Send
-                  </button>
+                  <EditorSendActions onSend={handleSendNote} />
                 </div>
               </div>
             </div>
@@ -7047,9 +7003,9 @@ onStackMinimizedChange,
                 ) : (
                   <div className="space-y-4">
                     {hasDiagnosis && !diagnosisData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={diagnosisFormRef}>
+                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={diagnosisFormRef}>
                         {/* Diagnosis Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+                        <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[#364658]">Diagnosis</h3>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-[#DFE5ED] rounded text-[#7B8FA5]">
@@ -7219,26 +7175,7 @@ onStackMinimizedChange,
                               {/* Formatting Tools */}
                               <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
                                 {/* Always visible quick access icons */}
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                  <Paperclip size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                  <Image size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                  <Link2 size={16} />
-                                </button>
-                                <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                  <Smile size={16} />
-                                </button>
-                                
-                                {/* Type button to show all formatting options */}
-                                <button 
-                                  className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                  onClick={() => setShowFormattingMenuDiagnosis(!showFormattingMenuDiagnosis)}
-                                >
-                                  <Type size={16} />
-                                </button>
+                                <EditorToolbarActions />
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
@@ -7341,9 +7278,9 @@ onStackMinimizedChange,
                     )}
                     
                     {hasSolution && !solutionData && (
-                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg overflow-hidden bg-white shadow-sm" ref={solutionFormRef}>
+                      <div className="mt-6 border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={solutionFormRef}>
                         {/* Solution Header */}
-                        <div className="bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+                        <div className="rounded-t-[6px] bg-[#F9FAFB] px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
                           <h3 className="text-sm font-semibold text-[#364658]">Solution</h3>
                           <div className="flex items-center gap-2">
                             <button className="text-[#7B8FA5] hover:text-[#364658]">
@@ -7517,26 +7454,7 @@ onStackMinimizedChange,
                             {/* Formatting Tools */}
                             <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
                               {/* Always visible quick access icons */}
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                                <Paperclip size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                                <Image size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                                <Link2 size={16} />
-                              </button>
-                              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                                <Smile size={16} />
-                              </button>
-                              
-                              {/* Type button to show all formatting options */}
-                              <button 
-                                className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                                onClick={() => setShowFormattingMenuSolution(!showFormattingMenuSolution)}
-                              >
-                                <Type size={16} />
-                              </button>
+                              <EditorToolbarActions />
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (
@@ -8960,6 +8878,101 @@ onStackMinimizedChange,
             </div>
           </div>
         </div>
+      )}
+
+      {/* Allocate Quantity — side popup (header Allocate + Quantity & Allocation tab button) */}
+      {showAllocatePopup && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300" onClick={() => setShowAllocatePopup(false)} />
+          <div className="fixed top-0 right-0 h-full w-[620px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+              <h2 className="text-[18px] font-semibold text-[#111827]">Allocate Quantity</h2>
+              <button onClick={() => setShowAllocatePopup(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-auto px-6 py-5">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Status <span className="text-[#DC2626]">*</span></label>
+                  <select value={allocForm.status} onChange={(e) => setAlloc('status', e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                    {['In Use', 'Reserved', 'In Transit'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Quantity <span className="text-[#DC2626]">*</span></label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={allocForm.qty}
+                    onChange={(e) => setAlloc('qty', e.target.value)}
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                  {/* Keep in sync with the Quantity & Allocation cards (totalQty=60, allocatedQty=54) */}
+                  <div className="mt-1 text-[12px] text-[#364658]">Available Quantity: 6</div>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Allocate To</label>
+                  <select value={allocForm.to} onChange={(e) => setAlloc('to', e.target.value)} className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${allocForm.to ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                    <option value="">Select</option>
+                    {['Aarav Sharma', 'Priya Nair', 'Karan Malhotra', 'Neha Raje', 'Vikram Sethi', 'Farah Sheikh'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Location</label>
+                  <select value={allocForm.location} onChange={(e) => setAlloc('location', e.target.value)} className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${allocForm.location ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                    <option value="">Select</option>
+                    {['India', 'USA', 'UK', 'Germany', 'Singapore'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Department</label>
+                  <select value={allocForm.dept} onChange={(e) => setAlloc('dept', e.target.value)} className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${allocForm.dept ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                    <option value="">Select</option>
+                    {['Engineering', 'Finance', 'Sales', 'IT Operations', 'HR', 'Marketing'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Target Type</label>
+                  <select value={allocForm.target} onChange={(e) => setAlloc('target', e.target.value)} className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${allocForm.target ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                    <option value="">Select</option>
+                    {['User', 'Asset', 'Department'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Asset</label>
+                  <select value={allocForm.asset} onChange={(e) => setAlloc('asset', e.target.value)} className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${allocForm.asset ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
+                    <option value="">Select</option>
+                    {['AST-001 — MacBook Pro 16"', 'AST-002 — Dell Latitude 7440', 'AST-003 — HP EliteBook 840', 'AST-004 — Lenovo ThinkPad X1'].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
+                  <textarea
+                    value={allocForm.desc}
+                    onChange={(e) => setAlloc('desc', e.target.value)}
+                    placeholder="Description..."
+                    className="w-full min-h-[90px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+              <button
+                onClick={() => {
+                  setShowAllocatePopup(false);
+                  toast.success('Quantity allocated');
+                  setActiveMainTab('allocation');
+                  setAllocationView('allocations');
+                  setAllocForm({ status: 'In Use', qty: '0', to: '', location: '', dept: '', target: '', asset: '', desc: '' });
+                }}
+                disabled={!allocForm.qty || Number(allocForm.qty) <= 0}
+                className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Add
+              </button>
+              <button onClick={() => setShowAllocatePopup(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Properties Panel Add Relation Modal */}

@@ -73,8 +73,9 @@ interface RelationshipGraphProps {
   hideControls?: boolean;
   /** Static preview: one level only, no badges, no expand/drag/pan/zoom interactions. */
   previewMode?: boolean;
-  /** Type filter (from the toolbar Filter menu): nodes of other types fade out. */
-  typeFilter?: RelType | null;
+  /** Type filter (from the toolbar Filter menu): nodes of other types fade out. Accepts one
+   *  or MANY types (multi-select). */
+  typeFilter?: RelType | RelType[] | null;
   /** Called from the hover card's ↗ button — opens that node's record (e.g. as a drawer tab). */
   onOpenNode?: (info: { id: string; name: string; type: RelType }) => void;
   /** Called from a node's hover "+" badge — the host opens the Add Relationship panel. */
@@ -91,9 +92,10 @@ interface RelationshipGraphProps {
   collapseAllSignal?: number;
   /** The graph fills this ref with a capture/restore API for the toolbar "Saved Views" feature. */
   snapshotRef?: React.RefObject<RelGraphSnapshotApi | null>;
-  /** Connection-type filter (edge relation label, e.g. "Hosted On"): only edges with that
-   *  relation — and the nodes at their two ends — stay lit; everything else fades out. */
-  connectionFilter?: string | null;
+  /** Connection-type filter (edge relation labels, e.g. "Hosted On"): only edges with one of
+   *  those relations — and the nodes at their two ends — stay lit; everything else fades out.
+   *  Accepts one or MANY labels (multi-select). */
+  connectionFilter?: string | string[] | null;
   /** Reports the DISTINCT connection types currently on the canvas (drives the toolbar
    *  Connection dropdown, so options always match the real edges incl. user-added ones). */
   onConnectionTypesChange?: (rels: string[]) => void;
@@ -1192,17 +1194,23 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
         return `${d.label ?? ''} ${d.name ?? ''} ${d.id ?? ''}`.toLowerCase().includes(q);
       }).map((n) => n.id))
     : null;
-  // Type filter (toolbar Filter menu): nodes of the chosen type stay lit; centre always stays.
-  const filterIds = typeFilter
-    ? new Set(['center', ...nodes.filter((n) => (n.data as { nodeType?: string }).nodeType === typeFilter).map((n) => n.id)])
+  // Type filter (toolbar Filter menu): nodes of the chosen type(s) stay lit; centre always stays.
+  // Both filters accept a single value or an array (multi-select) — normalize to arrays here.
+  const typeFilters: string[] = Array.isArray(typeFilter) ? typeFilter : typeFilter ? [typeFilter] : [];
+  const connFilters: string[] = Array.isArray(connectionFilter) ? connectionFilter : connectionFilter ? [connectionFilter] : [];
+  const filterIds = typeFilters.length
+    ? new Set(['center', ...nodes.filter((n) => typeFilters.includes((n.data as { nodeType?: string }).nodeType ?? '')).map((n) => n.id)])
     : null;
   // Connection filter (toolbar Connection menu): only edges whose relation label matches — and
   // the nodes at their two ends — stay lit; the centre always stays as the anchor.
   const edgeRel = (e: Edge) => (e.data as { rel?: string } | undefined)?.rel;
-  const connIds = connectionFilter
-    ? new Set(['center', ...edges.flatMap((e) => (edgeRel(e) === connectionFilter ? [e.source, e.target] : []))])
+  const connIds = connFilters.length
+    ? new Set(['center', ...edges.flatMap((e) => (connFilters.includes(edgeRel(e) ?? '') ? [e.source, e.target] : []))])
     : null;
-  const dimSet = matchIds ?? filterIds ?? connIds;
+  // Type + connection filters COMBINE as a union: a node stays lit when it matches a selected
+  // type OR touches a selected connection (search always wins over both).
+  const unionIds = filterIds || connIds ? new Set([...(filterIds ?? []), ...(connIds ?? [])]) : null;
+  const dimSet = matchIds ?? unionIds;
   const renderEdges = activeId
     ? edges.map((e) =>
         e.source === activeId || e.target === activeId
@@ -1211,11 +1219,11 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
       )
     : dimSet
       ? edges.map((e) => {
-          // With a connection filter the EDGE's own relation decides; otherwise the target node does.
-          // Matching connections get the full hover treatment — animated dashed direction flow +
-          // the relation name riding on the line — so the filtered relations read at a glance.
-          if (dimSet === connIds) {
-            return edgeRel(e) === connectionFilter
+          // With a connection filter active, the EDGE's own relation decides — matching connections
+          // get the full hover treatment (animated dashed direction flow + relation name on the
+          // line) even when a type filter is ALSO set; otherwise the target node decides.
+          if (connFilters.length) {
+            return connFilters.includes(edgeRel(e) ?? '')
               ? { ...e, data: { ...e.data, hl: true, outward: true } }
               : { ...e, data: { ...e.data, dim: true } };
           }

@@ -196,6 +196,15 @@
 }
 .app-select::-ms-expand { display: none; }
 
+/* Rich reply-editor content — restore list/heading/hr styles stripped by the Tailwind preflight,
+   so execCommand lists and blocks actually render inside contentEditable surfaces. */
+[contenteditable] ul { list-style: disc; padding-left: 1.5rem; margin: 4px 0; }
+[contenteditable] ol { list-style: decimal; padding-left: 1.5rem; margin: 4px 0; }
+[contenteditable] h1 { font-size: 1.5rem; font-weight: 600; margin: 6px 0; }
+[contenteditable] h2 { font-size: 1.25rem; font-weight: 600; margin: 5px 0; }
+[contenteditable] h3 { font-size: 1.1rem; font-weight: 600; margin: 4px 0; }
+[contenteditable] hr { border: 0; border-top: 1px solid #DFE5ED; margin: 8px 0; }
+
 /* Custom Scrollbar Styles */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;

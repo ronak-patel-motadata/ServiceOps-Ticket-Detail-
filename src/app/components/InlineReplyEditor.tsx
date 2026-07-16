@@ -1,5 +1,6 @@
 import { X, Sparkles, ChevronDown, Paperclip, Image, Link2, Smile, Type, CheckCircle, FileText, Mail, XCircle, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
+import { EditorQuickActions, EditorFormattingRow, EditorSendActions, selectPlainRange } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 
 interface InlineReplyEditorProps {
@@ -22,6 +23,21 @@ export function InlineReplyEditor({
   onDeleteQuotedText
 }: InlineReplyEditorProps) {
   const [showQuotedText, setShowQuotedText] = useState(true);
+  const [showFormatting, setShowFormatting] = useState(false);
+  // Rich (contentEditable) surface — enabled the first time formatting is opened so the
+  // formatting commands have real markup to act on; stays on afterwards.
+  const [richMode, setRichMode] = useState(false);
+  const richRef = useRef<HTMLDivElement>(null);
+  const toggleFormatting = () => {
+    if (!richMode) {
+      setRichMode(true);
+      const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+      const html = replyContent ? esc(replyContent) : '<br>';
+      setTimeout(() => { const el = richRef.current; if (el) { el.innerHTML = html; el.focus(); } }, 0);
+    }
+    autoOpenedRef.current = false; // manual toggle — selection changes won't auto-hide it
+    setShowFormatting((v) => !v);
+  };
   const [showAIAssistMenu, setShowAIAssistMenu] = useState(false);
   const [showToneSubmenu, setShowToneSubmenu] = useState(false);
   const [isQuotedContentExpanded, setIsQuotedContentExpanded] = useState(false);
@@ -98,6 +114,36 @@ export function InlineReplyEditor({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // While the AI typing animation streams into `replyContent`, mirror it into the uncontrolled
+  // rich surface (no user caret to preserve during the animation).
+  useEffect(() => {
+    if (richMode && isTyping && richRef.current) richRef.current.innerText = replyContent;
+  }, [richMode, isTyping, replyContent]);
+
+  // Selecting text in the rich editor auto-opens the formatting row (no T-toggle click needed);
+  // deselecting hides it again — but ONLY when it was auto-opened (a manual T toggle sticks).
+  const autoOpenedRef = useRef(false);
+  const showFormattingRef = useRef(showFormatting);
+  showFormattingRef.current = showFormatting;
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = document.getSelection();
+      const el = richRef.current;
+      const insideSelection = !!(sel && !sel.isCollapsed && el && sel.anchorNode && el.contains(sel.anchorNode));
+      if (insideSelection) {
+        if (!showFormattingRef.current) {
+          autoOpenedRef.current = true;
+          setShowFormatting(true);
+        }
+      } else if (autoOpenedRef.current && showFormattingRef.current) {
+        autoOpenedRef.current = false;
+        setShowFormatting(false);
+      }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, []);
+
   // Auto-resize quoted text textarea
   useEffect(() => {
     if (quotedTextRef.current) {
@@ -134,14 +180,40 @@ export function InlineReplyEditor({
 
       {/* Reply Content */}
       <div className="p-4">
-        {/* Text Area */}
-        <textarea
-          value={replyContent}
-          onChange={(e) => onReplyContentChange(e.target.value)}
-          placeholder="Type your reply..."
-          className="w-full h-32 text-sm text-[#364658] focus:outline-none bg-transparent resize-none mb-4"
-          dir="ltr"
-        />
+        {/* Text Area — swaps to a rich contentEditable once formatting has been used */}
+        {richMode ? (
+          <div
+            ref={richRef}
+            contentEditable
+            dir="ltr"
+            onInput={(e) => onReplyContentChange((e.currentTarget as HTMLElement).innerText)}
+            className={`w-full min-h-[128px] cursor-text text-sm text-[#364658] focus:outline-none bg-transparent mb-4 ${showFormatting ? 'pb-14' : ''}`}
+            style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+          />
+        ) : (
+          <textarea
+            value={replyContent}
+            onChange={(e) => onReplyContentChange(e.target.value)}
+            placeholder="Type your reply..."
+            className="w-full h-32 text-sm text-[#364658] focus:outline-none bg-transparent resize-none mb-4"
+            dir="ltr"
+            onSelect={(e) => {
+              // Selecting text auto-opens formatting — convert to the rich surface and
+              // restore the exact selection so formatting can be applied immediately.
+              const t = e.currentTarget;
+              if (t.selectionStart === t.selectionEnd || !t.value) return;
+              const { selectionStart: s, selectionEnd: en, value } = t;
+              const html = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+              setRichMode(true);
+              autoOpenedRef.current = true;
+              setShowFormatting(true);
+              setTimeout(() => {
+                const el = richRef.current;
+                if (el) { el.innerHTML = html; el.focus(); selectPlainRange(el, s, en); }
+              }, 0);
+            }}
+          />
+        )}
 
         {showQuotedText && (
           <>
@@ -201,6 +273,8 @@ export function InlineReplyEditor({
 
         {/* Bottom Toolbar */}
         <div className="flex items-center justify-between mt-4 relative">
+          {/* Formatting row — floats above the toolbar so the editor height never jumps */}
+          {showFormatting && <EditorFormattingRow />}
           {/* Left Side - AI Assist and Formatting Tools */}
           <div className="flex items-center gap-1">
             {/* AI Assist Button with Dropdown */}
@@ -387,30 +461,12 @@ export function InlineReplyEditor({
               )}
             </div>
 
-            {/* Formatting Tools */}
-            <div className="flex items-center gap-1">
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                <Paperclip size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                <Image size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                <Link2 size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                <Smile size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Formatting">
-                <Type size={16} />
-              </button>
-            </div>
+            {/* Quick actions: Template · Knowledge · Attachment · Image · Link · Emoji · Formatting toggle */}
+            <EditorQuickActions formattingOpen={showFormatting} onToggleFormatting={toggleFormatting} />
           </div>
 
-          {/* Right Side - Send Button */}
-          <button className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium">
-            Send
-          </button>
+          {/* Right Side - Save as Draft + Send (icon-only) */}
+          <EditorSendActions />
         </div>
       </div>
     </div>

@@ -1,6 +1,43 @@
 import { X, Maximize2, Sparkles, ChevronDown, ChevronRight, Paperclip, Image as ImageIcon, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Code, CheckCircle, FileText, Mail, XCircle, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Plus } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
+import { EditorQuickActions, EditorFormattingRow, EditorSendActions, selectPlainRange } from './EditorToolbar';
 import { useRef, useEffect, useState } from 'react';
+
+/* Chip-input recipients (same pattern as SendEmailModal): type + Enter/comma → pill with ×,
+   Backspace on an empty input removes the last pill. */
+function EmailChips({ label, emails, setEmails }: { label: string; emails: string[]; setEmails: (e: string[]) => void }) {
+  const [input, setInput] = useState('');
+  const commit = () => {
+    const v = input.trim().replace(/,+$/, '');
+    if (v && v.includes('@') && !emails.includes(v)) setEmails([...emails, v]);
+    setInput('');
+  };
+  return (
+    <div className="flex flex-1 flex-wrap items-center gap-1.5">
+      <label className="text-xs text-[#7B8FA5]">{label}</label>
+      {emails.map((em, i) => (
+        <span key={em} className="inline-flex items-center gap-1 rounded bg-[#EFF3F8] py-1 pl-2 pr-1 text-[12px] text-[#364658]">
+          {em}
+          <button onClick={() => setEmails(emails.filter((_, idx) => idx !== i))} className="text-[#7B8FA5] hover:text-[#DC2626]" title="Remove">
+            <X size={12} />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(); }
+          else if (e.key === 'Backspace' && !input && emails.length) setEmails(emails.slice(0, -1));
+        }}
+        onBlur={commit}
+        placeholder={emails.length ? '' : 'Add recipients'}
+        className="min-w-[140px] flex-1 bg-transparent py-0.5 text-sm text-[#364658] focus:outline-none"
+      />
+    </div>
+  );
+}
 
 interface ReplyEditorProps {
   replyFormRef: React.RefObject<HTMLDivElement>;
@@ -67,7 +104,36 @@ export function ReplyEditor({
   kbArticles,
   setKbArticles
 }: ReplyEditorProps) {
+  // Recipient chips (To / Cc).
+  const [toEmails, setToEmails] = useState<string[]>(['arnav.desai@motadata.com']);
+  const [ccEmails, setCcEmails] = useState<string[]>([]);
   const [showAddKbForm, setShowAddKbForm] = useState(false);
+
+  // Selecting text in the rich editor auto-opens the formatting row (no T-toggle click needed);
+  // deselecting (collapsed selection / click elsewhere) hides it again — but ONLY when it was
+  // auto-opened. A row opened manually via the T toggle stays until toggled off.
+  const autoOpenedRef = useRef(false);
+  const showFormattingRef = useRef(showFormattingMenu);
+  showFormattingRef.current = showFormattingMenu;
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = document.getSelection();
+      const el = replyContentRef.current;
+      const insideSelection = !!(sel && !sel.isCollapsed && el && sel.anchorNode && el.contains(sel.anchorNode));
+      if (insideSelection) {
+        if (!showFormattingRef.current) {
+          autoOpenedRef.current = true;
+          setShowFormattingMenu(true);
+        }
+      } else if (autoOpenedRef.current && showFormattingRef.current) {
+        autoOpenedRef.current = false;
+        setShowFormattingMenu(false);
+      }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [newKbId, setNewKbId] = useState('');
   const [newKbTitle, setNewKbTitle] = useState('');
   const [newKbUrl, setNewKbUrl] = useState('');
@@ -105,39 +171,26 @@ export function ReplyEditor({
         </div>
       </div>
 
-      {/* Reply Form Content */}
-      <div className="p-4" onClick={(e) => e.stopPropagation()}>
-        {/* To Field */}
+      {/* Reply Form Content — formattingMenuRef spans the WHOLE body so selecting text in the
+          editor never counts as an "outside click" that would hide the formatting row */}
+      <div className="p-4" ref={formattingMenuRef} onClick={(e) => e.stopPropagation()}>
+        {/* To Field — chip input (Enter/comma → pill with ×) */}
         <div className="pb-3 border-b border-[#DFE5ED]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1">
-              <label className="text-xs text-[#7B8FA5]">To</label>
-              <input
-                type="text"
-                className="flex-1 text-sm text-[#364658] focus:outline-none bg-transparent"
-                defaultValue="arnav.desai@motadata.com"
-              />
-            </div>
-            <button 
+          <div className="flex items-start justify-between gap-2">
+            <EmailChips label="To" emails={toEmails} setEmails={setToEmails} />
+            <button
               onClick={() => setShowCc(!showCc)}
-              className="text-xs text-[#7B8FA5] hover:text-[#3D8BD0]"
+              className="mt-1 text-xs text-[#7B8FA5] hover:text-[#3D8BD0]"
             >
               Cc
             </button>
           </div>
         </div>
 
-        {/* Cc Field */}
+        {/* Cc Field — same chip input */}
         {showCc && (
           <div className="pt-3 pb-3 border-b border-[#DFE5ED]">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[#7B8FA5]">Cc</label>
-              <input
-                type="text"
-                placeholder="Add recipients"
-                className="flex-1 text-sm text-[#364658] focus:outline-none bg-transparent"
-              />
-            </div>
+            <EmailChips label="Cc" emails={ccEmails} setEmails={setCcEmails} />
           </div>
         )}
 
@@ -162,7 +215,7 @@ export function ReplyEditor({
               contentEditable
               dir="ltr"
               onInput={(e) => setReplyContent(e.currentTarget.innerHTML)}
-              className="w-full min-h-[256px] text-sm text-[#364658] focus:outline-none bg-transparent"
+              className={`w-full min-h-[256px] cursor-text text-sm text-[#364658] focus:outline-none bg-transparent ${showFormattingMenu ? 'pb-14' : ''}`}
               style={{
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap'
@@ -174,13 +227,28 @@ export function ReplyEditor({
               value={aiTypingText}
               onChange={(e) => setAiTypingText(e.target.value)}
               placeholder="Press Space to reply using AI assist or Start Typing..."
-              className={`w-full ${showKbArticles ? 'h-32' : 'h-64'} text-sm text-[#364658] focus:outline-none bg-transparent resize-none`}
+              className={`w-full ${showKbArticles ? 'h-32' : 'h-64'} text-sm text-[#364658] focus:outline-none bg-transparent resize-none ${showFormattingMenu ? 'pb-14' : ''}`}
               dir="ltr"
               onKeyDown={(e) => {
                 if (e.key === ' ' && textareaRef.current?.value === '') {
                   e.preventDefault();
                   setShowAIAssist(true);
                 }
+              }}
+              onSelect={(e) => {
+                // Selecting text auto-opens formatting — convert to the rich surface and
+                // restore the exact selection so formatting can be applied immediately.
+                const t = e.currentTarget;
+                if (t.selectionStart === t.selectionEnd || !t.value) return;
+                const { selectionStart: s, selectionEnd: en, value } = t;
+                const html = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                setReplyContent(html);
+                autoOpenedRef.current = true;
+                setShowFormattingMenu(true);
+                setTimeout(() => {
+                  const el = replyContentRef.current;
+                  if (el) { el.innerHTML = html; el.focus(); selectPlainRange(el, s, en); }
+                }, 0);
               }}
             />
           )}
@@ -272,6 +340,11 @@ export function ReplyEditor({
             </div>
           </div>
         )}
+
+        {/* Formatting row — revealed by the Text-formatting toggle; FLOATS above the toolbar
+            (absolute within this relative wrapper) so the editor height never jumps */}
+        <div className="relative">
+        {showFormattingMenu && <EditorFormattingRow />}
 
         {/* Bottom Toolbar */}
         <div className="flex items-center justify-between relative">
@@ -461,78 +534,27 @@ export function ReplyEditor({
               )}
             </div>
 
-            {/* Formatting Tools */}
-            <div className="relative flex items-center gap-1" ref={formattingMenuRef}>
-              {/* Always visible quick access icons */}
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                <Paperclip size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                <ImageIcon size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                <Link2 size={16} />
-              </button>
-              <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                <Smile size={16} />
-              </button>
-              
-              {/* Type button to show all formatting options */}
-              <button 
-                className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                onClick={() => setShowFormattingMenu(!showFormattingMenu)}
-              >
-                <Type size={16} />
-              </button>
-
-              {/* All Formatting Options Dropdown */}
-              {showFormattingMenu && (
-                <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
-                  <div className="flex items-center gap-1">
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
-                      <Bold size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Italic">
-                      <Italic size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Underline">
-                      <Underline size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bulleted List">
-                      <List size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Numbered List">
-                      <ListOrdered size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Code">
-                      <Code size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" 
-                      title="Close"
-                      onClick={() => setShowFormattingMenu(false)}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Quick actions: Template · Knowledge · Attachment · Image · Link · Emoji · Formatting toggle */}
+            <EditorQuickActions
+              formattingOpen={showFormattingMenu}
+              onToggleFormatting={() => {
+                // Formatting works on the rich (contentEditable) surface — migrate any plain-textarea
+                // text into it the first time the formatting row is opened.
+                if (!replyContent) {
+                  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                  const html = aiTypingText ? esc(aiTypingText) : '<br>';
+                  setReplyContent(html);
+                  setTimeout(() => { const el = replyContentRef.current; if (el) { el.innerHTML = html; el.focus(); } }, 0);
+                }
+                autoOpenedRef.current = false; // manual toggle — selection changes won't auto-hide it
+                setShowFormattingMenu(!showFormattingMenu);
+              }}
+            />
           </div>
 
-          {/* Right Side - Send Button */}
-          <button 
-            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-            onClick={() => {
-              console.log('Send button clicked');
-              onSend();
-            }}
-          >
-            Send
-          </button>
+          {/* Right Side - Save as Draft + Send (icon-only) */}
+          <EditorSendActions onSend={onSend} />
+        </div>
         </div>
       </div>
     </div>

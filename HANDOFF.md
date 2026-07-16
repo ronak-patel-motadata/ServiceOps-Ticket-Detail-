@@ -1,37 +1,38 @@
-# Handoff — 2026-07-15 22:23
+# Handoff — 2026-07-17 01:49
 
 ## Read first
-CLAUDE.md `## Key context` — focus on: the **RelationshipGraph** bullet (Connection pill, Saved Views pill w/ deselect, PNG download, parent→child edge flow), the **Cross-module drawer host** bullet (new 4th lifted pair `stackActiveGroup`), the **Similar Tickets type filter + open-in-drawer** bullet, and the three new bullets after it (right-rail Keyboard button, `.app-select`, Conversation email polish).
+CLAUDE.md `## Key context`: the **demo-custom-fields bullet** (now grouped + editable + expand popup with Update), the **shared composer editor bullet** (`EditorToolbar.tsx`), the **RelationshipGraph** bullet (Saved Views "Update view" with dirty detection), and the **Structure → Shared list chrome** line (sidebar Radix tooltips + `IconKnowledge` = lucide Lightbulb).
 
 ## What we worked on this session
-Topology power-features (Saved Views, connection-type filter with animated matching edges, PNG export, edge-flow direction), right-panel persistence when opening related records, and conversation/email polish (full quoted-message header, click-to-copy emails) — plus a batch of small consistency fixes.
+Polished the ticket **Additional Fields → Form Fields** experience (grouping, sticky header, an expand-all popup with draft/Update, fully editable custom fields), a topology **Saved Views "Update this view"** action that only shows on real edits, and a set of small consistency fixes (composer font-size menu clipping, Insert-Knowledge + sidebar icons unified to a bulb, sidebar module tooltips → Radix black). NOTE: the big shared **rich-text composer overhaul** (`EditorToolbar.tsx`) landed earlier in this same session before context was compacted — it's complete and documented in CLAUDE.md.
 
 ## Completed
-- **Similar Tickets → open in same drawer**: clicking a card opens the real REQ/PRB/CHG detail page as a tab (via `onOpenRelation` → `DrawerStack.openRelation`, keyed by the item's `type`).
-- **Right-panel group persistence**: new `stackActiveGroup`/`onStackActiveGroupChange` lifted pair in `DrawerStack`; Ticket/Problem/Change/Release defer to it, reset effects made local-only — so AI Suggestions (etc.) stays open when a related record opens.
-- **Keyboard-shortcuts button** moved from a floating fixed overlay to the bottom of the right rail (rail styling, `open-drawer-shortcuts` CustomEvent → `DrawerShortcuts`).
-- **`.app-select`** global CSS utility (light-gray inset chevron) applied to all 21 standalone native selects.
-- **Topology — Saved Views** (`RelSavedViews.tsx` + `snapshotRef` capture/restore API on `RelationshipGraph`): labeled pill after the Connection filter (shows applied view name, blue when active), saves mode + both filters + expansions/pins/viewport to localStorage `relViews:<module>`; **deselect** via "Default view" row or re-clicking the active view (drawer `reset` prop).
-- **Topology — Connection-type filter**: Connection pill (searchable dropdown, `REL_RELATIONS` catalog order — expanded 21→40 relations, shared with Add Relationship); matching edges render with the full hover treatment (animated dash + relation label), rest fades.
-- **Topology misc**: hover/filter dash flow always parent→child; **PNG** added to the Download formats (5 drawers).
-- **CMDB**: right-panel Asset field value now a real asset ref (`AST-4021 Dell PowerEdge R750`).
-- **Conversation**: trimmed message shows **From/Date/To/Subject**; all ~195 conversation email addresses (headers, tooltips, trimmed To) are click-to-copy via new `CopyableEmails` (clipboard + toast). Swept across the 11 drawers with the conversation clone.
+- **Custom fields grouped:** 55 fields carry a `group`; `AdditionalFieldsAccordion` renders a clean section header (full-width hairline + whitespace + uppercase **12px `#1E293B`** title) at each group change. Built-in fields stay ungrouped on top.
+- **Custom fields editable:** every custom field is now an inline editable input in the accordion (user-created fields, so editable) — values in `customFieldValues` state.
+- **Expand-fields popup:** Maximize2 icon on the tab row → centered 720px modal, all fields **2-per-row** (real dropdowns/inputs + group titles at **14px**), edits go to a **draft**, **sticky footer** with **Update** (commits → accordion + toast) / **Cancel** (discards). Accordion header made **sticky** under the panel search bar.
+- **Saved Views — "Update &lt;view&gt;":** appears in the popup ONLY when the applied view was edited (filter change / node expand / node drag / mode switch). Uses `viewFingerprint` (mode + both filters + expanded + pins; pan/zoom excluded) compared on popup-open. Clicking overwrites the view via `capture()`. Save input relabels to "Save as new view". E2E-verified (4 cases: after-save/no-change hidden, after-change shown, update persists).
+- **Font-size menu clip fix:** removed `overflow-hidden` from all 45 composer cards (Collaborate/Note/Diagnosis/Solution across 12 drawers + ResolutionTabContent); gray header got its own `rounded-t-[6px]` so corners stay clean.
+- **Icon consistency:** Insert-Knowledge (`EditorToolbar`) and sidebar Knowledge (`IconKnowledge`) both now use the lucide **`Lightbulb`**.
+- **Sidebar tooltips:** module nav icons use the **Radix black tooltip** (`side="right"`) instead of the native gray `title`; Assets item keeps its flyout (`disableTooltip`).
+- **Group title tweaks:** dark color + 12px in the accordion, 14px in the popup.
 
 ## In progress
-Nothing mid-flight — every change built clean (`npm run build`) and was e2e-verified with puppeteer.
+Nothing mid-flight. Every change built clean (`npm run build`) and was verified with puppeteer screenshots / e2e.
 
 ## Next steps
-1. **Confirm: remove the "Baseline Variance" KPI card on the CMDB Overview?** The user asked for it, the edit was started, then the user stopped the action and moved on — it was never completed. The card is the ternary at `CmdbDrawer.tsx` ~line 456 (`baselineVarianceCount > 0 ? {Baseline Variance…} : {Encryption…}`; `baselineVarianceCount` const ~line 330 is only used there).
-2. Publish — this session's work is NOT yet pushed (last deploy = commit `14c54cf` from Jul 14).
+1. **Publish** — this session's work is NOT yet pushed (last deploy = commit `8d2ce89`, Jul 15). This is a large batch: the whole editor overhaul + all the Additional-Fields work + Saved Views Update + sidebar/icon fixes.
 
 ## Decisions made
-- **Saved Views deselect** = "Default view" row + toggle-off on the active row; reset = clear both filters + graph mode + bump `relKey` (reuses the Refresh reset path).
-- **Connection filter options derive from the shared `REL_RELATIONS` catalog** (same list + order as Add Relationship) with canvas-only extras appended — single source of truth, and user-added relations always appear.
-- **Right-panel group persistence** uses the same lifted-state pattern as width/minimized/activeTab (4th pair in `DrawerStack`), with local-only reset effects so a fresh open still defaults to Properties.
-- **CopyableEmails swept by regex** over `>(text)<` JSX text nodes containing `@motadata.com` — attributes/options can't match, so it's safe; verified 0 option/value hits first.
+- **Compute "dirty" on popup-open, not live** — the Saved Views popup has a full-screen overlay, so all canvas edits happen while it's closed; recomputing on open is sufficient and avoids wiring live graph state into `RelSavedViews`.
+- **Exclude raw pan/zoom from the dirty fingerprint** — it jitters sub-pixel and would false-trigger "Update"; the meaningful edits are filters, expansions, and node pins (which ARE included). Node "position" = manual pins, not viewport.
+- **Draft + Update in the expand popup** (not live-write) — matches a form "edit → save" mental model; the accordion inputs stay live-write since they're the primary surface.
+- **Sticky accordion header at `top-[85px]`** (panel search header is 86px) with NO extra border — an earlier border/spacing experiment was reverted per feedback; the plain white sticky was the approved version.
+- **Reuse `IconKnowledge` as the single bulb source** so any Knowledge affordance across the product stays consistent from one component.
 
 ## Gotchas & notes
-- Verify with `npm run build`; IDE's `react/jsx-runtime` implicit-any error is bogus.
-- Topology toolbar changes still need the 5-drawer node sweep (Hardware/Software/Non-IT/Consumable/CMDB — identical anchors). The Saved Views + Connection pill sweeps used: state after `relFilter`, pill after the node-type Filter block, props after `refreshSignal={relKey}`.
-- Radix tooltips have hoverable content by default — that's why clicking emails inside the recipient tooltips works.
-- Puppeteer: the ticket conversation's forward block sits inside the collapsed "N activities" group — expand it first; the topology Refresh button selector is `button.h-8.w-8 svg.lucide-refresh-cw` (a plain `.find` on lucide-refresh-cw hits other refresh icons).
+- Vite build does **not** typecheck — a missing import becomes a runtime `ReferenceError` at render (once crashed all composers, read as "drawer won't open"). Always exercise the actual UI, not just the build.
+- Segmented view-mode buttons (Full/Tree/Grid) use **Radix tooltips**, so `title` is NOT an HTML attribute — puppeteer must select them by their lucide icon (`svg.lucide-list` etc.), not `button[title=...]`.
+- After **Save** in Saved Views the popup stays OPEN with its `.fixed.inset-0.z-40` overlay — in tests, close it (click the overlay) before interacting with the canvas, or clicks hit the overlay.
+- Once a saved view is applied, the pill label becomes the **view name** (not "Views") — selectors must target the pill by its bookmark+chevron icons, not by text.
+- contentEditable caret-reset bug: never rewrite `innerHTML` on every keystroke (reverses typing) — `RichComposerArea` mirrors external value only when `document.activeElement !== el`.
+- Sweep scripts: write `.cjs`/`.js` to the scratchpad with the Write tool and run `node <file>` — bash heredocs with template literals break quoting.
