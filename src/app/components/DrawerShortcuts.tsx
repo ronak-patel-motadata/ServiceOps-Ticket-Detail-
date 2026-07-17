@@ -42,7 +42,8 @@ function cycleSidebarGroup(dir: 1 | -1) {
   const panel = drawerEl().querySelector('[data-onboarding="right-sidebar"]');
   if (!panel) return;
   const btns = [...panel.querySelectorAll('button')].filter(
-    (b) => b.className.includes('rounded-[6px]') && b.className.includes('size-9'),
+    // Only the TOP group icons — the bottom-pinned keyboard-shortcuts opener (mt-auto) is not a group.
+    (b) => b.className.includes('rounded-[6px]') && b.className.includes('size-9') && !b.className.includes('mt-auto'),
   ) as HTMLElement[];
   if (!btns.length) return;
   let idx = btns.findIndex((b) => b.className.includes('bg-[#EBF5FF]'));

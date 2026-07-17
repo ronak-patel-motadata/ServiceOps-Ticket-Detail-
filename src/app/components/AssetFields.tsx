@@ -364,9 +364,12 @@ interface AssetFieldsProps {
   purchaseMode?: boolean;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
+  // Extra content (the System Fields subsection) rendered at the bottom of the
+  // "View more" expansion — so ONE "View more" reveals both the extra fields AND system fields.
+  footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, cmdbMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -533,6 +536,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
             </div>
           </div>
         )}
+
+        {/* System Fields (moved here) — license has no "View more", so shown inline */}
+        {footer}
       </div>
     );
   }
@@ -698,6 +704,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
             </div>
           </div>
         )}
+
+        {/* System Fields (moved here) — revealed by the SAME "View more" */}
+        {(showMore || q) && footer}
 
         {/* View more / View less toggle (hidden while searching) */}
         {!q && (
@@ -876,6 +885,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         {(showMore || q) && (!q || 'payment status'.includes(q)) && selectRow('Payment Status', ['None', 'Pending', 'Partially Paid', 'Paid'])}
         {(showMore || q) && (!q || 'total invoice amount'.includes(q)) && textRow('Total Invoice Amount')}
         {(showMore || q) && (!q || 'total payment amount'.includes(q)) && textRow('Total Payment Amount')}
+
+        {/* System Fields (moved here) — revealed by the SAME "View more" */}
+        {(showMore || q) && footer}
 
         {/* View more / View less toggle (hidden while searching) */}
         {!q && (
@@ -1115,6 +1127,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
 
       {/* Additional fields behind "View more" — per-module field set (license/contract/purchase render their own set above and never reach here) */}
       {(showMore || q) && (cmdbMode ? CMDB_MORE_FIELDS : nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}
+
+      {/* System Fields (moved here) — revealed by the SAME "View more" */}
+      {(showMore || q) && footer}
 
       {/* View more / View less toggle (hidden while searching) */}
       {!q && (

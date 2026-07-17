@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Check, ChevronDown, Highlighter, Lightbulb,
-  Image as ImageIcon, Italic, LayoutTemplate, Link2, List, ListOrdered, Minus, Paperclip, Pencil, Redo2,
+  Image as ImageIcon, Italic, Link2, List, ListOrdered, Minus, Paperclip, Pencil, Redo2,
   Save, SendHorizontal, Smile, Table as TableIcon, Type, Underline, Undo2,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -43,6 +43,16 @@ export function selectPlainRange(root: HTMLElement, start: number, end: number) 
   }
 }
 
+/** "Insert from Template" glyph (window-restore). Filled path whose frame lines are ~2px at
+ *  size 16, so its weight matches the lucide stroke icons sitting next to it in the toolbar. */
+function IconTemplate({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <path d="M29.2503 14.498C32.008 14.4982 34.2503 16.7403 34.2503 19.498V39.498C34.25 42.2555 32.0078 44.4979 29.2503 44.498H9.25031C6.49266 44.498 4.25057 42.2556 4.25031 39.498V19.498C4.25031 16.7402 6.49249 14.498 9.25031 14.498H29.2503ZM8.00031 39.498C8.00057 40.1853 8.56297 40.748 9.25031 40.748H29.2503C29.9375 40.7479 30.5 40.1852 30.5003 39.498V24.498H8.00031V39.498ZM38.0003 4.49805C41.4533 4.49821 44.2503 7.29502 44.2503 10.748V28.248C44.25 31.7008 41.4531 34.4979 38.0003 34.498H36.7503V30.748H38.0003C39.3828 30.7479 40.5 29.6305 40.5003 28.248V10.748C40.5003 9.36534 39.383 8.24821 38.0003 8.24805H20.5003C19.1175 8.24805 18.0003 9.36523 18.0003 10.748V11.998H14.2503V10.748C14.2503 7.29492 17.0472 4.49805 20.5003 4.49805H38.0003Z" />
+    </svg>
+  );
+}
+
 /** queryCommandValue returns rgb() strings — normalize to hex so they match the palette swatches. */
 function rgbToHex(v: string): string {
   const m = v.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -78,7 +88,7 @@ function IconBtn({ label, active, onClick, children }: { label: string; active?:
 export function EditorQuickActions({ formattingOpen, onToggleFormatting }: { formattingOpen: boolean; onToggleFormatting: () => void }) {
   return (
     <div className="flex items-center gap-0.5">
-      <IconBtn label="Insert from Template"><LayoutTemplate size={16} /></IconBtn>
+      <IconBtn label="Insert from Template"><IconTemplate size={16} /></IconBtn>
       <IconBtn label="Insert Knowledge"><Lightbulb size={16} /></IconBtn>
       <IconBtn label="Attach file"><Paperclip size={16} /></IconBtn>
       <IconBtn label="Insert image"><ImageIcon size={16} /></IconBtn>
@@ -154,17 +164,19 @@ function ColorGrid({ title, selected, onPick }: { title: string; selected: strin
 
 /** Composer footer actions — icon-only "Save as Draft" (bordered) + primary "Send" (filled),
  *  replacing the old text Send button. Radix tooltips carry the labels. */
-export function EditorSendActions({ onSend }: { onSend?: () => void }) {
+export function EditorSendActions({ onSend, onSaveDraft, showSaveDraft = true }: { onSend?: () => void; onSaveDraft?: () => void; showSaveDraft?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button className="flex size-8 items-center justify-center rounded-lg border border-[#DFE5ED] bg-white text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]">
-            <Save size={15} />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>Save as Draft</TooltipContent>
-      </Tooltip>
+      {showSaveDraft && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onSaveDraft} className="flex size-8 items-center justify-center rounded-lg border border-[#DFE5ED] bg-white text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]">
+              <Save size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Save as Draft</TooltipContent>
+        </Tooltip>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <button onClick={onSend} className="flex size-8 items-center justify-center rounded-lg bg-[#3D8BD0] text-white transition-colors hover:bg-[#2F7AB8]">
@@ -238,7 +250,7 @@ export function EditorToolbarActions() {
   return (
     <div ref={wrapRef} className="relative flex items-center gap-0.5">
       {open && (
-        <EditorFormattingRow className="absolute bottom-full left-0 z-40 mb-3 flex w-[620px] max-w-[70vw] flex-wrap items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] px-2 py-1 shadow-lg" />
+        <EditorFormattingRow className="absolute bottom-full left-0 z-40 mb-3 flex w-[620px] max-w-[70vw] flex-wrap items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] px-2 py-1" />
       )}
       <EditorQuickActions
         formattingOpen={open}
@@ -302,7 +314,7 @@ export function EditorFormattingRow({ className }: { className?: string } = {}) 
   return (
     // FLOATS above the bottom toolbar (parent must be `relative`) so toggling it never changes the
     // editor/conversation height. No overflow-x-auto — it would clip the upward dropdowns; wrap instead.
-    <div className={className ?? 'absolute bottom-full left-0 right-0 z-40 mb-2 flex flex-wrap items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] px-2 py-1 shadow-lg'}>
+    <div className={className ?? 'absolute bottom-full -left-4 -right-4 z-40 mb-2.5 flex flex-wrap items-center gap-0.5 border-y border-[#DFE5ED] bg-[#F9FAFB] px-4 py-1.5'}>
       {/* Text style (Paragraph / H1 / H2 / H3) — compact "A✎" trigger so the row stays one line */}
       <div className="relative flex-shrink-0">
         <Tooltip>

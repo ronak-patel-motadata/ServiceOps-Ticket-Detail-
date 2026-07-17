@@ -43,6 +43,7 @@ interface ReplyEditorProps {
   replyFormRef: React.RefObject<HTMLDivElement>;
   onClose: () => void;
   onSend: () => void;
+  onSaveDraft?: () => void;
   showCc: boolean;
   setShowCc: (value: boolean) => void;
   isAiTyping: boolean;
@@ -80,6 +81,7 @@ export function ReplyEditor({
   replyFormRef,
   onClose,
   onSend,
+  onSaveDraft,
   showCc,
   setShowCc,
   isAiTyping,
@@ -553,7 +555,7 @@ export function ReplyEditor({
           </div>
 
           {/* Right Side - Save as Draft + Send (icon-only) */}
-          <EditorSendActions onSend={onSend} />
+          <EditorSendActions onSend={onSend} onSaveDraft={onSaveDraft} />
         </div>
         </div>
       </div>

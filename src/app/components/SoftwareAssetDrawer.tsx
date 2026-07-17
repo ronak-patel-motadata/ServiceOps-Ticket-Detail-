@@ -4271,13 +4271,13 @@ onStackMinimizedChange,
                                 All
                                 {!relFilter.length && <Check size={14} className="text-[#3D8BD0]" />}
                               </button>
-                              {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group'] as const).map((opt) => (
+                              {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group', 'Active Issues'] as const).map((opt) => (
                                 <button
                                   key={opt}
                                   onClick={() => setRelFilter((p) => (p.includes(opt) ? p.filter((x) => x !== opt) : [...p, opt]))}
                                   className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter.includes(opt) ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
                                 >
-                                  {opt}
+                                  {opt === 'Active Issues' ? (<span className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#EF4444] flex-shrink-0" />{opt}</span>) : opt}
                                   {relFilter.includes(opt) && <Check size={14} className="text-[#3D8BD0]" />}
                                 </button>
                               ))}
@@ -4511,7 +4511,7 @@ onStackMinimizedChange,
                       centerId={activeAsset?.id}
                       searchTerm={relSearch}
                       config={relConfig}
-                      typeFilter={relFilter.length ? relFilter.map((f) => ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user' } as const)[f as 'CI']).filter(Boolean) : null}
+                      typeFilter={relFilter.length ? relFilter.map((f) => ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user', 'Active Issues': 'active-issues' } as const)[f as 'CI']).filter(Boolean) : null}
                       onOpenNode={(info) => {
                         // Open the node's record as a tab in this same drawer (same flow as the
                         // Impact popup's "Open related records"): CI-style nodes → CMDB, the
@@ -5093,7 +5093,7 @@ onStackMinimizedChange,
                       className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
                       onClick={() => setActiveConversationTab('technician')}
                     >
-                      Technician Conversation
+                      Technician
                     </button>
                   </div>
                   <div className="flex items-center gap-2 relative">

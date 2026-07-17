@@ -9,6 +9,9 @@ interface SystemFieldsRendererProps {
   onTogglePin: (field: string) => void;
   assetMode?: boolean;
   purchaseMode?: boolean;
+  // When the parent accordion's single "View more" already governs visibility,
+  // render every field and drop this component's own show-more toggle.
+  hideShowMore?: boolean;
 }
 
 /** Field rows shown in the Hardware Asset "System Fields" tab. */
@@ -37,7 +40,8 @@ export function SystemFieldsRenderer({
   pinnedFields,
   onTogglePin,
   assetMode = false,
-  purchaseMode = false
+  purchaseMode = false,
+  hideShowMore = false
 }: SystemFieldsRendererProps) {
   const PinButton = ({ field }: { field: string }) => (
     <Tooltip>
@@ -88,7 +92,7 @@ export function SystemFieldsRenderer({
     );
   }
 
-  const displayedFields = showMore ? fields : fields.slice(0, 8);
+  const displayedFields = (showMore || hideShowMore) ? fields : fields.slice(0, 8);
 
   const getFieldValue = (field: string): string => {
     const fieldValues: { [key: string]: string } = {
@@ -172,7 +176,7 @@ export function SystemFieldsRenderer({
         </div>
       ))}
       
-      {fields.length > 8 && (
+      {!hideShowMore && fields.length > 8 && (
         <div className="mt-3 pt-3 border-t border-[#F0F1F3]">
           <button
             onClick={onToggleShowMore}

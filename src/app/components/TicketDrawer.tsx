@@ -241,7 +241,8 @@ onStackActiveGroupChange,
     authorColor: string;
     timestamp: Date;
     content: string;
-    type?: 'reply' | 'note' | 'collaborate';
+    type?: 'reply' | 'note' | 'collaborate' | 'forward';
+    isDraft?: boolean;
     to?: string;
     cc?: string;
     kbArticles?: Array<{
@@ -1321,10 +1322,92 @@ onStackActiveGroupChange,
     setShowKbArticles(false);
   };
 
+  // Save-as-Draft: adds the composed reply to the timeline as a DRAFT block
+  // (same layout as a sent reply, but with a "Draft" pill) instead of sending it.
+  const handleSaveReplyDraft = () => {
+    const messageContent = replyContent || aiTypingText;
+    if (!messageContent.trim()) return;
+    setSentConversations([...sentConversations, {
+      id: `draft-${Date.now()}`,
+      ticketId: activeTicketId,
+      author: 'Arnav Desai',
+      authorInitials: 'AD',
+      authorColor: '#E67E22',
+      timestamp: new Date(),
+      content: messageContent,
+      type: 'reply' as const,
+      isDraft: true,
+      to: 'saahil.pandya@motadata.com',
+      cc: 'database.team@motadata.com',
+    }]);
+    setShowReplyEditor(false);
+    setReplyContent('');
+    setAiTypingText('');
+    setIsAiTyping(false);
+    setShowKbArticles(false);
+  };
+
   const handleForward = () => {
     setShowForwardEditor(true);
     // Clear content for blank forward
     setForwardContent('');
+  };
+
+  // Edit a saved draft: reopen its composer with the content loaded and remove
+  // the draft block from the timeline (it's back in the editor now).
+  const handleEditDraft = (conversation: { id: string; content: string; type?: string }) => {
+    if (conversation.type === 'forward') {
+      setForwardContent(conversation.content);
+      setShowForwardEditor(true);
+    } else if (conversation.type === 'collaborate') {
+      setCollaborateContent(conversation.content);
+      setShowCollaborateEditor(true);
+    } else {
+      setAiTypingText(conversation.content);
+      setReplyContent('');
+      setShowReplyEditor(true);
+    }
+    setActiveMainTab('conversation');
+    setSentConversations((prev) => prev.filter((c) => c.id !== conversation.id));
+  };
+
+  // Save-as-Draft for the Collaborate composer (internal → orange draft block).
+  const handleSaveCollaborateDraft = () => {
+    if (!collaborateContent.trim()) return;
+    setSentConversations([...sentConversations, {
+      id: `draft-${Date.now()}`,
+      ticketId: activeTicketId,
+      author: 'Arnav Desai',
+      authorInitials: 'AD',
+      authorColor: '#E67E22',
+      timestamp: new Date(),
+      content: collaborateContent,
+      type: 'collaborate' as const,
+      isDraft: true,
+    }]);
+    setShowCollaborateEditor(false);
+    setCollaborateContent('');
+    setActiveMainTab('conversation');
+  };
+
+  // Save-as-Draft for the Forward composer.
+  const handleSaveForwardDraft = () => {
+    if (!forwardContent.trim()) return;
+    setSentConversations([...sentConversations, {
+      id: `draft-${Date.now()}`,
+      ticketId: activeTicketId,
+      author: 'Arnav Desai',
+      authorInitials: 'AD',
+      authorColor: '#E67E22',
+      timestamp: new Date(),
+      content: forwardContent,
+      type: 'forward' as const,
+      isDraft: true,
+      to: 'team.lead@motadata.com',
+    }]);
+    setShowForwardEditor(false);
+    setForwardContent('');
+    setActiveMainTab('conversation');
   };
 
   const handleCollaborate = () => {
@@ -3078,13 +3161,13 @@ onStackActiveGroupChange,
                       className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
                       onClick={() => setActiveConversationTab('technician')}
                     >
-                      Technician Conversation
+                      Technician
                     </button>
                     <button
                       className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'requester' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
                       onClick={() => setActiveConversationTab('requester')}
                     >
-                      Requester Conversation
+                      Requester
                     </button>
                   </div>
                   <div className="flex items-center gap-2 relative">
@@ -3716,12 +3799,25 @@ onStackActiveGroupChange,
                             </TooltipContent>
                           </Tooltip>
                         )}
+                        {conversation.isDraft && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-[rgba(245,158,11,0.12)] text-[#B45309] text-xs rounded font-medium cursor-help">
+                                <FileText className="size-3" />
+                                Draft
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Saved as draft — not sent yet
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
-                      {conversation.type === 'reply' && (
+                      {(conversation.type === 'reply' || conversation.type === 'forward') && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-xs text-[#7B8FA5] mb-1 cursor-help pr-24">
-                              <div>Replied to {conversation.to}{conversation.cc ? `, Cc: ${conversation.cc},...` : ''}</div>
+                              <div>{conversation.isDraft ? `Draft ${conversation.type === 'forward' ? 'forward' : 'reply'} to ${conversation.to}` : `${conversation.type === 'forward' ? 'Forwarded' : 'Replied'} to ${conversation.to}`}{conversation.cc ? `, Cc: ${conversation.cc},...` : ''}</div>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -3739,7 +3835,13 @@ onStackActiveGroupChange,
                         </Tooltip>
                       )}
                       <div className={`rounded-lg p-4 mt-2 ${
-                        conversation.type === 'note' || conversation.type === 'collaborate'
+                        conversation.isDraft
+                          ? (conversation.type === 'note' || conversation.type === 'collaborate'
+                              // internal draft → keep the orange background, dashed orange border
+                              ? 'bg-[rgba(245,133,24,0.10)] border border-dashed border-[#F58518]'
+                              // reply/forward draft → keep the gray background, dashed gray border
+                              : 'bg-[rgba(223,229,237,0.20)] border border-dashed border-[#CBD5E1]')
+                          : conversation.type === 'note' || conversation.type === 'collaborate'
                           ? 'bg-[rgba(245,133,24,0.10)] border-l-2 border-[#F58518]'
                           : 'bg-[rgba(223,229,237,0.20)]'
                       }`}>
@@ -3768,23 +3870,35 @@ onStackActiveGroupChange,
                       </div>
                     </div>
                     
-                    {/* Hover Actions */}
+                    {/* Hover Actions — drafts get Edit + Delete; sent blocks get Reply + Forward + Delete */}
                     <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                      <button 
-                        className="p-1.5 hover:bg-[#F3F4F6] rounded" 
-                        title="Reply" 
-                        onClick={() => {
-                          setReplyingToConversation(conversation.id);
-                          setInlineReplyContent('');
-                        }}
-                      >
-                        <Reply className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Forward" onClick={() => console.log('Forward clicked')}>
-                        <Forward className="size-4 text-[#7B8FA5]" />
-                      </button>
-                      <button 
-                        className="p-1.5 hover:bg-[#F3F4F6] rounded" 
+                      {conversation.isDraft ? (
+                        <button
+                          className="p-1.5 hover:bg-[#F3F4F6] rounded"
+                          title="Edit draft"
+                          onClick={() => handleEditDraft(conversation)}
+                        >
+                          <Edit className="size-4 text-[#7B8FA5]" />
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            className="p-1.5 hover:bg-[#F3F4F6] rounded"
+                            title="Reply"
+                            onClick={() => {
+                              setReplyingToConversation(conversation.id);
+                              setInlineReplyContent('');
+                            }}
+                          >
+                            <Reply className="size-4 text-[#7B8FA5]" />
+                          </button>
+                          <button className="p-1.5 hover:bg-[#F3F4F6] rounded" title="Forward" onClick={() => console.log('Forward clicked')}>
+                            <Forward className="size-4 text-[#7B8FA5]" />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        className="p-1.5 hover:bg-[#F3F4F6] rounded"
                         title="Delete"
                         onClick={() => {
                           setSentConversations(sentConversations.filter(c => c.id !== conversation.id));
@@ -3814,6 +3928,7 @@ onStackActiveGroupChange,
                     setShowKbArticles(false);
                   }}
                   onSend={handleSendReply}
+                  onSaveDraft={handleSaveReplyDraft}
                   showCc={showCc}
                   setShowCc={setShowCc}
                   isAiTyping={isAiTyping}
@@ -4094,7 +4209,7 @@ onStackActiveGroupChange,
                       </div>
 
                       {/* Right Side - Send Button */}
-                      <EditorSendActions />
+                      <EditorSendActions onSaveDraft={handleSaveForwardDraft} />
                     </div>
                   </div>
                 </div>
@@ -4343,7 +4458,7 @@ onStackActiveGroupChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <EditorSendActions onSend={handleSendCollaborate} />
+                  <EditorSendActions onSend={handleSendCollaborate} onSaveDraft={handleSaveCollaborateDraft} />
                 </div>
               </div>
             </div>
@@ -4592,7 +4707,7 @@ onStackActiveGroupChange,
                   </div>
 
                   {/* Right Side - Send Button */}
-                  <EditorSendActions onSend={handleSendNote} />
+                  <EditorSendActions onSend={handleSendNote} showSaveDraft={false} />
                 </div>
               </div>
             </div>

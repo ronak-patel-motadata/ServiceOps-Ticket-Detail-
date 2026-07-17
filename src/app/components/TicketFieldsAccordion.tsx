@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft } from 'lucide-react';
 import { AssetFields } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
+import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { useEffect, useState, useRef } from 'react';
 
@@ -24,6 +25,12 @@ interface TicketFieldsAccordionProps {
   showMoreFields: boolean;
   setShowMoreFields: (show: boolean) => void;
   propertiesSearchQuery: string;
+
+  // System Fields (moved here from the Additional Fields "System Fields" tab) —
+  // rendered as a subsection at the bottom of this accordion.
+  getFilteredAdditionalFields?: () => string[];
+  showMoreSystemFields?: boolean;
+  setShowMoreSystemFields?: (show: boolean) => void;
   
   // Refs
   ticketFieldsRef: React.RefObject<HTMLDivElement>;
@@ -206,6 +213,9 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     showMoreFields,
     setShowMoreFields,
     propertiesSearchQuery,
+    getFilteredAdditionalFields,
+    showMoreSystemFields,
+    setShowMoreSystemFields,
     ticketFieldsRef,
     statusDropdownRef,
     priorityDropdownRef,
@@ -416,6 +426,27 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     setAssigneeSearchQuery
   ]);
 
+  // System Fields subsection (moved here from the old Additional Fields "System Fields" tab).
+  // Rendered WITHOUT its own show-more toggle (hideShowMore) so the accordion's single
+  // "View more" is the only expander — for tickets it lives inside that expansion.
+  const systemFieldsSection = getFilteredAdditionalFields ? (
+    <div className="mt-3 pt-4 border-t border-[#EEF1F4]">
+      <div className="mb-3">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">System Fields</span>
+      </div>
+      <SystemFieldsRenderer
+        fields={getFilteredAdditionalFields()}
+        showMore
+        hideShowMore
+        onToggleShowMore={() => setShowMoreSystemFields?.(!showMoreSystemFields)}
+        pinnedFields={pinnedFields}
+        onTogglePin={togglePinField}
+        assetMode={assetMode}
+        purchaseMode={purchaseMode}
+      />
+    </div>
+  ) : null;
+
   return (
     <div className="border border-[#DFE5ED] rounded-lg" ref={ticketFieldsRef}>
       <button
@@ -433,7 +464,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
         )}
       </button>
 
-      {/* Asset Fields — Hardware Asset detail page */}
+      {/* Asset Fields — Hardware Asset detail page. System Fields ride inside AssetFields'
+          "View more" (passed as `footer`) so one toggle reveals extra + system fields. */}
       {assetMode && assetState && (ticketFieldsExpanded || propertiesSearchQuery) && (
         <AssetFields
           state={assetState}
@@ -446,6 +478,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           licenseMode={licenseMode}
           contractMode={contractMode}
           purchaseMode={purchaseMode}
+          footer={systemFieldsSection}
         />
       )}
 
@@ -1290,6 +1323,9 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   />
                 </>
               )}
+
+              {/* System Fields — revealed by the SAME "View more" as the extra ticket fields */}
+              {systemFieldsSection}
 
               {/* View Less Button */}
               {!propertiesSearchQuery && (

@@ -1677,7 +1677,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           if (section === 'Change Calendar') {
             return showChangeCalendar ? <MiniCalendar key="change-calendar" events={changeCalendarEvents} title={changeCalendarTitle} /> : null;
           }
-          if (section === 'Ticket Fields' && hasTicketFieldsMatch()) {
+          if (section === 'Ticket Fields' && (hasTicketFieldsMatch() || (!!propertiesSearchQuery && (getFilteredAdditionalFields().length > 0 || 'system fields'.includes(propertiesSearchQuery.toLowerCase()))))) {
             return (
         <TicketFieldsAccordion
           key="ticket-fields"
@@ -1697,6 +1697,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           showMoreFields={showMoreFields}
           setShowMoreFields={setShowMoreFields}
           propertiesSearchQuery={propertiesSearchQuery}
+          getFilteredAdditionalFields={getFilteredAdditionalFields}
+          showMoreSystemFields={showMoreSystemFields}
+          setShowMoreSystemFields={setShowMoreSystemFields}
           ticketFieldsRef={ticketFieldsRef}
           statusDropdownRef={statusDropdownRef}
           priorityDropdownRef={priorityDropdownRef}

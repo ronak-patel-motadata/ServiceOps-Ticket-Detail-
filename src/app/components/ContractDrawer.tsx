@@ -4489,7 +4489,7 @@ onStackMinimizedChange,
                       className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'technician' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
                       onClick={() => setActiveConversationTab('technician')}
                     >
-                      Technician Conversation
+                      Technician
                     </button>
                   </div>
                   <div className="flex items-center gap-2 relative">

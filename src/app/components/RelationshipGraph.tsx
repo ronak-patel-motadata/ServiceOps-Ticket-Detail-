@@ -1198,8 +1198,15 @@ function RelationshipGraphInner({ mode, nodes: data, typeMeta, centerName, cente
   // Both filters accept a single value or an array (multi-select) — normalize to arrays here.
   const typeFilters: string[] = Array.isArray(typeFilter) ? typeFilter : typeFilter ? [typeFilter] : [];
   const connFilters: string[] = Array.isArray(connectionFilter) ? connectionFilter : connectionFilter ? [connectionFilter] : [];
-  const filterIds = typeFilters.length
-    ? new Set(['center', ...nodes.filter((n) => typeFilters.includes((n.data as { nodeType?: string }).nodeType ?? '')).map((n) => n.id)])
+  // 'active-issues' is a special pseudo-type (not a real nodeType) — it lights the
+  // red nodes that have open linked issues instead of matching by node kind.
+  const wantsIssues = typeFilters.includes('active-issues');
+  const nodeTypeFilters = typeFilters.filter((t) => t !== 'active-issues');
+  const filterIds = nodeTypeFilters.length || wantsIssues
+    ? new Set(['center', ...nodes.filter((n) => {
+        const d = n.data as { nodeType?: string; hasIssues?: boolean };
+        return nodeTypeFilters.includes(d.nodeType ?? '') || (wantsIssues && !!d.hasIssues);
+      }).map((n) => n.id)])
     : null;
   // Connection filter (toolbar Connection menu): only edges whose relation label matches — and
   // the nodes at their two ends — stay lit; the centre always stays as the anchor.

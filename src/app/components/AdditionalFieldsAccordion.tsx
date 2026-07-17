@@ -1,5 +1,4 @@
 import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2, X } from 'lucide-react';
-import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Fragment, useEffect, useState } from 'react';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
@@ -208,71 +207,43 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
 
   return (
     <div className="border border-[#DFE5ED] rounded-lg" ref={additionalFieldsRef}>
-      {/* Header + tabs pin just under the panel's sticky search header (86px tall)
-          while the long field list scrolls beneath them. */}
+      {/* Header pins just under the panel's sticky search header (86px tall)
+          while the long field list scrolls beneath it in the common panel scroll. */}
       <div className="sticky top-[85px] z-40 rounded-t-lg bg-white">
-        <button
+        <div
           onClick={() => setAdditionalFieldsExpanded(!additionalFieldsExpanded)}
-          className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+          className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Tag size={16} className="text-[#364658]" />
             <h3 className="text-[13px] font-semibold text-[#364658]">Additional Fields</h3>
           </div>
-          {additionalFieldsExpanded ? (
-            <ChevronDown size={16} className="text-[#7B8FA5]" />
-          ) : (
-            <ChevronRight size={16} className="text-[#7B8FA5]" />
-          )}
-        </button>
-
-        {(additionalFieldsExpanded || propertiesSearchQuery) && (
-          <div className="px-4">
-            {/* Tabs */}
-            <div className="flex gap-1 border-b border-[#E5E7EB]">
-              <button
-                onClick={() => setAdditionalFieldsTab('form')}
-                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                  additionalFieldsTab === 'form'
-                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-                }`}
-              >
-                Form Fields
-              </button>
-              <button
-                onClick={() => setAdditionalFieldsTab('system')}
-                className={`px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 -mb-[1px] ${
-                  additionalFieldsTab === 'system'
-                    ? 'border-[#3D8BD0] text-[#3D8BD0]'
-                    : 'border-transparent text-[#7B8FA5] hover:text-[#364658]'
-                }`}
-              >
-                System Fields
-              </button>
-              {additionalFieldsTab === 'form' && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={openExpandFields}
-                      className="ml-auto self-center p-1 mb-1 rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#364658] transition-colors"
-                    >
-                      <Maximize2 size={14} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Expand fields</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openExpandFields(); }}
+                  className="p-1 rounded text-[#7B8FA5] hover:bg-[#EDF0F3] hover:text-[#364658] transition-colors"
+                >
+                  <Maximize2 size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Expand fields</TooltipContent>
+            </Tooltip>
+            {additionalFieldsExpanded ? (
+              <ChevronDown size={16} className="text-[#7B8FA5]" />
+            ) : (
+              <ChevronRight size={16} className="text-[#7B8FA5]" />
+            )}
           </div>
-        )}
+        </div>
+
       </div>
 
       {(additionalFieldsExpanded || propertiesSearchQuery) && (
         <div className="px-4 pb-4 pt-3">
-          {/* Form Fields Content */}
-          {additionalFieldsTab === 'form' && (
-            <div className="space-y-3">
+          {/* Form Fields (System Fields were moved under the main Fields accordion) */}
+          <div className="space-y-3">
               {getFilteredAdditionalFormFields().includes('Project Name') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
@@ -634,21 +605,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   </>
                 );
               })()}
-            </div>
-          )}
-
-          {/* System Fields Content */}
-          {additionalFieldsTab === 'system' && (
-            <SystemFieldsRenderer
-              fields={getFilteredAdditionalFields()}
-              showMore={showMoreSystemFields}
-              onToggleShowMore={() => setShowMoreSystemFields(!showMoreSystemFields)}
-              pinnedFields={pinnedFields}
-              onTogglePin={togglePinField}
-              assetMode={assetMode}
-              purchaseMode={purchaseMode}
-            />
-          )}
+          </div>
         </div>
       )}
 
