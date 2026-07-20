@@ -39,6 +39,8 @@ interface TicketPropertiesPanelProps {
   contractMode?: boolean;
   // Purchase variant of the asset field set (status/order number/cost/cost center/dates)
   purchaseMode?: boolean;
+  // Patch variant of the asset field set (category/severity/approval/test/release date/…)
+  patchMode?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
@@ -338,6 +340,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     licenseMode = false,
     contractMode = false,
     purchaseMode = false,
+    patchMode = false,
     assetState,
     agentInfo,
     warranty,
@@ -720,16 +723,20 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [showCustomizeModal, setShowCustomizeModal] = useState(false); // Track customize layout modal
   // Each module gets its own stored order so layouts don't leak across modules.
   // Only the Change detail page includes the Change Calendar section.
-  const sectionStorageKey = assetMode
-    ? 'assetPropertiesSectionOrderV3'
-    : showChangeCalendar
-      ? 'changePropertiesSectionOrderV2'
-      : 'ticketPropertiesSectionOrder';
-  const defaultSectionOrder = showChangeCalendar
-    ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
+  const sectionStorageKey = patchMode
+    ? 'patchPropertiesSectionOrder'
     : assetMode
-      ? ['Ticket Fields', 'Additional Fields']
-      : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+      ? 'assetPropertiesSectionOrderV3'
+      : showChangeCalendar
+        ? 'changePropertiesSectionOrderV2'
+        : 'ticketPropertiesSectionOrder';
+  const defaultSectionOrder = patchMode
+    ? ['Ticket Fields'] // Patch page has no Additional Fields section
+    : showChangeCalendar
+      ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
+      : assetMode
+        ? ['Ticket Fields', 'Additional Fields']
+        : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
@@ -1691,6 +1698,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           licenseMode={licenseMode}
           contractMode={contractMode}
           purchaseMode={purchaseMode}
+          patchMode={patchMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -1884,7 +1892,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           )}
         </div>
             );
-          } else if (section === 'Additional Fields' && hasAdditionalFieldsMatch()) {
+          } else if (section === 'Additional Fields' && !patchMode && hasAdditionalFieldsMatch()) {
             return (
         <AdditionalFieldsAccordion
           key="additional-fields"
@@ -1938,7 +1946,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           return null;
         })}
 
-        {/* Customize Button */}
+        {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder) */}
+        {!patchMode && (
         <div className="px-4 mx-[0px] mt-6 mb-5">
           <button
             onClick={() => setShowCustomizeModal(true)}
@@ -1948,6 +1957,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <span className="border-b border-dotted border-transparent group-hover:border-[#3D8BD0]">Customize Layout</span>
           </button>
         </div>
+        )}
 
         {/* Separator */}
         <div className="mt-4 px-3 hidden">

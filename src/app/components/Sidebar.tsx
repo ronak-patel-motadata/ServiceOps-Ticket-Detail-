@@ -15,7 +15,7 @@ import {
   IconTask,
   IconMyTeam,
 } from './SidebarIcons';
-import { Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart } from 'lucide-react';
+import { Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart, Rocket, Monitor, ClipboardCheck, Settings } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 // Asset sub-modules surfaced in the hover flyout (grouped with dividers).
@@ -76,6 +76,46 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
               })}
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Patch sub-modules surfaced in the hover flyout. Only "Patches" has a page today; the rest are
+// prototype placeholders (no navigation yet).
+const PATCH_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
+  { icon: <IconPatch size={16} />, label: 'Patches', page: 'patches' },
+  { icon: <Rocket size={16} />, label: 'Patch Deployment' },
+  { icon: <Monitor size={16} />, label: 'Computer' },
+  { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test' },
+  { icon: <Settings size={16} />, label: 'Automatic Patch Deployment' },
+];
+
+/** Patch nav item with a hover flyout listing the patch sub-modules (mirrors AssetsNavItem). */
+function PatchNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
+  const sectionActive = activePage === 'patches';
+  return (
+    <div className="relative group">
+      <NavItem icon={<IconPatch size={20} />} active={sectionActive} title="Patch" disableTooltip />
+      {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
+      <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
+        <div className="w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+          {PATCH_ITEMS.map((item) => {
+            const isActive = !!item.page && item.page === activePage;
+            return (
+              <button
+                key={item.label}
+                onClick={() => item.page && onNavigate?.(item.page)}
+                className={`w-full px-3 py-2 text-[13px] text-left transition-colors flex items-center gap-2.5 whitespace-nowrap ${
+                  isActive ? 'bg-[#3D8BD0] text-white' : 'hover:bg-[#F5F7FA] text-[#364658]'
+                }`}
+              >
+                <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-[#6B7280]'}`}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -159,7 +199,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           title="CMDB"
           onClick={() => onNavigate?.('cmdb')}
         />
-        <NavItem icon={<IconPatch size={20} />} title="Patch" />
+        <PatchNavItem activePage={activePage} onNavigate={onNavigate} />
         <NavItem icon={<IconPackage size={20} />} title="Package" />
         <NavItem icon={<IconProject size={20} />} title="Project" />
         <NavItem icon={<IconKnowledge size={20} />} title="Knowledge" />

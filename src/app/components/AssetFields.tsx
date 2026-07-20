@@ -362,6 +362,8 @@ interface AssetFieldsProps {
   contractMode?: boolean;
   // Purchase variant: shows ONLY the purchase fields (status/order number/cost/cost center/dates).
   purchaseMode?: boolean;
+  // Patch variant: shows ONLY the patch fields (category/severity/approval/test/release date/…).
+  patchMode?: boolean;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
@@ -369,7 +371,7 @@ interface AssetFieldsProps {
   footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -493,6 +495,187 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       default: return null;
     }
   };
+
+  // Patch variant: patch-specific fields (category / severity / approval / test / release date, then
+  // KB Number / Superseded / Bulletin Id / Reference Url under "View more").
+  if (patchMode) {
+    const PATCH_CATEGORY_OPTIONS = ['Updates', 'Security Updates', 'Critical Updates', 'Update Rollups', 'Feature Packs', 'Service Packs', 'Definition Updates', 'Drivers', 'Tools'];
+    const PATCH_SEVERITY_OPTIONS = [
+      { label: 'Critical', color: '#EF4444' },
+      { label: 'Important', color: '#F59E0B' },
+      { label: 'Moderate', color: '#EAB308' },
+      { label: 'Low', color: '#111827' },
+      { label: 'Unspecified', color: '#6B7280' },
+    ];
+    const PATCH_APPROVAL_OPTIONS = [
+      { label: 'Approved', color: '#22C55E' },
+      { label: 'Not Approved', color: '#F59E0B' },
+      { label: 'Declined', color: '#DC2626' },
+    ];
+    const PATCH_TEST_OPTIONS = ['Not Tested', 'Tested', 'Passed', 'Failed', 'In Progress'];
+    const YES_NO = ['Yes', 'No'];
+
+    // Current value: the edited value from `extra`, else the seeded default.
+    const cur = (label: string, def: string) => (extra[label] !== undefined && extra[label] !== '' ? extra[label] : def);
+
+    const plainSelect = (label: string, options: string[], def: string) => (
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+        <div className="flex-1 min-w-0">
+          <div className="group relative">
+            <button className={`${triggerClass} pl-3`} title={cur(label, def)} onClick={() => toggle(label)}>
+              <span className="truncate">{cur(label, def)}</span>
+            </button>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+            {open === label && (
+              <div className={menuClass}>
+                <div className="max-h-[280px] overflow-y-auto">
+                  {options.map((o) => (
+                    <button key={o} className={optionClass} onClick={() => { updateExtra(label, o); setOpen(null); }}>
+                      <span className="text-[13px] text-[#364658] truncate">{o}</span>
+                      {cur(label, def) === o && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
+    const dotSelect = (label: string, options: { label: string; color: string }[], def: string) => {
+      const curVal = cur(label, def);
+      const curColor = options.find((o) => o.label === curVal)?.color || '#9CA3AF';
+      return (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+          <div className="flex-1 min-w-0">
+            <div className="group relative">
+              <button className="w-full pr-8 pl-3 py-2 flex items-center gap-2 text-[13px] text-[#364658] bg-transparent rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left" title={curVal} onClick={() => toggle(label)}>
+                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: curColor }} />
+                <span className="truncate">{curVal}</span>
+              </button>
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+              {open === label && (
+                <div className={menuClass}>
+                  <div className="max-h-[280px] overflow-y-auto">
+                    {options.map((o) => (
+                      <button key={o.label} className={optionClass} onClick={() => { updateExtra(label, o.label); setOpen(null); }}>
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: o.color }} />
+                          <span className="text-[13px] text-[#364658] truncate">{o.label}</span>
+                        </span>
+                        {curVal === o.label && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const textRow = (label: string, def = '') => (
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+        <div className="flex-1 min-w-0">
+          {editingField === label ? (
+            <input autoFocus value={extra[label] ?? def} onChange={(e) => updateExtra(label, e.target.value)} onBlur={() => setEditingField(null)} onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }} className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+          ) : (
+            <div className="group/edit relative flex items-center">
+              <span className={`text-[13px] px-3 py-2 truncate flex-1 ${cur(label, def) && cur(label, def) !== '---' ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{cur(label, def) || '---'}</span>
+              <button onClick={() => setEditingField(label)} className="absolute right-2 text-[#7B8FA5] opacity-0 group-hover/edit:opacity-100 transition-opacity"><Edit size={14} /></button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    const linkRow = (label: string, def: string) => {
+      const v = cur(label, def);
+      return (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+          <div className="flex-1 min-w-0">
+            {editingField === label ? (
+              <input autoFocus value={extra[label] ?? def} onChange={(e) => updateExtra(label, e.target.value)} onBlur={() => setEditingField(null)} onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }} className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+            ) : (
+              <div className="group/edit relative flex items-center">
+                {v && v !== '---' ? (
+                  <a href={v} target="_blank" rel="noopener noreferrer" className="text-[13px] px-3 py-2 truncate flex-1 text-[#3D8BD0] hover:underline" onClick={(e) => e.stopPropagation()}>{v}</a>
+                ) : (
+                  <span className="text-[13px] px-3 py-2 truncate flex-1 text-[#9CA3AF]">---</span>
+                )}
+                <button onClick={() => setEditingField(label)} className="absolute right-2 text-[#7B8FA5] opacity-0 group-hover/edit:opacity-100 transition-opacity"><Edit size={14} /></button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const dateRow = (label: string, def: string) => (
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{label}</div>
+        <div className="flex-1 min-w-0">
+          <div className="relative group">
+            <DateField value={extra[label] ?? def} onChange={(v) => updateExtra(label, v)} className="!border-0 !bg-transparent hover:!bg-[#F3F4F6]" />
+          </div>
+        </div>
+      </div>
+    );
+
+    // Read-only informational fields shown after Reference Url (patch metadata / audit info).
+    const PATCH_INFO_FIELDS: { label: string; value: string; link?: boolean; sub?: string }[] = [
+      { label: 'UUID', value: 'win_rar-windows-x64-exe-7.20' },
+      { label: 'Architecture', value: '64 BIT' },
+      { label: 'Source', value: 'Patch Scanning' },
+      { label: 'Status', value: 'Published' },
+      { label: 'Download Status', value: 'Success' },
+      { label: 'Download On', value: 'Mon, Jul 20, 2026 05:01 PM' },
+      { label: 'Download Size', value: '3.77 MB' },
+      { label: 'Reboot Required', value: 'No' },
+      { label: 'Support Uninstallation', value: 'No' },
+      { label: 'Approved By', value: 'Rakesh Rathod', link: true },
+      { label: 'Approved On', value: 'Mon, Jul 20, 2026 04:56 PM' },
+      { label: 'Patch Type', value: 'Third Party Patch' },
+      { label: 'Created Date', value: 'Tue, Mar 10, 2026 10:52 PM', sub: '(4 months ago)' },
+      { label: 'Last Updated Date', value: 'Mon, Jul 20, 2026 05:01 PM', sub: '(25 minutes ago)' },
+      { label: 'Created By', value: 'System' },
+      { label: 'Last Updated By', value: 'Rakesh Rathod', link: true },
+    ];
+    const infoRow = (f: { label: string; value: string; link?: boolean; sub?: string }) => (
+      <div key={f.label} className="flex items-start justify-between gap-3">
+        <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568] pt-2">{f.label}</div>
+        <div className="flex-1 min-w-0 px-3 py-2">
+          <span className={`text-[13px] block break-words ${f.link ? 'text-[#3D8BD0]' : 'text-[#364658]'}`}>{f.value}</span>
+          {f.sub && <span className="text-[12px] text-[#9CA3AF] block">{f.sub}</span>}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="px-4 pb-4 space-y-2" ref={ref}>
+        {(!q || 'patch category'.includes(q)) && plainSelect('Patch Category', PATCH_CATEGORY_OPTIONS, 'Updates')}
+        {(!q || 'severity'.includes(q)) && dotSelect('Severity', PATCH_SEVERITY_OPTIONS, 'Low')}
+        {(!q || 'approval status'.includes(q)) && dotSelect('Approval Status', PATCH_APPROVAL_OPTIONS, 'Approved')}
+        {(!q || 'test status'.includes(q)) && plainSelect('Test Status', PATCH_TEST_OPTIONS, 'Not Tested')}
+        {(!q || 'release date'.includes(q)) && dateRow('Release Date', '2026-02-01')}
+
+        {/* The Patch page has a single accordion, so all fields show by default (no "View more"). */}
+        {(!q || 'kb number'.includes(q)) && textRow('KB Number')}
+        {(!q || 'superseded status'.includes(q)) && plainSelect('Superseded Status', YES_NO, 'No')}
+        {(!q || 'bulletin id'.includes(q)) && textRow('Bulletin Id')}
+        {(!q || 'refrence url'.includes(q) || 'reference url'.includes(q)) && linkRow('Refrence Url', 'https://www.win-rar.com/support.html')}
+
+        {/* Read-only patch metadata / audit info (after Reference Url) */}
+        {PATCH_INFO_FIELDS.filter((f) => !q || f.label.toLowerCase().includes(q)).map(infoRow)}
+      </div>
+    );
+  }
 
   // Software-license variant: only Product (read-only) + License Type (dropdown).
   if (licenseMode) {

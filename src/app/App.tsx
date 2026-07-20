@@ -11,10 +11,11 @@ import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage'
 import { ContractsListPage } from './components/ContractsListPage';
 import { PurchasesListPage } from './components/PurchasesListPage';
 import { CmdbListPage } from './components/CmdbListPage';
+import { PatchesListPage } from './components/PatchesListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
@@ -38,6 +39,7 @@ export default function App() {
       {activePage === 'contracts' && <ContractsListPage onNavigate={navigate} />}
       {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
+      {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
       <Toaster position="top-right" />
     </DrawerStackProvider>
   );

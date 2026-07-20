@@ -1,5 +1,6 @@
-import { X, Maximize2, Lock, Sparkles, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, Paperclip, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, MessageSquare, Search, ArrowUpDown } from 'lucide-react';
+import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
+import { EditorQuickActions, EditorFormattingRow, EditorSendActions } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
@@ -21,11 +22,10 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
   const [showAIAssistMenu, setShowAIAssistMenu] = useState(false);
   const [showToneSubmenu, setShowToneSubmenu] = useState(false);
   const [showFormattingMenu, setShowFormattingMenu] = useState(false);
-  
+
   const commentFormRef = useRef<HTMLDivElement>(null);
   const commentContentRef = useRef<HTMLDivElement>(null);
   const aiAssistMenuRef = useRef<HTMLDivElement>(null);
-  const formattingMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -34,15 +34,36 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
         setShowAIAssistMenu(false);
         setShowToneSubmenu(false);
       }
-      if (formattingMenuRef.current && !formattingMenuRef.current.contains(event.target as Node)) {
-        setShowFormattingMenu(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
+  }, []);
+
+  // Selecting text in the comment editor auto-opens the formatting row (Reply-editor pattern);
+  // deselecting hides it again — but ONLY when it was auto-opened. A manual T toggle sticks.
+  const autoOpenedRef = useRef(false);
+  const showFormattingRef = useRef(showFormattingMenu);
+  showFormattingRef.current = showFormattingMenu;
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = document.getSelection();
+      const el = commentContentRef.current;
+      const insideSelection = !!(sel && !sel.isCollapsed && el && sel.anchorNode && el.contains(sel.anchorNode));
+      if (insideSelection) {
+        if (!showFormattingRef.current) {
+          autoOpenedRef.current = true;
+          setShowFormattingMenu(true);
+        }
+      } else if (autoOpenedRef.current && showFormattingRef.current) {
+        autoOpenedRef.current = false;
+        setShowFormattingMenu(false);
+      }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
   if (!isOpen) return null;
@@ -175,7 +196,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                   suppressContentEditableWarning
                   dir="ltr"
                   onInput={(e) => setCommentContent(e.currentTarget.innerHTML)}
-                  className="w-full min-h-[100px] text-sm text-[#364658] text-left focus:outline-none bg-transparent empty:before:content-[attr(data-placeholder)] empty:before:text-[#9CA3AF]"
+                  className={`w-full min-h-[100px] text-sm text-[#364658] text-left focus:outline-none bg-transparent empty:before:content-[attr(data-placeholder)] empty:before:text-[#9CA3AF] ${showFormattingMenu ? 'pb-14' : ''}`}
                   data-placeholder="Start typing your comment..."
                   style={{
                     wordBreak: 'break-word',
@@ -183,6 +204,11 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                   }}
                 />
               </div>
+
+              {/* Formatting row — revealed by the Text-formatting toggle; FLOATS above the toolbar
+                  (absolute within this relative wrapper) so the editor height never jumps */}
+              <div className="relative">
+              {showFormattingMenu && <EditorFormattingRow />}
 
               {/* Bottom Toolbar */}
               <div className="flex items-center justify-between">
@@ -326,99 +352,20 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                     )}
                   </div>
 
-                  {/* Formatting Tools */}
-                  <div className="relative flex items-center gap-1" ref={formattingMenuRef}>
-                    {/* Always visible quick access icons */}
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Attach File">
-                      <Paperclip size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Image">
-                      <Image size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Link">
-                      <Link2 size={16} />
-                    </button>
-                    <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Insert Emoji">
-                      <Smile size={16} />
-                    </button>
-                    
-                    {/* Type button to show all formatting options */}
-                    <button 
-                      className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]"
-                      onClick={() => setShowFormattingMenu(!showFormattingMenu)}
-                    >
-                      <Type size={16} />
-                    </button>
-
-                    {/* All Formatting Options Dropdown */}
-                    {showFormattingMenu && (
-                      <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
-                        <div className="flex items-center gap-1">
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
-                            <Bold size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Italic">
-                            <Italic size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Underline">
-                            <Underline size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bulleted List">
-                            <List size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Numbered List">
-                            <ListOrdered size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 1">
-                            <Heading1 size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 2">
-                            <Heading2 size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Heading 3">
-                            <Heading3 size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Left">
-                            <AlignLeft size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Center">
-                            <AlignCenter size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Right">
-                            <AlignRight size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Align Justify">
-                            <AlignJustify size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Code">
-                            <Code size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Link">
-                            <Link2 size={16} />
-                          </button>
-                          <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Video">
-                            <Video size={16} />
-                          </button>
-                          <button 
-                            className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" 
-                            title="Close"
-                            onClick={() => setShowFormattingMenu(false)}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {/* Shared conversation-editor quick actions (Template · Knowledge · Attach ·
+                      Image · Link · Emoji · Text-formatting toggle · Undo/Redo) */}
+                  <EditorQuickActions
+                    formattingOpen={showFormattingMenu}
+                    onToggleFormatting={() => {
+                      autoOpenedRef.current = false; // manual toggle — selection changes won't auto-hide it
+                      setShowFormattingMenu(!showFormattingMenu);
+                    }}
+                  />
                 </div>
 
-                {/* Right Side - Send Button */}
-                <button 
-                  className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
-                  onClick={handleSend}
-                >
-                  Send
-                </button>
+                {/* Right Side - Send Button (icon-only, internal comment → no draft) */}
+                <EditorSendActions onSend={handleSend} showSaveDraft={false} />
+              </div>
               </div>
             </div>
           </div>

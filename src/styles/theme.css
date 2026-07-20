@@ -337,3 +337,22 @@
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* Success toasts (sonner) render in green — text + check icon — matching the
+   "Convert to Service Request" toast, instead of the default black. Scoped to
+   data-type="success" so error/info toasts keep their own styling. */
+[data-sonner-toast][data-type='success'],
+[data-sonner-toast][data-type='success'] [data-title],
+[data-sonner-toast][data-type='success'] [data-icon],
+[data-sonner-toast][data-type='success'] [data-icon] svg {
+  color: #16a34a;
+}
+
+/* Error toasts (sonner) render in red — text + icon — matching the Decline button,
+   symmetric to the green success rule above. Scoped to data-type="error". */
+[data-sonner-toast][data-type='error'],
+[data-sonner-toast][data-type='error'] [data-title],
+[data-sonner-toast][data-type='error'] [data-icon],
+[data-sonner-toast][data-type='error'] [data-icon] svg {
+  color: #dc2626;
+}

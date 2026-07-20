@@ -20,6 +20,7 @@ interface TicketFieldsAccordionProps {
   licenseMode?: boolean;
   contractMode?: boolean;
   purchaseMode?: boolean;
+  patchMode?: boolean;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -208,6 +209,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     licenseMode = false,
     contractMode = false,
     purchaseMode = false,
+    patchMode = false,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -478,6 +480,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           licenseMode={licenseMode}
           contractMode={contractMode}
           purchaseMode={purchaseMode}
+          patchMode={patchMode}
           footer={systemFieldsSection}
         />
       )}
