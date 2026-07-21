@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Search, X, Trash2, Plus, User, Download, Ban, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
+import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LucideIcon } from 'lucide-react';
 
-type Bucket = 'Missing' | 'Installed' | 'Ignored';
+export type Bucket = 'Missing' | 'Installed' | 'Ignored';
 
-interface PatchComputer {
+export interface PatchComputer {
   id: string;
   hostName: string;
   ipAddress: string;
@@ -22,7 +23,7 @@ interface PatchComputer {
 }
 
 // Realistic agent/computer inventory (mock) split across the three patch buckets.
-const COMPUTERS: PatchComputer[] = [
+export const INITIAL_COMPUTERS: PatchComputer[] = [
   { id: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
   { id: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
   { id: 'AGENT-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
@@ -49,15 +50,44 @@ const COMPUTERS: PatchComputer[] = [
   { id: 'AGENT-233', hostName: 'OFC-PRT-0207', ipAddress: '10.20.30.207', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'OMAN', bucket: 'Ignored' },
 ];
 
+/* --- Installation (deployment) records: agents this patch has been pushed to. --------------- */
+export type InstallationStatus = 'Yet to Receive' | 'In Progress' | 'Success' | 'Failed';
+
+export interface PatchInstallation {
+  id: string;
+  agentId: string;
+  hostName: string;
+  ipAddress: string;
+  configType: string;
+  deploymentDate: string;
+  installationStatus: InstallationStatus;
+  retryStatus: number;
+  downloadStatus: string;
+  taskType: string;
+}
+
+// Three deployments, one per status (Yet to Receive / Success / Failed) to show each style.
+export const INITIAL_INSTALLATIONS: PatchInstallation[] = [
+  { id: 'INST-AGENT-380', agentId: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-AGENT-397', agentId: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 04:58 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-AGENT-400', agentId: 'AGENT-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 03:40 PM', installationStatus: 'Failed', retryStatus: 2, downloadStatus: 'Failed', taskType: 'Manual Remote Deployment' },
+];
+
 const BUCKETS: Bucket[] = ['Missing', 'Installed', 'Ignored'];
 
 const Dash = () => <span className="text-[12px] text-[#9ca3af]">---</span>;
 
-export function PatchComputersTab() {
+interface PatchComputersTabProps {
+  computers: PatchComputer[];
+  setComputers: Dispatch<SetStateAction<PatchComputer[]>>;
+  /** Install the given agents — creates deployment records in the Installation tab. */
+  onInstall: (agentIds: string[]) => void;
+}
+
+export function PatchComputersTab({ computers, setComputers, onInstall }: PatchComputersTabProps) {
   const [bucket, setBucket] = useState<Bucket>('Missing');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [list, setList] = useState<PatchComputer[]>(COMPUTERS);
   const [showMore, setShowMore] = useState(false);
 
   const toggleRow = (id: string, checked: boolean) => {
@@ -72,13 +102,19 @@ export function PatchComputersTab() {
   // Bulk actions on the selected rows.
   const moveSelected = (to: Bucket, verb: string) => {
     const n = selected.size;
-    setList((prev) => prev.map((c) => (selected.has(c.id) ? { ...c, bucket: to } : c)));
+    setComputers((prev) => prev.map((c) => (selected.has(c.id) ? { ...c, bucket: to } : c)));
     clearSelection();
     toast.success(`${n} computer${n > 1 ? 's' : ''} ${verb}`);
   };
+  // Install Patch → push a deployment to the selected agents (they show up in the Installation
+  // tab). The device stays "Missing" until its installation status turns Success.
+  const installSelected = () => {
+    onInstall(Array.from(selected));
+    clearSelection();
+  };
   const deleteSelected = () => {
     const n = selected.size;
-    setList((prev) => prev.filter((c) => !selected.has(c.id)));
+    setComputers((prev) => prev.filter((c) => !selected.has(c.id)));
     clearSelection();
     toast.error(`${n} computer${n > 1 ? 's' : ''} removed`);
   };
@@ -87,24 +123,23 @@ export function PatchComputersTab() {
   // Bulk actions available for the current bucket. `tone` drives styling; `danger` sorts last.
   type BulkAction = { key: string; label: string; icon: LucideIcon; tone?: 'primary' | 'danger'; buckets: Bucket[]; run: () => void };
   const ALL_ACTIONS: BulkAction[] = [
-    { key: 'install', label: 'Install Patch', icon: Download, tone: 'primary', buckets: ['Missing', 'Ignored'], run: () => moveSelected('Installed', 'queued for install') },
+    { key: 'install', label: 'Install Patch', icon: Download, tone: 'primary', buckets: ['Missing', 'Ignored'], run: installSelected },
     { key: 'uninstall', label: 'Uninstall Patch', icon: RotateCcw, tone: 'primary', buckets: ['Installed'], run: () => moveSelected('Missing', 'marked as uninstalled') },
-    { key: 'ignore', label: 'Ignore', icon: Ban, buckets: ['Missing'], run: () => moveSelected('Ignored', 'ignored') },
     { key: 'restore', label: 'Restore', icon: RotateCcw, buckets: ['Ignored'], run: () => moveSelected('Missing', 'restored') },
-    { key: 'deploy', label: 'Add to Deployment', icon: PackagePlus, buckets: ['Missing', 'Ignored'], run: () => notify('added to deployment') },
-    { key: 'scan', label: 'Scan Now', icon: ScanLine, buckets: ['Missing', 'Installed', 'Ignored'], run: () => notify('scan started') },
-    { key: 'reboot', label: 'Reboot Computer', icon: Power, buckets: ['Missing', 'Installed', 'Ignored'], run: () => notify('reboot scheduled') },
-    { key: 'export', label: 'Export Selected', icon: FileDown, buckets: ['Missing', 'Installed', 'Ignored'], run: () => notify('exported') },
+    { key: 'deploy', label: 'Add to Deployment', icon: PackagePlus, buckets: ['Ignored'], run: () => notify('added to deployment') },
+    { key: 'scan', label: 'Scan Now', icon: ScanLine, buckets: ['Installed', 'Ignored'], run: () => notify('scan started') },
+    { key: 'reboot', label: 'Reboot Computer', icon: Power, buckets: ['Installed', 'Ignored'], run: () => notify('reboot scheduled') },
+    { key: 'export', label: 'Export Selected', icon: FileDown, buckets: ['Installed', 'Ignored'], run: () => notify('exported') },
     { key: 'delete', label: 'Delete', icon: Trash2, tone: 'danger', buckets: ['Missing', 'Installed', 'Ignored'], run: deleteSelected },
   ];
   // All bulk actions for the current bucket, shown in the single "Take Action" menu.
   const actions = ALL_ACTIONS.filter((a) => a.buckets.includes(bucket));
 
   const counts: Record<Bucket, number> = { Missing: 0, Installed: 0, Ignored: 0 };
-  list.forEach((c) => { counts[c.bucket] += 1; });
+  computers.forEach((c) => { counts[c.bucket] += 1; });
 
   const q = search.trim().toLowerCase();
-  const rows = list.filter((c) => c.bucket === bucket).filter((c) =>
+  const rows = computers.filter((c) => c.bucket === bucket).filter((c) =>
     !q ||
     c.id.toLowerCase().includes(q) ||
     c.hostName.toLowerCase().includes(q) ||
@@ -171,15 +206,16 @@ export function PatchComputersTab() {
             {showMore && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMore(false)} />
-                <div className="absolute left-0 top-full mt-1.5 z-50 w-[228px] bg-white border border-[#E3E8EF] rounded-md shadow-[0_8px_24px_rgba(16,24,40,0.12)] py-1.5">
+                <div className="absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
                   {actions.map((a) => (
                     <div key={a.key}>
-                      {a.tone === 'danger' && <div className="my-1.5 mx-2 border-t border-[#F0F2F5]" />}
+                      {a.tone === 'danger' && <div className="my-1 border-t border-[#F0F2F5]" />}
                       <button
                         onClick={() => { a.run(); setShowMore(false); }}
-                        className={`mx-1 flex w-[calc(100%-8px)] items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-left transition-colors ${a.tone === 'danger' ? 'text-[#DC2626] hover:bg-[#FEF3F2]' : 'text-[#364658] hover:bg-[#F5F8FC]'}`}
+                        className={`w-full px-4 py-2 text-[13px] text-left transition-colors flex items-center gap-2.5 ${a.tone === 'danger' ? 'text-[#DC2626] hover:bg-[#FEF3F2]' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
                       >
-                        <a.icon size={15} className={a.tone === 'danger' ? 'text-[#DC2626]' : 'text-[#7B8FA5]'} /> {a.label}
+                        <span className={`flex-shrink-0 ${a.tone === 'danger' ? 'text-[#DC2626]' : 'text-[#6B7280]'}`}><a.icon size={15} /></span>
+                        <span className="flex-1">{a.label}</span>
                       </button>
                     </div>
                   ))}
@@ -265,7 +301,7 @@ export function PatchComputersTab() {
                 <td className="px-4 py-3 whitespace-nowrap">
                   <button
                     title="Remove"
-                    onClick={() => { setList((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
+                    onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
                     className="text-[#EF4444] hover:text-[#DC2626] transition-colors"
                   >
                     <Trash2 size={15} />

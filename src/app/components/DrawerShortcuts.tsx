@@ -74,7 +74,10 @@ function cycleContentTab(dir: 1 | -1) {
     return /py-3/.test(c) && /whitespace-nowrap/.test(c) && !/^More/.test((b.textContent || '').trim());
   });
   if (tabs.length < 2) return;
-  let idx = tabs.findIndex((b) => /border-b-2/.test(b.className));
+  // The ACTIVE tab is the one with the blue underline. Every tab now carries `border-b-2`
+  // (transparent when inactive) for the hover treatment, so match the blue colour instead —
+  // and require a word boundary so `hover:border-[#3D8BD0]` never counts as active.
+  let idx = tabs.findIndex((b) => /(^|\s)border-\[#3D8BD0\]/.test(b.className));
   if (idx < 0) idx = 0;
   const next = tabs[(idx + dir + tabs.length) % tabs.length];
   (next as HTMLElement)?.click();

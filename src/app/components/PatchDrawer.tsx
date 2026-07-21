@@ -50,7 +50,10 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
-import { PatchComputersTab } from './PatchComputersTab';
+import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
+import { PatchInstallationTab } from './PatchInstallationTab';
+import { PatchVulnerabilitiesTab } from './PatchVulnerabilitiesTab';
+import { PatchSupersededTab } from './PatchSupersededTab';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
@@ -413,6 +416,40 @@ onStackMinimizedChange,
   // 'approved' (only Decline shows), 'declined' (only Approve shows).
   const [patchDecision, setPatchDecision] = useState<Record<string, 'none' | 'approved' | 'declined'>>({});
 
+  // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
+  // a deployment record (Installation tab); once that record's status turns Success the computer
+  // moves into the Installed bucket in the Computers tab.
+  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(INITIAL_COMPUTERS);
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(INITIAL_INSTALLATIONS);
+  const handleInstallPatch = (agentIds: string[]) => {
+    setPatchInstallations((prev) => {
+      const existing = new Set(prev.map((r) => r.agentId));
+      const toAdd = agentIds
+        .filter((id) => !existing.has(id))
+        .map((id) => {
+          const c = patchComputers.find((x) => x.id === id);
+          return {
+            id: `INST-${id}`,
+            agentId: id,
+            hostName: c?.hostName ?? id,
+            ipAddress: c?.ipAddress ?? '---',
+            configType: 'Install',
+            deploymentDate: '---',
+            installationStatus: 'Yet to Receive' as const,
+            retryStatus: 0,
+            downloadStatus: 'Success',
+            taskType: 'Manual Remote Deployment',
+          };
+        });
+      return [...toAdd, ...prev];
+    });
+    const n = agentIds.length;
+    toast.success(`${n} computer${n > 1 ? 's' : ''} queued for install`);
+  };
+  const handleInstallationSuccess = (agentId: string) => {
+    setPatchComputers((prev) => prev.map((c) => (c.id === agentId ? { ...c, bucket: 'Installed' } : c)));
+  };
+
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
   
@@ -502,7 +539,7 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'affected-products' | 'file-details'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -802,7 +839,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1037,14 +1074,15 @@ onStackMinimizedChange,
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Patch detail tabs — Overview (properties) · Computers · Audit Trail (audit).
+      // Patch detail tabs — Overview (properties) · Vulnerabilities · Endpoint (computers) ·
+      // Installation · Superseded · Audit Trail.
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
-      let allTabs: string[] = ['properties', 'computers', 'audit'];
+      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'installation', 'superseded', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
-      const gap = 16; // gap-4 = 16px
+      const gap = 10; // gap-2.5 = 10px
       const moreButtonWidth = 80; // Approximate width of "More" button with icon
       
       // Approximate widths for each tab (in pixels)
@@ -1065,6 +1103,8 @@ onStackMinimizedChange,
         'approvals': 85,
         'relations': 80,
         'computers': 100,
+        'vulnerabilities': 120,
+        'superseded': 110,
         'audit': 100,
         'resolution': 90
       };
@@ -2421,11 +2461,14 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
+              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative">
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
-                    { id: 'computers', label: 'Computers' },
+                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
+                    { id: 'computers', label: 'Endpoint' },
+                    { id: 'installation', label: 'Installation' },
+                    { id: 'superseded', label: 'Superseded' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2447,14 +2490,16 @@ onStackMinimizedChange,
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'computers': 'Computers',
+                    'computers': 'Endpoint',
+                    'vulnerabilities': 'Vulnerabilities',
+                    'superseded': 'Superseded',
                     'audit': 'Audit Trail'
                   };
 
                   const renderTab = (tabId: string) => (
-                    <button 
+                    <button
                       key={tabId}
-                      className={`px-1 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 ${activeMainTab === tabId ? 'text-[#3D8BD0] border-b-2 border-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
+                      className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
                       onClick={() => setActiveMainTab(tabId as any)}
                     >
                       {tabLabels[tabId]}
@@ -3464,7 +3509,8 @@ onStackMinimizedChange,
             })()}
 
             {/* Installation — hardware assets where this software is installed */}
-            {activeMainTab === 'installation' && (() => {
+            {/* Legacy Software-clone Installation grid — replaced by PatchInstallationTab below (kept as dead code). */}
+            {false && (() => {
               const all = [
                 { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', type: 'Windows Laptop', ip: '10.190.44.202', group: 'Unassigned', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Tue, Apr 28, 2026 11:44 AM' },
                 { id: 'LAP-6712', host: 'FIN-LT-0188', type: 'Windows Laptop', ip: '10.20.22.188', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Mar 17, 2026 09:20 AM' },
@@ -6450,8 +6496,21 @@ onStackMinimizedChange,
               />
             )}
 
+            {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
+            {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab />}
+
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
-            {activeMainTab === 'computers' && <PatchComputersTab />}
+            {activeMainTab === 'computers' && (
+              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} />
+            )}
+
+            {/* Installation Tab Content — deployment records for this patch */}
+            {activeMainTab === 'installation' && (
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} />
+            )}
+
+            {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
+            {activeMainTab === 'superseded' && <PatchSupersededTab patchId={activeAsset?.id} patchName={activeAsset?.name} />}
 
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && (() => {

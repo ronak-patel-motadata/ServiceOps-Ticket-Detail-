@@ -87,7 +87,7 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
 const PATCH_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <IconPatch size={16} />, label: 'Patches', page: 'patches' },
   { icon: <Rocket size={16} />, label: 'Patch Deployment' },
-  { icon: <Monitor size={16} />, label: 'Computer' },
+  { icon: <Monitor size={16} />, label: 'Endpoint' },
   { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test' },
   { icon: <Settings size={16} />, label: 'Automatic Patch Deployment' },
 ];

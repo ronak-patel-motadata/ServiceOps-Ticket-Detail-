@@ -1220,7 +1220,7 @@ onStackMinimizedChange,
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
-      const gap = 16; // gap-4 = 16px
+      const gap = 10; // gap-2.5 = 10px
       const moreButtonWidth = 80; // Approximate width of "More" button with icon
       
       // Approximate widths for each tab (in pixels)
@@ -3172,7 +3172,7 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-4 px-6 relative">
+              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative">
                 {(() => {
                   const tabConfig = [
                     { id: 'overview', label: 'Overview' },
@@ -3210,7 +3210,7 @@ onStackMinimizedChange,
                   const renderTab = (tabId: string) => (
                     <button 
                       key={tabId}
-                      className={`px-1 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 ${activeMainTab === tabId ? 'text-[#3D8BD0] border-b-2 border-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
+                      className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
                       onClick={() => setActiveMainTab(tabId as any)}
                     >
                       {tabLabels[tabId]}

@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -54,8 +54,8 @@ interface TicketPropertiesPanelProps {
   // Calendar section title (e.g. "Change Calendar" or "Release Calendar")
   changeCalendarTitle?: string;
   // State
-  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration';
-  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration') => void;
+  activeGroup: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration' | 'affected-products' | 'file-details';
+  setActiveGroup: (group: 'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications' | 'integration' | 'affected-products' | 'file-details') => void;
   pinnedFields: string[];
   setPinnedFields: (fields: string[]) => void;
   showPropertiesSearch: boolean;
@@ -325,6 +325,27 @@ function deriveRequester(name?: string) {
   const color = REQUESTER_COLORS[clean.length % REQUESTER_COLORS.length];
   return { name: clean, email, logonName, initials, color };
 }
+
+// OS / applications affected by the patch — shown in the Patch page's "Affected Products" group.
+const PATCH_AFFECTED_PRODUCTS: { name: string; type: 'OS' | 'Application' }[] = [
+  { name: 'Microsoft Windows Server 2022 Standard', type: 'OS' },
+  { name: 'Microsoft 365 Apps for Enterprise', type: 'Application' },
+  { name: 'Microsoft Windows 11 Enterprise', type: 'OS' },
+  { name: 'Microsoft Edge (Chromium)', type: 'Application' },
+  { name: 'Microsoft Windows 10 Enterprise', type: 'OS' },
+  { name: 'Microsoft .NET Framework 4.8', type: 'Application' },
+  { name: 'Microsoft Windows Server 2019 Standard', type: 'OS' },
+  { name: 'Google Chrome', type: 'Application' },
+  { name: 'Microsoft Windows 11 Pro', type: 'OS' },
+  { name: 'Adobe Acrobat Reader DC', type: 'Application' },
+];
+
+// Files that make up the patch — shown in the Patch page's "File Details" group.
+const PATCH_FILES: { name: string; size: string; language: string }[] = [
+  { name: 'officedeploymenttool_19822.20114.exe', size: '3.52 MB', language: 'all' },
+  { name: 'windows11.0-kb5036893-x64.msu', size: '287.4 MB', language: 'en-US' },
+  { name: 'ndp48-x86-x64-allos-enu.exe', size: '121.6 MB', language: 'all' },
+];
 
 export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const {
@@ -692,6 +713,17 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [expandedIntegrations, setExpandedIntegrations] = useState<Set<string>>(new Set());
   const [similarFilter, setSimilarFilter] = useState<'All' | 'Request' | 'Problem' | 'Change'>('All');
+  // Patch File Details — the patch's files (can be empty → upload manually). Patch page only.
+  const [patchFiles, setPatchFiles] = useState<{ name: string; size: string; language: string }[]>(PATCH_FILES);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handlePatchFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const size = file.size >= 1048576 ? `${(file.size / 1048576).toFixed(2)} MB` : `${(file.size / 1024).toFixed(1)} KB`;
+    setPatchFiles((prev) => [...prev, { name: file.name, size, language: 'all' }]);
+    e.target.value = '';
+  };
+
   // Jira integration — a record can be linked to at most ONE Jira issue (starts empty).
   type JiraIntegration = { id: string; project: string; issueType: string; priority: string; subject: string; application: string };
   const [integration, setIntegration] = useState<JiraIntegration | null>(null);
@@ -1251,7 +1283,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <path fill="url(#sparkle-gradient-properties)" d="M15,5h.83v.83c0,.46.37.83.83.83.46,0,.83-.37.83-.83v-.83h.83c.46,0,.83-.37.83-.83,0-.46-.37-.83-.83-.83h-.83v-.83c0-.46-.37-.83-.83-.83-.46,0-.83.37-.83.83v.83h-.83c-.46,0-.83.37-.83.83,0,.46.37.83.83.83ZM18.97,9.33l-.06-.08-.07-.08c-.16-.18-.37-.3-.6-.37h-.01s-5.11-1.32-5.11-1.32c-.14-.04-.28-.11-.38-.22-.11-.11-.18-.24-.22-.38l-1.32-5.11v-.02s-.04-.1-.04-.1c-.08-.22-.23-.42-.42-.56-.22-.16-.48-.25-.76-.25-.24,0-.47.07-.67.2l-.08.06c-.22.16-.37.4-.45.66v.02s-1.32,5.11-1.32,5.11c-.04.14-.11.28-.22.38-.08.08-.17.14-.28.18l-.11.04-5.11,1.32s-.01,0-.02,0c-.23.06-.43.19-.59.37l-.07.08c-.14.19-.23.42-.25.65v.1s0,.1,0,.1c.02.24.1.46.25.65.16.22.39.37.66.45,0,0,.01,0,.02,0l5.11,1.32c.14.04.28.11.38.22.11.11.18.24.22.38l1.32,5.11s0,.01,0,.02c.07.26.23.49.45.66.22.16.48.25.76.25.27,0,.54-.09.75-.25.22-.16.37-.4.45-.66,0,0,0-.01,0-.02l1.32-5.11c.04-.14.11-.28.22-.38.11-.11.24-.18.38-.22l5.11-1.32h.01c.26-.08.5-.23.66-.45.17-.22.25-.48.25-.76,0-.24-.07-.47-.2-.67ZM12.71,10.91c-.43.11-.83.34-1.14.65-.32.32-.54.71-.65,1.14l-.91,3.54-.91-3.54c-.11-.43-.34-.83-.65-1.14-.32-.32-.71-.54-1.14-.65l-3.54-.91,3.54-.91c.43-.11.83-.34,1.14-.65.32-.32.54-.71.65-1.14l.91-3.54.91,3.54.05.16c.12.37.33.71.61.98.32.32.71.54,1.14.65l3.54.91-3.54.91ZM4.25,14.17h-.09c0-.46-.37-.84-.83-.84-.46,0-.83.37-.83.83h-.08c-.42.05-.75.4-.75.83s.33.79.75.83h.08s0,.09,0,.09c.04.42.4.75.83.75.43,0,.79-.33.83-.75v-.08s.09,0,.09,0c.42-.04.75-.4.75-.83s-.33-.79-.75-.83Z"/>
                 </svg>
               )}
-              {activeGroup === 'notifications' ? 'Notifications' : activeGroup === 'integration' ? 'Integration' : getGroupTitle()}
+              {activeGroup === 'notifications' ? 'Notifications' : activeGroup === 'integration' ? 'Integration' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle()}
             </h2>
             {activeGroup === 'chatbot' && (
               <button
@@ -1295,6 +1327,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             )}
             {activeGroup === 'notes' && (
               <button title="Add Note" onClick={openAddNote} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+                <Plus size={15} />
+              </button>
+            )}
+            {activeGroup === 'file-details' && patchFiles.length > 0 && (
+              <button title="Upload File" onClick={() => fileInputRef.current?.click()} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
@@ -2540,6 +2577,82 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </div>
         )}
 
+        {/* Affected Products Group Content (Patch page only) — OS / applications this patch affects */}
+        {activeGroup === 'affected-products' && (
+          <div className="space-y-2">
+            <div className="text-[13px] text-[#7B8FA5] mb-1">
+              <span className="font-medium text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected
+            </div>
+            {PATCH_AFFECTED_PRODUCTS.map((p) => (
+              <div key={p.name} className="flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
+                <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
+                  {p.type === 'Application' ? <AppWindow size={18} /> : <Monitor size={18} />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium text-[#364658] break-words">{p.name}</div>
+                </div>
+                <span className="flex-shrink-0 inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{p.type}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* File Details Group Content (Patch page only) — the files that make up this patch */}
+        {activeGroup === 'file-details' && (
+          <>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handlePatchFileUpload} />
+            {patchFiles.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-[13px] text-[#7B8FA5] mb-1">
+                  <span className="font-medium text-[#364658]">{patchFiles.length}</span> {patchFiles.length === 1 ? 'file' : 'files'}
+                </div>
+                {patchFiles.map((f) => (
+                  <div key={f.name} className="group flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
+                    <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><FileText size={18} /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium text-[#364658] break-words">{f.name}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
+                        <span>{f.size}</span>
+                        <span className="size-1 rounded-full bg-[#CBD5E1] flex-shrink-0" />
+                        <span>Language: {f.language}</span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 flex items-center gap-0.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Copy size={14} /></button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy link</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Download size={14} /></button>
+                        </TooltipTrigger>
+                        <TooltipContent>Download</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => setPatchFiles((prev) => prev.filter((x) => x.name !== f.name))} className="hidden group-hover:flex size-7 items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={14} /></button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-16 px-4">
+                <div className="flex size-14 items-center justify-center rounded-full bg-[#F3F4F6] mb-4"><Files size={24} className="text-[#9CA3AF]" /></div>
+                <div className="text-[15px] font-semibold text-[#364658] mb-1">No Files Yet</div>
+                <div className="text-[13px] text-[#7B8FA5] mb-5 max-w-[240px]">This patch has no files attached. Upload a file to get started.</div>
+                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded-md text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
+                  <Plus size={15} /> Upload File
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
         {/* AI Suggestions Group Content */}
         {activeGroup === 'suggestions' && (
           <div className="space-y-3">
@@ -3588,7 +3701,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </Tooltip>
           )}
 
-          {!contractMode && (
+          {/* Notes — hidden on the Patch page (replaced by Affected Products below) */}
+          {!contractMode && !patchMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3610,10 +3724,35 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <TooltipContent>Notes</TooltipContent>
           </Tooltip>
           )}
+
+          {/* Affected Products — Patch page only (replaces Notes) */}
+          {patchMode && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  if (isAccordionCollapsed) {
+                    expandAccordion();
+                  }
+                  setActiveGroup('affected-products');
+                }}
+                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                  activeGroup === 'affected-products'
+                    ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+                }`}
+              >
+                <Layers size={16} className={activeGroup === 'affected-products' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Affected Products</TooltipContent>
+          </Tooltip>
+          )}
         </>
         )}
 
-        {/* Group 2: Activity and Resources Icon */}
+        {/* Group 2: Activity/Attachments Icon — hidden on the Patch page (replaced by File Details) */}
+        {!patchMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -3636,6 +3775,31 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </TooltipTrigger>
           <TooltipContent>{assetMode ? 'Attachments' : 'Activity and Resources'}</TooltipContent>
         </Tooltip>
+        )}
+
+        {/* File Details — Patch page only (replaces Attachments) */}
+        {patchMode && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => {
+                if (isAccordionCollapsed) {
+                  expandAccordion();
+                }
+                setActiveGroup('file-details');
+              }}
+              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                activeGroup === 'file-details'
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+              }`}
+            >
+              <Files size={16} className={activeGroup === 'file-details' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>File Details</TooltipContent>
+        </Tooltip>
+        )}
 
         {/* Group 3: AI Suggestions Icon (hidden for hardware assets) */}
         {!assetMode && (
