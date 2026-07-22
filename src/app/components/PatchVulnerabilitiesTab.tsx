@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, ExternalLink, ChevronDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { Pagination } from './Pagination';
+import { PatchVulnEndpointsPanel } from './PatchVulnEndpointsPanel';
+import { INITIAL_COMPUTERS, type PatchComputer } from './PatchComputersTab';
 
-type VulnBucket = 'Approved' | 'Declined';
+export type VulnBucket = 'Approved' | 'Declined';
 
-interface Vulnerability {
+export interface Vulnerability {
   cveId: string;
   title: string;
   description: string;
@@ -24,7 +27,7 @@ const PUB = 'Tue, Jun 09, 2026 10:47 PM';
 const UPD = 'Wed, Jul 15, 2026 08:22 PM';
 
 // Realistic CVE records tied to this patch (mock).
-const VULNERABILITIES: Vulnerability[] = [
+export const VULNERABILITIES: Vulnerability[] = [
   { cveId: 'CVE-2026-48583', title: 'secure@microsoft.com', description: 'Use after free in Windows Kernel allows an authorized attacker to elevate privileges locally', exploitStatus: 'No', severity: 'High', status: 'Analyzed', vulnerabilityType: 'OS', patchAvailability: 'Yes', impactedEndpoints: 3, cvssScore: '7.8', publishedDate: PUB, lastUpdatedDate: UPD, bucket: 'Approved' },
   { cveId: 'CVE-2026-48578', title: 'secure@microsoft.com', description: 'Protection mechanism failure in Windows Secure Boot allows an unauthorized attacker to bypass a security feature', exploitStatus: 'No', severity: 'High', status: 'Analyzed', vulnerabilityType: 'OS', patchAvailability: 'Yes', impactedEndpoints: 3, cvssScore: '7.9', publishedDate: PUB, lastUpdatedDate: UPD, bucket: 'Approved' },
   { cveId: 'CVE-2026-48576', title: 'secure@microsoft.com', description: 'Protection mechanism failure in Windows Secure Boot allows an unauthorized attacker to bypass a security feature', exploitStatus: 'No', severity: 'High', status: 'Analyzed', vulnerabilityType: 'OS', patchAvailability: 'Yes', impactedEndpoints: 3, cvssScore: '7.9', publishedDate: PUB, lastUpdatedDate: UPD, bucket: 'Approved' },
@@ -51,7 +54,23 @@ const BUCKETS: VulnBucket[] = ['Approved', 'Declined'];
 const severityDot = (s: Vulnerability['severity']) =>
   s === 'Critical' ? '#EF4444' : s === 'High' ? '#F59E0B' : s === 'Medium' ? '#EAB308' : '#22C55E';
 
-export function PatchVulnerabilitiesTab() {
+/** Deterministically pick which endpoints a CVE impacts, so the popup is stable across opens. */
+function endpointsForCve(cveId: string, count: number, pool: PatchComputer[]): PatchComputer[] {
+  if (!pool.length) return [];
+  const seed = [...cveId].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  const picked: PatchComputer[] = [];
+  for (let i = 0; i < Math.min(count, pool.length); i++) picked.push(pool[(seed + i * 7) % pool.length]);
+  // Guard against the stride colliding on small pools.
+  return Array.from(new Map(picked.map((e) => [e.id, e])).values());
+}
+
+interface PatchVulnerabilitiesTabProps {
+  /** Live endpoint list from the drawer; falls back to the seed data when not supplied. */
+  endpoints?: PatchComputer[];
+}
+
+export function PatchVulnerabilitiesTab({ endpoints = INITIAL_COMPUTERS }: PatchVulnerabilitiesTabProps = {}) {
+  const [endpointsForVuln, setEndpointsForVuln] = useState<Vulnerability | null>(null);
   const [bucket, setBucket] = useState<VulnBucket>('Approved');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -84,6 +103,13 @@ export function PatchVulnerabilitiesTab() {
     v.status.toLowerCase().includes(q) ||
     v.vulnerabilityType.toLowerCase().includes(q)
   );
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  useEffect(() => { setCurrentPage(1); }, [bucket, search]);
+  const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
+  const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const toggleRow = (id: string, checked: boolean) => {
     setSelected((prev) => {
@@ -175,8 +201,8 @@ export function PatchVulnerabilitiesTab() {
               <th className="w-[40px] px-4 py-2.5 text-left">
                 <input
                   type="checkbox"
-                  checked={rows.length > 0 && rows.every((v) => selected.has(v.cveId))}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((v) => v.cveId)) : new Set())}
+                  checked={pageRows.length > 0 && pageRows.every((v) => selected.has(v.cveId))}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((v) => v.cveId)) : new Set())}
                   className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
                 />
               </th>
@@ -186,9 +212,9 @@ export function PatchVulnerabilitiesTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] bg-white">
-            {rows.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr><td colSpan={headers.length + 1} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} vulnerabilities found.</td></tr>
-            ) : rows.map((v) => (
+            ) : pageRows.map((v) => (
               <tr key={v.cveId} className="group hover:bg-[#f9fafb] transition-colors">
                 <td className="px-4 py-3">
                   <input
@@ -222,7 +248,13 @@ export function PatchVulnerabilitiesTab() {
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{v.vulnerabilityType}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{v.patchAvailability}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px]">
-                  <button className="inline-flex items-center justify-center min-w-[24px] rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">{v.impactedEndpoints}</button>
+                  <button
+                    onClick={() => setEndpointsForVuln(v)}
+                    title="View impacted endpoints"
+                    className="inline-flex items-center justify-center min-w-[24px] rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors"
+                  >
+                    {v.impactedEndpoints}
+                  </button>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] font-medium text-[#364658]">{v.cvssScore}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{v.publishedDate}</td>
@@ -232,6 +264,26 @@ export function PatchVulnerabilitiesTab() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination — sticky to the bottom of the scroll viewport */}
+      <div className="sticky bottom-0 z-30 -mx-6 -mb-4 bg-white">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={rows.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
+        />
+      </div>
+
+      {/* Impacted-endpoints side popup (opened from the count pill) */}
+      <PatchVulnEndpointsPanel
+        isOpen={!!endpointsForVuln}
+        onClose={() => setEndpointsForVuln(null)}
+        cveId={endpointsForVuln?.cveId}
+        endpoints={endpointsForVuln ? endpointsForCve(endpointsForVuln.cveId, endpointsForVuln.impactedEndpoints, endpoints) : []}
+      />
     </div>
   );
 }

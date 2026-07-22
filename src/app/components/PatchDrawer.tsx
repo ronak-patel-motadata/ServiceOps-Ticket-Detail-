@@ -11,7 +11,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
@@ -52,8 +52,9 @@ import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { PatchVulnerabilitiesTab } from './PatchVulnerabilitiesTab';
+import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
+import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
@@ -215,6 +216,11 @@ onStackMinimizedChange,
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
+  // The RAW patch record (the adapted HardwareAsset shape has no description).
+  const activePatchRecord = openAssets.find(p => p.id === activeAssetId) ?? openAssets[0];
+  // Overview description is optional and collapsed by default; reset when switching patch tabs.
+  const [descExpanded, setDescExpanded] = useState(false);
+  useEffect(() => { setDescExpanded(false); }, [activeAssetId]);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -2069,59 +2075,61 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Non-IT asset KPIs — Asset Type · Created · Status · Impact · Managed By · Approvals */}
+            {/* Patch KPIs — Category · Severity · Approval Status · Release Date · KB */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              if (activeAsset?.assetType) items.push({ key: 'type', tip: `Asset Type: ${activeAsset.assetType}`, node: (
+              const p = activePatchRecord;
+
+              const category = p?.category ?? 'Updates';
+              items.push({ key: 'category', tip: `Category: ${category}`, node: (
                 <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Asset Type</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{activeAsset.assetType}</span>
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Category</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{category}</span>
                 </span>
               ) });
-              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
-                </span>
-              ) });
-              items.push({ key: 'status', tip: `Status: ${activeAsset?.status || '—'}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
-                </span>
-              ) });
-              items.push({ key: 'impact', tip: `Impact: ${assetImpact}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Impact</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
-                </span>
-              ) });
-              const mbName = activeAsset?.managedBy?.name;
-              items.push({ key: 'managedby', tip: `Managed By: ${mbName && mbName !== 'Unassigned' ? mbName : 'Unassigned'}`, node: (
-                mbName && mbName !== 'Unassigned' ? (
-                  <span className="inline-flex items-center gap-1.5 min-w-0">
-                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
-                    <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset!.managedBy.color || '#6366F1' }}>
-                      {activeAsset!.managedBy.initials || mbName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{mbName}</span>
-                  </span>
-                ) : (
+
+              if (p?.severity) {
+                const sevColor = ({ Critical: '#EF4444', Important: '#F59E0B', Moderate: '#EAB308', Low: '#111827', Unspecified: '#6B7280' } as Record<string, string>)[p.severity] ?? '#6B7280';
+                items.push({ key: 'severity', tip: `Severity: ${p.severity}`, node: (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Managed By</span>
-                    <span className="text-[12px] font-medium text-[#9CA3AF]">Unassigned</span>
+                    <span className="text-[11px] text-[#7B8FA5]">Severity</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevColor }} />
+                    <span className="text-[12px] font-medium text-[#364658]">{p.severity}</span>
                   </span>
-                )
-              ) });
-              if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
+                ) });
+              }
+
+              if (p?.approvalStatus) {
+                const approved = p.approvalStatus === 'Approved';
+                items.push({ key: 'approval', tip: `Approval Status: ${p.approvalStatus}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Approval Status</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: approved ? '#22C55E' : '#F59E0B' }} />
+                    <span className="text-[12px] font-medium" style={{ color: approved ? '#22A06B' : '#D97706' }}>{p.approvalStatus}</span>
+                  </span>
+                ) });
+              }
+
+              if (p?.releaseDate) {
+                // 'Tue, Apr 14, 2026 04:55 PM' → 'Apr 14, 2026' (weekday + time trimmed for the strip)
+                const shortDate = p.releaseDate.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
+                items.push({ key: 'release', tip: `Release Date: ${p.releaseDate}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Release Date</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{shortDate}</span>
+                  </span>
+                ) });
+              }
+
+              // KB number lives in the patch title for catalog updates; not every patch has one.
+              const kb = p?.name.match(/\bKB\d+\b/)?.[0] ?? null;
+              items.push({ key: 'kb', tip: kb ? `KB Number: ${kb}` : 'KB Number: not applicable for this patch', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
-                  <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
-                  <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
+                  <span className="text-[11px] text-[#7B8FA5]">KB Number</span>
+                  <span className={`text-[12px] font-medium ${kb ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{kb ?? '---'}</span>
                 </span>
               ) });
+
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
@@ -2467,7 +2475,7 @@ onStackMinimizedChange,
                     { id: 'properties', label: 'Properties' },
                     { id: 'vulnerabilities', label: 'Vulnerabilities' },
                     { id: 'computers', label: 'Endpoint' },
-                    { id: 'installation', label: 'Installation' },
+                    { id: 'installation', label: 'Deployment' },
                     { id: 'superseded', label: 'Superseded' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
@@ -2482,7 +2490,7 @@ onStackMinimizedChange,
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
-                    'installation': 'Installation',
+                    'installation': 'Deployment',
                     'meter': 'Meter',
                     'baseline': 'Baseline',
                     'relationship': 'Relationship',
@@ -2757,7 +2765,7 @@ onStackMinimizedChange,
                     </div>
                     <button
                       onClick={() => setShowLocationHistory(false)}
-                      className="text-[#6B7280] hover:text-[#111827] transition-colors"
+                      className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
@@ -2797,226 +2805,260 @@ onStackMinimizedChange,
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
-              {/* AI summary (no heading — icon + short asset summary) */}
-              <div className="mb-6">
-                <AssetAiSummary
-                  summary="This non-IT asset is in service and assigned, with no critical issues, though its warranty is approaching expiry."
-                  points={[
-                    'Warranty is nearing expiry — review a renewal or replacement plan.',
-                    'Linked to a few active records across incidents, contracts and purchases.',
-                    'No pending approvals are currently blocking this asset.',
-                  ]}
-                
-                  actions={[
-                    { label: 'Plan Warranty Renewal', question: 'Plan a warranty renewal for this asset', answer: 'The warranty is nearing expiry. I can create a renewal request with the vendor or flag the asset for replacement. Recommended: confirm the renewal plan before the coverage lapses.' },
-                  ]}
-                onAction={(q, a) => quickActionHandlerRef.current?.(q, a)}/>
-              </div>
-              {/* KPI strip — Warranty / Impact / Approval */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
-                  {(() => {
-                    const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-                    const impactCounts: [string, number][] = [
-                      ['Incident', (impactSeed % 3) + 4],
-                      ['Problem', Math.floor(impactSeed / 4) % 3],
-                      ['Change', Math.floor(impactSeed / 7) % 3],
-                      ['Release', Math.floor(impactSeed / 11) % 2],
-                    ];
-                    const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
-                    return [
-                    { label: 'Warranty Expire', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
-                      ai: { action: 'Renew warranty', q: 'When does this asset\'s warranty expire and how do I renew it?',
-                        a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Manufacturer warranty — onsite service.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
-                    ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
-                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
-                    const Icon = c.icon;
-                    if (c.counts) {
-                      const visible = c.counts.filter(([, n]) => n > 0);
-                      return (
-                        <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {visible.map(([l, n]) => {
-                              const m = ({
-                                Incident: { icon: IconRequest, color: '#DC2626' },
-                                Problem: { icon: IconProblem, color: '#D97706' },
-                                Change: { icon: IconChange, color: '#8B5CF6' },
-                                Release: { icon: IconRelease, color: '#22A06B' },
-                              } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
-                              const Ic = m.icon;
-                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Math.min(3, Number(n)));
-                              return (
-                                <Tooltip key={l}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                      className="group/imp flex items-center gap-1.5 rounded-lg bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                                    >
-                                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
-                                      <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
-                                      <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                                    
-                                    <div className="max-h-[260px] overflow-y-auto">
-                                      {recs.map((r) => (
-                                        <button key={r.id} onClick={() => onOpenRelation?.({ ticketId: r.id, subject: r.subject, type: (l === 'Incident' ? 'Request' : String(l)), status: r.status, priority: r.priority, assignedTo: { name: r.assignee } })} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                            <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                          </div>
-                                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
-                                            <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
-                                          </div>
-                                        </button>
-                                      ))}
-                                    </div>
-                                    {Number(n) > 3 && (
-                                      <button onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2.5 border-t border-[#F0F2F5] text-[12px] font-medium text-[#3D8BD0] hover:bg-[#F9FAFB] transition-colors cursor-pointer">View all {n}</button>
-                                    )}
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
-                        </div>
-                        <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
-                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
-                        {c.ai && (
-                          <button
-                            onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
-                            title={`Ask ServiceOps AI — ${c.ai.action}`}
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                            className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
-                          >
-                            <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
-                            <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Group: Financials & Contracts */}
-              <div className="mt-6">
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                      <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
-                        <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                        { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                      ].map((c) => (
-                        <button
-                          key={c.label}
-                          onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                          className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                        >
-                          <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                          <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Non IT Property Group — shown last */}
-              <div className="mt-6">
-              {(() => {
-                const q = propertiesSearch.trim().toLowerCase();
-                const sections: { title: string; icon: JSX.Element | null; fields: [string, string][] }[] = [
-                {
-                  title: 'Non IT Property Group',
-                  icon: null,
-                  fields: [
-                    ['Serial Number', '---'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Audit Date', '---'],
-                    ['NON-IT Mac', '---'],
-                    ['asset type for nonit', '---'],
-                  ],
-                },
-                ];
-                const filtered = sections
-                  .map((s) => ({
-                    ...s,
-                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
-                  }))
-                  .filter((s) => s.fields.length > 0);
-                if (filtered.length === 0) {
-                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
-                }
+              {/* Description — OPTIONAL. Only some patches carry release notes, so this renders
+                  nothing at all when absent (no empty band). Clamped to 2 lines with View more. */}
+              {activePatchRecord?.description && (() => {
+                const text = activePatchRecord.description!;
+                const isLong = text.length > 160;
                 return (
-                  <div className="space-y-6">
-                  {filtered.map((section) => (
-                <div key={section.title} className="group/section">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      {section.icon}
-                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
-                    </div>
-                    <button
-                      title={`Edit ${section.title}`}
-                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
-                    >
-                      <Edit size={15} />
-                    </button>
-                  </div>
-                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                      {section.fields.map(([label, value]) => (
-                        <div key={label} className="min-w-0">
-                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
-                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                  ))}
+                  <div className="mb-6 bg-white rounded-lg border border-[#E5E7EB] p-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658] mb-2">Description</h3>
+                    <p className={`text-[13px] text-[#364658] leading-relaxed whitespace-pre-line ${!descExpanded && isLong ? 'line-clamp-2' : ''}`}>
+                      {text}
+                    </p>
+                    {isLong && (
+                      <button
+                        onClick={() => setDescExpanded((v) => !v)}
+                        className="mt-1.5 text-[13px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
+                      >
+                        {descExpanded ? 'View less' : 'View more'}
+                        {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    )}
                   </div>
                 );
               })()}
-              </div>
+
+              {/* KPI strip — each card shows a headline count plus its own distribution as a
+                  stacked bar + legend (far easier to read at this size than a pie), and each card
+                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
+              {(() => {
+                const wide = drawerWidth > 1080;
+
+                type Seg = { label: string; value: number; color: string };
+                type Kpi = {
+                  key: string; label: string; icon: typeof Activity; color: string;
+                  total: number; segments?: Seg[]; note?: string;
+                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
+                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
+                  chart: 'donut' | 'bar' | 'none' | 'list';
+                  /** Preview rows for chart: 'list'. */
+                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
+                  /** Spans half the row instead of a third. */
+                  half?: boolean;
+                  onClick: () => void;
+                };
+
+                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
+                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
+
+                const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
+                const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
+                const epIgnored = patchComputers.filter((c) => c.bucket === 'Ignored').length;
+
+                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
+                const depSuccess = dep('Success');
+                const depFailed = dep('Failed');
+                const depProgress = dep('In Progress');
+                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
+
+                const kpis: Kpi[] = [
+                  {
+                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
+                    chart: 'donut', total: VULNERABILITIES.length,
+                    segments: [
+                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
+                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('vulnerabilities'),
+                  },
+                  {
+                    key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
+                    chart: 'donut', total: patchComputers.length,
+                    segments: [
+                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
+                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
+                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('computers'),
+                  },
+                  {
+                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
+                    chart: 'donut', total: patchInstallations.length,
+                    segments: [
+                      { label: 'Success', value: depSuccess, color: '#22C55E' },
+                      { label: 'Failed', value: depFailed, color: '#EF4444' },
+                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
+                      { label: 'Others', value: depOther, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('installation'),
+                  },
+                  {
+                    key: 'products', label: 'Affected Products', icon: Layers, color: '#0EA5E9',
+                    chart: 'list', total: PATCH_AFFECTED_PRODUCTS.length, half: true,
+                    items: PATCH_AFFECTED_PRODUCTS.slice(0, 2).map((p) => ({
+                      icon: p.type === 'Application' ? <AppWindow size={14} /> : <Monitor size={14} />,
+                      primary: p.name,
+                      secondary: p.type,
+                    })),
+                    onClick: () => setActiveGroup('affected-products'),
+                  },
+                  {
+                    key: 'files', label: 'Files', icon: Files, color: '#64748B',
+                    chart: 'list', total: PATCH_FILES.length, half: true,
+                    items: PATCH_FILES.slice(0, 2).map((f) => ({
+                      icon: <FileText size={14} />,
+                      primary: f.name,
+                      secondary: `${f.size} · Language: ${f.language}`,
+                      actions: (
+                        <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => { navigator.clipboard?.writeText(f.name).catch(() => {}); toast.success('Link copied'); }}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
+                              ><Copy size={14} /></button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy link</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => toast.success(`Downloading ${f.name}`)}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
+                              ><Download size={14} /></button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download</TooltipContent>
+                          </Tooltip>
+                        </>
+                      ),
+                    })),
+                    onClick: () => setActiveGroup('file-details'),
+                  },
+                ];
+
+                return (
+                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
+                     the two list cards take half each (span 3) — together they fill the row. */
+                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-2'}`}>
+                    {kpis.map((k) => {
+                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
+                      // Records beyond the inline preview — surfaced in the link as "+N more".
+                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
+                      const isDonut = k.chart === 'donut' && segs.length > 0;
+                      const dia = wide ? 104 : 88;      // gauge diameter
+                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
+                      let acc = 0;                      // running offset per segment
+                      return (
+                        <div
+                          key={k.key}
+                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
+                              <k.icon size={15} />
+                            </span>
+                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
+                            {/* Only this link navigates — the card itself is not clickable
+                                (same as the Software Overview cards' "View more ›"). Preview cards
+                                carry the remaining count instead, like the Hardware "Users" card. */}
+                            <button
+                              onClick={k.onClick}
+                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
+                            >
+                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
+                            </button>
+                          </div>
+
+                          {isDonut ? (
+                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
+                            <div className="mt-3 flex items-center gap-4">
+                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
+                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
+                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+                                  {segs.map((s) => {
+                                    const len = (s.value / Math.max(k.total, 1)) * C;
+                                    const off = -(acc / Math.max(k.total, 1)) * C;
+                                    acc += s.value;
+                                    return (
+                                      <circle
+                                        key={s.label}
+                                        cx="50" cy="50" r="40" fill="none"
+                                        stroke={s.color} strokeWidth="16"
+                                        strokeDasharray={`${len} ${C - len}`}
+                                        strokeDashoffset={off}
+                                      />
+                                    );
+                                  })}
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-[18px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
+                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
+                                </div>
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                {segs.map((s) => (
+                                  <div key={s.label} className="flex items-center gap-2">
+                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{s.label}</span>
+                                    <span className="flex-shrink-0 text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : k.chart === 'list' ? (
+                            /* Just the first 2 records — no count line; the total lives in the
+                               "+N more" link, exactly like the Hardware Overview "Users" card. */
+                            <>
+                              <div className="mt-3 space-y-2">
+                                {(k.items ?? []).map((it) => (
+                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
+                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
+                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
+                                    </div>
+                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
+                                {k.total}
+                              </div>
+                              {segs.length > 0 ? (
+                                <>
+                                  {/* Stacked distribution bar */}
+                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                                    {segs.map((s) => (
+                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
+                                    ))}
+                                  </div>
+                                  {/* Legend */}
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                                    {segs.map((s) => (
+                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                        {s.label}
+                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             </div>
             )}
 
@@ -4308,7 +4350,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
-                      <button onClick={() => setShowRelSettings(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                      <button onClick={() => setShowRelSettings(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       {/* Live preview — driven by the draft values */}
@@ -4622,7 +4664,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Add Cost</h2>
-                    <button onClick={() => setShowAddCost(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowAddCost(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
                     <div>
@@ -4680,7 +4722,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Configure Depreciation</h2>
-                    <button onClick={() => setShowConfigDepr(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowConfigDepr(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
                     <div>
@@ -4759,7 +4801,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
-                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowDeprLog(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
                     <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
@@ -4821,7 +4863,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[18px] font-semibold text-[#111827]">Add Baseline</h2>
-                      <button onClick={() => setShowAddBaseline(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                      <button onClick={() => setShowAddBaseline(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="px-6 py-4 flex-shrink-0">
                       <div className="relative max-w-[320px]">
@@ -6497,7 +6539,7 @@ onStackMinimizedChange,
             )}
 
             {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
-            {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab />}
+            {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
             {activeMainTab === 'computers' && (

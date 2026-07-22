@@ -34,7 +34,7 @@ export function DescriptionExpandModal({ isOpen, onClose, value, onChange }: Des
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB]">
           <h2 className="text-[16px] font-semibold text-[#364658]">Description</h2>
-          <button onClick={onClose} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
             <X size={18} />
           </button>
         </div>

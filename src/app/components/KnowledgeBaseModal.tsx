@@ -79,7 +79,7 @@ export function KnowledgeBaseModal({ isOpen, onClose }: KnowledgeBaseModalProps)
               <p className="text-[13px] text-[#6B7280] mt-0.5">All published and draft articles</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         {/* Search */}

@@ -382,7 +382,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[920px] max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h3 className="text-[16px] font-semibold text-[#111827]">Description Changes</h3>
-              <button onClick={() => setDiff(null)} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+              <button onClick={() => setDiff(null)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>

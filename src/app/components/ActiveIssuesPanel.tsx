@@ -51,7 +51,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
           <h2 className="text-[17px] font-semibold text-[#111827]">Active Issues <span className="text-[13px] font-normal text-[#7B8FA5]">— {assetName}</span></h2>
-          <button onClick={onClose} className="text-[#6B7280] transition-colors hover:text-[#111827]"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -89,7 +89,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
             {notClosed && (
               <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full bg-[#EAF2FB] px-2.5 py-1 text-[12px] font-medium text-[#364658]">
                 Status Not In Closed
-                <button onClick={() => setNotClosed(false)} className="text-[#7B8FA5] transition-colors hover:text-[#364658]"><X size={12} /></button>
+                <button onClick={() => setNotClosed(false)} className="text-[#7B8FA5] hover:text-[#364658]"><X size={12} /></button>
               </span>
             )}
             <input

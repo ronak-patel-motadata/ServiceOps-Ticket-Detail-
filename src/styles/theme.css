@@ -338,6 +338,13 @@
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+/* Tailwind v4's preflight sets buttons to `cursor: default` (v3 used `pointer`), so clickable
+   controls stopped reading as interactive. Restore the pointer for every enabled button/role. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
 /* Success toasts (sonner) render in green — text + check icon — matching the
    "Convert to Service Request" toast, instead of the default black. Scoped to
    data-type="success" so error/info toasts keep their own styling. */

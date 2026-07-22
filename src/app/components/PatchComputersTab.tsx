@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown } from 'lucide-react';
+import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown, Check, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Pagination } from './Pagination';
 import type { LucideIcon } from 'lucide-react';
 
 export type Bucket = 'Missing' | 'Installed' | 'Ignored';
@@ -22,32 +23,94 @@ export interface PatchComputer {
   bucket: Bucket;
 }
 
+/** Remote-office groups configured for the tenant. Real customers can run 100+ of these, which is
+ *  why the group dropdown is searchable. A group may legitimately have no endpoints assigned. */
+export const REMOTE_OFFICES = [
+  'Ahmedabad HQ',
+  'Bengaluru Campus',
+  'Chennai Office',
+  'Delhi NCR Office',
+  'Dubai Office',
+  'Frankfurt Office',
+  'Hyderabad Office',
+  'Kolkata Office',
+  'London Office',
+  'Mumbai Office',
+  'Muscat Office',
+  'New York Office',
+  'Pune Development Center',
+  'Singapore Office',
+  'Sydney Office',
+];
+
+/* Bulk fleet generator — a real tenant has hundreds of endpoints missing a patch, so the grid needs
+ * enough rows to exercise pagination. Index-based (not random) so the list is stable across renders
+ * and every remote-office group gets endpoints. */
+const OFFICE_CODES: [string, string][] = [
+  ['Ahmedabad HQ', 'AHM'], ['Mumbai Office', 'MUM'], ['Bengaluru Campus', 'BLR'],
+  ['Delhi NCR Office', 'DEL'], ['Pune Development Center', 'PUN'], ['Hyderabad Office', 'HYD'],
+  ['Chennai Office', 'MAA'], ['Kolkata Office', 'CCU'], ['Muscat Office', 'MCT'],
+  ['Dubai Office', 'DXB'], ['Singapore Office', 'SIN'], ['London Office', 'LON'],
+  ['Frankfurt Office', 'FRA'], ['New York Office', 'NYC'], ['Sydney Office', 'SYD'],
+];
+const OS_POOL = [
+  'Microsoft Windows 11 Pro', 'Microsoft Windows 10 Pro', 'Microsoft Windows 11 Enterprise',
+  'Microsoft Windows 10 Enterprise', 'Microsoft Windows Server 2019', 'Microsoft Windows Server 2022',
+];
+const VERSION_POOL = ['8.7.301', '8.7.404', '8.7.408', '8.6.300', '8.6.101', '8.7.200'];
+const OWNER_POOL = [
+  'Priya Nair', 'Ananya Iyer', 'Karan Malhotra', 'Rahul Verma', 'Neha Raje', 'Vikram Sethi',
+  'Farah Sheikh', 'Rohan Mehta', 'Diya Kapoor', 'Siddharth Rao',
+];
+
+const BULK_MISSING: PatchComputer[] = Array.from({ length: 52 }, (_, i): PatchComputer => {
+  const [remoteOffice, code] = OFFICE_CODES[i % OFFICE_CODES.length];
+  const kind = ['LT', 'DT', 'WS'][i % 3];
+  return {
+    id: `AGENT-${501 + i}`,
+    hostName: `${code}-${kind}-${String(100 + i).padStart(4, '0')}`,
+    ipAddress: `10.${20 + (i % 6)}.${30 + (i % 40)}.${20 + (i % 200)}`,
+    poller: i % 4 === 0 ? 'Default' : '---',
+    createdBy: i % 5 === 0 ? 'System' : 'Default',
+    osName: OS_POOL[i % OS_POOL.length],
+    version: VERSION_POOL[i % VERSION_POOL.length],
+    servicePack: 'None',
+    architecture: '64 BIT',
+    usedBy: i % 3 === 0 ? OWNER_POOL[i % OWNER_POOL.length] : null,
+    systemHealth: i % 7 === 0 ? 'Critical' : i % 2 === 0 ? 'Healthy' : null,
+    remoteOffice,
+    bucket: 'Missing',
+  };
+});
+
 // Realistic agent/computer inventory (mock) split across the three patch buckets.
 export const INITIAL_COMPUTERS: PatchComputer[] = [
-  { id: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
+  { id: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
   { id: 'AGENT-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
-  { id: 'AGENT-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.7.200', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'Microsoft Windows 11 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', poller: '---', createdBy: 'Adarsh Fuinnc', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
+  { id: 'AGENT-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.7.200', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  { id: 'AGENT-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'Microsoft Windows 11 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'AGENT-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', poller: '---', createdBy: 'Adarsh Fuinnc', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
   { id: 'AGENT-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'requester test', systemHealth: null, remoteOffice: null, bucket: 'Missing' },
-  { id: 'AGENT-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'Chintan Makwana', systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', poller: '---', createdBy: 'arjun system', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-382', hostName: 'ACI10068-LP', ipAddress: '20.0.20.32', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'ncx cjx', bucket: 'Missing' },
-  { id: 'AGENT-350', hostName: 'DESKTOP-1P8YT', ipAddress: '192.168.177.20', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'OMAN', bucket: 'Missing' },
-  { id: 'AGENT-349', hostName: 'DESKTOP-1KQZ9', ipAddress: '10.59.98.96', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'OMAN', bucket: 'Missing' },
+  { id: 'AGENT-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  { id: 'AGENT-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'Chintan Makwana', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
+  { id: 'AGENT-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', poller: '---', createdBy: 'arjun system', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Pune Development Center', bucket: 'Missing' },
+  { id: 'AGENT-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Delhi NCR Office', bucket: 'Missing' },
+  { id: 'AGENT-382', hostName: 'ACI10068-LP', ipAddress: '20.0.20.32', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'AGENT-350', hostName: 'DESKTOP-1P8YT', ipAddress: '192.168.177.20', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
+  { id: 'AGENT-349', hostName: 'DESKTOP-1KQZ9', ipAddress: '10.59.98.96', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
 
-  { id: 'AGENT-311', hostName: 'FIN-LT-0188', ipAddress: '10.20.22.188', poller: 'Default', createdBy: 'Priya Nair', osName: 'Microsoft Windows 11 Pro', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Priya Nair', systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Installed' },
-  { id: 'AGENT-305', hostName: 'SAL-LT-0204', ipAddress: '10.20.23.204', poller: 'Default', createdBy: 'Ananya Iyer', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Ananya Iyer', systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Installed' },
-  { id: 'AGENT-298', hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', poller: 'Default', createdBy: 'Karan Malhotra', osName: 'Microsoft Windows 11 Pro', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: 'Karan Malhotra', systemHealth: 'Healthy', remoteOffice: 'OMAN', bucket: 'Installed' },
-  { id: 'AGENT-284', hostName: 'DC1-APP-01', ipAddress: '10.20.40.21', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2019', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Installed' },
-  { id: 'AGENT-277', hostName: 'DC1-DB-01', ipAddress: '10.20.40.33', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2022', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'ncx cjx', bucket: 'Installed' },
+  { id: 'AGENT-311', hostName: 'FIN-LT-0188', ipAddress: '10.20.22.188', poller: 'Default', createdBy: 'Priya Nair', osName: 'Microsoft Windows 11 Pro', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Priya Nair', systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Installed' },
+  { id: 'AGENT-305', hostName: 'SAL-LT-0204', ipAddress: '10.20.23.204', poller: 'Default', createdBy: 'Ananya Iyer', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Ananya Iyer', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Installed' },
+  { id: 'AGENT-298', hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', poller: 'Default', createdBy: 'Karan Malhotra', osName: 'Microsoft Windows 11 Pro', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: 'Karan Malhotra', systemHealth: 'Healthy', remoteOffice: 'Hyderabad Office', bucket: 'Installed' },
+  { id: 'AGENT-284', hostName: 'DC1-APP-01', ipAddress: '10.20.40.21', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2019', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
+  { id: 'AGENT-277', hostName: 'DC1-DB-01', ipAddress: '10.20.40.33', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2022', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
 
-  { id: 'AGENT-260', hostName: 'REC-DT-0023', ipAddress: '10.20.21.23', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Critical', remoteOffice: 'OMAN', bucket: 'Ignored' },
-  { id: 'AGENT-241', hostName: 'SUP-LT-0108', ipAddress: '10.20.24.108', poller: '---', createdBy: 'Rahul Verma', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: 'None', architecture: '64 BIT', usedBy: 'Rahul Verma', systemHealth: null, remoteOffice: 'ncx cjx', bucket: 'Ignored' },
-  { id: 'AGENT-233', hostName: 'OFC-PRT-0207', ipAddress: '10.20.30.207', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'OMAN', bucket: 'Ignored' },
+  { id: 'AGENT-260', hostName: 'REC-DT-0023', ipAddress: '10.20.21.23', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Critical', remoteOffice: 'Muscat Office', bucket: 'Ignored' },
+  { id: 'AGENT-241', hostName: 'SUP-LT-0108', ipAddress: '10.20.24.108', poller: '---', createdBy: 'Rahul Verma', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: 'None', architecture: '64 BIT', usedBy: 'Rahul Verma', systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Ignored' },
+  { id: 'AGENT-233', hostName: 'OFC-PRT-0207', ipAddress: '10.20.30.207', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Dubai Office', bucket: 'Ignored' },
+
+  ...BULK_MISSING,
 ];
 
 /* --- Installation (deployment) records: agents this patch has been pushed to. --------------- */
@@ -75,6 +138,9 @@ export const INITIAL_INSTALLATIONS: PatchInstallation[] = [
 
 const BUCKETS: Bucket[] = ['Missing', 'Installed', 'Ignored'];
 
+/** Remote-office groups an endpoint can belong to. "All Endpoints" = no group filter. */
+const ALL_ENDPOINTS = 'All Endpoints';
+
 const Dash = () => <span className="text-[12px] text-[#9ca3af]">---</span>;
 
 interface PatchComputersTabProps {
@@ -89,6 +155,16 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showMore, setShowMore] = useState(false);
+  // Remote-office group filter — scopes the whole tab, so the bucket counts reflect it too.
+  const [office, setOffice] = useState<string>(ALL_ENDPOINTS);
+  const [showOffice, setShowOffice] = useState(false);
+  const [officeSearch, setOfficeSearch] = useState('');
+  const officeOptions = [ALL_ENDPOINTS, ...REMOTE_OFFICES];
+  const officeQuery = officeSearch.trim().toLowerCase();
+  const filteredOffices = officeQuery ? officeOptions.filter((o) => o.toLowerCase().includes(officeQuery)) : officeOptions;
+  const closeOfficeMenu = () => { setShowOffice(false); setOfficeSearch(''); };
+  // Everything below (counts, rows, select-all) works off the office-scoped set.
+  const scoped = office === ALL_ENDPOINTS ? computers : computers.filter((c) => c.remoteOffice === office);
 
   const toggleRow = (id: string, checked: boolean) => {
     setSelected((prev) => {
@@ -136,10 +212,10 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
   const actions = ALL_ACTIONS.filter((a) => a.buckets.includes(bucket));
 
   const counts: Record<Bucket, number> = { Missing: 0, Installed: 0, Ignored: 0 };
-  computers.forEach((c) => { counts[c.bucket] += 1; });
+  scoped.forEach((c) => { counts[c.bucket] += 1; });
 
   const q = search.trim().toLowerCase();
-  const rows = computers.filter((c) => c.bucket === bucket).filter((c) =>
+  const rows = scoped.filter((c) => c.bucket === bucket).filter((c) =>
     !q ||
     c.id.toLowerCase().includes(q) ||
     c.hostName.toLowerCase().includes(q) ||
@@ -148,10 +224,67 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
     (c.usedBy ?? '').toLowerCase().includes(q)
   );
 
+  // Pagination — the fleet can run to hundreds of endpoints.
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  // Any change to the bucket / group / search resets to the first page.
+  useEffect(() => { setCurrentPage(1); }, [bucket, office, search]);
+  const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
+  const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="px-6 py-4">
-      {/* Filter pills — Missing / Installed / Ignored (Relations-tab pill style) */}
+      {/* Remote-office group dropdown + bucket pills (Missing / Installed / Ignored) */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
+        {/* Group filter — scopes the endpoints AND the pill counts */}
+        <div className="relative">
+          <button
+            onClick={() => setShowOffice((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${office !== ALL_ENDPOINTS ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+          >
+            <Building2 size={14} className={office !== ALL_ENDPOINTS ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'} />
+            {office}
+            <ChevronDown size={14} className={`transition-transform ${showOffice ? 'rotate-180' : ''} ${office !== ALL_ENDPOINTS ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+          </button>
+          {showOffice && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={closeOfficeMenu} />
+              <div className="absolute left-0 top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+                {/* Search — tenants can have 100+ groups, so the list is filterable */}
+                <div className="px-3 pb-2 pt-1">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={officeSearch}
+                      onChange={(e) => setOfficeSearch(e.target.value)}
+                      placeholder="Search groups..."
+                      className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    />
+                    <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                  </div>
+                </div>
+                <div className="max-h-[260px] overflow-y-auto">
+                  {filteredOffices.length === 0 ? (
+                    <div className="px-4 py-3 text-[13px] text-[#9CA3AF] text-center">No groups found</div>
+                  ) : filteredOffices.map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => { setOffice(o); closeOfficeMenu(); setSelected(new Set()); }}
+                      className={`w-full px-4 py-2 text-[13px] text-left transition-colors flex items-center justify-between gap-2 ${office === o ? 'bg-[#F1F5F9] text-[#364658]' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                    >
+                      <span className="truncate">{o}</span>
+                      {office === o && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <span className="h-5 w-px bg-[#E3E8EF] mx-0.5" />
+
         {BUCKETS.map((b) => (
           <button
             key={b}
@@ -242,8 +375,8 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
               <th className="w-[40px] px-4 py-2.5 text-left">
                 <input
                   type="checkbox"
-                  checked={rows.length > 0 && rows.every((c) => selected.has(c.id))}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((c) => c.id)) : new Set())}
+                  checked={pageRows.length > 0 && pageRows.every((c) => selected.has(c.id))}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((c) => c.id)) : new Set())}
                   className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
                 />
               </th>
@@ -253,9 +386,9 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] bg-white">
-            {rows.length === 0 ? (
-              <tr><td colSpan={14} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} computers found.</td></tr>
-            ) : rows.map((c) => (
+            {pageRows.length === 0 ? (
+              <tr><td colSpan={14} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} endpoints found.</td></tr>
+            ) : pageRows.map((c) => (
               <tr key={c.id} className="hover:bg-[#f9fafb] transition-colors">
                 <td className="px-4 py-3">
                   <input
@@ -311,6 +444,20 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination — shared component (same design as the list-page grids). Sticky to the bottom
+          of the scroll viewport; the negative margins let it span the tab's horizontal padding and
+          sit flush with the bottom edge. */}
+      <div className="sticky bottom-0 z-30 -mx-6 -mb-4 bg-white">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={rows.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
+        />
       </div>
     </div>
   );

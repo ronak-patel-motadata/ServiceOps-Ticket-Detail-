@@ -25,6 +25,7 @@ import { HeaderIdPill } from './HeaderIdPill';
 import { getSentiment } from './SentimentBadge';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { RequesterProfilePanel } from './RequesterProfilePanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
@@ -166,6 +167,7 @@ onStackActiveGroupChange,
 }: TicketDrawerProps) {
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
   const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const [showRequesterProfile, setShowRequesterProfile] = useState(false);
   const minimized = stackMinimized ?? minimizedLocal;
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
@@ -2544,7 +2546,7 @@ onStackActiveGroupChange,
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[14px] font-semibold text-[#364658]">{activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket.requester}</span>
+                    <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket.requester}</button>
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {
@@ -5733,6 +5735,7 @@ onStackActiveGroupChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeTicket?.id}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -6852,6 +6855,11 @@ onStackActiveGroupChange,
         logs={workLogs}
         onDelete={handleDeleteWorkLog}
         onEdit={handleEditWorkLog}
+      />
+      <RequesterProfilePanel
+        isOpen={showRequesterProfile}
+        onClose={() => setShowRequesterProfile(false)}
+        requesterName={activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket?.requester}
       />
     </div>
   );

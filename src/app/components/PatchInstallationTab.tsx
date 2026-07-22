@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import { Pagination } from './Pagination';
 import { Search, X, Monitor, LayoutGrid, List as ListIcon, Filter, Check, ChevronDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
@@ -65,6 +66,13 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
       r.installationStatus.toLowerCase().includes(q) ||
       r.taskType.toLowerCase().includes(q)
     );
+
+  // Pagination — one deployment record is created per endpoint, so this list grows quickly.
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, view]);
+  const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
+  const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="px-6 py-4 @container">
@@ -158,7 +166,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
             <Monitor className="size-6 text-[#9CA3AF]" />
           </div>
           <p className="text-[14px] font-medium text-[#364658]">No deployments yet</p>
-          <p className="text-[13px] text-[#7B8FA5] mt-1">Select computers in the Computers tab and click <span className="font-medium">Install Patch</span> to deploy this patch.</p>
+          <p className="text-[13px] text-[#7B8FA5] mt-1">Select endpoints in the Endpoint tab and click <span className="font-medium">Install Patch</span> to deploy this patch.</p>
         </div>
       ) : view === 'list' ? (
         /* List (table) view */
@@ -174,7 +182,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
             <tbody className="divide-y divide-[#e5e7eb] bg-white">
               {rows.length === 0 ? (
                 <tr><td colSpan={10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
-              ) : rows.map((r) => (
+              ) : pageRows.map((r) => (
                 <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
                   {/* Agent ID with health dot */}
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -215,7 +223,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
         /* Card view — container-query responsive; stays 1 column in the narrow drawer so cards
            never crowd (2 columns only from @2xl, 3 from @4xl). */
         <div className="grid gap-4 grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3">
-          {rows.map((r) => (
+          {pageRows.map((r) => (
             <div key={r.id} className="rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all">
               {/* Header: icon badge · (health dot + Agent ID + host) · status pill.
                   flex-wrap lets the pill drop below on very narrow cards instead of squashing. */}
@@ -246,6 +254,20 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination — sticky to the bottom of the scroll viewport (both card and list views) */}
+      {installations.length > 0 && (
+        <div className="sticky bottom-0 z-30 -mx-6 -mb-4 mt-4 bg-white">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={rows.length}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
+          />
         </div>
       )}
     </div>

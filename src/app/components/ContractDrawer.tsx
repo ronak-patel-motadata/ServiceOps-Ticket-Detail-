@@ -2847,7 +2847,7 @@ onStackMinimizedChange,
                     </div>
                     <button
                       onClick={() => setShowLocationHistory(false)}
-                      className="text-[#6B7280] hover:text-[#111827] transition-colors"
+                      className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
@@ -4196,7 +4196,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Add Cost</h2>
-                    <button onClick={() => setShowAddCost(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowAddCost(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
                     <div>
@@ -4254,7 +4254,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Configure Depreciation</h2>
-                    <button onClick={() => setShowConfigDepr(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowConfigDepr(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
                     <div>
@@ -4333,7 +4333,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
-                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowDeprLog(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
                     <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
@@ -4395,7 +4395,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[18px] font-semibold text-[#111827]">Add Baseline</h2>
-                      <button onClick={() => setShowAddBaseline(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                      <button onClick={() => setShowAddBaseline(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="px-6 py-4 flex-shrink-0">
                       <div className="relative max-w-[320px]">

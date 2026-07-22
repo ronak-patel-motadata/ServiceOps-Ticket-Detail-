@@ -190,7 +190,7 @@ export function AddRelationshipPanel({ sourceName, onClose, onAdd }: { sourceNam
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
           <h2 className="text-[17px] font-semibold text-[#111827]">Add Relationship To <span className="text-[#3D8BD0]">{sourceName}</span></h2>
-          <button onClick={onClose} className="text-[#6B7280] transition-colors hover:text-[#111827]"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">

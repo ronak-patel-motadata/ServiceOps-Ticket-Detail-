@@ -12,6 +12,8 @@ import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
 import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, SquareCheckBig } from 'lucide-react';
 import { NotificationsPanel } from './NotificationsPanel';
+import { toast } from 'sonner';
+import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
 interface TicketPropertiesPanelProps {
@@ -309,6 +311,8 @@ interface TicketPropertiesPanelProps {
   
   // Onboarding
   onboardingStep?: number;
+  /** Opens the requester profile side popup (name click + "View more details"). */
+  onOpenRequesterProfile?: () => void;
   // Requester whose details populate the Requester Information accordion
   requesterName?: string;
 }
@@ -316,7 +320,7 @@ interface TicketPropertiesPanelProps {
 const REQUESTER_COLORS = ['#3D8BD0', '#E67E22', '#8B5CF6', '#10B981', '#EC4899', '#F59E0B', '#6366F1', '#14B8A6'];
 
 /** Derive requester details (email, logon, initials, avatar color) from a display name. */
-function deriveRequester(name?: string) {
+export function deriveRequester(name?: string) {
   const clean = name && name.trim() ? name.trim() : 'Arnav Desai';
   const parts = clean.toLowerCase().split(/\s+/).filter(Boolean);
   const logonName = parts.join('.');
@@ -325,27 +329,6 @@ function deriveRequester(name?: string) {
   const color = REQUESTER_COLORS[clean.length % REQUESTER_COLORS.length];
   return { name: clean, email, logonName, initials, color };
 }
-
-// OS / applications affected by the patch — shown in the Patch page's "Affected Products" group.
-const PATCH_AFFECTED_PRODUCTS: { name: string; type: 'OS' | 'Application' }[] = [
-  { name: 'Microsoft Windows Server 2022 Standard', type: 'OS' },
-  { name: 'Microsoft 365 Apps for Enterprise', type: 'Application' },
-  { name: 'Microsoft Windows 11 Enterprise', type: 'OS' },
-  { name: 'Microsoft Edge (Chromium)', type: 'Application' },
-  { name: 'Microsoft Windows 10 Enterprise', type: 'OS' },
-  { name: 'Microsoft .NET Framework 4.8', type: 'Application' },
-  { name: 'Microsoft Windows Server 2019 Standard', type: 'OS' },
-  { name: 'Google Chrome', type: 'Application' },
-  { name: 'Microsoft Windows 11 Pro', type: 'OS' },
-  { name: 'Adobe Acrobat Reader DC', type: 'Application' },
-];
-
-// Files that make up the patch — shown in the Patch page's "File Details" group.
-const PATCH_FILES: { name: string; size: string; language: string }[] = [
-  { name: 'officedeploymenttool_19822.20114.exe', size: '3.52 MB', language: 'all' },
-  { name: 'windows11.0-kb5036893-x64.msu', size: '287.4 MB', language: 'en-US' },
-  { name: 'ndp48-x86-x64-allos-enu.exe', size: '121.6 MB', language: 'all' },
-];
 
 export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const {
@@ -408,6 +391,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     getFilteredPinnedFields,
     getGroupTitle,
     propertiesTitle,
+    onOpenRequesterProfile,
     showNotifications = false,
     showIntegration = false,
     onOpenRelation,
@@ -1869,9 +1853,12 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <div className="size-[24px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: deriveRequester(requesterName).color }}>
                     {deriveRequester(requesterName).initials}
                   </div>
-                  <span className="text-[13px] text-[#364658] font-medium">
+                  <button
+                    onClick={() => onOpenRequesterProfile?.()}
+                    className="text-[13px] text-[#364658] font-medium hover:text-[#3D8BD0] hover:underline transition-colors text-left"
+                  >
                     {deriveRequester(requesterName).name}
-                  </span>
+                  </button>
                 </div>
 
                 {/* Requester Details */}
@@ -1919,7 +1906,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
                 {/* View more details link */}
                 <div className="pt-1">
-                  <button className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center">
+                  <button
+                    onClick={() => onOpenRequesterProfile?.()}
+                    className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#3D8BD0] hover:bg-[#EBF5FF] font-medium rounded-md border border-[#DFE5ED] bg-white transition-colors w-full justify-center"
+                  >
                     <User size={14} />
                     View more details
                   </button>
@@ -2577,11 +2567,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </div>
         )}
 
-        {/* Affected Products Group Content (Patch page only) — OS / applications this patch affects */}
-        {activeGroup === 'affected-products' && (
+        {/* Affected Products Group Content (Patch page only) — the OS editions (or the application)
+            this patch affects. A patch is always one or the other, so when every entry shares a
+            type it is stated ONCE in the header instead of repeating an identical row badge. */}
+        {activeGroup === 'affected-products' && (() => {
+          const productTypes = Array.from(new Set(PATCH_AFFECTED_PRODUCTS.map((p) => p.type)));
+          const singleType = productTypes.length === 1 ? productTypes[0] : null;
+          return (
           <div className="space-y-2">
             <div className="text-[13px] text-[#7B8FA5] mb-1">
               <span className="font-medium text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected
+              {singleType && (
+                <>
+                  <span className="mx-1.5 text-[#CBD5E1]">·</span>
+                  <span className="inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{singleType}</span>
+                </>
+              )}
             </div>
             {PATCH_AFFECTED_PRODUCTS.map((p) => (
               <div key={p.name} className="flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
@@ -2591,11 +2592,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-medium text-[#364658] break-words">{p.name}</div>
                 </div>
-                <span className="flex-shrink-0 inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{p.type}</span>
+                {!singleType && (
+                  <span className="flex-shrink-0 inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{p.type}</span>
+                )}
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
 
         {/* File Details Group Content (Patch page only) — the files that make up this patch */}
         {activeGroup === 'file-details' && (
@@ -2620,13 +2624,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <div className="flex-shrink-0 flex items-center gap-0.5">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Copy size={14} /></button>
+                          <button onClick={() => { navigator.clipboard?.writeText(f.name).catch(() => {}); toast.success('Link copied'); }} className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Copy size={14} /></button>
                         </TooltipTrigger>
                         <TooltipContent>Copy link</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Download size={14} /></button>
+                          <button onClick={() => toast.success(`Downloading ${f.name}`)} className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Download size={14} /></button>
                         </TooltipTrigger>
                         <TooltipContent>Download</TooltipContent>
                       </Tooltip>
@@ -3917,7 +3921,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="fixed top-0 right-0 h-full w-[460px] max-w-[92vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#3D8BD0]">Add Integration</h2>
-              <button onClick={() => setShowAddIntegration(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+              <button onClick={() => setShowAddIntegration(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
               <div>
@@ -3976,7 +3980,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#111827]">{editingNoteId != null ? 'Edit Note' : 'Add Note'}</h2>
-              <button onClick={cancelAddNote} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+              <button onClick={cancelAddNote} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>
@@ -4034,7 +4038,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#111827]">Add User</h2>
-              <button onClick={cancelAddUser} className="text-[#6B7280] hover:text-[#111827] transition-colors">
+              <button onClick={cancelAddUser} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>
@@ -4144,7 +4148,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <h3 className="text-[15px] font-semibold text-[#111827]">Customize Layout</h3>
               <button
                 onClick={() => setShowCustomizeModal(false)}
-                className="text-[#6B7280] hover:text-[#111827] transition-colors"
+                className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
               >
                 <X size={18} />
               </button>

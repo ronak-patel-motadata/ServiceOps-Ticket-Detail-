@@ -43,6 +43,7 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
+import { Paginated } from './Paginated';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
@@ -3127,7 +3128,7 @@ onStackMinimizedChange,
                     </div>
                     <button
                       onClick={() => setShowLocationHistory(false)}
-                      className="text-[#6B7280] hover:text-[#111827] transition-colors"
+                      className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
@@ -3836,6 +3837,9 @@ onStackMinimizedChange,
                     </div>
                   </div>
 
+                  <Paginated rows={visible} sticky bleed="-mx-6 -mb-6">
+                  {(pageRows) => (
+                  <>
                   {softwareView === 'list' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-[12px]">
@@ -3849,7 +3853,7 @@ onStackMinimizedChange,
                       <tbody className="divide-y divide-[#e5e7eb] bg-white">
                         {visible.length === 0 ? (
                           <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-[#9CA3AF]">No software found.</td></tr>
-                        ) : visible.map(({ s, i }) => (
+                        ) : pageRows.map(({ s, i }) => (
                           <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
                             {cols.map((c) => (
                               <td key={c.key} className="px-4 py-3 whitespace-nowrap text-[#364658]">{c.cell(s, i)}</td>
@@ -3865,7 +3869,7 @@ onStackMinimizedChange,
                       <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No software found.</div>
                     ) : (
                     <div className="grid gap-4 grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3">
-                      {visible.map(({ s, i }) => (
+                      {pageRows.map(({ s, i }) => (
                         <div
                           key={i}
                           className="group relative rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all"
@@ -3913,6 +3917,9 @@ onStackMinimizedChange,
                     </div>
                     )
                   )}
+                  </>
+                  )}
+                  </Paginated>
                 </div>
               );
             })()}
@@ -4395,7 +4402,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
-                      <button onClick={() => setShowRelSettings(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                      <button onClick={() => setShowRelSettings(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       {/* Live preview — driven by the draft values */}
@@ -4709,7 +4716,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Add Cost</h2>
-                    <button onClick={() => setShowAddCost(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowAddCost(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
                     <div>
@@ -4767,7 +4774,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Configure Depreciation</h2>
-                    <button onClick={() => setShowConfigDepr(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowConfigDepr(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
                     <div>
@@ -4846,7 +4853,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
-                    <button onClick={() => setShowDeprLog(false)} className="text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowDeprLog(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
                     <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
@@ -4908,7 +4915,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[18px] font-semibold text-[#111827]">Add Baseline</h2>
-                      <button onClick={() => setShowAddBaseline(false)} className="text-[#6B7280] hover:text-[#111827] transition-colors"><X size={20} /></button>
+                      <button onClick={() => setShowAddBaseline(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="px-6 py-4 flex-shrink-0">
                       <div className="relative max-w-[320px]">

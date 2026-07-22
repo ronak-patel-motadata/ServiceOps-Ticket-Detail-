@@ -9,84 +9,105 @@ interface PaginationProps {
   onItemsPerPageChange: (itemsPerPage: number) => void;
 }
 
+const PER_PAGE_OPTIONS = [10, 20, 25, 50, 100];
+
+/**
+ * Build the page list with ellipses so the control stays compact no matter how many pages exist:
+ * always shows the first and last page plus a window around the current one.
+ *   1 2 3 4 5 … 40   |   1 … 18 19 20 … 40   |   1 … 36 37 38 39 40
+ */
+function buildPages(current: number, total: number): (number | 'gap-left' | 'gap-right')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, 'gap-right', total];
+  if (current >= total - 3) return [1, 'gap-left', total - 4, total - 3, total - 2, total - 1, total];
+  return [1, 'gap-left', current - 1, current, current + 1, 'gap-right', total];
+}
+
 export function Pagination({
   currentPage,
   totalPages,
   itemsPerPage,
   totalItems,
   onPageChange,
-  onItemsPerPageChange
+  onItemsPerPageChange,
 }: PaginationProps) {
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const pages = buildPages(currentPage, totalPages);
 
-  const pageNumbers = [];
-  const maxVisible = 7;
-  
-  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-  
-  if (endPage - startPage + 1 < maxVisible) {
-    startPage = Math.max(1, endPage - maxVisible + 1);
-  }
-
-  for (let i = startPage; i <= endPage; i++) {
-    pageNumbers.push(i);
-  }
+  const arrowBtn =
+    'flex h-8 w-8 items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-[#64748B]';
 
   return (
-    <div className="flex items-center justify-between border-t border-[#e5e7eb] bg-white px-6 py-3">
-      <div className="flex items-center gap-6">
-        <button
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={currentPage === 1}
-          className="flex items-center gap-1 text-[12px] text-[#6b7280] hover:text-[#364658] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ChevronLeft size={14} />
-          <span>Previous</span>
-        </button>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
+      {/* Result range */}
+      <span className="text-[12px] text-[#64748B] tabular-nums">
+        {totalItems === 0 ? (
+          'No results'
+        ) : (
+          <>
+            Showing <span className="font-medium text-[#364658]">{startItem}–{endItem}</span> of{' '}
+            <span className="font-medium text-[#364658]">{totalItems}</span>
+          </>
+        )}
+      </span>
 
-        <div className="flex items-center gap-1">
-          {pageNumbers.map((pageNum) => (
-            <button
-              key={pageNum}
-              onClick={() => onPageChange(pageNum)}
-              className={`flex h-7 min-w-[28px] items-center justify-center rounded px-2 text-[12px] ${
-                currentPage === pageNum
-                  ? 'bg-[#e8f4fd] text-[#3D8BD0] font-medium'
-                  : 'text-[#6b7280] hover:bg-[#f3f4f6]'
-              }`}
-            >
-              {pageNum}
-            </button>
-          ))}
+      <div className="flex items-center gap-4">
+        {/* Rows per page */}
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-[#64748B] whitespace-nowrap">Rows per page</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+            className="app-select h-8 cursor-pointer rounded-md border border-[#DFE5ED] bg-white pl-2.5 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F9FAFB] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+          >
+            {PER_PAGE_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
         </div>
 
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage === totalPages}
-          className="flex items-center gap-1 text-[12px] text-[#6b7280] hover:text-[#364658] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <span>Next</span>
-          <ChevronRight size={14} />
-        </button>
-      </div>
+        {/* Page controls */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            title="Previous page"
+            className={arrowBtn}
+          >
+            <ChevronLeft size={16} />
+          </button>
 
-      <div className="flex items-center gap-2">
-        <span className="text-[12px] text-[#6b7280]">Items per page:</span>
-        <select
-          value={itemsPerPage}
-          onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="h-7 rounded border border-[#e5e7eb] bg-white px-2 pr-6 text-[12px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
-        >
-          <option value={10}>10</option>
-          <option value={20}>20</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
-        <span className="text-[12px] text-[#6b7280]">
-          {startItem} - {endItem} of {totalItems} items
-        </span>
+          {pages.map((p) =>
+            typeof p === 'number' ? (
+              <button
+                key={p}
+                onClick={() => onPageChange(p)}
+                aria-current={currentPage === p ? 'page' : undefined}
+                className={`flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-[12px] tabular-nums transition-colors ${
+                  currentPage === p
+                    ? 'bg-[#EBF5FF] font-semibold text-[#3D8BD0]'
+                    : 'font-medium text-[#64748B] hover:bg-[#F3F4F6] hover:text-[#364658]'
+                }`}
+              >
+                {p}
+              </button>
+            ) : (
+              <span key={p} className="flex h-8 w-6 items-end justify-center pb-1.5 text-[12px] text-[#9CA3AF] select-none">
+                …
+              </span>
+            )
+          )}
+
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            title="Next page"
+            className={arrowBtn}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );

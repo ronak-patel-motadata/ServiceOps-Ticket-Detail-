@@ -24,6 +24,7 @@ import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { RequesterProfilePanel } from './RequesterProfilePanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
@@ -651,6 +652,7 @@ onStackActiveGroupChange,
   const activeChangeId = activeReleaseId;
   const activeChange = openChanges.find(c => c.id === activeChangeId);
   const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const [showRequesterProfile, setShowRequesterProfile] = useState(false);
   const minimized = stackMinimized ?? minimizedLocal;
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeChange?.id]);
@@ -3364,7 +3366,7 @@ onStackActiveGroupChange,
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[14px] font-semibold text-[#364658]">{activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange.requester}</span>
+                    <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange.requester}</button>
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {
@@ -5825,6 +5827,7 @@ onStackActiveGroupChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
             fieldsTitle="Release Fields"
@@ -6932,6 +6935,11 @@ onStackActiveGroupChange,
         isOpen={showSLAHistory}
         onClose={() => setShowSLAHistory(false)}
         penaltyAmount={getSlaPenaltyAmount(activeChange?.id)}
+      />
+      <RequesterProfilePanel
+        isOpen={showRequesterProfile}
+        onClose={() => setShowRequesterProfile(false)}
+        requesterName={activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange?.requester}
       />
     </div>
   );
