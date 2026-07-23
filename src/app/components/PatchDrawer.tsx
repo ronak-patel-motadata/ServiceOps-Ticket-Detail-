@@ -2179,8 +2179,11 @@ onStackMinimizedChange,
         <div className="flex flex-1 overflow-hidden" data-onboarding-container>
           {/* Left Content */}
           <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
-            {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Scrollable Content Area — the Superseded tab is a full-height React Flow map
+                (like the CMDB Dependency Map), so it must NOT scroll: become a flex column with
+                overflow-hidden there so the map fills EXACTLY (its controls never clip) and no
+                gutter/scrollbar appears. */}
+            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto'}>
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}

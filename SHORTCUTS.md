@@ -82,11 +82,36 @@ The full list is also shown in the canvas's on-screen **keyboard-shortcuts popup
 
 ---
 
+## 3. Patch Superseded map canvas
+
+Works when the Patch detail page's **Superseded** tab is active. Same single-key model as
+the Dependency Map (section 2), minus the features that map doesn't have (no minimap /
+legend / view modes) and plus `E` for expand/collapse-all.
+
+Implemented in **`src/app/components/PatchSupersededTab.tsx`** (canvas keys need the canvas
+focused — click it once; `Ctrl+F` / `Ctrl+Shift+F` / `E` work tab-wide).
+
+| Shortcut | Action |
+|---|---|
+| `↑ ↓ ← →` | Pan the canvas |
+| `+` / `−` | Zoom in / out |
+| `F` | Fit & center all nodes |
+| `E` | Expand / collapse all versions |
+| `R` | Reset layout (collapse all, re-fit) |
+| `Ctrl + Shift + F` | Toggle fullscreen |
+| `Ctrl + F` | Focus the node search |
+| `Esc` | Clear search (in the field) / hide the hover card (on canvas) |
+
+Also listed in the tab's own ⌨ keyboard-shortcuts popup (top-right canvas controls).
+
+---
+
 ## Maintenance
 
 When you add, change, or remove a shortcut:
-1. Update the implementation (`DrawerShortcuts.tsx` for drawer-wide, or
-   `RelationshipGraph.tsx` for the canvas).
+1. Update the implementation (`DrawerShortcuts.tsx` for drawer-wide,
+   `RelationshipGraph.tsx` for the Relationship/Dependency Map canvas, or
+   `PatchSupersededTab.tsx` for the Superseded map).
 2. Update the in-app cheat-sheet (`SHORTCUTS` array in `DrawerShortcuts.tsx`, and/or the
-   canvas shortcuts popup in `RelationshipGraph.tsx`).
+   matching canvas shortcuts popup).
 3. Update **this file**.
