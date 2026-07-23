@@ -24,6 +24,11 @@ interface TicketFieldsAccordionProps {
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
+  /** V2 ticket page: the accordion holds a FIXED compact field set (whatever the drawer's
+   *  getFilteredTicketFields returns, incl. Tags) — extra fields always visible, no
+   *  View more / View less, and no System Fields subsection (those live in the
+   *  Incident Details tab instead). Opt-in; default preserves V1 behavior. */
+  compactTicketFields?: boolean;
   setShowMoreFields: (show: boolean) => void;
   propertiesSearchQuery: string;
 
@@ -213,6 +218,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
+    compactTicketFields = false,
     setShowMoreFields,
     propertiesSearchQuery,
     getFilteredAdditionalFields,
@@ -696,7 +702,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                         placeholder="Search for users..."
                         value={assigneeSearchQuery}
                         onChange={(e) => setAssigneeSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -805,8 +811,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           </div>
           )}
 
-          {/* View More Button - Only show when collapsed */}
-          {!showMoreFields && !propertiesSearchQuery && (
+          {/* View More Button - Only show when collapsed (hidden entirely in V2 compact mode) */}
+          {!compactTicketFields && !showMoreFields && !propertiesSearchQuery && (
           <div className="mt-3">
             <button
               onClick={() => setShowMoreFields(!showMoreFields)}
@@ -818,8 +824,9 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           </div>
           )}
 
-          {/* Additional Ticket Fields */}
-          {(showMoreFields || propertiesSearchQuery) && (
+          {/* Additional Ticket Fields (always open in V2 compact mode — the field subset is
+              governed by getFilteredTicketFields, so only V2's kept fields render) */}
+          {(showMoreFields || propertiesSearchQuery || compactTicketFields) && (
             <div className="mt-3 space-y-2">
               {/* Urgency */}
               {getFilteredTicketFields().includes('Urgency') && (
@@ -961,7 +968,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                     {!showTagInput && (
                       <button
                         onClick={() => setShowTagInput(true)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[#3D8BD0] text-[12px] hover:bg-[#F3F4F6] rounded-md transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[#3D8BD0] text-[12px] hover:bg-[#F3F4F6] rounded transition-colors"
                       >
                         <Plus size={12} />
                         Add tag
@@ -993,7 +1000,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       setShowTagInput(false);
                     }}
                     autoFocus
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F3F4F6] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F3F4F6] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 )}
               </div>
@@ -1327,11 +1334,12 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                 </>
               )}
 
-              {/* System Fields — revealed by the SAME "View more" as the extra ticket fields */}
-              {systemFieldsSection}
+              {/* System Fields — revealed by the SAME "View more" as the extra ticket fields.
+                  V2 compact mode: System Fields live in the Incident Details tab instead. */}
+              {!compactTicketFields && systemFieldsSection}
 
               {/* View Less Button */}
-              {!propertiesSearchQuery && (
+              {!compactTicketFields && !propertiesSearchQuery && (
               <div className="mt-3 pt-3">
                 <button
                   onClick={() => setShowMoreFields(false)}

@@ -24,7 +24,7 @@ export function ConversationEmptyState({ onAcknowledge }: ConversationEmptyState
       </p>
       {showButton && (
         <button
-          className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-sm font-medium hidden"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-sm font-medium hidden"
           onClick={handleAcknowledge}
         >
           Acknowledge

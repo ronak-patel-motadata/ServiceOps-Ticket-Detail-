@@ -112,7 +112,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
         {/* Search + sort toolbar (shown once there are comments) */}
         {comments.length > 0 && (
           <div className="px-4 py-2.5 border-b border-[#DFE5ED] flex items-center gap-2 flex-shrink-0">
-            <div className="flex-1 flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white">
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white">
               <Search size={15} className="text-[#7B8FA5] flex-shrink-0" />
               <input
                 type="text"
@@ -130,7 +130,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
             <button
               onClick={() => setSortNewestFirst((s) => !s)}
               title={sortNewestFirst ? 'Newest first' : 'Oldest first'}
-              className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors flex-shrink-0"
+              className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors flex-shrink-0"
             >
               <ArrowUpDown size={16} />
             </button>

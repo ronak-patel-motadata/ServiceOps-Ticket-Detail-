@@ -342,7 +342,7 @@ export function TicketDetailsOnboarding({ onComplete, onSkip, onStepChange }: Ti
             )}
             <button
               onClick={handleNext}
-              className="px-5 py-2 bg-white text-[#1F2937] text-[13px] font-semibold rounded-lg hover:bg-white/90 transition-colors"
+              className="px-5 py-2 bg-white text-[#1F2937] text-[13px] font-semibold rounded hover:bg-white/90 transition-colors"
             >
               {currentStep < steps.length - 1 ? 'Next' : 'Get started'}
             </button>

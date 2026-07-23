@@ -49,7 +49,7 @@ export function SLAHistoryModal({ isOpen, onClose, penaltyAmount = 0 }: SLAHisto
             <h2 className="text-[18px] font-semibold text-[#111827]">SLA History</h2>
             <p className="text-[13px] text-[#6B7280] mt-0.5">Timeline of every SLA target on this ticket</p>
           </div>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
             <X size={20} />
           </button>
         </div>

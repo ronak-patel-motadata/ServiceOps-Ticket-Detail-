@@ -170,7 +170,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
     g.items.push(a);
   }
 
-  const iconBtn = 'size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors';
+  const iconBtn = 'size-8 flex items-center justify-center border border-[#DFE5ED] rounded text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors';
 
   return (
     <div className="px-6 py-5">
@@ -212,8 +212,8 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                      <button onClick={clearFilter} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Clear</button>
-                      <button onClick={applyFilter} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                      <button onClick={clearFilter} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                      <button onClick={applyFilter} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
                     </div>
                   </div>
                 </>
@@ -234,7 +234,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                     {/* Format */}
                     <div className="mb-4">
                       <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
-                      <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
+                      <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
                         {(['PDF', 'Excel', 'CSV'] as const).map((f) => (
                           <button
                             key={f}
@@ -271,7 +271,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                             value={dlPassword}
                             onChange={(e) => setDlPassword(e.target.value)}
                             placeholder="Attachment Password"
-                            className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                            className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
                           />
                           <button onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">
                             {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -281,8 +281,8 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
                     )}
 
                     <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button>
-                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button>
+                      <button onClick={() => setShowDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                     </div>
                   </div>
                 </>
@@ -382,7 +382,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[920px] max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h3 className="text-[16px] font-semibold text-[#111827]">Description Changes</h3>
-              <button onClick={() => setDiff(null)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+              <button onClick={() => setDiff(null)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>

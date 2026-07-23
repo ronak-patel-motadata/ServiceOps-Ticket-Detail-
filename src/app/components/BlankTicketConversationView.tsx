@@ -80,7 +80,7 @@ export function BlankTicketConversationView({
               <Search size={16} className="text-[#6b7280]" />
             </button>
           ) : (
-            <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
+            <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white w-[280px]">
               <Search className="w-4 h-4 text-[#7B8FA5]" />
               <input
                 type="text"

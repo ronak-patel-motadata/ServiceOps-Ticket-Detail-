@@ -385,7 +385,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   type="text"
                   value={companyValue}
                   onChange={(e) => setCompanyValue(e.target.value)}
-                  className="flex-1 px-3 py-2 text-[13px] text-[#364658] rounded-md hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent focus:bg-white"
+                  className="flex-1 px-3 py-2 text-[13px] text-[#364658] rounded hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent focus:bg-white"
                 />
               </div>
               )}
@@ -505,7 +505,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => setShowDescriptionExpand(true)}
-                        className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-md hover:bg-[#F5F7FA] transition-colors text-left"
+                        className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded hover:bg-[#F5F7FA] transition-colors text-left"
                       >
                         <span className={`truncate ${descriptionValue ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>
                           {descriptionValue || 'Add description'}
@@ -574,7 +574,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                             type="text"
                             value={customVal(f.label, f.value)}
                             onChange={(e) => setCustomVal(f.label, e.target.value)}
-                            className={`w-full ${f.color ? 'pl-6' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] bg-transparent rounded-md hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent focus:bg-white transition-colors`}
+                            className={`w-full ${f.color ? 'pl-6' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] bg-transparent rounded hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent focus:bg-white transition-colors`}
                           />
                         </div>
                       </div>
@@ -624,7 +624,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[16px] font-semibold text-[#364658]">Form Fields</h2>
-              <button onClick={() => setShowExpandFields(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+              <button onClick={() => setShowExpandFields(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={18} />
               </button>
             </div>
@@ -639,7 +639,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     <select
                       value={draftFields['Project Name'] ?? selectedProjectName}
                       onChange={(e) => setDraft('Project Name', e.target.value)}
-                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     >
                       {projectNameOptions.map((o) => (
                         <option key={o.label} value={o.label}>{o.label}</option>
@@ -654,7 +654,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     <select
                       value={draftFields['Cost Center'] ?? selectedCostCenter}
                       onChange={(e) => setDraft('Cost Center', e.target.value)}
-                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     >
                       {costCenterOptions.map((o) => (
                         <option key={o.label} value={o.label}>{o.label}</option>
@@ -668,7 +668,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     type="text"
                     value={draftFields['Business Unit'] ?? companyValue}
                     onChange={(e) => setDraft('Business Unit', e.target.value)}
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -676,7 +676,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   <select
                     value={draftFields['Building'] ?? selectedBuilding}
                     onChange={(e) => setDraft('Building', e.target.value)}
-                    className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   >
                     {buildingOptions.map((o) => (
                       <option key={o.label} value={o.label}>{o.label}</option>
@@ -690,7 +690,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     <select
                       value={draftFields['Request Channel'] ?? selectedRequestChannel}
                       onChange={(e) => setDraft('Request Channel', e.target.value)}
-                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      className="app-select w-full pl-7 pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     >
                       {requestChannelOptions.map((o) => (
                         <option key={o.label} value={o.label}>{o.label}</option>
@@ -705,7 +705,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                       value={draftFields['Description'] ?? descriptionValue}
                       onChange={(e) => setDraft('Description', e.target.value)}
                       placeholder="Description..."
-                      className="w-full min-h-[84px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white resize-y focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent placeholder:text-[#9CA3AF]"
+                      className="w-full min-h-[84px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white resize-y focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent placeholder:text-[#9CA3AF]"
                     />
                   </div>
                 )}
@@ -734,7 +734,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                               type="text"
                               value={draftFields[f.label] ?? customVal(f.label, f.value)}
                               onChange={(e) => setDraft(f.label, e.target.value)}
-                              className={`w-full ${f.color ? 'pl-7' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent`}
+                              className={`w-full ${f.color ? 'pl-7' : 'pl-3'} pr-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent`}
                             />
                           </div>
                         </div>
@@ -749,13 +749,13 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
             <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#E5E7EB] flex-shrink-0 bg-white">
               <button
                 onClick={applyExpandFields}
-                className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+                className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2C6B9F] transition-colors"
               >
                 Update
               </button>
               <button
                 onClick={() => setShowExpandFields(false)}
-                className="px-4 py-1.5 border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F3F4F6] transition-colors"
+                className="px-4 py-1.5 border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F3F4F6] transition-colors"
               >
                 Cancel
               </button>

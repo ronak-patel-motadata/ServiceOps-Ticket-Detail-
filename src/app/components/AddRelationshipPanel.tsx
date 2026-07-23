@@ -128,7 +128,7 @@ function SearchSelect({ label, value, options, onSelect, width }: { label: strin
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search"
-                className="h-8 w-full rounded-md border border-[#DFE5ED] pl-3 pr-8 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                className="h-8 w-full rounded border border-[#DFE5ED] pl-3 pr-8 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
               />
               <Search size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
             </div>
@@ -190,7 +190,7 @@ export function AddRelationshipPanel({ sourceName, onClose, onAdd }: { sourceNam
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
           <h2 className="text-[17px] font-semibold text-[#111827]">Add Relationship To <span className="text-[#3D8BD0]">{sourceName}</span></h2>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -227,7 +227,7 @@ export function AddRelationshipPanel({ sourceName, onClose, onAdd }: { sourceNam
                 value={q}
                 onChange={(e) => { setQ(e.target.value); setPage(1); }}
                 placeholder="Select field or enter a keyword to search..."
-                className="mb-3 h-9 w-full rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                className="mb-3 h-9 w-full rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
               />
               <table className="w-full text-left text-[12px]">
                 <thead className="bg-white border-b border-[#e5e7eb]">
@@ -293,11 +293,11 @@ export function AddRelationshipPanel({ sourceName, onClose, onAdd }: { sourceNam
         {/* Footer */}
         <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-[#E5E7EB] px-6 py-4">
           <span className="mr-auto text-[12.5px] text-[#7B8FA5]">{selected.size ? `${selected.size} selected` : ''}</span>
-          <button onClick={onClose} className="rounded-md border border-[#DFE5ED] px-4 py-2 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]">Cancel</button>
+          <button onClick={onClose} className="rounded border border-[#DFE5ED] px-4 py-2 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]">Cancel</button>
           <button
             onClick={doAdd}
             disabled={!relation || !target || !selected.size}
-            className={`rounded-md px-4 py-2 text-[13px] font-medium text-white transition-colors ${!relation || !target || !selected.size ? 'cursor-not-allowed bg-[#B9C4D4]' : 'bg-[#3D8BD0] hover:bg-[#2F7AB8]'}`}
+            className={`rounded px-4 py-2 text-[13px] font-medium text-white transition-colors ${!relation || !target || !selected.size ? 'cursor-not-allowed bg-[#B9C4D4]' : 'bg-[#3D8BD0] hover:bg-[#2F7AB8]'}`}
           >
             Add
           </button>

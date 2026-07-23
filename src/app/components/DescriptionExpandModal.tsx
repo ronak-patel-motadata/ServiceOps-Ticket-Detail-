@@ -34,7 +34,7 @@ export function DescriptionExpandModal({ isOpen, onClose, value, onChange }: Des
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB]">
           <h2 className="text-[16px] font-semibold text-[#364658]">Description</h2>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
             <X size={18} />
           </button>
         </div>
@@ -74,13 +74,13 @@ export function DescriptionExpandModal({ isOpen, onClose, value, onChange }: Des
         <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#E5E7EB]">
           <button
             onClick={save}
-            className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+            className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2C6B9F] transition-colors"
           >
             Save
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F3F4F6] transition-colors"
+            className="px-4 py-1.5 border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F3F4F6] transition-colors"
           >
             Cancel
           </button>

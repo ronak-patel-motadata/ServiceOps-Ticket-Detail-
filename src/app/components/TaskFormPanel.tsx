@@ -123,7 +123,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
           </h2>
           <button
             onClick={onClose}
-            className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"
           >
             <X size={20} />
           </button>

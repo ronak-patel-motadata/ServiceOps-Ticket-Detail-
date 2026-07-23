@@ -150,7 +150,7 @@ export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = '
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#DFE5ED] px-5 py-3">
           <h3 className="truncate text-[16px] font-semibold text-[#364658]">{p.name}</h3>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"><X size={18} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"><X size={18} /></button>
         </div>
 
         {/* Identity */}

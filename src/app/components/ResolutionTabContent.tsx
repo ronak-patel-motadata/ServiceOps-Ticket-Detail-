@@ -136,14 +136,14 @@ export function ResolutionTabContent({
             <div className="flex items-center justify-center gap-3">
               <button 
                 onClick={() => setHasDiagnosis(true)}
-                className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
               >
                 <Stethoscope className="size-4" />
                 Add Diagnosis
               </button>
               <button 
                 onClick={() => setHasSolution(true)}
-                className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
               >
                 <Lightbulb className="size-4" />
                 Add Solution
@@ -406,7 +406,7 @@ export function ResolutionTabContent({
                         setHasDiagnosis(false);
                       }
                     }}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-xs font-medium"
                   >
                     Add
                   </button>
@@ -682,7 +682,7 @@ export function ResolutionTabContent({
                         setHasSolution(false);
                       }
                     }}
-                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                    className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-xs font-medium"
                   >
                     Add
                   </button>
@@ -711,7 +711,7 @@ export function ResolutionTabContent({
               {!hasDiagnosis && !diagnosisData && (
                 <button 
                   onClick={() => setHasDiagnosis(true)}
-                  className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                  className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                 >
                   <Stethoscope className="size-4" />
                   Add Diagnosis
@@ -720,7 +720,7 @@ export function ResolutionTabContent({
               {!hasSolution && !solutionData && (
                 <button 
                   onClick={() => setHasSolution(true)}
-                  className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                  className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                 >
                   <Lightbulb className="size-4" />
                   Add Solution

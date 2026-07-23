@@ -84,7 +84,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Select field to search..."
-            className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+            className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
           />
           {search ? (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658]"><X size={16} /></button>
@@ -97,7 +97,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
           <button
             onClick={() => setFilterOpen((v) => !v)}
             title="Filter by status"
-            className={`inline-flex h-9 items-center gap-1.5 rounded border px-3 text-[13px] font-medium transition-colors ${filterActive ? 'border-[#3D8BD0] bg-[#F0F8FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6]'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded border px-3 text-[13px] font-medium transition-colors ${filterActive ? 'border-[#3D8BD0] bg-[#F0F8FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6]'}`}
           >
             <Filter size={15} className={filterActive ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'} />
             <span className="max-w-[160px] truncate">{filterLabel}</span>
@@ -144,7 +144,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
                 {/* Footer */}
                 <div className="flex items-center justify-between px-3 py-2 border-t border-[#F0F2F5]">
                   <button onClick={() => setStatusFilter([])} className="text-[13px] font-medium text-[#3D8BD0] hover:underline">Clear all</button>
-                  <button onClick={() => setFilterOpen(false)} className="rounded-md bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0]">Done</button>
+                  <button onClick={() => setFilterOpen(false)} className="rounded bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0]">Done</button>
                 </div>
               </div>
             </>
@@ -154,7 +154,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
         <button
           title={view === 'list' ? 'Card view' : 'List view'}
           onClick={() => setView((v) => (v === 'list' ? 'card' : 'list'))}
-          className="size-9 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+          className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
         >
           {view === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
         </button>

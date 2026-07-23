@@ -12,6 +12,12 @@ interface SystemFieldsRendererProps {
   // When the parent accordion's single "View more" already governs visibility,
   // render every field and drop this component's own show-more toggle.
   hideShowMore?: boolean;
+  // Lay the ticket system fields out in a 2-column grid (V2 Incident Details tab)
+  // instead of the right panel's single-column list. Opt-in; default unchanged.
+  twoColumn?: boolean;
+  // Drop the hover pin affordance (V2 Incident Details tab — pinning belongs to the
+  // right panel, where the pinned fields actually surface). Opt-in; default unchanged.
+  hidePin?: boolean;
 }
 
 /** Field rows shown in the Hardware Asset "System Fields" tab. */
@@ -41,7 +47,9 @@ export function SystemFieldsRenderer({
   onTogglePin,
   assetMode = false,
   purchaseMode = false,
-  hideShowMore = false
+  hideShowMore = false,
+  twoColumn = false,
+  hidePin = false
 }: SystemFieldsRendererProps) {
   const PinButton = ({ field }: { field: string }) => (
     <Tooltip>
@@ -129,11 +137,18 @@ export function SystemFieldsRenderer({
   };
 
   return (
-    <div className="space-y-3">
+    // Stacked (narrow) mode needs real breathing room between fields — each cell is two lines
+    // (label over value), so the tight wide-view gap reads as clutter there.
+    <div className={twoColumn ? 'grid grid-cols-2 gap-x-8 gap-y-4 @4xl:gap-y-1' : 'space-y-3'}>
       {displayedFields.map((field) => (
-        <div key={field} className="flex items-center justify-between gap-3">
-          <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
+        // 2-col mode is container-query responsive (the tab root is a @container): side-by-side
+        // label/value in the wide drawer, value stacked UNDER the label in small view.
+        <div key={field} className={twoColumn ? 'flex flex-col items-start @4xl:flex-row @4xl:items-center @4xl:justify-between gap-0 @4xl:gap-3' : 'flex items-center justify-between gap-3'}>
+          {/* 2-col mode gets a wider, non-wrapping label column — the narrow right panel
+              needs the 120px wrap, but in the tab a wrapped label reads as clutter. */}
+          <div className={`text-[12px] text-[#4A5568] flex-shrink-0 group/label flex items-center gap-1 ${twoColumn ? 'w-auto @4xl:w-[190px] whitespace-nowrap' : 'w-[120px]'}`}>
             <span>{field}</span>
+            {!hidePin && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -150,10 +165,11 @@ export function SystemFieldsRenderer({
                 {pinnedFields.includes(field) ? 'Unpin this field' : 'Pin this field on top'}
               </TooltipContent>
             </Tooltip>
+            )}
           </div>
-          <div className={`flex-1 py-2 text-[13px] font-medium ${
-            isUserField(field) 
-              ? 'text-[#3D8BD0] flex items-center gap-2' 
+          <div className={`flex-1 ${twoColumn ? 'py-1 @4xl:py-2' : 'py-2'} text-[13px] font-medium ${
+            isUserField(field)
+              ? 'text-[#3D8BD0] flex items-center gap-2'
               : isHighlightedField(field)
               ? 'text-[#3D8BD0]'
               : 'text-[#364658]'
@@ -177,7 +193,7 @@ export function SystemFieldsRenderer({
       ))}
       
       {!hideShowMore && fields.length > 8 && (
-        <div className="mt-3 pt-3 border-t border-[#F0F1F3]">
+        <div className={`mt-3 pt-3 border-t border-[#F0F1F3] ${twoColumn ? 'col-span-2' : ''}`}>
           <button
             onClick={onToggleShowMore}
             className="text-[13px] text-[#3D8BD0] hover:text-[#2A6BA8] font-medium transition-colors"

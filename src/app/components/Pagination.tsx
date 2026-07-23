@@ -59,7 +59,7 @@ export function Pagination({
           <select
             value={itemsPerPage}
             onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="app-select h-8 cursor-pointer rounded-md border border-[#DFE5ED] bg-white pl-2.5 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F9FAFB] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+            className="app-select h-8 cursor-pointer rounded border border-[#DFE5ED] bg-white pl-2.5 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F9FAFB] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
           >
             {PER_PAGE_OPTIONS.map((n) => (
               <option key={n} value={n}>{n}</option>
@@ -84,7 +84,7 @@ export function Pagination({
                 key={p}
                 onClick={() => onPageChange(p)}
                 aria-current={currentPage === p ? 'page' : undefined}
-                className={`flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-[12px] tabular-nums transition-colors ${
+                className={`flex h-8 min-w-8 items-center justify-center rounded px-2 text-[12px] tabular-nums transition-colors ${
                   currentPage === p
                     ? 'bg-[#EBF5FF] font-semibold text-[#3D8BD0]'
                     : 'font-medium text-[#64748B] hover:bg-[#F3F4F6] hover:text-[#364658]'

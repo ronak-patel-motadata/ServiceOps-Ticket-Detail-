@@ -43,6 +43,12 @@ interface TicketPropertiesPanelProps {
   purchaseMode?: boolean;
   // Patch variant of the asset field set (category/severity/approval/test/release date/…)
   patchMode?: boolean;
+  // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
+  // always visible, no View more / System Fields (those move to the Incident Details tab)
+  compactTicketFields?: boolean;
+  // V2 ticket page: drop the Additional Fields accordion entirely (its fields live in the
+  // Incident Details tab). Uses its own section-order storage key so V1's layout is untouched.
+  hideAdditionalFields?: boolean;
   // Values for the Agent Information block (asset page replaces Requester Information)
   agentInfo?: AgentInfo;
   // Warranty status pill shown at the top of the asset properties panel
@@ -345,6 +351,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     contractMode = false,
     purchaseMode = false,
     patchMode = false,
+    compactTicketFields = false,
+    hideAdditionalFields = false,
     assetState,
     agentInfo,
     warranty,
@@ -741,18 +749,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Only the Change detail page includes the Change Calendar section.
   const sectionStorageKey = patchMode
     ? 'patchPropertiesSectionOrder'
-    : assetMode
-      ? 'assetPropertiesSectionOrderV3'
-      : showChangeCalendar
-        ? 'changePropertiesSectionOrderV2'
-        : 'ticketPropertiesSectionOrder';
+    : hideAdditionalFields
+      ? 'ticketV2PropertiesSectionOrder' // V2 ticket page — separate key so V1's saved layout is never clobbered
+      : assetMode
+        ? 'assetPropertiesSectionOrderV3'
+        : showChangeCalendar
+          ? 'changePropertiesSectionOrderV2'
+          : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = patchMode
     ? ['Ticket Fields'] // Patch page has no Additional Fields section
-    : showChangeCalendar
-      ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
-      : assetMode
-        ? ['Ticket Fields', 'Additional Fields']
-        : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+    : hideAdditionalFields
+      ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
+      : showChangeCalendar
+        ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
+        : assetMode
+          ? ['Ticket Fields', 'Additional Fields']
+          : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
@@ -765,7 +777,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             parsed.splice(fi >= 0 ? fi + 1 : 0, 0, 'Change Calendar');
           }
           // Change Calendar only ever belongs to the Change detail page.
-          const cleaned = showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
+          let cleaned = showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
+          // V2 ticket page has no Additional Fields section (moved to the Incident Details tab).
+          if (hideAdditionalFields) cleaned = cleaned.filter((s) => s !== 'Additional Fields');
           // Agent Information is pinned at the top on the asset page — not a reorderable section.
           return assetMode ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
         } catch (e) {
@@ -1300,31 +1314,34 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </button>
             )}
             {activeGroup === 'users' && (
-              <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
             {activeGroup === 'notifications' && emailNotifications.length > 0 && (
-              <button title="Send Email" onClick={() => setShowSendEmail(true)} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title="Send Email" onClick={() => setShowSendEmail(true)} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
             {activeGroup === 'notes' && (
-              <button title="Add Note" onClick={openAddNote} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title="Add Note" onClick={openAddNote} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
             {activeGroup === 'file-details' && patchFiles.length > 0 && (
-              <button title="Upload File" onClick={() => fileInputRef.current?.click()} className="size-7 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title="Upload File" onClick={() => fileInputRef.current?.click()} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
           </div>
 
-          {/* Search Bar - Always visible for properties, activity, and suggestions */}
-          {(activeGroup === 'properties' || activeGroup === 'activity' || activeGroup === 'suggestions') && (
+          {/* Search Bar - Always visible for properties, activity, and suggestions.
+              V2 ticket page (compactTicketFields): the panel holds only 7 fixed fields, so the
+              properties field-search + filter are dropped — search lives in the Incident
+              Details tab instead. Activity/Suggestions searches are unaffected. */}
+          {((activeGroup === 'properties' && !compactTicketFields) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded-md px-2 py-1.5">
+              <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded px-2 py-1.5">
                 <Search size={16} className="text-[#7B8FA5]" />
                 <input
                   type="text"
@@ -1467,7 +1484,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <div className="group relative flex items-center gap-3 rounded-lg bg-[#F9FAFB] p-3">
               <button
                 title="Scan now"
-                className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-md border border-[#DFE5ED] bg-white px-2 py-1 text-[11px] font-medium text-[#3D8BD0] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#EAF3FB] hover:border-[#3D8BD0]"
+                className="absolute top-2 right-2 inline-flex items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2 py-1 text-[11px] font-medium text-[#3D8BD0] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#EAF3FB] hover:border-[#3D8BD0]"
               >
                 <ScanLine size={12} />
                 Scan now
@@ -1710,6 +1727,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         <TicketFieldsAccordion
           key="ticket-fields"
           fieldsTitle={fieldsTitle}
+          compactTicketFields={compactTicketFields}
           showProblemFields={showProblemFields}
           statusGroupLabel={statusGroupLabel}
           assetMode={assetMode}
@@ -1919,7 +1937,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           )}
         </div>
             );
-          } else if (section === 'Additional Fields' && !patchMode && hasAdditionalFieldsMatch()) {
+          } else if (section === 'Additional Fields' && !patchMode && !hideAdditionalFields && hasAdditionalFieldsMatch()) {
             return (
         <AdditionalFieldsAccordion
           key="additional-fields"
@@ -2105,8 +2123,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                                 <div className="absolute -top-1.5 right-2.5 size-3 bg-white border-l border-t border-[#DFE5ED] rotate-45" />
                                 <p className="relative text-[12px] text-[#364658]">Are you sure, you want to stop timer?</p>
                                 <div className="relative mt-2.5 flex items-center justify-end gap-2">
-                                  <button onClick={() => setConfirmStopId(null)} className="px-2.5 py-1 border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded-md hover:bg-[#F3F4F6] transition-colors">Cancel</button>
-                                  <button onClick={() => { stopTrackerTask(t.id); setConfirmStopId(null); }} className="px-2.5 py-1 bg-[#E74C3C] text-white text-[12px] font-medium rounded-md hover:bg-[#C0392B] transition-colors">Stop</button>
+                                  <button onClick={() => setConfirmStopId(null)} className="px-2.5 py-1 border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F3F4F6] transition-colors">Cancel</button>
+                                  <button onClick={() => { stopTrackerTask(t.id); setConfirmStopId(null); }} className="px-2.5 py-1 bg-[#E74C3C] text-white text-[12px] font-medium rounded hover:bg-[#C0392B] transition-colors">Stop</button>
                                 </div>
                               </div>
                             </>
@@ -2124,7 +2142,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     {t.description && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#F8FAFC] border border-[#EEF1F5] cursor-default">
+                          <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#F8FAFC] border border-[#EEF1F5] cursor-default">
                             <SquareCheckBig size={13} className="text-[#7B8FA5] flex-shrink-0" />
                             <span className="text-[12px] text-[#364658] truncate min-w-0">{t.description}</span>
                           </div>
@@ -2195,7 +2213,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       value={newTaskDesc}
                       onChange={(e) => setNewTaskDesc(e.target.value)}
                       placeholder="Description your work here"
-                      className="w-full h-24 px-3 py-2 text-[13px] text-[#364658] bg-white border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      className="w-full h-24 px-3 py-2 text-[13px] text-[#364658] bg-white border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     />
                     <button
                       onClick={startNewTrackerTask}
@@ -2534,7 +2552,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="flex size-14 items-center justify-center rounded-full bg-[#F3F4F6] mb-4"><Blocks size={24} className="text-[#9CA3AF]" /></div>
               <div className="text-[15px] font-semibold text-[#364658] mb-1">No Integration Yet</div>
               <div className="text-[13px] text-[#7B8FA5] mb-5 max-w-[240px]">Get started by linking a Jira issue to this record.</div>
-              <button onClick={() => setShowAddIntegration(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded-md text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
+              <button onClick={() => setShowAddIntegration(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
                 <Plus size={15} /> Add Integration
               </button>
             </div>
@@ -2649,7 +2667,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <div className="flex size-14 items-center justify-center rounded-full bg-[#F3F4F6] mb-4"><Files size={24} className="text-[#9CA3AF]" /></div>
                 <div className="text-[15px] font-semibold text-[#364658] mb-1">No Files Yet</div>
                 <div className="text-[13px] text-[#7B8FA5] mb-5 max-w-[240px]">This patch has no files attached. Upload a file to get started.</div>
-                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded-md text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
+                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border border-[#DFE5ED] rounded text-[13px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors">
                   <Plus size={15} /> Upload File
                 </button>
               </div>
@@ -3222,7 +3240,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                             }, 2500);
                           }}
                           disabled={isRegeneratingSummary}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#3D8BD0] rounded-md hover:bg-[#F9FAFB] transition-all text-[11px] text-[#3D8BD0] font-medium flex-shrink-0 disabled:opacity-70 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#3D8BD0] rounded hover:bg-[#F9FAFB] transition-all text-[11px] text-[#3D8BD0] font-medium flex-shrink-0 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                           <RefreshCw size={12} className={`text-[#3D8BD0] ${isRegeneratingSummary ? 'animate-spin' : ''}`} />
                           {isRegeneratingSummary ? 'Generating Summary...' : 'Regenerate'}
@@ -3238,7 +3256,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                             }, 2500);
                           }}
                           disabled={isRegeneratingSummary}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#7B8FA5] hover:text-[#3D8BD0] font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E7EB] rounded hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#7B8FA5] hover:text-[#3D8BD0] font-medium disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                           <RefreshCw size={12} className={isRegeneratingSummary ? 'animate-spin' : ''} />
                           {isRegeneratingSummary ? 'Generating Summary...' : 'Regenerate summary'}
@@ -3253,14 +3271,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         onClick={() => {
                           navigator.clipboard.writeText(aiSummaryContent);
                         }}
-                        className="px-2 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
+                        className="px-2 py-1 bg-white border border-[#E5E7EB] rounded hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
                         title="Copy to clipboard"
                       >
                         <Copy size={11} className="text-[#7B8FA5]" />
                       </button>
                       <button 
                         onClick={() => onChatbotAddAsNote?.(aiSummaryContent)}
-                        className="px-2.5 py-1 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
+                        className="px-2.5 py-1 bg-white border border-[#E5E7EB] rounded hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1"
                       >
                         <StickyNote size={11} className="text-[#7B8FA5]" />
                         Add as Note
@@ -3284,7 +3302,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </button>
                         <button 
                           onClick={() => onChatbotAddAsNote?.(aiSummaryContent)}
-                          className="px-2.5 py-1.5 bg-white border border-[#E5E7EB] rounded-md hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 bg-white border border-[#E5E7EB] rounded hover:border-[#3D8BD0] hover:bg-[#F9FAFB] transition-all text-[11px] text-[#364658] font-medium flex items-center gap-1.5"
                         >
                           <StickyNote size={12} className="text-[#7B8FA5]" />
                           Add as Note
@@ -3388,7 +3406,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Show AI Summary')}
                         >
                           <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
@@ -3405,7 +3423,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Find Similar Tickets')}
                         >
                           <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
@@ -3422,7 +3440,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Suggest KB')}
                         >
                           <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
@@ -3439,7 +3457,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Next Action')}
                         >
                           <Zap size={13} className="flex-shrink-0 group-hover:rotate-12 transition-transform duration-200" />
@@ -3456,7 +3474,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Root Cause')}
                         >
                           <Brain size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
@@ -3473,7 +3491,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <TooltipTrigger asChild>
                         <button
                           style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                          className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Draft Reply')}
                         >
                           <MessageSquare size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
@@ -3528,7 +3546,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                             <TooltipTrigger asChild>
                               <button
                                 style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                                className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                                className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                                 onClick={() => {
                                   // Add user message and simulate clicking the action
                                   const userMessage = {
@@ -3666,7 +3684,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('properties');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+              className={`size-8 flex items-center justify-center rounded border transition-all ${
                 activeGroup === 'properties'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3692,7 +3710,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   }
                   setActiveGroup('users');
                 }}
-                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                className={`size-8 flex items-center justify-center rounded border transition-all ${
                   activeGroup === 'users'
                     ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                     : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3716,7 +3734,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   }
                   setActiveGroup('notes');
                 }}
-                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                className={`size-8 flex items-center justify-center rounded border transition-all ${
                   activeGroup === 'notes'
                     ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                     : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3740,7 +3758,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   }
                   setActiveGroup('affected-products');
                 }}
-                className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+                className={`size-8 flex items-center justify-center rounded border transition-all ${
                   activeGroup === 'affected-products'
                     ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                     : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3766,7 +3784,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('activity');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+              className={`size-8 flex items-center justify-center rounded border transition-all ${
                 activeGroup === 'activity'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3792,7 +3810,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('file-details');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all ${
+              className={`size-8 flex items-center justify-center rounded border transition-all ${
                 activeGroup === 'file-details'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3816,7 +3834,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('suggestions');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+              className={`size-8 flex items-center justify-center rounded border transition-all relative ${
                 activeGroup === 'suggestions'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3844,7 +3862,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('notifications');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+              className={`size-8 flex items-center justify-center rounded border transition-all relative ${
                 activeGroup === 'notifications'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3884,7 +3902,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 }
                 setActiveGroup('integration');
               }}
-              className={`size-9 flex items-center justify-center rounded-[6px] border transition-all relative ${
+              className={`size-8 flex items-center justify-center rounded border transition-all relative ${
                 activeGroup === 'integration'
                   ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
@@ -3902,7 +3920,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipTrigger asChild>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('open-drawer-shortcuts'))}
-              className="mt-auto size-9 flex items-center justify-center rounded-[6px] border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all"
+              className="mt-auto size-8 flex items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all"
             >
               <Keyboard size={16} className="text-[#364658]" />
             </button>
@@ -3921,7 +3939,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="fixed top-0 right-0 h-full w-[460px] max-w-[92vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#3D8BD0]">Add Integration</h2>
-              <button onClick={() => setShowAddIntegration(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+              <button onClick={() => setShowAddIntegration(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
               <div>
@@ -3930,7 +3948,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   type="text"
                   value={intgSubject}
                   onChange={(e) => setIntgSubject(e.target.value)}
-                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                 />
               </div>
               <div>
@@ -3939,26 +3957,26 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Project <span className="text-[#DC2626]">*</span></label>
-                <select value={intgProject} onChange={(e) => setIntgProject(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgProject} onChange={(e) => setIntgProject(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['JIRA-TESTING', 'Service Desk', 'Infrastructure', 'Product Backlog'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Issue Type <span className="text-[#DC2626]">*</span></label>
-                <select value={intgIssueType} onChange={(e) => setIntgIssueType(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgIssueType} onChange={(e) => setIntgIssueType(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['Bug', 'Task', 'Story', 'Incident', 'Epic'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[13px] text-[#364658] mb-1.5">Priority <span className="text-[#DC2626]">*</span></label>
-                <select value={intgPriority} onChange={(e) => setIntgPriority(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
+                <select value={intgPriority} onChange={(e) => setIntgPriority(e.target.value)} className="app-select w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent">
                   {['Low', 'Medium', 'High', 'Urgent'].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
-              <button onClick={saveIntegration} disabled={!intgSubject.trim()} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
-              <button onClick={() => setShowAddIntegration(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+              <button onClick={saveIntegration} disabled={!intgSubject.trim()} className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
+              <button onClick={() => setShowAddIntegration(false)} className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
             </div>
           </div>
         </>
@@ -3980,7 +3998,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#111827]">{editingNoteId != null ? 'Edit Note' : 'Add Note'}</h2>
-              <button onClick={cancelAddNote} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+              <button onClick={cancelAddNote} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>
@@ -3995,7 +4013,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   value={noteName}
                   onChange={(e) => setNoteName(e.target.value)}
                   placeholder="Name"
-                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                 />
               </div>
               <div>
@@ -4006,7 +4024,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   value={noteDesc}
                   onChange={(e) => setNoteDesc(e.target.value)}
                   placeholder="Description"
-                  className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                  className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                 />
               </div>
             </div>
@@ -4015,13 +4033,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <button
                 onClick={saveAssetNote}
                 disabled={!noteName.trim() || !noteDesc.trim()}
-                className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {editingNoteId != null ? 'Save' : 'Add'}
               </button>
               <button
                 onClick={cancelAddNote}
-                className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
+                className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
               >
                 Cancel
               </button>
@@ -4038,7 +4056,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
               <h2 className="text-[18px] font-semibold text-[#111827]">Add User</h2>
-              <button onClick={cancelAddUser} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+              <button onClick={cancelAddUser} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={20} />
               </button>
             </div>
@@ -4052,7 +4070,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     value={newUser.name}
                     onChange={(e) => setNewUser((u) => ({ ...u, name: e.target.value }))}
                     placeholder="User Name"
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -4060,7 +4078,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <select
                     value={newUser.accountType}
                     onChange={(e) => setNewUser((u) => ({ ...u, accountType: e.target.value }))}
-                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.accountType ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.accountType ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                   >
                     <option value="">Select</option>
                     <option>Normal Account</option>
@@ -4076,7 +4094,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     value={newUser.domain}
                     onChange={(e) => setNewUser((u) => ({ ...u, domain: e.target.value }))}
                     placeholder="Domain"
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -4084,7 +4102,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <select
                     value={newUser.disabled}
                     onChange={(e) => setNewUser((u) => ({ ...u, disabled: e.target.value }))}
-                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.disabled ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newUser.disabled ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                   >
                     <option value="">Select</option>
                     <option>No</option>
@@ -4098,7 +4116,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     value={newUser.sid}
                     onChange={(e) => setNewUser((u) => ({ ...u, sid: e.target.value }))}
                     placeholder="Security ID"
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -4107,7 +4125,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     value={newUser.description}
                     onChange={(e) => setNewUser((u) => ({ ...u, description: e.target.value }))}
                     placeholder="Description"
-                    className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -4117,13 +4135,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <button
                 onClick={saveAddUser}
                 disabled={!newUser.name.trim()}
-                className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Add
               </button>
               <button
                 onClick={cancelAddUser}
-                className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
+                className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors"
               >
                 Cancel
               </button>
@@ -4148,7 +4166,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <h3 className="text-[15px] font-semibold text-[#111827]">Customize Layout</h3>
               <button
                 onClick={() => setShowCustomizeModal(false)}
-                className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
+                className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
               >
                 <X size={18} />
               </button>
@@ -4247,13 +4265,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB]">
               <button
                 onClick={() => setSectionOrder(defaultSectionOrder)}
-                className="px-4 py-2 text-[13px] text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded-md transition-colors"
+                className="px-4 py-2 text-[13px] text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded transition-colors"
               >
                 Reset to Default
               </button>
               <button
                 onClick={() => setShowCustomizeModal(false)}
-                className="px-4 py-2 text-[13px] text-white bg-[#3D8BD0] hover:bg-[#2A6BA8] rounded-md transition-colors"
+                className="px-4 py-2 text-[13px] text-white bg-[#3D8BD0] hover:bg-[#2A6BA8] rounded transition-colors"
               >
                 Save
               </button>

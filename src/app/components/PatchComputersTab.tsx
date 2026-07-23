@@ -240,7 +240,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
         <div className="relative">
           <button
             onClick={() => setShowOffice((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${office !== ALL_ENDPOINTS ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${office !== ALL_ENDPOINTS ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
           >
             <Building2 size={14} className={office !== ALL_ENDPOINTS ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'} />
             {office}
@@ -259,7 +259,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
                       value={officeSearch}
                       onChange={(e) => setOfficeSearch(e.target.value)}
                       placeholder="Search groups..."
-                      className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                     />
                     <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                   </div>
@@ -289,7 +289,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
           <button
             key={b}
             onClick={() => setBucket(b)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${bucket === b ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${bucket === b ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
           >
             {b}
             <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${bucket === b ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>
@@ -307,7 +307,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Select field to search..."
-            className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+            className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
           />
           {search ? (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658]"><X size={16} /></button>
@@ -317,7 +317,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
         </div>
         {/* Add button — only for the Missing bucket */}
         {bucket === 'Missing' && (
-          <button className="flex h-[36px] items-center gap-1.5 rounded bg-[#3D8BD0] px-3.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0] flex-shrink-0">
+          <button className="flex h-8 items-center gap-1.5 rounded bg-[#3D8BD0] px-3.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0] flex-shrink-0">
             <Plus size={15} />
             Add Missing Computer
           </button>
@@ -332,7 +332,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
           <div className="relative">
             <button
               onClick={() => setShowMore((v) => !v)}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-[13px] font-medium text-[#364658] transition-colors ${showMore ? 'border-[#3D8BD0] bg-[#F8FAFC]' : 'border-[#DFE5ED] hover:bg-[#F5F7FA]'}`}
+              className={`inline-flex h-8 items-center gap-1.5 rounded border bg-white px-3 text-[13px] font-medium text-[#364658] transition-colors ${showMore ? 'border-[#3D8BD0] bg-[#F8FAFC]' : 'border-[#DFE5ED] hover:bg-[#F5F7FA]'}`}
             >
               Take Action <ChevronDown size={14} className={`text-[#7B8FA5] transition-transform ${showMore ? 'rotate-180' : ''}`} />
             </button>

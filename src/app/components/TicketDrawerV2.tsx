@@ -1,6 +1,10 @@
 /**
- * TicketDrawer Component
- * 
+ * TicketDrawerV2 Component — the SECOND design option of the Ticket detail page.
+ *
+ * A 1:1 clone of TicketDrawer.tsx, opened ONLY for ticket INC-33 from the listing page
+ * (routed in TicketListPage.handleOpenTicket via the 'request-v2' DrawerStack module).
+ * V2-specific design changes land here; V1 (TicketDrawer.tsx) stays untouched.
+ *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
@@ -8,6 +12,7 @@
  */
 import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, ArrowRightLeft } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
+import { IncidentDetailsTabV2 } from './IncidentDetailsTabV2';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
@@ -150,7 +155,7 @@ const DEMO_STAGED_TASKS: any[] = [
   { id: 'TASK-13', subject: 'Manager sign-off on onboarding', userGroup: 'Management', assignee: 'Sarah Johnson', taskType: 'Verification', startDate: '2026-07-02', endDate: '2026-07-03', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Reporting manager confirms onboarding completion.', completed: false, stage: 3 },
 ];
 
-export function TicketDrawer({
+export function TicketDrawerV2({
   openTickets,
   activeTicketId,
   onClose,
@@ -183,7 +188,7 @@ onStackActiveGroupChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician' | 'requester'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
+  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'incident-details' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -656,7 +661,15 @@ onStackActiveGroupChange,
   const getCurrentProjectNameColorWrapper = () => getCurrentProjectNameColor(selectedProjectName);
   const getCurrentCostCenterColorWrapper = () => getCurrentCostCenterColor(selectedCostCenter);
   const getCurrentRequestChannelColorWrapper = () => getCurrentRequestChannelColor(selectedRequestChannel);
-  const getFilteredTicketFieldsWrapper = () => getFilteredTicketFields(pinnedFields, showMoreFields, propertiesSearchQuery);
+  // V2: the right panel keeps ONLY these quick fields (plus Tags, which renders ungated) —
+  // Category / Department / Source / Location / Vendor / Support Level moved to the
+  // Incident Details tab. Pin + search filters still apply.
+  const V2_TICKET_FIELDS = ['Status', 'Priority', 'Assignee', 'Technician Group', 'Urgency', 'Impact'];
+  const getFilteredTicketFieldsWrapper = () =>
+    V2_TICKET_FIELDS.filter((field) =>
+      !pinnedFields.includes(field) &&
+      (!propertiesSearchQuery || field.toLowerCase().includes(propertiesSearchQuery.toLowerCase()))
+    );
   const getFilteredAdditionalFormFieldsWrapper = () => getFilteredAdditionalFormFields(pinnedFields, propertiesSearchQuery);
   const getFilteredAdditionalFieldsWrapper = () => getFilteredAdditionalFields(pinnedFields, propertiesSearchQuery);
 
@@ -912,8 +925,10 @@ onStackActiveGroupChange,
       if (!tabContainerRef.current) return;
 
       // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['conversation', 'tasks', 'audit', 'resolution'];
-      const baseTabsForINC35 = ['service-request', 'conversation', 'tasks', 'audit', 'resolution'];
+      // (V2: Incident Details sits right after Conversation — it hosts the moved ticket
+      // fields + all Additional Fields, which the V2 right panel no longer shows.)
+      const baseTabsForOthers = ['conversation', 'incident-details', 'tasks', 'audit', 'resolution'];
+      const baseTabsForINC35 = ['service-request', 'conversation', 'incident-details', 'tasks', 'audit', 'resolution'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -962,6 +977,7 @@ onStackActiveGroupChange,
       const tabWidths: Record<string, number> = {
         'service-request': 130,
         'conversation': 105,
+        'incident-details': 125,
         'tasks': 60,
         'approvals': 85,
         'relations': 80,
@@ -1960,7 +1976,7 @@ onStackActiveGroupChange,
   if (minimized) return <MinimizedDrawerRail items={stackTabs ?? openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
   return (
-    <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
+    <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer data-v2="">
       {/* Resize Handle */}
       <div
         className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize group z-[100]"
@@ -3036,6 +3052,7 @@ onStackActiveGroupChange,
                   const tabConfig = [
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
                     { id: 'conversation', label: 'Conversation' },
+                    { id: 'incident-details', label: 'Incident Details' },
                     { id: 'tasks', label: 'Tasks' },
                     { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
                     { id: 'relations', label: 'Relations', condition: activeTicket?.id === 'INC-32' ? (ticketRelations['INC-32']?.length || 0) > 0 : true },
@@ -3050,6 +3067,7 @@ onStackActiveGroupChange,
                   const tabLabels: Record<string, string> = {
                     'service-request': 'Service Request',
                     'conversation': 'Conversation',
+                    'incident-details': 'Incident Details',
                     'tasks': 'Tasks',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
@@ -4717,6 +4735,22 @@ onStackActiveGroupChange,
             </div>
             )}
 
+            {/* Incident Details Tab Content (V2) — the 7 quick fields (shared drawer state, so
+                the right panel stays in sync) + the moved ticket fields + ALL Additional Fields
+                + System Fields, as a full-width form */}
+            {activeMainTab === 'incident-details' && (
+              <IncidentDetailsTabV2
+                ticketId={activeTicket?.id}
+                selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus}
+                selectedPriority={selectedPriority} setSelectedPriority={setSelectedPriority}
+                selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee}
+                selectedTechGroup={selectedTechGroup} setSelectedTechGroup={setSelectedTechGroup}
+                selectedUrgency={selectedUrgency} setSelectedUrgency={setSelectedUrgency}
+                selectedImpact={selectedImpact} setSelectedImpact={setSelectedImpact}
+                tags={tags} setTags={setTags}
+              />
+            )}
+
             {/* Tasks Tab Content */}
             {activeMainTab === 'tasks' && (
               <TasksTabContent
@@ -5735,6 +5769,8 @@ onStackActiveGroupChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            compactTicketFields
+            hideAdditionalFields
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeTicket?.id}
             activeGroup={activeGroup}
@@ -6865,4 +6901,4 @@ onStackActiveGroupChange,
   );
 }
 
-export default TicketDrawer;
+export default TicketDrawerV2;

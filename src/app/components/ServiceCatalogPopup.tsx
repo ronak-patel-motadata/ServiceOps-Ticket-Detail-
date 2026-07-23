@@ -31,7 +31,7 @@ export function ServiceCatalogPopup({ onClose, onAddItem }: ServiceCatalogPopupP
         </p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-sm font-medium"
+          className="px-4 py-2 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-sm font-medium"
         >
           Close
         </button>

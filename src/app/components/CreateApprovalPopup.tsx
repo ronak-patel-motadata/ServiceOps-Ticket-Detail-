@@ -267,7 +267,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               placeholder={expandedCategory === 'users' ? 'Search users' : 'Search groups'}
-                              className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                              className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
                             />
                           </div>
 
@@ -480,7 +480,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Approval Required for - TSR-00812237"
-                  className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0]"
+                  className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0]"
                 />
               </div>
 
@@ -636,20 +636,20 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-lg hover:bg-[#F3F4F6] transition-colors"
+              className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F3F4F6] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSkip}
-              className="px-4 py-2 text-[13px] font-medium text-white bg-[#6B7280] rounded-lg hover:bg-[#4B5563] transition-colors"
+              className="px-4 py-2 text-[13px] font-medium text-white bg-[#6B7280] rounded hover:bg-[#4B5563] transition-colors"
             >
               Skip
             </button>
             <button
               onClick={handleCreate}
               disabled={!subject}
-              className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-lg hover:bg-[#2C6BA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2C6BA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {approval ? 'Update' : 'Create'}
             </button>

@@ -2384,7 +2384,7 @@ onStackMinimizedChange,
                             placeholder="Search for users..."
                             value={assigneeSearchQuery}
                             onChange={(e) => setAssigneeSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                            className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -2768,7 +2768,7 @@ onStackMinimizedChange,
                     </div>
                     <button
                       onClick={() => setShowLocationHistory(false)}
-                      className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
+                      className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
@@ -3366,7 +3366,7 @@ onStackMinimizedChange,
                         <button
                           onClick={() => setHardwareNavOpen((o) => !o)}
                           title="Jump to section"
-                          className="size-9 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                          className="size-8 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                         >
                           <List size={16} />
                         </button>
@@ -3384,7 +3384,7 @@ onStackMinimizedChange,
                           placeholder="Search properties..."
                           value={hardwareSearch}
                           onChange={(e) => setHardwareSearch(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                          className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -3419,7 +3419,7 @@ onStackMinimizedChange,
                             {section.addable && (
                               <button
                                 title={`Add ${section.label}`}
-                                className="size-8 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                                className="size-8 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
                               >
                                 <Plus size={16} />
                               </button>
@@ -3453,7 +3453,7 @@ onStackMinimizedChange,
                                     section.items.forEach((_, idx) => next.delete(`${section.id}:${idx}`));
                                     return next;
                                   })}
-                                  className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+                                  className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
                                 >
                                   <Plus size={16} />
                                   Add {section.label}
@@ -3573,7 +3573,7 @@ onStackMinimizedChange,
                       value={installationSearch}
                       onChange={(e) => setInstallationSearch(e.target.value)}
                       placeholder="Select field or enter a keyword to search..."
-                      className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                      className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
                     />
                     <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
                   </div>
@@ -3737,7 +3737,7 @@ onStackMinimizedChange,
                         <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Get started by adding software to this asset.</p>
                         <button
                           onClick={() => setRemovedSoftware(new Set())}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
                         >
                           <Plus size={16} />
                           Add Software
@@ -3759,7 +3759,7 @@ onStackMinimizedChange,
                         placeholder="Search software..."
                         value={softwareSearch}
                         onChange={(e) => setSoftwareSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                       />
                     </div>
 
@@ -3771,7 +3771,7 @@ onStackMinimizedChange,
                         <button
                           title="Show / hide columns"
                           onClick={() => setShowSoftwareColsMenu((o) => !o)}
-                          className="size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                          className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                         >
                           <Columns3 size={16} />
                         </button>
@@ -3803,14 +3803,14 @@ onStackMinimizedChange,
                       <button
                         title={softwareView === 'list' ? 'Card view' : 'List view'}
                         onClick={() => setSoftwareView((v) => (v === 'list' ? 'card' : 'list'))}
-                        className="size-8 flex-shrink-0 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                        className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                       >
                         {softwareView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
                       </button>
 
                       <button
                         title="Add Software"
-                        className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                        className="size-8 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
                       >
                         <Plus size={16} />
                       </button>
@@ -3853,8 +3853,8 @@ onStackMinimizedChange,
                         >
                           {/* Hover actions */}
                           <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button title="Edit" className="size-7 flex items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#3D8BD0] hover:border-[#3D8BD0]"><Edit size={14} /></button>
-                            <button title="Delete" onClick={() => setRemovedSoftware((prev) => new Set(prev).add(i))} className="size-7 flex items-center justify-center rounded-md border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#EF4444] hover:border-[#EF4444]"><Trash2 size={14} /></button>
+                            <button title="Edit" className="size-7 flex items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#3D8BD0] hover:border-[#3D8BD0]"><Edit size={14} /></button>
+                            <button title="Delete" onClick={() => setRemovedSoftware((prev) => new Set(prev).add(i))} className="size-7 flex items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#7B8FA5] hover:text-[#EF4444] hover:border-[#EF4444]"><Trash2 size={14} /></button>
                           </div>
 
                           {/* Header: icon + name + manufacturer */}
@@ -3908,7 +3908,7 @@ onStackMinimizedChange,
                       title="Add Baseline"
                       disabled={baselines.length >= 1}
                       onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
-                      className="size-8 flex-shrink-0 rounded-md bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="size-8 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus size={16} />
                     </button>
@@ -4021,7 +4021,7 @@ onStackMinimizedChange,
                       onChange={(e) => setRelSearch(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
                       placeholder="Search...   Ctrl + F | Esc to clear"
-                      className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                      className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
                     />
                   </div>
                   {/* Filters — node type + connection type in ONE popup with two TABS (side-by-side
@@ -4032,7 +4032,7 @@ onStackMinimizedChange,
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => { setShowRelFilter((v) => !v); setRelConnSearch(''); setRelFilterTab(relConnFilter.length && !relFilter.length ? 'connection' : 'type'); }}
-                          className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${relFilter.length || relConnFilter.length ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${relFilter.length || relConnFilter.length ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
                         >
                           <Filter size={14} className={relFilter.length || relConnFilter.length ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
                           <span className="max-w-[200px] truncate">{[relFilter.length ? (relFilter.length === 1 ? relFilter[0] : `${relFilter[0]} +${relFilter.length - 1}`) : null, relConnFilter.length ? (relConnFilter.length === 1 ? relConnFilter[0] : `${relConnFilter[0]} +${relConnFilter.length - 1}`) : null].filter(Boolean).join(' · ') || 'All'}</span>
@@ -4108,7 +4108,7 @@ onStackMinimizedChange,
                                   value={relConnSearch}
                                   onChange={(e) => setRelConnSearch(e.target.value)}
                                   placeholder="Search"
-                                  className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                                  className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
                                 />
                               </div>
                               <div className="overflow-y-auto py-1">
@@ -4141,7 +4141,7 @@ onStackMinimizedChange,
                             >
                               Clear all
                             </button>
-                            <button onClick={() => setShowRelFilter(false)} className="px-3 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[12px] font-medium hover:bg-[#2F7AB8] transition-colors">Done</button>
+                            <button onClick={() => setShowRelFilter(false)} className="px-3 py-1.5 rounded bg-[#3D8BD0] text-white text-[12px] font-medium hover:bg-[#2F7AB8] transition-colors">Done</button>
                           </div>
                         </div>
                       </>
@@ -4184,7 +4184,7 @@ onStackMinimizedChange,
                   </Tooltip>
                   )}
                   {/* View-mode segmented group */}
-                  <div className="inline-flex items-center rounded-md border border-[#DFE5ED] bg-white p-0.5">
+                  <div className="inline-flex items-center rounded border border-[#DFE5ED] bg-white p-0.5">
                     {viewBtns.map((b) => (
                       <Tooltip key={b.key}>
                         <TooltipTrigger asChild>
@@ -4232,7 +4232,7 @@ onStackMinimizedChange,
                           {/* Format */}
                           <div className="mb-4">
                             <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
-                            <div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">
+                            <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
                               {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
                                 <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
                               ))}
@@ -4251,14 +4251,14 @@ onStackMinimizedChange,
                               <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
                               <div className="relative">
                                 <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                                <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                                <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
                                 <button onClick={() => setRelDlShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{relDlShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                               </div>
                             </div>
                           )}
                           <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button>
-                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button>
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                           </div>
                         </div>
                       </>
@@ -4307,7 +4307,7 @@ onStackMinimizedChange,
                                 <span className="text-[13px] font-medium text-[#364658] truncate">{n.label}</span>
                               </div>
                               {/* Remove */}
-                              <button title="Remove relation" className="flex-shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-md border border-[#FCA5A5] text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"><Trash2 size={15} /></button>
+                              <button title="Remove relation" className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded border border-[#FCA5A5] text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"><Trash2 size={15} /></button>
                             </div>
                           );
                         })}
@@ -4353,7 +4353,7 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
-                      <button onClick={() => setShowRelSettings(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                      <button onClick={() => setShowRelSettings(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       {/* Live preview — driven by the draft values */}
@@ -4410,8 +4410,8 @@ onStackMinimizedChange,
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
-                      <button onClick={() => setRelDraft(DEFAULT_REL_GRAPH_CONFIG)} className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Reset to Defaults</button>
-                      <button onClick={() => { setRelConfig(relDraft); setShowRelSettings(false); }} className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                      <button onClick={() => setRelDraft(DEFAULT_REL_GRAPH_CONFIG)} className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Reset to Defaults</button>
+                      <button onClick={() => { setRelConfig(relDraft); setShowRelSettings(false); }} className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
                     </div>
                   </div>
                 </>
@@ -4510,7 +4510,7 @@ onStackMinimizedChange,
                         <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4"><FileText className="size-8 text-[#7B8FA5]" /></div>
                         <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No financial records yet</h3>
                         <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Add the purchase cost to start tracking total cost, book value and depreciation for this asset.</p>
-                        <button onClick={() => { setNewCost({ factor: 'Purchase', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
+                        <button onClick={() => { setNewCost({ factor: 'Purchase', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-2 px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
                       </div>
                     </div>
                   </div>
@@ -4522,7 +4522,7 @@ onStackMinimizedChange,
                   {/* Toolbar */}
                   <div className="flex items-center justify-between">
                     <h3 className="text-[15px] font-semibold text-[#364658]">Financials</h3>
-                    <button onClick={() => { setNewCost({ factor: '', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
+                    <button onClick={() => { setNewCost({ factor: '', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
                   </div>
                   {/* Hero metrics */}
                   <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
@@ -4549,10 +4549,10 @@ onStackMinimizedChange,
                         <span className="text-[11px] text-[#7B8FA5]">Book value over useful life</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setShowDeprLog(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                        <button onClick={() => setShowDeprLog(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
                           <Clock size={14} /> Log
                         </button>
-                        <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                        <button onClick={() => setShowConfigDepr(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[12px] font-medium hover:bg-[#F3F4F6] transition-colors">
                           <Settings2 size={14} /> Configure
                         </button>
                       </div>
@@ -4667,7 +4667,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Add Cost</h2>
-                    <button onClick={() => setShowAddCost(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowAddCost(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-4">
                     <div>
@@ -4675,7 +4675,7 @@ onStackMinimizedChange,
                       <select
                         value={newCost.factor}
                         onChange={(e) => setNewCost((c) => ({ ...c, factor: e.target.value }))}
-                        className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                        className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${newCost.factor ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                       >
                         <option value="">Select</option>
                         {['Purchase', 'Operation', 'Disposal', 'Repair', 'Upgrade', 'Other'].map((f) => <option key={f}>{f}</option>)}
@@ -4698,7 +4698,7 @@ onStackMinimizedChange,
                     </div>
                     <div>
                       <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
-                      <textarea value={newCost.description} onChange={(e) => setNewCost((c) => ({ ...c, description: e.target.value }))} placeholder="Description" className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                      <textarea value={newCost.description} onChange={(e) => setNewCost((c) => ({ ...c, description: e.target.value }))} placeholder="Description" className="w-full min-h-[110px] px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded resize-y placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
@@ -4708,11 +4708,11 @@ onStackMinimizedChange,
                         setCostRecords((prev) => [{ id: Date.now(), date: newCost.date, amount: parseFloat(newCost.amount) || 0, currency: newCost.currency, factor: newCost.factor, description: newCost.description }, ...prev]);
                         setShowAddCost(false);
                       }}
-                      className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Add
                     </button>
-                    <button onClick={() => setShowAddCost(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                    <button onClick={() => setShowAddCost(false)} className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                   </div>
                 </div>
               </>
@@ -4725,7 +4725,7 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Configure Depreciation</h2>
-                    <button onClick={() => setShowConfigDepr(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowConfigDepr(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
                     <div>
@@ -4751,7 +4751,7 @@ onStackMinimizedChange,
                           <select
                             value={deprConfig.method}
                             onChange={(e) => setDeprConfig((d) => ({ ...d, method: e.target.value }))}
-                            className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                            className={`app-select w-full px-3 py-2 text-[13px] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent ${deprConfig.method ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
                           >
                             <option value="">Select</option>
                             {['Straight Line', 'Declining Balance', 'Sum Of The Years Digit', 'Double Declining Balance'].map((m) => <option key={m}>{m}</option>)}
@@ -4790,8 +4790,8 @@ onStackMinimizedChange,
                     )}
                   </div>
                   <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
-                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
-                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] transition-colors">Update</button>
+                    <button onClick={() => setShowConfigDepr(false)} className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                   </div>
                 </div>
               </>
@@ -4804,10 +4804,10 @@ onStackMinimizedChange,
                 <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <h2 className="text-[18px] font-semibold text-[#111827]">Depreciation Log</h2>
-                    <button onClick={() => setShowDeprLog(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    <button onClick={() => setShowDeprLog(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                   </div>
                   <div className="flex items-center justify-end px-6 py-3 border-b border-[#E5E7EB] flex-shrink-0">
-                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
+                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">
                       Monthly <Filter size={14} className="text-[#7B8FA5]" />
                     </button>
                   </div>
@@ -4866,12 +4866,12 @@ onStackMinimizedChange,
                   <div className="fixed top-0 right-0 h-full w-[820px] max-w-[96vw] bg-white shadow-2xl z-[10001] flex flex-col">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                       <h2 className="text-[18px] font-semibold text-[#111827]">Add Baseline</h2>
-                      <button onClick={() => setShowAddBaseline(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                      <button onClick={() => setShowAddBaseline(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
                     </div>
                     <div className="px-6 py-4 flex-shrink-0">
                       <div className="relative max-w-[320px]">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                        <input type="text" placeholder="Search" value={baselineSearch} onChange={(e) => setBaselineSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
+                        <input type="text" placeholder="Search" value={baselineSearch} onChange={(e) => setBaselineSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent" />
                       </div>
                     </div>
                     <div className="flex-1 overflow-auto px-6">
@@ -4911,8 +4911,8 @@ onStackMinimizedChange,
                     </div>
                     <div className="px-6 py-3 text-[12px] text-[#7B8FA5] border-t border-[#E5E7EB] flex-shrink-0">Showing 1-{rows.length} of {rows.length} items</div>
                     <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
-                      <button onClick={confirmAdd} disabled={!selectedBaselineId} className="px-4 py-2 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
-                      <button onClick={() => setShowAddBaseline(false)} className="px-4 py-2 rounded-md border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                      <button onClick={confirmAdd} disabled={!selectedBaselineId} className="px-4 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#3578B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
+                      <button onClick={() => setShowAddBaseline(false)} className="px-4 py-2 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                     </div>
                   </div>
                 </>
@@ -4972,7 +4972,7 @@ onStackMinimizedChange,
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
+                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white w-[280px]">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -5015,7 +5015,7 @@ onStackMinimizedChange,
                     <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
                     <button
                       onClick={() => setShowOldMessages(!showOldMessages)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#6b7280] border border-[#DFE5ED] rounded-md transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#6b7280] border border-[#DFE5ED] rounded transition-colors"
                     >
                       {/* Overlapping Profile Icons */}
                       <div className="flex -space-x-2">
@@ -6617,7 +6617,7 @@ onStackMinimizedChange,
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
                       <div className="relative">
-                        <button onClick={() => { setHistDownloadOpen(false); setHistDraftFrom(histFrom); setHistDraftTo(histTo); setHistFilterOpen((o) => !o); }} title="Filter" className={`size-8 flex items-center justify-center rounded-md border transition-colors hover:bg-[#F3F4F6] ${histFrom || histTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}><Filter size={15} /></button>
+                        <button onClick={() => { setHistDownloadOpen(false); setHistDraftFrom(histFrom); setHistDraftTo(histTo); setHistFilterOpen((o) => !o); }} title="Filter" className={`size-8 flex items-center justify-center rounded border transition-colors hover:bg-[#F3F4F6] ${histFrom || histTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}><Filter size={15} /></button>
                         {histFilterOpen && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setHistFilterOpen(false)} />
@@ -6628,24 +6628,24 @@ onStackMinimizedChange,
                                 <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={histDraftTo} min={histDraftFrom || undefined} onChange={setHistDraftTo} /></div>
                               </div>
                               <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                                <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Clear</button>
-                                <button onClick={() => { setHistFrom(histDraftFrom); setHistTo(histDraftTo); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                                <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                                <button onClick={() => { setHistFrom(histDraftFrom); setHistTo(histDraftTo); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
                               </div>
                             </div>
                           </>
                         )}
                       </div>
                       <div className="relative">
-                        <button onClick={() => { setHistFilterOpen(false); setHistDownloadOpen((o) => !o); }} title="Download" className="size-8 flex items-center justify-center rounded-md border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
+                        <button onClick={() => { setHistFilterOpen(false); setHistDownloadOpen((o) => !o); }} title="Download" className="size-8 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
                         {histDownloadOpen && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setHistDownloadOpen(false)} />
                             <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
                               <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
-                              <div className="mb-4"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label><div className="inline-flex rounded-lg border border-[#DFE5ED] overflow-hidden">{['PDF', 'Excel', 'CSV'].map((ff) => (<button key={ff} onClick={() => setHistDlFormat(ff)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${histDlFormat === ff ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{ff}</button>))}</div></div>
+                              <div className="mb-4"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label><div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">{['PDF', 'Excel', 'CSV'].map((ff) => (<button key={ff} onClick={() => setHistDlFormat(ff)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${histDlFormat === ff ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{ff}</button>))}</div></div>
                               <div className="mb-3"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label><button onClick={() => setHistDlPw((v) => !v)} role="switch" aria-checked={histDlPw} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${histDlPw ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}><span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${histDlPw ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} /></button></div>
-                              {histDlPw && (<div className="mb-1"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label><div className="relative"><Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" /><input type={histShowPw ? 'text' : 'password'} value={histDlPassword} onChange={(e) => setHistDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded-md text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /><button onClick={() => setHistShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{histShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></div>)}
-                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]"><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded-md hover:bg-[#2F7AB8] transition-colors">Download</button><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Cancel</button></div>
+                              {histDlPw && (<div className="mb-1"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label><div className="relative"><Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" /><input type={histShowPw ? 'text' : 'password'} value={histDlPassword} onChange={(e) => setHistDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /><button onClick={() => setHistShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{histShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></div>)}
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]"><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button></div>
                             </div>
                           </>
                         )}
@@ -6832,14 +6832,14 @@ onStackMinimizedChange,
                       <div className="flex items-center justify-center gap-3">
                         <button 
                           onClick={() => setHasDiagnosis(true)}
-                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                         >
                           <Stethoscope className="size-4" />
                           Add Diagnosis
                         </button>
                         <button 
                           onClick={() => setHasSolution(true)}
-                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                          className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                         >
                           <Lightbulb className="size-4" />
                           Add Solution
@@ -7098,7 +7098,7 @@ onStackMinimizedChange,
                                   setHasDiagnosis(false);
                                 }
                               }}
-                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-xs font-medium"
                             >
                               Add
                             </button>
@@ -7377,7 +7377,7 @@ onStackMinimizedChange,
                                   setHasSolution(false);
                                 }
                               }}
-                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                              className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-xs font-medium"
                             >
                               Add
                             </button>
@@ -7409,7 +7409,7 @@ onStackMinimizedChange,
                         {!hasDiagnosis && !diagnosisData && (
                           <button 
                             onClick={() => setHasDiagnosis(true)}
-                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                           >
                             <Stethoscope className="size-4" />
                             Add Diagnosis
@@ -7418,7 +7418,7 @@ onStackMinimizedChange,
                         {!hasSolution && !solutionData && (
                           <button 
                             onClick={() => setHasSolution(true)}
-                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                           >
                             <Lightbulb className="size-4" />
                             Add Solution
@@ -7446,7 +7446,7 @@ onStackMinimizedChange,
                         Start building your service request by adding items from the catalog. Browse and select the products or services you need.
                       </p>
                       <button 
-                        className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                        className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                         onClick={() => {
                           setShowServiceCatalog(true);
                         }}
@@ -7491,7 +7491,7 @@ onStackMinimizedChange,
                         {/* Status Dropdown */}
                         <div className="relative" ref={serviceRequestStatusRef}>
                           <button
-                            className="hidden px-3 py-1.5 rounded-md text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
+                            className="hidden px-3 py-1.5 rounded text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
                             style={{ color: '#364658' }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -7643,7 +7643,7 @@ onStackMinimizedChange,
                       
                       {/* Add Item Button */}
                       <button 
-                        className="hidden mt-4 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1"
+                        className="hidden mt-4 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1"
                         onClick={() => {
                           setShowServiceCatalog(true);
                         }}
@@ -7685,7 +7685,7 @@ onStackMinimizedChange,
                   {/* Reply with AI - Primary Action with Dropdown */}
                   <div className="relative" ref={aiDropdownRef}>
                     <button 
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded hover:bg-[#F0F8FF] text-xs font-medium text-[#364658]"
                       style={{
                         background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
                         border: '2px solid transparent',
@@ -7731,26 +7731,26 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Secondary Actions */}
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                           onClick={handleReply}>
                     <Reply size={14} className="text-[#7B8FA5]" />
                     <span>Reply</span>
                   </button>
 
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                           onClick={handleForward}>
                     <Forward size={14} className="text-[#7B8FA5]" />
                     <span>Forward</span>
                   </button>
 
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                           onClick={handleCollaborate}>
                     <MessageSquare size={14} className="text-[#7B8FA5]" />
                     <span>Collaborate</span>
                   </button>
 
                   <button 
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                     onClick={handleNote}
                   >
                     <StickyNote size={14} className="text-[#7B8FA5]" />
@@ -8071,7 +8071,7 @@ onStackMinimizedChange,
                     placeholder="Search for a service item"
                     value={catalogSearchQuery}
                     onChange={(e) => setCatalogSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                    className="w-full pl-10 pr-4 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
                   />
                 </div>
               </div>
@@ -8553,7 +8553,7 @@ onStackMinimizedChange,
                       setShowCatalogItemDetails(false);
                       setSelectedCatalogItem(null);
                     }}
-                    className="flex-1 px-4 py-2.5 border border-[#DFE5ED] rounded-lg text-[14px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                    className="flex-1 px-4 py-2.5 border border-[#DFE5ED] rounded text-[14px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                   >
                     Cancel
                   </button>
@@ -8590,7 +8590,7 @@ onStackMinimizedChange,
                       setSelectedGraphics('Integrated GPU');
                       setSelectedColor('Space Gray');
                     }}
-                    className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded-lg text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
+                    className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
                   >
                     Add to Request
                   </button>
@@ -8713,13 +8713,13 @@ onStackMinimizedChange,
               value={addBarcodeValue}
               onChange={(e) => setAddBarcodeValue(e.target.value)}
               placeholder="Barcode"
-              className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+              className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
             />
 
             <div className="flex justify-end mt-4">
               <button
                 onClick={() => { setShowAddBarcodePopup(false); setAddBarcodeValue(''); }}
-                className="px-5 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2F7AB8] transition-colors"
+                className="px-5 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
               >
                 Update
               </button>
@@ -8771,7 +8771,7 @@ onStackMinimizedChange,
                     value={propertiesRelationSearchQuery}
                     onChange={(e) => setPropertiesRelationSearchQuery(e.target.value)}
                     placeholder="Search tickets..."
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+                    className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                   />
                 </div>
               </div>
@@ -8853,11 +8853,11 @@ onStackMinimizedChange,
                 <div className="max-w-[640px] space-y-4">
                   <div>
                     <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Subject / Name <span className="text-[#DC2626]">*</span></label>
-                    <input value={relationCreateSubject} onChange={(e) => setRelationCreateSubject(e.target.value)} placeholder={`Enter ${propertiesRelationType.toLowerCase()} subject`} className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors" />
+                    <input value={relationCreateSubject} onChange={(e) => setRelationCreateSubject(e.target.value)} placeholder={`Enter ${propertiesRelationType.toLowerCase()} subject`} className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Description</label>
-                    <textarea value={relationCreateDesc} onChange={(e) => setRelationCreateDesc(e.target.value)} rows={5} placeholder="Add a short description..." className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors resize-none" />
+                    <textarea value={relationCreateDesc} onChange={(e) => setRelationCreateDesc(e.target.value)} rows={5} placeholder="Add a short description..." className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors resize-none" />
                   </div>
                   <p className="text-[12px] text-[#9CA3AF]">A new {propertiesRelationType.toLowerCase()} will be created and linked to this record.</p>
                 </div>
@@ -8876,14 +8876,14 @@ onStackMinimizedChange,
                       setPropertiesRelationType('');
                       setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
                     }}
-                    className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                    className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={relationMode === 'create' ? handleCreateRelation : handleAddPropertiesRelations}
                     disabled={relationMode === 'create' ? !relationCreateSubject.trim() : selectedPropertiesRelationTickets.length === 0}
-                    className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {relationMode === 'create' ? 'Create & Link' : 'Add Relations'}
                   </button>

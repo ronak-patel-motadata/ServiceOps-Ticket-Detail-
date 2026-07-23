@@ -2840,7 +2840,7 @@ onStackActiveGroupChange,
                             placeholder="Search for users..."
                             value={assigneeSearchQuery}
                             onChange={(e) => setAssigneeSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                            className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -3043,7 +3043,7 @@ onStackActiveGroupChange,
                   {isDescriptionExpanded && (
                     <button 
                       onClick={() => setIsDescriptionExpanded(false)}
-                      className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[#DFE5ED] bg-[#F5F9FD] text-[13px] font-semibold text-[#3D8BD0] hover:bg-[#EBF3FB] hover:border-[#3D8BD0] transition-colors"
+                      className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded border border-[#DFE5ED] bg-[#F5F9FD] text-[13px] font-semibold text-[#3D8BD0] hover:bg-[#EBF3FB] hover:border-[#3D8BD0] transition-colors"
                     >
                       View less
                       <ChevronUp size={14} />
@@ -3118,7 +3118,7 @@ onStackActiveGroupChange,
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => { setRelationsTypeFilter(t.type); setActiveMainTab('relations'); }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#DFE5ED] bg-white hover:border-[#3D8BD0] hover:bg-[#F9FBFD] transition-colors text-[12px] font-medium text-[#364658]"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#DFE5ED] bg-white hover:border-[#3D8BD0] hover:bg-[#F9FBFD] transition-colors text-[12px] font-medium text-[#364658]"
                       >
                         <span className="flex items-center flex-shrink-0" style={{ color: t.color }}>
                           <Icon size={14} />
@@ -3378,7 +3378,7 @@ onStackActiveGroupChange,
                         background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
                         border: '1px solid transparent'
                       }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                      className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
                       <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Investigate with AI</span>
@@ -3390,7 +3390,7 @@ onStackActiveGroupChange,
                         }
                       }}
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                      className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
                       <Search size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Find similar tickets</span>
@@ -3402,7 +3402,7 @@ onStackActiveGroupChange,
                         }
                       }}
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
-                      className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                      className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
                       <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Suggest KB</span>
@@ -3540,13 +3540,13 @@ onStackActiveGroupChange,
                   <div className="flex items-center gap-2 relative">
                     {!showSubTabSearch ? (
                       <button 
-                        className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                        className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors"
                         onClick={() => setShowSubTabSearch(true)}
                       >
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white w-[280px]">
+                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white w-[280px]">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -3567,11 +3567,11 @@ onStackActiveGroupChange,
                         </button>
                       </div>
                     )}
-                    <button className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors">
+                    <button className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">
                       <Filter size={16} className="text-[#6b7280]" />
                     </button>
                     <button 
-                      className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                      className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors"
                       onClick={() => setIsSortedFromTop(!isSortedFromTop)}
                       title={isSortedFromTop ? 'Sort from bottom' : 'Sort from top'}
                     >
@@ -3589,7 +3589,7 @@ onStackActiveGroupChange,
                     <div className="flex-1 h-px rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.40) 100%)' }} />
                     <button
                       onClick={() => setShowOldMessages(!showOldMessages)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#6b7280] border border-[#DFE5ED] rounded-md transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#6b7280] border border-[#DFE5ED] rounded transition-colors"
                     >
                       {/* Overlapping Profile Icons */}
                       <div className="flex -space-x-2">
@@ -5235,7 +5235,7 @@ onStackActiveGroupChange,
                                 setHasSolution(false);
                               }
                             }}
-                            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded-lg hover:bg-[#2F7AB8] text-xs font-medium"
+                            className="px-4 py-1.5 bg-[#3D8BD0] text-white rounded hover:bg-[#2F7AB8] text-xs font-medium"
                           >
                             Add
                           </button>
@@ -5245,7 +5245,7 @@ onStackActiveGroupChange,
                   ) : (
                     <button
                       onClick={() => setHasSolution(true)}
-                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                     >
                       <Lightbulb className="size-4" />
                       Add Solution
@@ -5270,7 +5270,7 @@ onStackActiveGroupChange,
                         Start building your service request by adding items from the catalog. Browse and select the products or services you need.
                       </p>
                       <button 
-                        className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                        className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
                         onClick={() => {
                           setShowServiceCatalog(true);
                         }}
@@ -5315,7 +5315,7 @@ onStackActiveGroupChange,
                         {/* Status Dropdown */}
                         <div className="relative" ref={serviceRequestStatusRef}>
                           <button
-                            className="hidden px-3 py-1.5 rounded-md text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
+                            className="hidden px-3 py-1.5 rounded text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
                             style={{ color: '#364658' }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -5467,7 +5467,7 @@ onStackActiveGroupChange,
                       
                       {/* Add Item Button */}
                       <button 
-                        className="hidden mt-4 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1"
+                        className="hidden mt-4 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-1"
                         onClick={() => {
                           setShowServiceCatalog(true);
                         }}
@@ -5504,14 +5504,14 @@ onStackActiveGroupChange,
                     <div className="size-[24px] rounded bg-[#3D8BD0] flex items-center justify-center text-white text-xs font-semibold">SJ</div>
                   </button>
 
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                           onClick={handleCollaborate}>
                     <MessageSquare size={14} className="text-[#7B8FA5]" />
                     <span>Collaborate</span>
                   </button>
 
                   <button
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded-lg hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#DEE5ED] rounded hover:bg-[#F9FAFB] text-xs font-medium text-[#364658]"
                     onClick={handleNote}
                   >
                     <StickyNote size={14} className="text-[#7B8FA5]" />
@@ -5830,7 +5830,7 @@ onStackActiveGroupChange,
                     placeholder="Search for a service item"
                     value={catalogSearchQuery}
                     onChange={(e) => setCatalogSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                    className="w-full pl-10 pr-4 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
                   />
                 </div>
               </div>
@@ -6312,7 +6312,7 @@ onStackActiveGroupChange,
                       setShowCatalogItemDetails(false);
                       setSelectedCatalogItem(null);
                     }}
-                    className="flex-1 px-4 py-2.5 border border-[#DFE5ED] rounded-lg text-[14px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors"
+                    className="flex-1 px-4 py-2.5 border border-[#DFE5ED] rounded text-[14px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                   >
                     Cancel
                   </button>
@@ -6349,7 +6349,7 @@ onStackActiveGroupChange,
                       setSelectedGraphics('Integrated GPU');
                       setSelectedColor('Space Gray');
                     }}
-                    className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded-lg text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
+                    className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
                   >
                     Add to Request
                   </button>
@@ -6485,7 +6485,7 @@ onStackActiveGroupChange,
                     value={propertiesRelationSearchQuery}
                     onChange={(e) => setPropertiesRelationSearchQuery(e.target.value)}
                     placeholder="Search tickets..."
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+                    className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                   />
                 </div>
               </div>
@@ -6567,11 +6567,11 @@ onStackActiveGroupChange,
                 <div className="max-w-[640px] space-y-4">
                   <div>
                     <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Subject / Name <span className="text-[#DC2626]">*</span></label>
-                    <input value={relationCreateSubject} onChange={(e) => setRelationCreateSubject(e.target.value)} placeholder={`Enter ${propertiesRelationType.toLowerCase()} subject`} className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors" />
+                    <input value={relationCreateSubject} onChange={(e) => setRelationCreateSubject(e.target.value)} placeholder={`Enter ${propertiesRelationType.toLowerCase()} subject`} className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#6B7280] mb-1.5">Description</label>
-                    <textarea value={relationCreateDesc} onChange={(e) => setRelationCreateDesc(e.target.value)} rows={5} placeholder="Add a short description..." className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors resize-none" />
+                    <textarea value={relationCreateDesc} onChange={(e) => setRelationCreateDesc(e.target.value)} rows={5} placeholder="Add a short description..." className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors resize-none" />
                   </div>
                   <p className="text-[12px] text-[#9CA3AF]">A new {propertiesRelationType.toLowerCase()} will be created and linked to this record.</p>
                 </div>
@@ -6590,14 +6590,14 @@ onStackActiveGroupChange,
                       setPropertiesRelationType('');
                       setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
                     }}
-                    className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                    className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={relationMode === 'create' ? handleCreateRelation : handleAddPropertiesRelations}
                     disabled={relationMode === 'create' ? !relationCreateSubject.trim() : selectedPropertiesRelationTickets.length === 0}
-                    className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {relationMode === 'create' ? 'Create & Link' : 'Add Relations'}
                   </button>

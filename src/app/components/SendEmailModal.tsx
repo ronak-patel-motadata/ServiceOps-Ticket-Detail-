@@ -113,7 +113,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
           <h2 className="text-[18px] font-semibold text-[#111827]">Send Email</h2>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
             <X size={20} />
           </button>
         </div>
@@ -123,7 +123,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
           {/* Send Email To — type an email and press Enter or comma to add (multiple supported) */}
           <div>
             <label className="block text-[13px] text-[#4A5568] mb-1.5">Send Email To</label>
-            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[#DFE5ED] px-2 py-1.5 focus-within:border-[#3D8BD0] transition-colors">
+            <div className="flex flex-wrap items-center gap-1.5 rounded border border-[#DFE5ED] px-2 py-1.5 focus-within:border-[#3D8BD0] transition-colors">
               {recipients.map((em, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded bg-[#EFF3F8] text-[#364658] text-[12px] pl-2 pr-1 py-1">
                   {em}
@@ -163,7 +163,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
                 <select
                   value={techGroup}
                   onChange={(e) => setTechGroup(e.target.value)}
-                  className="w-full appearance-none px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0] bg-white"
+                  className="w-full appearance-none px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0] bg-white"
                 >
                   <option value="">Select</option>
                   {TECH_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -177,7 +177,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
                 <select
                   value={reqGroup}
                   onChange={(e) => setReqGroup(e.target.value)}
-                  className="w-full appearance-none px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0] bg-white"
+                  className="w-full appearance-none px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0] bg-white"
                 >
                   <option value="">Select</option>
                   {REQ_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -196,7 +196,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0]"
+              className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] focus:outline-none focus:border-[#3D8BD0]"
             />
           </div>
 
@@ -266,7 +266,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2C6B9F] transition-colors"
             >
               <Upload size={15} />
               Attach Files
@@ -274,7 +274,7 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
             {attachments.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {attachments.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-md border border-[#DFE5ED] bg-[#F8FAFC]">
+                  <div key={i} className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded border border-[#DFE5ED] bg-[#F8FAFC]">
                     <FileText size={14} className="text-[#3D8BD0] flex-shrink-0" />
                     <div className="flex flex-col leading-tight">
                       <span className="text-[12px] text-[#364658] max-w-[200px] truncate">{a.name}</span>
@@ -298,13 +298,13 @@ export function SendEmailModal({ isOpen, onClose, recordId, onSend }: SendEmailM
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
           <button
             onClick={handleSend}
-            className="px-5 py-2 bg-[#3D8BD0] text-white text-[14px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+            className="px-5 py-2 bg-[#3D8BD0] text-white text-[14px] font-medium rounded hover:bg-[#2C6B9F] transition-colors"
           >
             Send
           </button>
           <button
             onClick={onClose}
-            className="px-5 py-2 border border-[#DFE5ED] text-[#364658] text-[14px] font-medium rounded-lg hover:bg-[#F3F4F6] transition-colors"
+            className="px-5 py-2 border border-[#DFE5ED] text-[#364658] text-[14px] font-medium rounded hover:bg-[#F3F4F6] transition-colors"
           >
             Cancel
           </button>

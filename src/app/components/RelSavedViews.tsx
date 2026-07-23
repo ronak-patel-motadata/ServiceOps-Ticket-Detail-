@@ -130,7 +130,7 @@ export function RelSavedViews({ storageKey, capture, apply, reset }: RelSavedVie
         <TooltipTrigger asChild>
           <button
             onClick={() => setOpen((v) => !v)}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[13px] font-medium transition-colors ${activeView ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${activeView ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
           >
             <Bookmark size={14} className={activeView ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
             <span className="max-w-[140px] truncate">{activeView?.name ?? 'Views'}</span>
@@ -217,12 +217,12 @@ export function RelSavedViews({ storageKey, capture, apply, reset }: RelSavedVie
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveCurrent(); }}
                     placeholder="View name..."
-                    className="flex-1 min-w-0 px-2.5 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                    className="flex-1 min-w-0 px-2.5 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
                   />
                   <button
                     onClick={saveCurrent}
                     disabled={!name.trim()}
-                    className="px-3 py-1.5 rounded-md bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1.5 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Save
                   </button>

@@ -50,7 +50,7 @@ export function RelSliderRow({ label, info, min, max, step, value, onChange }: {
           step={step}
           value={value}
           onChange={(e) => { const v = +e.target.value; if (!Number.isNaN(v)) onChange(Math.min(max, Math.max(min, v))); }}
-          className="w-[68px] h-8 px-2 border border-[#DFE5ED] rounded-md text-[13px] text-right text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+          className="w-[68px] h-8 px-2 border border-[#DFE5ED] rounded text-[13px] text-right text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
         />
       </div>
     </div>

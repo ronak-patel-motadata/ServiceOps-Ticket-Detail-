@@ -89,7 +89,7 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
           <h2 className="text-[18px] font-semibold text-[#111827]">{editingLog ? 'Edit Work Log' : 'Add Work Log'}</h2>
-          <button onClick={handleClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
+          <button onClick={handleClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
             <X size={20} />
           </button>
         </div>
@@ -172,7 +172,7 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
               onChange={(e) => setDescription(e.target.value)}
               rows={6}
               placeholder="Description"
-              className="w-full px-3 py-2 border border-[#DFE5ED] rounded-lg text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] resize-none transition-colors"
+              className="w-full px-3 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] resize-none transition-colors"
             />
           </div>
         </div>
@@ -181,13 +181,13 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
           <button
             onClick={handleAdd}
-            className="px-5 py-2 bg-[#3D8BD0] text-white text-[14px] font-medium rounded-lg hover:bg-[#2C6B9F] transition-colors"
+            className="px-5 py-2 bg-[#3D8BD0] text-white text-[14px] font-medium rounded hover:bg-[#2C6B9F] transition-colors"
           >
             {editingLog ? 'Update' : 'Add'}
           </button>
           <button
             onClick={handleClose}
-            className="px-5 py-2 border border-[#DFE5ED] text-[#364658] text-[14px] font-medium rounded-lg hover:bg-[#F3F4F6] transition-colors"
+            className="px-5 py-2 border border-[#DFE5ED] text-[#364658] text-[14px] font-medium rounded hover:bg-[#F3F4F6] transition-colors"
           >
             Cancel
           </button>

@@ -90,7 +90,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const { open: openInStack } = useDrawerStack();
 
   const handleOpenTicket = (ticket: Ticket) => {
-    openInStack('request', ticket.id, ticket.subject, ticket);
+    // INC-33 opens the SECOND design option of the detail page (TicketDrawerV2);
+    // every other ticket keeps the existing V1 TicketDrawer.
+    openInStack(ticket.id === 'INC-33' ? 'request-v2' : 'request', ticket.id, ticket.subject, ticket);
   };
 
   const handleCloseDrawer = () => {

@@ -283,7 +283,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
             <div className="relative @2xl:hidden" ref={sortDropdownRef}>
               <button
                 onClick={() => setShowTaskSortMenu(!showTaskSortMenu)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-[13px] font-medium text-[#364658]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors text-[13px] font-medium text-[#364658]"
                 title="Filter by type"
               >
                 <Filter size={14} className="text-[#6b7280]" />
@@ -320,7 +320,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
             <div className="hidden @2xl:flex items-center gap-2 flex-wrap min-w-0">
               <button
                 onClick={() => { setTypeFilter(null); onClearTypeFilter?.(); }}
-                className={`inline-flex items-center px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${!typeFilter ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                className={`inline-flex items-center px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${!typeFilter ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
               >
                 All
               </button>
@@ -328,7 +328,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 <button
                   key={type}
                   onClick={() => setTypeFilter(typeFilter === type ? null : type)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${typeFilter === type ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${typeFilter === type ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
                 >
                   {type}
                   <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${typeFilter === type ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>
@@ -340,7 +340,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {/* TODO: Implement create and relate functionality */}}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
@@ -349,7 +349,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
               </button>
               <button
                 onClick={() => setShowAddRelationDropdown(!showAddRelationDropdown)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
               >
                 <Plus size={16} />
                 Add Relation
@@ -425,7 +425,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   value={searchTicket}
                   onChange={(e) => setSearchTicket(e.target.value)}
                   placeholder="Enter ticket ID or search..."
-                  className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+                  className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                 />
               </div>
             </div>
@@ -437,14 +437,14 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   setSelectedType('');
                   setSearchTicket('');
                 }}
-                className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddRelation}
                 disabled={!selectedType || !searchTicket}
-                className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add
               </button>
@@ -468,7 +468,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={() => {/* TODO: Implement create and relate functionality */}}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
@@ -478,7 +478,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
               <div className="relative inline-block">
                 <button
                   onClick={() => setShowAddRelationDropdown(!showAddRelationDropdown)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
                 >
                   <Plus size={16} />
                   Add Relation
@@ -605,7 +605,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search tickets..."
-                  className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded-lg text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
+                  className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                 />
               </div>
 
@@ -695,14 +695,14 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                     setSelectedTickets([]);
                     setSelectedType('');
                   }}
-                  className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] transition-colors"
+                  className="px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddSelectedRelations}
                   disabled={selectedTickets.length === 0}
-                  className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-lg hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2E6BA4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Relations
                 </button>

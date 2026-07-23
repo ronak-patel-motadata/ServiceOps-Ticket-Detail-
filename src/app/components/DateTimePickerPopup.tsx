@@ -138,7 +138,7 @@ export function DateTimePickerPopup({
             type="time"
             value={`${pad(sel.getHours())}:${pad(sel.getMinutes())}`}
             onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); const d = new Date(sel); d.setHours(h || 0, m || 0); setSel(d); }}
-            className="border border-[#DFE5ED] rounded-md px-3 py-1.5 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0]"
+            className="border border-[#DFE5ED] rounded px-3 py-1.5 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0]"
           />
         </div>
       )}
@@ -147,7 +147,7 @@ export function DateTimePickerPopup({
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#F0F1F3]">
         <button onClick={() => { const n = new Date(); setSel(n); setViewM(n.getMonth()); setViewY(n.getFullYear()); }} className="text-[13px] font-medium text-[#364658] hover:text-[#3D8BD0] transition-colors">Now</button>
         {withTime && <button onClick={() => setShowTime((s) => !s)} className={`text-[13px] font-medium transition-colors ${showTime ? 'text-[#3D8BD0]' : 'text-[#364658] hover:text-[#3D8BD0]'}`}>Select Time</button>}
-        <button onClick={() => { onApply(sel); onClose(); }} className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded-md hover:bg-[#2F7AB8] transition-colors">OK</button>
+        <button onClick={() => { onApply(sel); onClose(); }} className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[13px] font-medium rounded hover:bg-[#2F7AB8] transition-colors">OK</button>
       </div>
       </div>
     </>,

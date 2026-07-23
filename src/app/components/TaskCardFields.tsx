@@ -112,7 +112,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
               setShowStatusDropdown(!showStatusDropdown);
             }}
             title="Status"
-            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded hover:bg-[#F5F7FA] transition-colors"
           >
             <div
               className="w-2 h-2 rounded-full flex-shrink-0"
@@ -157,7 +157,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
               setShowPriorityDropdown(!showPriorityDropdown);
             }}
             title="Priority"
-            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded hover:bg-[#F5F7FA] transition-colors"
           >
             <div
               className="w-2 h-2 rounded-full flex-shrink-0"
@@ -254,7 +254,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
               setShowAssigneeDropdown(!showAssigneeDropdown);
             }}
             title="Assignee"
-            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors max-w-[180px]"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded hover:bg-[#F5F7FA] transition-colors max-w-[180px]"
           >
             {task.assignee === 'Unassigned' ? (
               <div className="size-[16px] rounded-full border border-dashed border-[#9CA3AF] flex-shrink-0"></div>
@@ -282,7 +282,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
                     value={assigneeSearchQuery}
                     onChange={(e) => setAssigneeSearchQuery(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full pl-9 pr-3 py-1.5 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full pl-9 pr-3 py-1.5 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -352,7 +352,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
               setShowDateDropdown(!showDateDropdown);
             }}
             title="Start Date – Due Date"
-            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded-md hover:bg-[#F5F7FA] transition-colors"
+            className="inline-flex items-center gap-1.5 -ml-1.5 px-1.5 py-0.5 rounded hover:bg-[#F5F7FA] transition-colors"
           >
             <Calendar size={13} className="text-[#7B8FA5] flex-shrink-0" />
             <span className={`text-[13px] font-medium whitespace-nowrap ${task.startDate || task.endDate ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>

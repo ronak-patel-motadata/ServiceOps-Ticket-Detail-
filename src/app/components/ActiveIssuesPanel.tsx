@@ -51,7 +51,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
           <h2 className="text-[17px] font-semibold text-[#111827]">Active Issues <span className="text-[13px] font-normal text-[#7B8FA5]">— {assetName}</span></h2>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -59,7 +59,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setTab('All')}
-              className={`inline-flex items-center px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${tab === 'All' ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+              className={`inline-flex items-center px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${tab === 'All' ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
             >
               All
             </button>
@@ -68,7 +68,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
               <button
                 key={k}
                 onClick={() => setTab(k)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-colors ${tab === k ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${tab === k ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
               >
                 {k}
                 <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${tab === k ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>

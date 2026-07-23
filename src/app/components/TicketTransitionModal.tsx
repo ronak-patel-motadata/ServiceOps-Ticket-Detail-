@@ -130,7 +130,7 @@ function TimeDistribution({ segments, selected, onSelect }: { segments: Seg[]; s
             </>
           );
           return interactive ? (
-            <button key={i} onClick={() => onSelect!(s.label)} className={`flex items-center justify-between gap-3 text-left rounded-md -mx-1 px-1 py-1 hover:bg-[#F9FAFB] transition-all ${dim(s.label)}`}>{content}</button>
+            <button key={i} onClick={() => onSelect!(s.label)} className={`flex items-center justify-between gap-3 text-left rounded -mx-1 px-1 py-1 hover:bg-[#F9FAFB] transition-all ${dim(s.label)}`}>{content}</button>
           ) : (
             <div key={i} className="flex items-center justify-between gap-3 py-0.5">{content}</div>
           );
@@ -261,7 +261,7 @@ export function TicketTransitionModal({ isOpen, onClose, ticketId, penaltyAmount
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
           <h2 className="text-[17px] font-semibold text-[#111827]">Ticket Transition{ticketId ? `: ${ticketId}` : ''}</h2>
-          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+          <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 
         {/* Tabs — same style as the main ticket tabs (Conversation, Tasks, …) */}
@@ -366,7 +366,7 @@ export function TicketTransitionModal({ isOpen, onClose, ticketId, penaltyAmount
 
         {/* Footer */}
         <div className="flex items-center justify-end px-6 py-3 border-t border-[#E5E7EB] flex-shrink-0">
-          <button onClick={onClose} className="px-4 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded-md hover:bg-[#F5F7FA] transition-colors">Done</button>
+          <button onClick={onClose} className="px-4 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Done</button>
         </div>
       </div>
     </>

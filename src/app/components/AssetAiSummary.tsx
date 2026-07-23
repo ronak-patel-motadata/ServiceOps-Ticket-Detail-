@@ -53,7 +53,7 @@ export function AssetAiSummary({ summary, points = [], actions = [], onAction }:
                   } : {
                     background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)',
                   }}
-                  className="group flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
+                  className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                 >
                   <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                   <span>{a.label}</span>

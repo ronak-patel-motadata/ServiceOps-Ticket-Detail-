@@ -378,13 +378,13 @@ export function EditItemPopup({
         <div className="px-6 py-4 border-t border-[#E5E7EB] flex gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-white border border-[#DFE5ED] rounded-lg text-[14px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors"
+            className="flex-1 px-4 py-2.5 bg-white border border-[#DFE5ED] rounded text-[14px] font-medium text-[#364658] hover:bg-[#F5F7FA] transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onSave}
-            className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded-lg text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
+            className="flex-1 px-4 py-2.5 bg-[#3D8BD0] rounded text-[14px] font-medium text-white hover:bg-[#2C6B9F] transition-colors"
           >
             Save Changes
           </button>

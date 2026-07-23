@@ -71,7 +71,7 @@ export function ServiceRequestTabContent({
               Start building your service request by adding items from the catalog. Browse and select the products or services you need.
             </p>
             <button 
-              className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
               onClick={() => setShowServiceCatalog(true)}
             >
               <Plus className="size-4" />
@@ -114,7 +114,7 @@ export function ServiceRequestTabContent({
                     {/* Status Dropdown */}
                     <div className="relative" ref={serviceRequestStatusRef}>
                       <button
-                        className="px-3 py-1.5 rounded-md text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
+                        className="px-3 py-1.5 rounded text-[13px] font-medium flex items-center gap-2 transition-colors hover:opacity-80"
                         style={{ color: '#364658' }}
                         onClick={(e) => {
                           e.stopPropagation();

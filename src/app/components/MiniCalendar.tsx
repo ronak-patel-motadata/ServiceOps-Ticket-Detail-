@@ -110,14 +110,14 @@ export function MiniCalendar({ events = [], title = 'Change Calendar' }: MiniCal
             <div className="flex items-center gap-1">
               <button
                 onClick={() => goMonth(-1)}
-                className="size-7 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#F1F5F9] hover:text-[#364658] transition-colors"
+                className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F1F5F9] hover:text-[#364658] transition-colors"
                 title="Previous month"
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => goMonth(1)}
-                className="size-7 flex items-center justify-center rounded-md text-[#7B8FA5] hover:bg-[#F1F5F9] hover:text-[#364658] transition-colors"
+                className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F1F5F9] hover:text-[#364658] transition-colors"
                 title="Next month"
               >
                 <ChevronRight size={16} />

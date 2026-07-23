@@ -170,7 +170,7 @@ export function EditorSendActions({ onSend, onSaveDraft, showSaveDraft = true }:
       {showSaveDraft && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button onClick={onSaveDraft} className="flex size-8 items-center justify-center rounded-lg border border-[#DFE5ED] bg-white text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]">
+            <button onClick={onSaveDraft} className="flex size-8 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]">
               <Save size={15} />
             </button>
           </TooltipTrigger>
@@ -179,7 +179,7 @@ export function EditorSendActions({ onSend, onSaveDraft, showSaveDraft = true }:
       )}
       <Tooltip>
         <TooltipTrigger asChild>
-          <button onClick={onSend} className="flex size-8 items-center justify-center rounded-lg bg-[#3D8BD0] text-white transition-colors hover:bg-[#2F7AB8]">
+          <button onClick={onSend} className="flex size-8 items-center justify-center rounded bg-[#3D8BD0] text-white transition-colors hover:bg-[#2F7AB8]">
             <SendHorizontal size={15} />
           </button>
         </TooltipTrigger>

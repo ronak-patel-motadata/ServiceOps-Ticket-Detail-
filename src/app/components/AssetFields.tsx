@@ -320,7 +320,7 @@ const SearchBox = ({ value, onChange }: { value: string; onChange: (v: string) =
         autoFocus
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+        className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
       />
       <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
     </div>
@@ -439,7 +439,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
           onChange={(e) => updateExtra(label, e.target.value)}
           onBlur={() => setEditingField(null)}
           onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }}
-          className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+          className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
         />
       ) : (
         <div className="group/edit relative flex items-center">
@@ -631,7 +631,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
               onChange={(e) => updateExtra(label, e.target.value)}
               onBlur={() => setEditingField(null)}
               onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }}
-              className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+              className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
             />
           ) : (
             <div className="group/edit relative flex items-center">
@@ -718,7 +718,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
                           autoFocus
                           value={ownerSearch}
                           onChange={(e) => setOwnerSearch(e.target.value)}
-                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                         />
                         <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                       </div>
@@ -812,7 +812,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
               onChange={(e) => updateExtra(label, e.target.value)}
               onBlur={() => setEditingField(null)}
               onKeyDown={(e) => { if (e.key === 'Enter') setEditingField(null); }}
-              className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+              className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
             />
           ) : (
             <div className="group/edit relative flex items-center">
@@ -910,7 +910,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
                           autoFocus
                           value={ownerSearch}
                           onChange={(e) => setOwnerSearch(e.target.value)}
-                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                         />
                         <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                       </div>
@@ -1149,11 +1149,11 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
                     autoFocus
                     value={managerSearch}
                     onChange={(e) => setManagerSearch(e.target.value)}
-                    className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded-md placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                    className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                   <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                 </div>
-                <button className="flex-shrink-0 size-9 flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#3D8BD0] hover:bg-[#F3F4F6]" title="Filter">
+                <button className="flex-shrink-0 size-8 flex items-center justify-center rounded border border-[#E5E7EB] text-[#3D8BD0] hover:bg-[#F3F4F6]" title="Filter">
                   <Filter size={14} />
                 </button>
               </div>

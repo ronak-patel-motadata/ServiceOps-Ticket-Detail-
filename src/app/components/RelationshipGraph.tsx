@@ -634,7 +634,7 @@ function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setSho
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => { const open = !showLegend; setShowLegend(open); if (open) setShowMap(false); }} className={`flex size-8 items-center justify-center rounded-lg border shadow-sm transition-colors ${showLegend ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
+              <button onClick={() => { const open = !showLegend; setShowLegend(open); if (open) setShowMap(false); }} className={`flex size-8 items-center justify-center rounded border shadow-sm transition-colors ${showLegend ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
                 <List size={15} />
               </button>
             </TooltipTrigger>
@@ -642,7 +642,7 @@ function CanvasControls({ panBy, showMap, setShowMap, legend, showLegend, setSho
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => { const open = !showMap; setShowMap(open); if (open) setShowLegend(false); }} className={`flex size-8 items-center justify-center rounded-lg border shadow-sm transition-colors ${showMap ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
+              <button onClick={() => { const open = !showMap; setShowMap(open); if (open) setShowLegend(false); }} className={`flex size-8 items-center justify-center rounded border shadow-sm transition-colors ${showMap ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}>
                 <MapIcon size={15} />
               </button>
             </TooltipTrigger>

@@ -199,7 +199,7 @@ export function DrawerShortcuts(props: DrawerShortcutProps) {
           <div className="flex items-center gap-2 text-[15px] font-semibold text-[#111827]">
             <Keyboard size={17} className="text-[#3D8BD0]" /> Keyboard Shortcuts
           </div>
-          <button onClick={() => setShowHelp(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={18} /></button>
+          <button onClick={() => setShowHelp(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={18} /></button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto px-5 py-3">
           {SECTIONS.map((section, si) => (

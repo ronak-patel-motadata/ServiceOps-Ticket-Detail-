@@ -46,7 +46,7 @@ export function NotificationsPanel({ recordId, notifications, onSend, showSendEm
             </p>
             <button
               onClick={() => setShowSendEmail(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
             >
               <Mail size={15} />
               Send Email
@@ -134,7 +134,7 @@ export function NotificationsPanel({ recordId, notifications, onSend, showSendEm
                     <div className="text-[12px] text-[#7B8FA5] mb-1.5">Attachment:</div>
                     <div className="flex flex-col gap-1.5">
                       {n.attachments.map((a, i) => (
-                        <div key={i} className="group/att flex items-center gap-2 px-2 py-1.5 rounded-md border border-[#DFE5ED] bg-[#F8FAFC]">
+                        <div key={i} className="group/att flex items-center gap-2 px-2 py-1.5 rounded border border-[#DFE5ED] bg-[#F8FAFC]">
                           <FileText size={14} className="text-[#3D8BD0] flex-shrink-0" />
                           <div className="min-w-0 flex-1 leading-tight">
                             <div className="text-[12px] text-[#364658] truncate">{a.name}</div>

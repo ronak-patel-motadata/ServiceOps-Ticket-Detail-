@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { TicketDrawer } from './TicketDrawer';
+import { TicketDrawerV2 } from './TicketDrawerV2';
 import { ProblemDrawer } from './ProblemDrawer';
 import { ChangeDrawer } from './ChangeDrawer';
 import { ReleaseDrawer } from './ReleaseDrawer';
@@ -23,7 +24,7 @@ import { mockCis } from './CmdbListPage';
 import { DrawerShortcuts } from './DrawerShortcuts';
 
 export type StackModule =
-  | 'request' | 'problem' | 'change' | 'release'
+  | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
   | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches';
 
@@ -135,6 +136,8 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     } as any;
     switch (active.module) {
       case 'request': drawer = <TicketDrawer openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;
+      // V2 design option of the Ticket detail page — INC-33 routes here from the listing page.
+      case 'request-v2': drawer = <TicketDrawerV2 openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;
       case 'problem': drawer = <ProblemDrawer openProblems={[active.data]} activeProblemId={active.id} {...shared} />; break;
       case 'change': drawer = <ChangeDrawer openChanges={[active.data]} activeChangeId={active.id} {...shared} />; break;
       case 'release': drawer = <ReleaseDrawer openReleases={[active.data]} activeReleaseId={active.id} {...shared} />; break;

@@ -183,8 +183,8 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
                   <div className="absolute -top-1.5 right-2.5 size-3 bg-white border-l border-t border-[#DFE5ED] rotate-45" />
                   <p className="relative text-[12px] text-[#364658]">Are you sure, you want to delete this task?</p>
                   <div className="relative mt-2.5 flex items-center justify-end gap-2">
-                    <button onClick={() => setConfirmDeleteId(null)} className="px-2.5 py-1 border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded-md hover:bg-[#F3F4F6] transition-colors">Cancel</button>
-                    <button onClick={() => { onDeleteTask(task.id); setConfirmDeleteId(null); }} className="px-2.5 py-1 bg-[#E74C3C] text-white text-[12px] font-medium rounded-md hover:bg-[#C0392B] transition-colors">Delete</button>
+                    <button onClick={() => setConfirmDeleteId(null)} className="px-2.5 py-1 border border-[#DFE5ED] text-[#364658] text-[12px] font-medium rounded hover:bg-[#F3F4F6] transition-colors">Cancel</button>
+                    <button onClick={() => { onDeleteTask(task.id); setConfirmDeleteId(null); }} className="px-2.5 py-1 bg-[#E74C3C] text-white text-[12px] font-medium rounded hover:bg-[#C0392B] transition-colors">Delete</button>
                   </div>
                 </div>
               </>
@@ -209,7 +209,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
             </p>
             <button
               onClick={onAddTask}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
             >
               <Plus size={16} />
               Add Task
@@ -228,14 +228,14 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
         {/* Search Block */}
         {!isTaskSearchExpanded ? (
           <button
-            className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors"
+            className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors"
             title="Search"
             onClick={() => setIsTaskSearchExpanded(true)}
           >
             <Search size={16} />
           </button>
         ) : (
-          <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded-lg bg-white flex-1">
+          <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white flex-1">
             <Search size={16} className="text-[#7B8FA5]" />
             <input
               type="text"
@@ -261,7 +261,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
         <div className="relative task-sort-menu-container" ref={sortMenuRef}>
           <button
             onClick={() => setShowTaskSortMenu(!showTaskSortMenu)}
-            className={`size-9 flex items-center justify-center border rounded-lg transition-colors ${taskFilter !== 'all' ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658]'}`}
+            className={`size-8 flex items-center justify-center border rounded transition-colors ${taskFilter !== 'all' ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658]'}`}
             title="Filter tasks"
           >
             <Filter size={16} />
@@ -311,7 +311,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
         {/* Sort Icon (toggle task order, same icon as the Conversation tab) */}
         <button
           onClick={() => setTaskSortDesc((v) => !v)}
-          className="size-9 flex items-center justify-center border border-[#DFE5ED] rounded-lg text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors"
+          className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors"
           title={taskSortDesc ? 'Sort ascending' : 'Sort descending'}
         >
           <ArrowUpDown size={16} />
@@ -330,7 +330,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
         {/* Add Task Button */}
         <button
           onClick={onAddTask}
-          className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded-lg hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+          className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
         >
           <Plus size={16} />
           Add Task
