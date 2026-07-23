@@ -1,38 +1,37 @@
-# Handoff — 2026-07-23 17:10
+# Handoff — 2026-07-24 00:07
 
 ## Read first
-CLAUDE.md `## Key context`: the **six new Patch bullets** (Patch detail page / Overview / Endpoint / Vulnerabilities / **Superseded map** / Pagination) — the Superseded bullet documents the two React Flow gotchas you WILL hit if you touch that tab. Also the **Close-button standard**, **toast colors**, and **tooltip `text-balance`** bullets — they're product-wide conventions now. `SHORTCUTS.md` gained **§3 Patch Superseded map**.
+CLAUDE.md `## Structure` → the **Ticket detail V2** bullet (the V2-only rule lives there: "version 2" asks → `TicketDrawerV2.tsx` / `IncidentDetailsTabV2.tsx` ONLY, V1 is final), and `## Key context` → the new **Ticket detail V2 (INC-33 only)**, **Tab-strip overflow**, **Control height = 32px**, **Pagination min-items rule**, and **Onboarding tour is TICKET-page-only** bullets — those five are the durable output of this session.
 
 ## What we worked on this session
-Finished the Patch Overview KPI row (View-more links, single-type Affected Products, 50/50 preview cards with copy/download), then **rebuilt the Superseded tab three times by user direction** — flat timeline → static SVG tree → full **React Flow bidirectional supersedence map** with complete CMDB Dependency-Map parity (pan/zoom/d-pad/fit, expandable recursive children, fullscreen, expand-all, keyboard shortcuts + cheat sheet, measured hover cards, bus-label info tooltips). One `/publish` ran mid-session (commit `fc779d7`).
+Built the **Ticket detail page V2** (a full `TicketDrawer` clone opened only by INC-33 via the new `'request-v2'` DrawerStack module) and iterated it heavily per user direction: the new **Incident Details** tab, the slimmed V2 right panel, then several **product-wide consistency sweeps** (corner radius, 32px control height, tab-strip overflow, pagination threshold, onboarding scope). Published twice mid-session (`2ef4c4a`, `fe32899`).
 
 ## Completed
-- **Overview KPI cards:** bare chevrons → "View more ›" links; **only the link navigates** (cards are plain divs, hover border removed); Affected Products + Files are half-width (6-track grid, `col-span-3`) with the first 2 records inline + "+N more ›" (count moved out of the card body); Files rows have working **Copy link / Download** (also wired the File Details panel's inert buttons); `Language:` label added.
-- **Affected Products single-type:** `PATCH_AFFECTED_PRODUCTS` is now all-OS (10 Windows editions); panel states the type once in its header; row badges / split bar auto-return only if data ever mixes.
-- **Superseded tab (`PatchSupersededTab`, fully rewritten):** center patch card, Superseded By UP (green) / Superseded DOWN (gray), rectangle nodes w/ KB + shortTitle + build inside, elbow edges, recursive deterministic children (`buildTrees`, depth 3) with count badges — click expands + zoom-focuses, **minus badge is the only collapse**; tidy-tree layout; toolbar search (highlight/dim) + Expand/Collapse-all + Fullscreen (fixed overlay + refit signal); d-pad/zoom/fit/keyboard-popup canvas controls; canvas keys ↑↓←→ +− F R, tab keys Ctrl+F / Ctrl+Shift+F / E; CMDB-style hover card with `useLayoutEffect` height re-measure; bus labels got Info-icon tooltips (copy rewritten for the tree design — no more "This tab…").
-- **Published mid-session** (`fc779d7`): everything up to the Language-label change is live. Verified by polling for the new bundle hash, not just HTTP 200.
-- `SHORTCUTS.md` §3 added; CLAUDE.md gained the Patch module documentation (Structure bullet + 10 Key-context bullets).
+- **V2 clone + routing**: `TicketDrawerV2.tsx` (data-v2 marker), `'request-v2'` in `DrawerStack`, `TicketListPage.handleOpenTicket` branches on `INC-33`. V1 verified untouched at clone time.
+- **Incident Details tab** (`IncidentDetailsTabV2.tsx`): sticky pill/search/filter toolbar; pills = smooth-scroll anchors + scroll-spy (both sections in ONE scroll); functional search + All/Empty/Filled/Required filter across both sections; Ticket Fields card (7 quick fields SHARING drawer state with the right panel + moved Category/Department/Source/Location/Vendor/Support Level + full-width Tags chip editor with focus-on-Add + 2-col System Fields w/ small-view stacking); Additional Fields card (built-ins + Description + 50+ grouped custom fields, `mt-8 pt-6` separators); 16px card titles.
+- **V2 right panel** (opt-in props `compactTicketFields`/`hideAdditionalFields` + `SystemFieldsRenderer twoColumn`/`hidePin`): only the 7 quick fields; removed Additional Fields accordion (own storage key), field search/filter row, pin icons (12 gated in `TicketFieldsAccordion`), Customize Layout, and the pin/search/filter hints card.
+- **Consistency sweeps (ALL modules, explicit user instruction — V1 included)**: ~1,090 controls to `rounded` 4px; ~62 controls from 36px → 32px (`h-8`); tab-strip `overflow-x-clip` + computed `moreButtonWidth` (widest label + 24) in all 14 drawers; V2 overflow detection un-gated + badge-inclusive tab widths; `Pagination` hides at ≤10 items (central rule); onboarding auto-open disabled in the 12 non-ticket drawers; Patch Affected Products panel type moved to per-row sub-line.
+- **Published**: everything through `fe32899` is live; work after it (pin/hints/Customize removals, onboarding scope, pagination rule, affected-products sub-line) builds clean (`index-BALwbT2f.js`) but is **NOT yet pushed**.
 
 ## In progress
-Nothing mid-flight. Everything builds (`npm run build` clean, last bundle `index-DYC7gVQp.js`).
+Nothing mid-flight. `npm run build` clean.
 
 ## Next steps
-- **Publish** — all Superseded-map work after `fc779d7` (React Flow rebuild, cards-in-nodes, expand/collapse, fullscreen, shortcuts, hover cards, tooltips) is **unpublished**; live URL still serves the older build.
-- Optional pagination coverage (user chose "auto-hide when it fits", never answered whether to continue): wrap License (Allocation/Installation/User Allocation/Attachments), Purchase (Items, Settlements), Software Asset (Consolidated/Installation), and the ~40 History tables in `Paginated`.
-- Flagged cleanups in PatchDrawer: unused `AssetAiSummary` import, unused `showBarcodeMenu`/`showQrMenu` state; right-panel "Patch Category: Updates" / "KB Number: ---" hardcodes can disagree with the header chips.
+- **Publish** the unpushed tail (everything after `fe32899` — V2 panel removals, onboarding scoping, pagination threshold, affected-products sub-line).
+- Await the user's next V2 iteration on INC-33 — remember the saved memory rule (`ticket-v2-changes-only`): drawer edits in `TicketDrawerV2.tsx`, shared-panel divergence via opt-in props only.
+- Still-optional older items: remaining `Paginated` coverage (License/Purchase/Software-Asset/History tables), PatchDrawer cleanups (unused `AssetAiSummary` import, barcode/QR state), right-panel Patch Fields hardcodes vs header chips.
 
 ## Decisions made
-- **Superseded node color = direction, not severity** (green = newer/Superseded By, gray = older/Superseded); severity kept in the hover card only.
-- **Click never collapses** a node (expand + zoom-focus only); collapse is minus-badge-only — matches CMDB map.
-- Built a purpose-built React Flow canvas instead of reusing `RelationshipGraph` (it can only fan children downward; supersedence needs both directions).
-- Long patch titles → nodes show `shortTitle()` (release month + type, boilerplate stripped); full title in hover card.
-- Fixed `text-balance` blank-space at the two call sites, NOT in the shared tooltip component (global change would reflow every reviewed tooltip).
+- V2 = drawer-file-only clone (user-confirmed); shared components diverge via opt-in props, never direct edits.
+- Incident Details pills are scroll ANCHORS (user changed from separate sub-tab views to one continuous scroll).
+- Consistency sweeps intentionally include V1 — the user's explicit "check all module detail pages" instructions supersede the V2-only rule for product-wide polish (told the user each time).
+- Pagination threshold = 10 because it's the smallest per-page option (no possible page 2 at ≤10).
+- More button reserves the widest label because it RELABELS to the selected overflow tab.
 
 ## Gotchas & notes
-- **React Flow v12 pointer-events trap:** non-draggable + non-selectable nodes are click-transparent unless a canvas-level `onNodeClick` is registered. Card-level onClick alone silently never fires (also kills hover tooltips). Handle clicks at canvas level; badge buttons `stopPropagation` to avoid double-toggles.
-- **Map tab must not scroll:** PatchDrawer's content wrapper conditionally becomes `flex-1 min-h-0 overflow-hidden flex flex-col` for `activeMainTab === 'superseded'` — using `h-full` inside the scroller over-resolved and clipped the bottom d-pad.
-- React Flow does NOT refit on container resize — fullscreen toggle needs the explicit `fitSignal` refit.
-- Hover-card placement needs real measured height (`useLayoutEffect`) — fixed estimates break on wrapped titles and the card overlaps its node.
-- Shared `TooltipContent` has `text-balance`; override with `text-wrap` (tailwind-merge) when tooltip text wraps.
-- Scripts in `PatchSupersededTab` use explicit-arg `new Date(y,m,d)` (fine) — argless Date/`Math.random` are banned in Workflow scripts only, but the mock chain is hash-deterministic anyway so renders are stable.
-- `gh` CLI is **not logged in** on this machine — `/publish` works because git push uses the Windows credential manager; `gh auth login` needed only for Actions debugging.
+- **Sticky + `space-y`**: the Incident Details toolbar required moving `space-y-5` off the root onto a content wrapper (Tailwind v4 margin-bottom clamps the sticky pin).
+- **`AuditTrailsTabContent` styles via a const string (`iconBtn`)** — className-matching sweeps miss it; also regex `\bh-\[36px\]\b` NEVER matches (no word boundary after `]`) — a whole sweep pass silently no-oped until caught.
+- React Flow v12: non-draggable+non-selectable nodes need a canvas-level `onNodeClick` for pointer events (Superseded map, documented in CLAUDE.md).
+- V2 tab overflow was dead because the V1 clone gated it to INC-35; also tab width estimates MUST include count badges.
+- `Pagination` has no hooks, so its `totalItems <= 10 → null` early return is safe.
+- `gh` CLI not logged in on this machine; pushes work via Windows credential manager.

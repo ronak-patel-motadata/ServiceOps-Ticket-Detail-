@@ -1991,8 +1991,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           return null;
         })}
 
-        {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder) */}
-        {!patchMode && (
+        {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder)
+            and in V2 compact mode (the slim panel isn't meant to be reconfigured) */}
+        {!patchMode && !compactTicketFields && (
         <div className="px-4 mx-[0px] mt-6 mb-5">
           <button
             onClick={() => setShowCustomizeModal(true)}
@@ -2009,7 +2010,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="border-t border-[#E5E7EB]"></div>
         </div>
 
-        {/* Info Section - Features Available */}
+        {/* Info Section - Features Available. Hidden in V2 compact mode — pin/search/filter
+            were all removed from the V2 panel, so the hints would describe nothing. */}
+        {!compactTicketFields && (
         <div className="mt-4 px-0">
           <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
             <div className="flex items-start gap-2">
@@ -2035,6 +2038,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
           </div>
         </div>
+        )}
           </div>
         )}
 
@@ -2586,21 +2590,12 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         )}
 
         {/* Affected Products Group Content (Patch page only) — the OS editions (or the application)
-            this patch affects. A patch is always one or the other, so when every entry shares a
-            type it is stated ONCE in the header instead of repeating an identical row badge. */}
-        {activeGroup === 'affected-products' && (() => {
-          const productTypes = Array.from(new Set(PATCH_AFFECTED_PRODUCTS.map((p) => p.type)));
-          const singleType = productTypes.length === 1 ? productTypes[0] : null;
-          return (
+            this patch affects. The type shows as a sub-line under each product name, matching the
+            Overview tab's Affected Products preview rows. */}
+        {activeGroup === 'affected-products' && (
           <div className="space-y-2">
             <div className="text-[13px] text-[#7B8FA5] mb-1">
               <span className="font-medium text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected
-              {singleType && (
-                <>
-                  <span className="mx-1.5 text-[#CBD5E1]">·</span>
-                  <span className="inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{singleType}</span>
-                </>
-              )}
             </div>
             {PATCH_AFFECTED_PRODUCTS.map((p) => (
               <div key={p.name} className="flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
@@ -2609,15 +2604,12 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-medium text-[#364658] break-words">{p.name}</div>
+                  <div className="mt-0.5 text-[11px] text-[#7B8FA5]">{p.type}</div>
                 </div>
-                {!singleType && (
-                  <span className="flex-shrink-0 inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475467]">{p.type}</span>
-                )}
               </div>
             ))}
           </div>
-          );
-        })()}
+        )}
 
         {/* File Details Group Content (Patch page only) — the files that make up this patch */}
         {activeGroup === 'file-details' && (

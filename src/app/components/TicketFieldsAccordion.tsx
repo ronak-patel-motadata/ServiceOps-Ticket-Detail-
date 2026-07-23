@@ -511,6 +511,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>Status</span>
+              {!compactTicketFields && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -527,6 +528,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   {pinnedFields.includes('Status') ? 'Unpin this field' : 'Pin this field on top'}
                 </TooltipContent>
               </Tooltip>
+              )}
             </div>
             <div className="group relative flex-1" ref={statusDropdownRef}>
               <div
@@ -588,6 +590,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>Priority</span>
+              {!compactTicketFields && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -604,6 +607,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   {pinnedFields.includes('Priority') ? 'Unpin this field' : 'Pin this field on top'}
                 </TooltipContent>
               </Tooltip>
+              )}
             </div>
             <div className="group relative flex-1" ref={priorityDropdownRef}>
               <div className="absolute left-3 top-1/2 -translate-y-1/2 flex gap-0.5 pointer-events-none z-10">
@@ -658,6 +662,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>Assignee</span>
+              {!compactTicketFields && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -674,6 +679,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   {pinnedFields.includes('Assignee') ? 'Unpin this field' : 'Pin this field on top'}
                 </TooltipContent>
               </Tooltip>
+              )}
             </div>
             <div className="group relative flex-1" ref={assigneeDropdownRef}>
               <button
@@ -764,6 +770,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>Technician Group</span>
+              {!compactTicketFields && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -780,6 +787,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   {pinnedFields.includes('Technician Group') ? 'Unpin this field' : 'Pin this field on top'}
                 </TooltipContent>
               </Tooltip>
+              )}
             </div>
             <div className="group relative flex-1" ref={techGroupDropdownRef}>
               <button
@@ -833,7 +841,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Urgency</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Urgency'); }}
@@ -849,6 +858,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Urgency') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={urgencyDropdownRef}>
                   <div 
@@ -893,7 +903,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Impact</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Impact'); }}
@@ -909,6 +920,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Impact') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={impactDropdownRef}>
                   <div 
@@ -1011,7 +1023,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Category</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Category'); }}
@@ -1027,6 +1040,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Category') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={categoryDropdownRef}>
                   <button
@@ -1062,7 +1076,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Department</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Department'); }}
@@ -1078,6 +1093,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Department') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={departmentDropdownRef}>
                   <button
@@ -1113,7 +1129,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Source</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Source'); }}
@@ -1129,6 +1146,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Source') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={sourceDropdownRef}>
                   <button
@@ -1164,7 +1182,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Location</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Location'); }}
@@ -1180,6 +1199,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Location') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={locationDropdownRef}>
                   <button
@@ -1215,7 +1235,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Vendor</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Vendor'); }}
@@ -1231,6 +1252,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Vendor') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={vendorDropdownRef}>
                   <button
@@ -1266,7 +1288,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Support Level</span>
-                  <Tooltip>
+                  {!compactTicketFields && (
+              <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePinField('Support Level'); }}
@@ -1282,6 +1305,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                       {pinnedFields.includes('Support Level') ? 'Unpin this field' : 'Pin this field on top'}
                     </TooltipContent>
                   </Tooltip>
+              )}
                 </div>
                 <div className="group relative flex-1" ref={supportLevelDropdownRef}>
                   <button

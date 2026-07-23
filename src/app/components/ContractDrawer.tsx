@@ -978,7 +978,7 @@ onStackMinimizedChange,
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (!hasSeenOnboarding && activeTicketId) {
       setActiveGroup('properties'); // Open ticket properties by default for first-time users
-      setTimeout(() => setShowOnboarding(true), 500);
+      /* first-visit tour is TICKET-page-only — other detail pages never auto-open it */
     }
   }, [activeTicketId]);
 

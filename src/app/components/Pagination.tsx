@@ -31,6 +31,9 @@ export function Pagination({
   onPageChange,
   onItemsPerPageChange,
 }: PaginationProps) {
+  // 10 or fewer items never need paging — hide the whole bar (product rule: pagination
+  // appears only when there are MORE than 10 items, i.e. the smallest page size).
+  if (totalItems <= 10) return null;
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
   const pages = buildPages(currentPage, totalPages);

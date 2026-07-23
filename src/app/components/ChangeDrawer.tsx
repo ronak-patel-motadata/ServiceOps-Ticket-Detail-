@@ -1335,7 +1335,7 @@ onStackActiveGroupChange,
     const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
     if (!hasSeenOnboarding && activeChangeId) {
       setActiveGroupLocal('properties'); // local-only default (never clobbers persisted group)
-      setTimeout(() => setShowOnboarding(true), 500);
+      /* first-visit tour is TICKET-page-only — other detail pages never auto-open it */
     }
   }, [activeChangeId]);
 
