@@ -1411,7 +1411,7 @@ onStackActiveGroupChange,
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
       const gap = 10; // gap-2.5 = 10px
-      const moreButtonWidth = 80; // Approximate width of "More" button with icon
+      // moreButtonWidth is computed after tabWidths below — the More button relabels to the
       
       // Approximate widths for each tab (in pixels)
       const tabWidths: Record<string, number> = {
@@ -1424,6 +1424,9 @@ onStackActiveGroupChange,
         'resolution': 90
       };
 
+      // SELECTED overflow tab's name, so it must reserve the WIDEST possible label + chevron,
+      // not just the word "More" — otherwise picking a long tab from the dropdown re-overflows the row.
+      const moreButtonWidth = Math.max(90, ...allTabs.map((t) => tabWidths[t] || 80)) + 24;
       const availableWidth = containerWidth - paddingLeft - paddingRight;
       let currentWidth = 0;
       const visible: string[] = [];
@@ -3788,7 +3791,7 @@ onStackActiveGroupChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative">
+              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'service-request', label: 'Service Request', condition: activeChange?.id === 'CHG-976' },

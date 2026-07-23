@@ -960,31 +960,32 @@ onStackActiveGroupChange,
         }
       }
 
-      // Only apply overflow detection for INC-35
-      if (activeTicket?.id !== 'INC-35') {
-        setVisibleTabs(allTabs);
-        setOverflowTabs([]);
-        return;
-      }
-
+      // V2: overflow detection runs for EVERY ticket. (V1 gated it to INC-35 — the only V1
+      // ticket wide enough to overflow — but the added Incident Details tab makes INC-33
+      // overflow in small view too, so the "More" dropdown must always be available.)
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
       const paddingRight = 24;
       const gap = 10; // gap-2.5 = 10px
-      const moreButtonWidth = 80; // Approximate width of "More" button with icon
+      // moreButtonWidth is computed after tabWidths below — the More button relabels to the
       
-      // Approximate widths for each tab (in pixels)
+      // Approximate widths for each tab (in pixels) — INCLUDING the count badges that
+      // Conversation/Tasks/Approvals render (~26-30px each); underestimating these made the
+      // "visible" set exceed the container and reintroduced horizontal scroll in small view.
       const tabWidths: Record<string, number> = {
         'service-request': 130,
-        'conversation': 105,
+        'conversation': 140,
         'incident-details': 125,
-        'tasks': 60,
-        'approvals': 85,
+        'tasks': 95,
+        'approvals': 120,
         'relations': 80,
-        'audit': 100,
-        'resolution': 90
+        'audit': 105,
+        'resolution': 95
       };
 
+      // SELECTED overflow tab's name, so it must reserve the WIDEST possible label + chevron,
+      // not just the word "More" — otherwise picking a long tab from the dropdown re-overflows the row.
+      const moreButtonWidth = Math.max(90, ...allTabs.map((t) => tabWidths[t] || 80)) + 24;
       const availableWidth = containerWidth - paddingLeft - paddingRight;
       let currentWidth = 0;
       const visible: string[] = [];
@@ -3045,9 +3046,11 @@ onStackActiveGroupChange,
               )}
             </div>
 
-            {/* Tabs: Conversation, Task, etc. */}
+            {/* Tabs: Conversation, Task, etc. — overflow-x-clip so a width-estimate drift can
+                never widen the page into horizontal scroll (clip, NOT hidden/auto: y stays
+                visible so the More dropdown still escapes downward) */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative">
+              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },

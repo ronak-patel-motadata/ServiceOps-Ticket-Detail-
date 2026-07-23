@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Plus, Search, Filter, Check } from 'lucide-react';
 import {
   statusOptions, priorityOptions, assigneeOptions, techGroupOptions, urgencyOptions, impactOptions,
@@ -53,9 +53,16 @@ export function IncidentDetailsTabV2({
     if (t && !tags.includes(t)) setTags([...tags, t]);
     setTagInput('');
   };
-  // Sub-tab pills (Relations-tab design, no counts): Ticket Fields = ticket + system fields;
-  // Additional Fields = built-in form fields + Description + the grouped custom fields.
+  // Sub-tab pills (Relations-tab design, no counts) are SCROLL ANCHORS, not switches: both
+  // sections render in one continuous scroll; clicking a pill smooth-scrolls to its section,
+  // and a scroll-spy keeps the active pill in sync while the user scrolls freely.
   const [activeSection, setActiveSection] = useState<'ticket' | 'additional'>('ticket');
+  const ticketSecRef = useRef<HTMLDivElement>(null);
+  const additionalSecRef = useRef<HTMLDivElement>(null);
+  const scrollToSection = (id: 'ticket' | 'additional') => {
+    setActiveSection(id);
+    (id === 'ticket' ? ticketSecRef : additionalSecRef).current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   // Field search — filters the labels of whichever sub-tab is active.
   const [fieldSearch, setFieldSearch] = useState('');
   const fq = fieldSearch.trim().toLowerCase();
@@ -179,6 +186,23 @@ export function IncidentDetailsTabV2({
     </div>
   );
 
+  // Scroll-spy: highlight whichever section the user has scrolled to (the drawer's content
+  // area is the nearest scrollable ancestor). 150px threshold ≈ the sticky strip + toolbar.
+  useEffect(() => {
+    const target = additionalSecRef.current;
+    if (!target) return;
+    let parent: HTMLElement | null = target.parentElement;
+    while (parent && parent.scrollHeight <= parent.clientHeight + 4) parent = parent.parentElement;
+    if (!parent) return;
+    const scroller = parent;
+    const onScroll = () => {
+      const offset = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      setActiveSection(offset <= 150 ? 'additional' : 'ticket');
+    };
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [anyTicketMatch, anyAdditionalMatch]);
+
   return (
     // @container: the System Fields rows stack label-over-value when the DRAWER is narrow
     // (container query — responds to the drawer width, not the viewport).
@@ -192,7 +216,7 @@ export function IncidentDetailsTabV2({
         {([['ticket', 'Ticket Fields'], ['additional', 'Additional Fields']] as const).map(([id, label]) => (
           <button
             key={id}
-            onClick={() => setActiveSection(id)}
+            onClick={() => scrollToSection(id)}
             className={`inline-flex items-center px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${activeSection === id ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
           >
             {label}
@@ -244,11 +268,12 @@ export function IncidentDetailsTabV2({
       <div className="space-y-5 pt-2">
       {/* Ticket Fields — ONE card: the same 7 quick fields as the right panel (drawer-owned
           state, so both stay in sync) PLUS the fields moved out of the panel (Category /
-          Department / Source / Location / Vendor / Support Level). Tags spans the full width. */}
-      {activeSection === 'ticket' && !anyTicketMatch && noMatches}
-      {activeSection === 'ticket' && anyTicketMatch && (
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
-        <h3 className="mb-4 text-[14px] font-semibold text-[#364658]">Ticket Fields</h3>
+          Department / Source / Location / Vendor / Support Level). Tags spans the full width.
+          scroll-mt clears the sticky tab strip + toolbar when a pill anchors here. */}
+      {!anyTicketMatch && !anyAdditionalMatch && noMatches}
+      {anyTicketMatch && (
+      <div ref={ticketSecRef} className="scroll-mt-[112px] rounded-lg border border-[#E5E7EB] bg-white p-5">
+        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Ticket Fields</h3>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
           {controlledSelect('Status', selectedStatus, setSelectedStatus, statusOptions)}
           {controlledSelect('Priority', selectedPriority, setSelectedPriority, priorityOptions)}
@@ -318,11 +343,11 @@ export function IncidentDetailsTabV2({
       </div>
       )}
 
-      {/* Additional Fields — built-in form fields + Description + grouped custom fields */}
-      {activeSection === 'additional' && !anyAdditionalMatch && noMatches}
-      {activeSection === 'additional' && anyAdditionalMatch && (
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
-        <h3 className="mb-4 text-[14px] font-semibold text-[#364658]">Additional Fields</h3>
+      {/* Additional Fields — built-in form fields + Description + grouped custom fields.
+          Rendered in the SAME scroll as Ticket Fields; the pill anchors here. */}
+      {anyAdditionalMatch && (
+      <div ref={additionalSecRef} className="scroll-mt-[112px] rounded-lg border border-[#E5E7EB] bg-white p-5">
+        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Additional Fields</h3>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
           {selectField('Project Name', projectNameOptions)}
           {selectField('Cost Center', costCenterOptions)}
