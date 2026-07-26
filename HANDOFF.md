@@ -1,37 +1,44 @@
-# Handoff — 2026-07-24 00:07
+# Handoff — 2026-07-26 21:35
 
 ## Read first
-CLAUDE.md `## Structure` → the **Ticket detail V2** bullet (the V2-only rule lives there: "version 2" asks → `TicketDrawerV2.tsx` / `IncidentDetailsTabV2.tsx` ONLY, V1 is final), and `## Key context` → the new **Ticket detail V2 (INC-33 only)**, **Tab-strip overflow**, **Control height = 32px**, **Pagination min-items rule**, and **Onboarding tour is TICKET-page-only** bullets — those five are the durable output of this session.
+CLAUDE.md `## Structure` → the **Patches / Patch Deployments / Endpoints** bullets (three real pages under the Patch sidebar flyout now), and `## Key context` → the new **Patch Deployment detail page**, **Endpoint detail page**, **Ticket Fields show 7 upfront**, **Tags chip row**, and **ServiceOps AI welcome is module-aware** bullets — those are the durable output of this session. The V2 rule still stands ("version 2" asks → `TicketDrawerV2.tsx` only).
 
 ## What we worked on this session
-Built the **Ticket detail page V2** (a full `TicketDrawer` clone opened only by INC-33 via the new `'request-v2'` DrawerStack module) and iterated it heavily per user direction: the new **Incident Details** tab, the slimmed V2 right panel, then several **product-wide consistency sweeps** (corner radius, 32px control height, tab-strip overflow, pagination threshold, onboarding scope). Published twice mid-session (`2ef4c4a`, `fe32899`).
+Built the **Patch Deployment module** (listing + heavily customized drawer clone) and the **Endpoints module** (listing + drawer clone that then diverged substantially: Patches tab, Deployment tab with Patch/Package/Registry, endpoint right panel, endpoint header KPIs). Also product-wide field polish: 7 upfront ticket fields, Tags rows across asset/procurement/patch accordions, module-aware ServiceOps AI suggestions, module-specific audit trails.
 
 ## Completed
-- **V2 clone + routing**: `TicketDrawerV2.tsx` (data-v2 marker), `'request-v2'` in `DrawerStack`, `TicketListPage.handleOpenTicket` branches on `INC-33`. V1 verified untouched at clone time.
-- **Incident Details tab** (`IncidentDetailsTabV2.tsx`): sticky pill/search/filter toolbar; pills = smooth-scroll anchors + scroll-spy (both sections in ONE scroll); functional search + All/Empty/Filled/Required filter across both sections; Ticket Fields card (7 quick fields SHARING drawer state with the right panel + moved Category/Department/Source/Location/Vendor/Support Level + full-width Tags chip editor with focus-on-Add + 2-col System Fields w/ small-view stacking); Additional Fields card (built-ins + Description + 50+ grouped custom fields, `mt-8 pt-6` separators); 16px card titles.
-- **V2 right panel** (opt-in props `compactTicketFields`/`hideAdditionalFields` + `SystemFieldsRenderer twoColumn`/`hidePin`): only the 7 quick fields; removed Additional Fields accordion (own storage key), field search/filter row, pin icons (12 gated in `TicketFieldsAccordion`), Customize Layout, and the pin/search/filter hints card.
-- **Consistency sweeps (ALL modules, explicit user instruction — V1 included)**: ~1,090 controls to `rounded` 4px; ~62 controls from 36px → 32px (`h-8`); tab-strip `overflow-x-clip` + computed `moreButtonWidth` (widest label + 24) in all 14 drawers; V2 overflow detection un-gated + badge-inclusive tab widths; `Pagination` hides at ≤10 items (central rule); onboarding auto-open disabled in the 12 non-ticket drawers; Patch Affected Products panel type moved to per-row sub-line.
-- **Published**: everything through `fe32899` is live; work after it (pin/hints/Customize removals, onboarding scope, pagination rule, affected-products sub-line) builds clean (`index-BALwbT2f.js`) but is **NOT yet pushed**.
+- **Patch Deployment page** (`PatchDeploymentsListPage/Table/Drawer`, PDR-#### ids): tabs Overview/Endpoint/Patches/Deployment/Audit Trail; `hideBuckets` endpoint tab; deployment-specific right panel (`patchDeployMode`), pro header KPIs (data-driven via `Patch.deployment` payload), Refresh replaces Approve/Decline, `patchDeploy` 3-dot menu, deployment-specific audit entries.
+- **Endpoints page** (`EndpointsListPage/Table` + `EndpointDrawer`, EP-### ids — AGENT- renamed to EP- everywhere incl. `PatchComputersTab`): drawer diverged from the patch clone —
+  - No Superseded tab; `computers` tab relabeled **Patches** → new `EndpointPatchesTab` (Missing 14/Installed 7/Ignored 3 buckets, category filter, Take Action, no Actions column; state lifted to drawer).
+  - **Deployment tab** → new `EndpointDeploymentTab` (Patch/Package/Registry pill sub-tabs, card default + list toggle, tinted status pills, 3 registry entries, registry card titles `items-center`).
+  - Header: agent-health dot (10px) before id pill, Refresh + blue **Scan Now**, KPIs = System Health / **Missing Patches (live)** / Reboot Required / Last Scan (`Patch.endpoint` payload).
+  - Right panel: `endpointMode` variant — "Endpoint Properties"/"Endpoint Fields", inventory field list (summary → Tags → identity w/ Asset ID/CI ID links → SCAN INFO with stacked status pills); rail = Properties + **Notes** (Affected Products/File Details dropped); no panel filter icon (all patch-family).
+  - Overview: Patches gauge live from `endpointPatches`; Affected Products/Files cards removed.
+- **7 upfront ticket fields** (V1 Ticket/Problem/Change/Release): Urgency+Impact moved to `basicFields` in `TicketDrawerUtils`; Tags at #7; View more below (accordion JSX restructured). V2 untouched.
+- **Tags chip rows**: shared `tagsRow` in `AssetFields` — assets/CMDB + Contract + Purchase (before View more), Patch (after Refrence Url). License panel trimmed to Product + License Type only (System Fields removed).
+- **Module-aware ServiceOps AI welcome** (`aiWelcome` in `TicketPropertiesPanel`): per-module description + 3–4 suggested-action pills for all 10+ page types.
+- **Audit-trail contextualization** in all drawers; CMDB History trimmed to Audit Trail/Change Logs/Scan History; patch 3-dot = Deploy Patch/Download to File Server; Vulnerabilities Title/Description columns un-blued; diagnosis/solution editors got `fullWidthRow` formatting rows.
+- `npm run build` clean throughout (last bundle `index-BojHkige.js`). Dev server was left running on `localhost:5173` (background task).
 
 ## In progress
-Nothing mid-flight. `npm run build` clean.
+Nothing mid-flight, but the Endpoint page still has **patch-clone leftovers awaiting the user's re-spec**: the Vulnerabilities tab (CVEs of a patch), the Overview **Deployments gauge** (old `patchInstallations` data, not the new Patch/Package/Registry tab), the Audit Trail content, and the endpoint field VALUES are static mock (not per-record).
 
 ## Next steps
-- **Publish** the unpushed tail (everything after `fe32899` — V2 panel removals, onboarding scoping, pagination threshold, affected-products sub-line).
-- Await the user's next V2 iteration on INC-33 — remember the saved memory rule (`ticket-v2-changes-only`): drawer edits in `TicketDrawerV2.tsx`, shared-panel divergence via opt-in props only.
-- Still-optional older items: remaining `Paginated` coverage (License/Purchase/Software-Asset/History tables), PatchDrawer cleanups (unused `AssetAiSummary` import, barcode/QR state), right-panel Patch Fields hardcodes vs header chips.
+- **Publish** — everything after commit `d3ce444` is unpushed: the whole Patch Deployment module, the whole Endpoints module, EP- prefix rename, audit contextualization, 7-upfront fields, Tags rows, license panel trim, module-aware AI, patch/CMDB menu+history changes.
+- Await the user's continued Endpoint-page iteration (they're feeding changes screenshot-by-screenshot; the leftovers above are the likely targets).
+- Older optional items: remaining `Paginated` coverage (License/Purchase/Software-Asset/History tables); the in-chat AI quick-pills row is still generic (welcome screen is contextual).
 
 ## Decisions made
-- V2 = drawer-file-only clone (user-confirmed); shared components diverge via opt-in props, never direct edits.
-- Incident Details pills are scroll ANCHORS (user changed from separate sub-tab views to one continuous scroll).
-- Consistency sweeps intentionally include V1 — the user's explicit "check all module detail pages" instructions supersede the V2-only rule for product-wide polish (told the user each time).
-- Pagination threshold = 10 because it's the smallest per-page option (no possible page 2 at ≤10).
-- More button reserves the widest label because it RELABELS to the selected overflow tab.
+- Endpoint/Deployment drawers follow the established separate-file clone recipe (fs.copyFileSync → rename exports → StackModule case → list adapter); divergence via new components (`EndpointPatchesTab`, `EndpointDeploymentTab`) + a new `endpointMode` prop threaded panel→accordion→AssetFields, mirroring `patchDeployMode`.
+- Adapter payloads (`Patch.deployment`, `Patch.endpoint`) carry real row data so header KPIs are data-driven instead of hardcoded — the pattern for future clones.
+- The endpoint "Missing Patches" header KPI and Overview Patches gauge read the SAME `endpointPatches` state as the Patches tab, so installs update all three.
+- Tags implemented once as `AssetFields.tagsRow` (local state, prototype) instead of per-drawer state threading.
+- AI welcome prompts fall through to the generic canned reply on purpose — only the labels/prompts are contextual, canned responses were out of scope.
 
 ## Gotchas & notes
-- **Sticky + `space-y`**: the Incident Details toolbar required moving `space-y-5` off the root onto a content wrapper (Tailwind v4 margin-bottom clamps the sticky pin).
-- **`AuditTrailsTabContent` styles via a const string (`iconBtn`)** — className-matching sweeps miss it; also regex `\bh-\[36px\]\b` NEVER matches (no word boundary after `]`) — a whole sweep pass silently no-oped until caught.
-- React Flow v12: non-draggable+non-selectable nodes need a canvas-level `onNodeClick` for pointer events (Superseded map, documented in CLAUDE.md).
-- V2 tab overflow was dead because the V1 clone gated it to INC-35; also tab width estimates MUST include count badges.
-- `Pagination` has no hooks, so its `totalItems <= 10 → null` early return is safe.
-- `gh` CLI not logged in on this machine; pushes work via Windows credential manager.
+- `aiWelcome` mode checks must stay most-specific-first: patch-family drawers ALSO pass `softwareMode`/`nonItMode`/`assetMode`, so endpoint/patchDeploy/patch must be tested before the broad asset modes.
+- `EndpointDrawer` still passes `patchMode={true}` alongside `endpointMode={true}` — panel gates use `patchMode && !endpointMode` (Affected Products/File Details) and `!patchMode || endpointMode` (Notes).
+- The 7-upfront-fields change needed BOTH the JSX move in `TicketFieldsAccordion` AND the `basicFields` list change in `TicketDrawerUtils` — the includes() gates would otherwise hide Urgency/Impact while collapsed.
+- sed on git-bash is byte-safe for the em-dashes (used for the AGENT-→EP- rename); PowerShell Get/Set-Content still is NOT.
+- Endpoint listing adapter placeholder values (severity 'Unspecified', category 'Endpoint') still feed any un-respecced clone UI.
+- Dev server may still be running in the background (`npm run dev`, task bg1y62apb).

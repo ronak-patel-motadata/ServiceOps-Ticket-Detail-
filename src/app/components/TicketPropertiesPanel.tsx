@@ -43,6 +43,10 @@ interface TicketPropertiesPanelProps {
   purchaseMode?: boolean;
   // Patch variant of the asset field set (category/severity/approval/test/release date/…)
   patchMode?: boolean;
+  // Patch DEPLOYMENT page: deployment-run fields in the Patch Fields accordion
+  patchDeployMode?: boolean;
+  // ENDPOINT page: endpoint-inventory fields in the (renamed) Endpoint Fields accordion
+  endpointMode?: boolean;
   // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
   // always visible, no View more / System Fields (those move to the Incident Details tab)
   compactTicketFields?: boolean;
@@ -351,6 +355,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     contractMode = false,
     purchaseMode = false,
     patchMode = false,
+    patchDeployMode = false,
+    endpointMode = false,
     compactTicketFields = false,
     hideAdditionalFields = false,
     assetState,
@@ -1053,6 +1059,96 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     }
   }, [props.onQuickActionReady]);
 
+  // ServiceOps AI welcome screen — module-aware description + suggested actions (2–4 per page).
+  // Ordered most-specific-first: the patch-family drawers also pass software/nonIt flags, so the
+  // narrow modes must win before the broad asset ones.
+  const aiWelcome = (() => {
+    const P = (label: string, prompt: string, icon: any, tip: string) => ({ label, prompt, icon, tip });
+    if (endpointMode) return {
+      desc: 'Ask ServiceOps AI anything about this endpoint or get assistance with its patch compliance, scans and health.',
+      prompts: [
+        P('Summarize Endpoint', 'Summarize this endpoint', Lightbulb, "Get an AI summary of this endpoint's health, patch state and inventory"),
+        P('Analyze Missing Patches', 'Analyze the missing patches on this endpoint', Brain, 'Prioritize the missing patches by severity and exposure'),
+        P('Check Scan & Health Status', 'Check the scan and health status of this endpoint', SearchIcon, 'Review the latest patch and vulnerability scans and system health'),
+      ],
+    };
+    if (patchDeployMode) return {
+      desc: 'Ask ServiceOps AI anything about this deployment or get assistance with its rollout, failures and retries.',
+      prompts: [
+        P('Summarize Deployment', 'Summarize this patch deployment', Lightbulb, "Get an AI summary of this deployment's configuration and progress"),
+        P('Analyze Failed Installations', 'Analyze the failed installations in this deployment', Brain, 'Find out why installations failed and how to remediate them'),
+        P('Check Rollout Progress', 'Check the rollout progress of this deployment', SearchIcon, 'See how far the rollout has progressed across endpoints'),
+      ],
+    };
+    if (patchMode) return {
+      desc: 'Ask ServiceOps AI anything about this patch or get assistance with its vulnerabilities, endpoints and deployment.',
+      prompts: [
+        P('Summarize Patch', 'Summarize this patch', Lightbulb, "Get an AI summary of this patch's severity, coverage and status"),
+        P('Assess Vulnerability Risk', 'Assess the vulnerability risk this patch addresses', Brain, 'Understand the CVEs this patch fixes and their risk'),
+        P('Check Impacted Endpoints', 'Which endpoints are missing this patch?', SearchIcon, 'List the endpoints still missing this patch'),
+        P('Check Supersedence', 'Is this patch superseded by a newer one?', FileText, 'See whether a newer patch replaces this one'),
+      ],
+    };
+    if (licenseMode) return {
+      desc: 'Ask ServiceOps AI anything about this license or get assistance with its compliance, allocation and renewal.',
+      prompts: [
+        P('Summarize License', 'Summarize this software license', Lightbulb, "Get an AI summary of this license's usage and compliance"),
+        P('Check Compliance & Utilization', 'Check the compliance and utilization of this license', Brain, 'Compare purchased vs allocated vs installed counts'),
+        P('Check Expiry & Renewal', 'When does this license expire and what should I plan for renewal?', FileText, 'Review the expiry date and renewal recommendation'),
+      ],
+    };
+    if (contractMode) return {
+      desc: 'Ask ServiceOps AI anything about this contract or get assistance with its renewal, cost and coverage.',
+      prompts: [
+        P('Summarize Contract', 'Summarize this contract', Lightbulb, "Get an AI summary of this contract's terms, cost and status"),
+        P('Check Expiry & Renewal', 'When does this contract expire and what are the renewal options?', Brain, 'Review the end date and plan the renewal'),
+        P('Find Linked Assets & Purchases', 'Find the assets and purchases linked to this contract', SearchIcon, 'See what this contract covers'),
+      ],
+    };
+    if (purchaseMode) return {
+      desc: 'Ask ServiceOps AI anything about this purchase order or get assistance with approvals, deliveries and payments.',
+      prompts: [
+        P('Summarize Purchase Order', 'Summarize this purchase order', Lightbulb, "Get an AI summary of this order's items, cost and status"),
+        P('Check Payment & Settlement', 'Check the payment and settlement status of this order', Brain, 'Compare invoiced vs paid amounts and the outstanding cost'),
+        P('Check Pending Deliveries', 'Which ordered items are still pending delivery?', SearchIcon, 'Compare ordered vs received quantities'),
+      ],
+    };
+    if (cmdbMode) return {
+      desc: 'Ask ServiceOps AI anything about this CI or get assistance with its dependencies, impact and health.',
+      prompts: [
+        P('Summarize CI', 'Summarize this configuration item', Lightbulb, "Get an AI summary of this CI's configuration and health"),
+        P('Analyze Dependencies & Impact', 'Analyze the dependencies and impact of this CI', Brain, 'Understand what depends on this CI and what an outage would affect'),
+        P('Find Related CIs', 'Find CIs related to this one', SearchIcon, 'Search the CMDB for connected or similar CIs'),
+      ],
+    };
+    if (softwareMode) return {
+      desc: 'Ask ServiceOps AI anything about this software or get assistance with its licensing, installations and compliance.',
+      prompts: [
+        P('Summarize Software', 'Summarize this software asset', Lightbulb, "Get an AI summary of this software's installations and compliance"),
+        P('Check License Compliance', 'Check the license compliance of this software', Brain, 'Compare installations against owned licenses'),
+        P('Find Installations', 'Which devices have this software installed?', SearchIcon, 'List the endpoints where this software is installed'),
+      ],
+    };
+    if (assetMode) return { // hardware / non-IT / consumable
+      desc: 'Ask ServiceOps AI anything about this asset or get assistance with its configuration, warranty and compliance.',
+      prompts: [
+        P('Summarize Asset', 'Summarize this asset', Lightbulb, "Get an AI summary of this asset's configuration and health"),
+        P('Find Similar Assets', 'Find similar assets', SearchIcon, 'Search for similar assets in the inventory'),
+        P('Suggest KB Article', 'Suggest KB', FileText, 'Find relevant knowledge base articles for this asset'),
+        P('Check Warranty & Compliance', 'Check warranty and compliance', Brain, 'Check warranty status and software compliance for this asset'),
+      ],
+    };
+    return { // ticket / problem / change / release
+      desc: 'Ask ServiceOps AI anything about this ticket or get assistance with troubleshooting and resolution.',
+      prompts: [
+        P('Suggest Solution', 'Suggest a solution for this issue', Lightbulb, 'Get AI-powered solution recommendations for this issue'),
+        P('Find Similar Tickets', 'Find similar resolved tickets', SearchIcon, 'Search for similar resolved tickets in the system'),
+        P('Suggest KB Article', 'Suggest KB', FileText, 'Find relevant knowledge base articles for resolution'),
+        P('Analyze Root Cause', 'Root Cause', Brain, 'Identify potential root causes of this issue'),
+      ],
+    };
+  })();
+
   // Save section order to localStorage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1351,9 +1447,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   className="flex-1 outline-none text-[13px] text-[#364658] placeholder:text-[#7B8FA5]"
                 />
               </div>
-              {activeGroup === 'properties' && (
+              {/* Patch-family pages (patch / deployment / endpoint) have one read-only fields list —
+                  no empty/filled distinction worth filtering, so the icon is dropped there. */}
+              {activeGroup === 'properties' && !patchMode && (
                 <div className="relative" ref={propertiesFilterRef}>
-                  <button 
+                  <button
                     className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                     onClick={() => setShowPropertiesFilter(!showPropertiesFilter)}
                   >
@@ -1738,6 +1836,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           contractMode={contractMode}
           purchaseMode={purchaseMode}
           patchMode={patchMode}
+          patchDeployMode={patchDeployMode}
+          endpointMode={endpointMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -2015,6 +2115,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {!compactTicketFields && (
         <div className="mt-4 px-0">
           <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
+            {/* Pin hint hidden on the Patch / Patch Deployment pages — their fields are
+                read-only with no pin affordance, so the hint would describe nothing. */}
+            {!patchMode && (
             <div className="flex items-start gap-2">
               <PinIcon size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
               <div>
@@ -2022,6 +2125,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <span> — Mark fields for easy access on top</span>
               </div>
             </div>
+            )}
             <div className="flex items-start gap-2">
               <Search size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
               <div>
@@ -2931,80 +3035,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
                   {/* Description */}
                   <p className="text-[14px] text-[#6B7280] text-center max-w-md mb-8">
-                    {assetMode
-                      ? 'Ask ServiceOps AI anything about this asset or get assistance with its configuration, warranty and compliance.'
-                      : 'Ask ServiceOps AI anything about this ticket or get assistance with troubleshooting and resolution.'}
+                    {aiWelcome.desc}
                   </p>
 
-                  {/* Suggested Prompts */}
+                  {/* Suggested Prompts — module-aware set (see aiWelcome) */}
                   <div className="w-full max-w-lg space-y-2">
-                    {/* Suggest Solution */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleQuickAction(assetMode ? 'Summarize this asset' : 'Suggest a solution for this issue')}
-                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
-                        >
-                          <Lightbulb size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>{assetMode ? 'Summarize Asset' : 'Suggest Solution'}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">
-                        {assetMode ? "Get an AI summary of this asset's configuration and health" : 'Get AI-powered solution recommendations for this issue'}
-                      </TooltipContent>
-                    </Tooltip>
-
-                    {/* Find Similar Tickets */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleQuickAction(assetMode ? 'Find similar assets' : 'Find similar resolved tickets')}
-                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
-                        >
-                          <SearchIcon size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>{assetMode ? 'Find Similar Assets' : 'Find Similar Tickets'}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">
-                        {assetMode ? 'Search for similar assets in the inventory' : 'Search for similar resolved tickets in the system'}
-                      </TooltipContent>
-                    </Tooltip>
-
-                    {/* Suggest KB Article */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleQuickAction('Suggest KB')}
-                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
-                        >
-                          <FileText size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>Suggest KB Article</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">
-                        {assetMode ? 'Find relevant knowledge base articles for this asset' : 'Find relevant knowledge base articles for resolution'}
-                      </TooltipContent>
-                    </Tooltip>
-
-                    {/* Analyze Root Cause */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleQuickAction(assetMode ? 'Check warranty and compliance' : 'Root Cause')}
-                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                          className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
-                        >
-                          <Brain size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                          <span>{assetMode ? 'Check Warranty & Compliance' : 'Analyze Root Cause'}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-xs">
-                        {assetMode ? 'Check warranty status and software compliance for this asset' : 'Identify potential root causes of this issue'}
-                      </TooltipContent>
-                    </Tooltip>
+                    {aiWelcome.prompts.map((sp) => (
+                      <Tooltip key={sp.label}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleQuickAction(sp.prompt)}
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
+                            className="group w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-[#364658] text-[13px] font-medium hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200 cursor-pointer"
+                          >
+                            <sp.icon size={16} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                            <span>{sp.label}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="text-xs">
+                          {sp.tip}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
                   </div>
                 </div>
               )}
@@ -3715,8 +3767,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </Tooltip>
           )}
 
-          {/* Notes — hidden on the Patch page (replaced by Affected Products below) */}
-          {!contractMode && !patchMode && (
+          {/* Notes — hidden on the Patch page (replaced by Affected Products below); the
+              ENDPOINT page brings it back like the hardware asset page. */}
+          {!contractMode && (!patchMode || endpointMode) && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3739,8 +3792,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </Tooltip>
           )}
 
-          {/* Affected Products — Patch page only (replaces Notes) */}
-          {patchMode && (
+          {/* Affected Products — Patch page only (replaces Notes; deployment/endpoint pages drop it) */}
+          {patchMode && !patchDeployMode && !endpointMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3791,8 +3844,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </Tooltip>
         )}
 
-        {/* File Details — Patch page only (replaces Attachments) */}
-        {patchMode && (
+        {/* File Details — Patch page only (replaces Attachments; deployment/endpoint pages drop it) */}
+        {patchMode && !patchDeployMode && !endpointMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button

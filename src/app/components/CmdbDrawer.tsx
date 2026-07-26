@@ -6493,25 +6493,21 @@ onStackMinimizedChange,
 
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && (() => {
+              // CMDB keeps only the CI-relevant categories (asset-specific histories —
+              // WOL/Movement/Repair/Utilization/Baseline/Variance — belong to the asset pages).
               const categories = [
                 { id: 'audit', label: 'Audit Trail' },
                 { id: 'change-logs', label: 'Change Logs' },
                 { id: 'scan', label: 'Scan History' },
-                { id: 'wol', label: 'WOL History' },
-                { id: 'movement', label: 'Movement History' },
-                { id: 'repair', label: 'Repair History' },
-                { id: 'utilization', label: 'Asset Utilization History' },
-                { id: 'baseline-history', label: 'Baseline History' },
-                { id: 'variance-history', label: 'Variance History' },
               ];
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Method Changed', details: 'Changed Depreciation Method from "Sum Of The Years Digit" to "Double Declining Balance"', field: 'Method', from: 'Sum Of The Years Digit', to: 'Double Declining Balance', time: 'Sat, Jun 20, 2026 04:39 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Type Changed', details: 'Changed Depreciation Type from "Useful Life" to "Depreciation Percentage"', field: 'Type', from: 'Useful Life', to: 'Depreciation Percentage', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Useful Life Changed', details: 'Changed Useful Life from "200" to "12"', field: 'Useful Life', from: '200', to: '12', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Salvage Amount Changed', details: 'Changed Salvage Amount from "18" to "100"', field: 'Salvage', from: '18', to: '100', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Purchase Cost Added', details: 'Added the asset purchase cost', time: 'Sat, Jun 20, 2026 04:20 PM' },
+                { user: 'Vikram Sethi', initials: 'VS', color: '#3D8BD0', action: 'CI Status Changed', details: 'Marked the CI as operational after validation', field: 'Status', from: 'Select', to: 'Operational', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Discovery Scan Completed', details: 'Agent discovery scan refreshed 42 hardware and software attributes', time: 'Sat, Jun 20, 2026 02:12 PM' },
+                { user: 'Rohan Mehta', initials: 'RM', color: '#8B5CF6', action: 'Relationship Added', details: 'Added a "Hosted On" relationship to PRDC-ESX-02', time: 'Sat, Jun 20, 2026 11:05 AM' },
+                { user: 'Vikram Sethi', initials: 'VS', color: '#3D8BD0', action: 'Managed By Changed', details: 'Assigned an owner to the CI', field: 'Managed By', from: 'Unassigned', to: 'Rohan Mehta', time: 'Fri, May 22, 2026 05:30 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'CI Registered', details: 'CI created automatically from agent discovery', time: 'Fri, May 22, 2026 10:14 AM' },
               ];
               const changeLogs = [
                 { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
@@ -6832,7 +6828,7 @@ onStackMinimizedChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                               <div className="relative" ref={aiAssistMenuDiagnosisRef}>
@@ -6971,9 +6967,9 @@ onStackMinimizedChange,
                               </div>
 
                               {/* Formatting Tools */}
-                              <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
+                              <div className="flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
                                 {/* Always visible quick access icons */}
-                                <EditorToolbarActions />
+                                <EditorToolbarActions fullWidthRow />
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
@@ -7103,7 +7099,7 @@ onStackMinimizedChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
@@ -7250,9 +7246,9 @@ onStackMinimizedChange,
                             </div>
 
                             {/* Formatting Tools */}
-                            <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
+                            <div className="flex items-center gap-1" ref={formattingMenuSolutionRef}>
                               {/* Always visible quick access icons */}
-                              <EditorToolbarActions />
+                              <EditorToolbarActions fullWidthRow />
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (

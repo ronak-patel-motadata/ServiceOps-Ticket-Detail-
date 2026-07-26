@@ -217,7 +217,7 @@ export function RichComposerArea({ value, onChange, placeholder }: { value: stri
  *  formatting-row toggle state and anchors the floating row to itself, so drawers can drop it in
  *  with a single tag. Mirrors the Reply editor behavior: selecting text in THIS composer's rich
  *  surface auto-opens the formatting row, and deselecting auto-hides it (a manual T toggle sticks). */
-export function EditorToolbarActions() {
+export function EditorToolbarActions({ fullWidthRow = false }: { fullWidthRow?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
@@ -248,9 +248,16 @@ export function EditorToolbarActions() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="relative flex items-center gap-0.5">
+    // fullWidthRow: the wrapper drops `relative` so the row anchors to the nearest positioned
+    // ancestor (the composer's footer row) and spans the FULL composer width — the same band the
+    // Reply editor shows. Default keeps the compact 620px floating box for narrow composers.
+    <div ref={wrapRef} className={fullWidthRow ? 'flex items-center gap-0.5' : 'relative flex items-center gap-0.5'}>
       {open && (
-        <EditorFormattingRow className="absolute bottom-full left-0 z-40 mb-3 flex w-[620px] max-w-[70vw] flex-wrap items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] px-2 py-1" />
+        <EditorFormattingRow
+          className={fullWidthRow
+            ? 'absolute bottom-full left-0 right-0 z-40 mb-2.5 flex flex-wrap items-center gap-0.5 border-y border-[#DFE5ED] bg-[#F9FAFB] px-4 py-1.5'
+            : 'absolute bottom-full left-0 z-40 mb-3 flex w-[620px] max-w-[70vw] flex-wrap items-center gap-0.5 rounded-lg border border-[#DFE5ED] bg-[#F9FAFB] px-2 py-1'}
+        />
       )}
       <EditorQuickActions
         formattingOpen={open}

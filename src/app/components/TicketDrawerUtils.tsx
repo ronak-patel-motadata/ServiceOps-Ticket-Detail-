@@ -350,8 +350,10 @@ export const getCurrentRequestChannelColor = (selectedRequestChannel: string) =>
 };
 
 export const getFilteredTicketFields = (pinnedFields: string[], showMoreFields: boolean, searchQuery: string) => {
-  const basicFields = ['Status', 'Priority', 'Assignee', 'Technician Group'];
-  const additionalFields = ['Urgency', 'Impact', 'Category', 'Department', 'Source', 'Location', 'Vendor', 'Support Level'];
+  // 7 upfront fields (with Tags, rendered unconditionally by the accordion, as #7);
+  // the rest sit behind "View more". Shared by Ticket/Problem/Change/Release.
+  const basicFields = ['Status', 'Priority', 'Assignee', 'Technician Group', 'Urgency', 'Impact'];
+  const additionalFields = ['Category', 'Department', 'Source', 'Location', 'Vendor', 'Support Level'];
   
   // If showMoreFields is true or there's a search query, include all fields
   const allFields = showMoreFields || searchQuery 

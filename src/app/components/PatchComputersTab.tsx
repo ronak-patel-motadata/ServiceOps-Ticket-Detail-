@@ -67,7 +67,7 @@ const BULK_MISSING: PatchComputer[] = Array.from({ length: 52 }, (_, i): PatchCo
   const [remoteOffice, code] = OFFICE_CODES[i % OFFICE_CODES.length];
   const kind = ['LT', 'DT', 'WS'][i % 3];
   return {
-    id: `AGENT-${501 + i}`,
+    id: `EP-${501 + i}`,
     hostName: `${code}-${kind}-${String(100 + i).padStart(4, '0')}`,
     ipAddress: `10.${20 + (i % 6)}.${30 + (i % 40)}.${20 + (i % 200)}`,
     poller: i % 4 === 0 ? 'Default' : '---',
@@ -85,30 +85,30 @@ const BULK_MISSING: PatchComputer[] = Array.from({ length: 52 }, (_, i): PatchCo
 
 // Realistic agent/computer inventory (mock) split across the three patch buckets.
 export const INITIAL_COMPUTERS: PatchComputer[] = [
-  { id: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
-  { id: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
-  { id: 'AGENT-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
-  { id: 'AGENT-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.7.200', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Missing' },
-  { id: 'AGENT-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'Microsoft Windows 11 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
-  { id: 'AGENT-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', poller: '---', createdBy: 'Adarsh Fuinnc', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
-  { id: 'AGENT-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'requester test', systemHealth: null, remoteOffice: null, bucket: 'Missing' },
-  { id: 'AGENT-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
-  { id: 'AGENT-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'Chintan Makwana', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
-  { id: 'AGENT-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', poller: '---', createdBy: 'arjun system', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Pune Development Center', bucket: 'Missing' },
-  { id: 'AGENT-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Delhi NCR Office', bucket: 'Missing' },
-  { id: 'AGENT-382', hostName: 'ACI10068-LP', ipAddress: '20.0.20.32', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
-  { id: 'AGENT-350', hostName: 'DESKTOP-1P8YT', ipAddress: '192.168.177.20', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
-  { id: 'AGENT-349', hostName: 'DESKTOP-1KQZ9', ipAddress: '10.59.98.96', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
+  { id: 'EP-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'EP-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'EP-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
+  { id: 'EP-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.7.200', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  { id: 'EP-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'Microsoft Windows 11 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'EP-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', poller: '---', createdBy: 'Adarsh Fuinnc', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
+  { id: 'EP-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'requester test', systemHealth: null, remoteOffice: null, bucket: 'Missing' },
+  { id: 'EP-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  { id: 'EP-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'Chintan Makwana', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
+  { id: 'EP-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', poller: '---', createdBy: 'arjun system', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Pune Development Center', bucket: 'Missing' },
+  { id: 'EP-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Delhi NCR Office', bucket: 'Missing' },
+  { id: 'EP-382', hostName: 'ACI10068-LP', ipAddress: '20.0.20.32', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'EP-350', hostName: 'DESKTOP-1P8YT', ipAddress: '192.168.177.20', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
+  { id: 'EP-349', hostName: 'DESKTOP-1KQZ9', ipAddress: '10.59.98.96', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Muscat Office', bucket: 'Missing' },
 
-  { id: 'AGENT-311', hostName: 'FIN-LT-0188', ipAddress: '10.20.22.188', poller: 'Default', createdBy: 'Priya Nair', osName: 'Microsoft Windows 11 Pro', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Priya Nair', systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Installed' },
-  { id: 'AGENT-305', hostName: 'SAL-LT-0204', ipAddress: '10.20.23.204', poller: 'Default', createdBy: 'Ananya Iyer', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Ananya Iyer', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Installed' },
-  { id: 'AGENT-298', hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', poller: 'Default', createdBy: 'Karan Malhotra', osName: 'Microsoft Windows 11 Pro', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: 'Karan Malhotra', systemHealth: 'Healthy', remoteOffice: 'Hyderabad Office', bucket: 'Installed' },
-  { id: 'AGENT-284', hostName: 'DC1-APP-01', ipAddress: '10.20.40.21', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2019', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
-  { id: 'AGENT-277', hostName: 'DC1-DB-01', ipAddress: '10.20.40.33', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2022', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
+  { id: 'EP-311', hostName: 'FIN-LT-0188', ipAddress: '10.20.22.188', poller: 'Default', createdBy: 'Priya Nair', osName: 'Microsoft Windows 11 Pro', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Priya Nair', systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Installed' },
+  { id: 'EP-305', hostName: 'SAL-LT-0204', ipAddress: '10.20.23.204', poller: 'Default', createdBy: 'Ananya Iyer', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: 'Ananya Iyer', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Installed' },
+  { id: 'EP-298', hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', poller: 'Default', createdBy: 'Karan Malhotra', osName: 'Microsoft Windows 11 Pro', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: 'Karan Malhotra', systemHealth: 'Healthy', remoteOffice: 'Hyderabad Office', bucket: 'Installed' },
+  { id: 'EP-284', hostName: 'DC1-APP-01', ipAddress: '10.20.40.21', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2019', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
+  { id: 'EP-277', hostName: 'DC1-DB-01', ipAddress: '10.20.40.33', poller: 'Default', createdBy: 'System', osName: 'Microsoft Windows Server 2022', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Installed' },
 
-  { id: 'AGENT-260', hostName: 'REC-DT-0023', ipAddress: '10.20.21.23', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Critical', remoteOffice: 'Muscat Office', bucket: 'Ignored' },
-  { id: 'AGENT-241', hostName: 'SUP-LT-0108', ipAddress: '10.20.24.108', poller: '---', createdBy: 'Rahul Verma', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: 'None', architecture: '64 BIT', usedBy: 'Rahul Verma', systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Ignored' },
-  { id: 'AGENT-233', hostName: 'OFC-PRT-0207', ipAddress: '10.20.30.207', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Dubai Office', bucket: 'Ignored' },
+  { id: 'EP-260', hostName: 'REC-DT-0023', ipAddress: '10.20.21.23', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Critical', remoteOffice: 'Muscat Office', bucket: 'Ignored' },
+  { id: 'EP-241', hostName: 'SUP-LT-0108', ipAddress: '10.20.24.108', poller: '---', createdBy: 'Rahul Verma', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: 'None', architecture: '64 BIT', usedBy: 'Rahul Verma', systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Ignored' },
+  { id: 'EP-233', hostName: 'OFC-PRT-0207', ipAddress: '10.20.30.207', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.6.101', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Dubai Office', bucket: 'Ignored' },
 
   ...BULK_MISSING,
 ];
@@ -131,9 +131,9 @@ export interface PatchInstallation {
 
 // Three deployments, one per status (Yet to Receive / Success / Failed) to show each style.
 export const INITIAL_INSTALLATIONS: PatchInstallation[] = [
-  { id: 'INST-AGENT-380', agentId: 'AGENT-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
-  { id: 'INST-AGENT-397', agentId: 'AGENT-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 04:58 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
-  { id: 'INST-AGENT-400', agentId: 'AGENT-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 03:40 PM', installationStatus: 'Failed', retryStatus: 2, downloadStatus: 'Failed', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-380', agentId: 'EP-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-397', agentId: 'EP-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 04:58 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-400', agentId: 'EP-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 03:40 PM', installationStatus: 'Failed', retryStatus: 2, downloadStatus: 'Failed', taskType: 'Manual Remote Deployment' },
 ];
 
 const BUCKETS: Bucket[] = ['Missing', 'Installed', 'Ignored'];
@@ -148,9 +148,12 @@ interface PatchComputersTabProps {
   setComputers: Dispatch<SetStateAction<PatchComputer[]>>;
   /** Install the given agents — creates deployment records in the Installation tab. */
   onInstall: (agentIds: string[]) => void;
+  /** Patch DEPLOYMENT page: no Missing/Installed/Ignored sub-tabs — one flat endpoint list
+   *  (and no bucket-scoped "Add Missing Computer" button). Opt-in; default unchanged. */
+  hideBuckets?: boolean;
 }
 
-export function PatchComputersTab({ computers, setComputers, onInstall }: PatchComputersTabProps) {
+export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false }: PatchComputersTabProps) {
   const [bucket, setBucket] = useState<Bucket>('Missing');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -215,7 +218,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
   scoped.forEach((c) => { counts[c.bucket] += 1; });
 
   const q = search.trim().toLowerCase();
-  const rows = scoped.filter((c) => c.bucket === bucket).filter((c) =>
+  const rows = scoped.filter((c) => hideBuckets || c.bucket === bucket).filter((c) =>
     !q ||
     c.id.toLowerCase().includes(q) ||
     c.hostName.toLowerCase().includes(q) ||
@@ -234,10 +237,12 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
 
   return (
     <div className="px-6 py-4">
-      {/* Remote-office group dropdown + bucket pills (Missing / Installed / Ignored) */}
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        {/* Group filter — scopes the endpoints AND the pill counts */}
-        <div className="relative">
+      {(() => {
+        /* Group filter — scopes the endpoints AND the pill counts. Rendered in the top pills row
+           normally; in hideBuckets (deployment page) mode it sits RIGHT of the search field, so
+           its popup right-aligns to stay inside the viewport. */
+        const officeFilter = (
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowOffice((v) => !v)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${office !== ALL_ENDPOINTS ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
@@ -249,7 +254,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
           {showOffice && (
             <>
               <div className="fixed inset-0 z-40" onClick={closeOfficeMenu} />
-              <div className="absolute left-0 top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+              <div className={`absolute ${hideBuckets ? 'right-0' : 'left-0'} top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1`}>
                 {/* Search — tenants can have 100+ groups, so the list is filterable */}
                 <div className="px-3 pb-2 pt-1">
                   <div className="relative">
@@ -282,24 +287,33 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
             </>
           )}
         </div>
+        );
 
-        <span className="h-5 w-px bg-[#E3E8EF] mx-0.5" />
+        return (
+        <>
+        {/* Top row — office filter + bucket pills (Missing / Installed / Ignored).
+            Skipped entirely in hideBuckets mode: the filter moves next to the search below. */}
+        {!hideBuckets && (
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {officeFilter}
+          <span className="h-5 w-px bg-[#E3E8EF] mx-0.5" />
 
-        {BUCKETS.map((b) => (
-          <button
-            key={b}
-            onClick={() => setBucket(b)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${bucket === b ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
-          >
-            {b}
-            <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${bucket === b ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>
-              {counts[b]}
-            </span>
-          </button>
-        ))}
-      </div>
+          {BUCKETS.map((b) => (
+            <button
+              key={b}
+              onClick={() => setBucket(b)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${bucket === b ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+            >
+              {b}
+              <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[11px] font-semibold ${bucket === b ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'}`}>
+                {counts[b]}
+              </span>
+            </button>
+          ))}
+        </div>
+        )}
 
-      {/* Search + Add button */}
+      {/* Search + (deployment mode) office filter + Add button */}
       <div className="flex items-center gap-3 mb-3">
         <div className="relative flex-1">
           <input
@@ -315,14 +329,18 @@ export function PatchComputersTab({ computers, setComputers, onInstall }: PatchC
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" size={16} />
           )}
         </div>
-        {/* Add button — only for the Missing bucket */}
-        {bucket === 'Missing' && (
+        {hideBuckets && officeFilter}
+        {/* Add button — only for the Missing bucket (hidden entirely when buckets are off) */}
+        {!hideBuckets && bucket === 'Missing' && (
           <button className="flex h-8 items-center gap-1.5 rounded bg-[#3D8BD0] px-3.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0] flex-shrink-0">
             <Plus size={15} />
             Add Missing Computer
           </button>
         )}
       </div>
+        </>
+        );
+      })()}
 
       {/* Bulk-action bar — appears when rows are selected. Single "Take Action" menu holds every
           action (scales to any number), with a selected-count chip + "Unselect all". */}

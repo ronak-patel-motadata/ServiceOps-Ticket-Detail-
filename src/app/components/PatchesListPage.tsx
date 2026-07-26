@@ -25,6 +25,12 @@ export interface Patch {
   category?: string;
   /** Optional release notes — only some patches carry one (shown on the detail Overview). */
   description?: string;
+  /** Present ONLY when the record is a Patch DEPLOYMENT opened via deploymentToPatchShape —
+   *  carries the real run properties so the deployment drawer's header KPIs stay data-driven. */
+  deployment?: { status: string; policy: string; installAfter: string | null; expiryDate: string | null };
+  /** Present ONLY when the record is an ENDPOINT opened via endpointToPatchShape —
+   *  carries the agent/health values so the endpoint drawer's header KPIs stay data-driven. */
+  endpoint?: { agentOnline: boolean; systemHealth: 'Healthy' | 'Warning' | 'Critical' | null };
 }
 
 // Realistic Windows / third-party patch catalog (mock).

@@ -13,6 +13,8 @@ import { ContractDrawer } from './ContractDrawer';
 import { PurchaseDrawer } from './PurchaseDrawer';
 import { CmdbDrawer } from './CmdbDrawer';
 import { PatchDrawer } from './PatchDrawer';
+import { PatchDeploymentDrawer } from './PatchDeploymentDrawer';
+import { EndpointDrawer } from './EndpointDrawer';
 import { MOCK_TICKETS } from './TicketListPage';
 import { mockProblems } from './ProblemListPage';
 import { mockChanges } from './ChangeListPage';
@@ -26,7 +28,7 @@ import { DrawerShortcuts } from './DrawerShortcuts';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -150,6 +152,11 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       case 'purchases': drawer = <PurchaseDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'cmdb': drawer = <CmdbDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'patches': drawer = <PatchDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      // Patch Deployment detail page — clone of the Patch detail page; the list page adapts the
+      // deployment record onto the Patch shape before opening.
+      case 'patch-deployments': drawer = <PatchDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      // Endpoint detail page — clone of the Patch detail page; the list adapts the endpoint record.
+      case 'endpoints': drawer = <EndpointDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
     }
   }
 

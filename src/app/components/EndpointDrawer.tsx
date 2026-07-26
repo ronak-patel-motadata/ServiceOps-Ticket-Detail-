@@ -1,29 +1,38 @@
 /**
- * ContractDrawer Component
+ * EndpointDrawer Component — the ENDPOINT detail page.
  *
- * Cloned from NonItAssetDrawer as the Contract detail page. It currently reuses the
- * full asset-detail UI; an internal adapter (contractToAssetShape) maps a Contract onto the
- * HardwareAsset shape the body expects, so this can be customized with contract-specific details
- * later. This is a SEPARATE file so Contract changes stay isolated.
+ * A 1:1 clone of PatchDrawer.tsx, opened from the Endpoints listing via the 'endpoints'
+ * DrawerStack module (the list page adapts an Endpoint onto the Patch shape with
+ * endpointToPatchShape). SEPARATE file so endpoint-specific changes stay isolated.
+ *
+ * Cloned from NonItAssetDrawer as the Patch detail page. It currently reuses the full asset-detail
+ * UI; an internal adapter (patchToAssetShape) maps a Patch onto the HardwareAsset shape the body
+ * expects, so this can be customized with patch-specific details later. This is a SEPARATE file so
+ * Patch changes stay isolated.
  *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Bell, CircleDollarSign, ShoppingCart } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
+import { RelSavedViews } from './RelSavedViews';
+import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
+import { ActiveIssuesPanel } from './ActiveIssuesPanel';
+import { RelSliderRow } from './RelSliderRow';
 import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
-import { IconRequest, IconAssets } from './SidebarIcons';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { AssetAiSummary } from './AssetAiSummary';
+import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcons';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
-import type { Contract } from './ContractsListPage';
+import type { Patch } from './PatchesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -45,6 +54,13 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
+import { INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
+import { EndpointPatchesTab, INITIAL_ENDPOINT_PATCHES, type EndpointPatch } from './EndpointPatchesTab';
+import { EndpointDeploymentTab } from './EndpointDeploymentTab';
+import { PatchInstallationTab } from './PatchInstallationTab';
+import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
+import { PatchSupersededTab } from './PatchSupersededTab';
+import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
@@ -102,14 +118,14 @@ import {
   getFilteredAdditionalFields,
   makeCrossModuleRelations,
 } from './TicketDrawerUtils';
-const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Asset',prefix:'AST'},{type:'Purchase',prefix:'PO'}]);
+const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'},{type:'Purchase',prefix:'PO'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-interface ContractDrawerProps {
-  openAssets: Contract[];
+interface PatchDrawerProps {
+  openAssets: Patch[];
   activeAssetId: string | null;
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
@@ -123,21 +139,22 @@ interface ContractDrawerProps {
 }
 
 /**
- * Adapts a Contract onto the HardwareAsset shape the cloned asset-detail body consumes.
- * Hardware-only fields (hostName/ipAddress/serialNumber/managedBy) are filled with placeholders
- * so the UI renders unchanged; replace with contract-specific fields when this page is customized.
+ * Adapts a Patch onto the HardwareAsset shape the cloned asset-detail body consumes.
+ * Patch-only fields have no hardware equivalent yet, so hardware-only fields are filled with
+ * placeholders and the UI renders unchanged; replace with patch-specific fields when this page
+ * is customized.
  */
-function contractToAssetShape(s: Contract): HardwareAsset {
+function patchToAssetShape(p: Patch): HardwareAsset {
   return {
-    id: s.id,
-    name: s.name,
-    assetType: 'Contract' as HardwareAsset['assetType'],
-    status: s.status === 'Active' ? 'In Use' : 'In Store',
+    id: p.id,
+    name: p.name,
+    assetType: 'Patch' as HardwareAsset['assetType'],
+    status: 'In Use',
     hostName: '---',
     ipAddress: '---',
     usedBy: null,
-    managedByGroup: s.vendor,
-    managedBy: { name: '—' },
+    managedByGroup: 'IT Operations',
+    managedBy: { name: 'Unassigned' },
     serialNumber: '---',
   };
 }
@@ -164,15 +181,6 @@ function assetToTicket(a: HardwareAsset): Ticket {
 }
 
 // Related records listed when hovering an Impact pill (keyed by relation type).
-// Technician options for the Expiry Reminder picker (mirrors the ticket Assignee dropdown).
-const TECHNICIAN_OPTIONS: { name: string; initials: string; color: string; status: string }[] = [
-  { name: 'Sarah Johnson', initials: 'SJ', color: '#3D8BD0', status: '#22C55E' },
-  { name: 'Michael Chen', initials: 'MC', color: '#8B5CF6', status: '#22C55E' },
-  { name: 'Emma Wilson', initials: 'EW', color: '#EC4899', status: '#F59E0B' },
-  { name: 'David Kim', initials: 'DK', color: '#64748B', status: '#9CA3AF' },
-  { name: 'Lisa Anderson', initials: 'LA', color: '#22C55E', status: '#22C55E' },
-];
-
 const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
   Incident: [
     { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
@@ -190,17 +198,9 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   Release: [
     { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
   ],
-  Asset: [
-    { id: 'AST-201', subject: 'Core Switch — Cisco Catalyst 9300', assignee: 'Vikram Sethi', status: 'In Use', statusColor: '#22C55E', priority: 'High' },
-    { id: 'AST-118', subject: 'Edge Router — Cisco ISR 4451', assignee: 'Neha Raje', status: 'In Use', statusColor: '#22C55E', priority: 'Medium' },
-  ],
-  Purchase: [
-    { id: 'PO-4471', subject: 'Network hardware procurement', assignee: 'Karan Malhotra', status: 'Approved', statusColor: '#22A06B', priority: 'Medium' },
-    { id: 'PO-4490', subject: 'Annual support renewal', assignee: 'Priya Nair', status: 'Ordered', statusColor: '#3D8BD0', priority: 'Low' },
-  ],
 };
 
-export function ContractDrawer({
+export function EndpointDrawer({
   openAssets,
   activeAssetId,
   onClose,
@@ -212,8 +212,8 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
-}: ContractDrawerProps) {
-  const assetList = openAssets.map(contractToAssetShape);
+}: PatchDrawerProps) {
+  const assetList = openAssets.map(patchToAssetShape);
   const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
@@ -222,13 +222,11 @@ onStackMinimizedChange,
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
-  const activeContract = openAssets.find(c => c.id === activeAssetId);
-  // Convert a DD/MM/YYYY date to the YYYY-MM-DD a <input type=date> expects.
-  const toISODate = (d?: string) => {
-    if (!d) return '';
-    const m = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
-  };
+  // The RAW patch record (the adapted HardwareAsset shape has no description).
+  const activePatchRecord = openAssets.find(p => p.id === activeAssetId) ?? openAssets[0];
+  // Overview description is optional and collapsed by default; reset when switching patch tabs.
+  const [descExpanded, setDescExpanded] = useState(false);
+  useEffect(() => { setDescExpanded(false); }, [activeAssetId]);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -238,25 +236,19 @@ onStackMinimizedChange,
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
   const [softwareType, setSoftwareType] = useState('Managed');
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
-    'Asset Group': 'Anblicks Group',
-    'Product': '',
-    'Used By': '',
-    'Location': 'KRISHNAPATNAM',
+    'Asset Group': 'Unassigned',
+    'Product': 'use case',
+    'Used By': 'Neha Raje',
+    'Location': '',
     'Category': '',
     'Department': '',
-    'Host Name': 'DESKTOP-7ABJPOF',
-    'Domain Name': 'WORKGROUP',
-    'UUID': '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093',
-    'IP Address': '192.168.1.60',
-    'MAC Address': 'C8:09:A8:65:58:E7',
-    'Subnet Mask': '255.255.255.0',
-    'Vendor': '',
-    'Asset Condition': 'Good',
+    'Vendor': 'Test vendor',
+    'Asset Condition': 'None',
     'Movement Status': 'None',
-    'Under Change Control': 'Yes',
-    'Business Service': 'Core Banking',
-    'Origin': 'Agent',
-    'Acquisition Date': '',
+    'Under Change Control': 'No',
+    'Business Service': '',
+    'Origin': 'Purchase',
+    'Acquisition Date': '2026-04-22',
     'Assignment Date': '',
   });
 
@@ -268,15 +260,6 @@ onStackMinimizedChange,
     setAssetImpact('Low');
     setAssetGroup(activeAsset.managedByGroup || 'Unassigned');
     setAssetManager(activeAsset.managedBy);
-    setAssetExtra((prev) => ({
-      ...prev,
-      'Contract Number': activeContract?.contractNumber ?? '',
-      'Contract Start Date': toISODate(activeContract?.startDate),
-      'Contract End Date': toISODate(activeContract?.endDate),
-      'Cost': activeContract?.cost ?? '',
-      'Contract Type': activeContract?.contractType ?? '',
-      'Vendor': activeContract?.vendor ?? '',
-    }));
   }, [activeAssetId]);
 
   const assetState = {
@@ -303,7 +286,7 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'renewals' | 'child-contracts'>('properties');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -354,18 +337,68 @@ onStackMinimizedChange,
   // Search across all Properties tab sections (Hardware Asset detail page).
   const [propertiesSearch, setPropertiesSearch] = useState('');
   // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
+  const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
+  const [relFull, setRelFull] = useState(false);
+  const [relKey, setRelKey] = useState(0);
+  // Expand-all / Collapse-all toolbar toggle (bulk expand every node at once).
+  const [relExpandKey, setRelExpandKey] = useState(0);
+  const [relCollapseKey, setRelCollapseKey] = useState(0);
+  const [relAllExpanded, setRelAllExpanded] = useState(false);
+  // Saved Views: capture/restore API filled by the RelationshipGraph instance.
+  const relSnapRef = useRef<RelGraphSnapshotApi | null>(null);
+  const [relSearch, setRelSearch] = useState('');
+  // Advanced Configuration for the relationship topology: applied config + panel draft.
+  const [relConfig, setRelConfig] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [relDraft, setRelDraft] = useState<RelGraphConfig>(DEFAULT_REL_GRAPH_CONFIG);
+  const [showRelSettings, setShowRelSettings] = useState(false);
+  // Topology type filter (toolbar Filter menu): the selected option's label, or null = all.
+  const [relFilter, setRelFilter] = useState<string[]>([]);
+  // Connection-type filter (edge relation labels; options reported live by the graph).
+  const [relConnFilter, setRelConnFilter] = useState<string[]>([]);
+  const [relConnTypes, setRelConnTypes] = useState<string[]>([]);
+  const [showRelConnMenu, setShowRelConnMenu] = useState(false);
+  const [relConnSearch, setRelConnSearch] = useState('');
+  // Active tab inside the merged Filter popup.
+  const [relFilterTab, setRelFilterTab] = useState<'type' | 'connection'>('type');
+  const [showRelFilter, setShowRelFilter] = useState(false);
+  // Add Relationship: the node whose "+" was clicked (opens the side panel), and the
+  // user-added relationships per source node (grafted into the topology).
+  const [relAddTarget, setRelAddTarget] = useState<{ id: string; name: string } | null>(null);
+  const [relExtras, setRelExtras] = useState<Record<string, ExtraRelChild[]>>({});
+  // Active Issues panel: the (red) node whose hover-card issues strip was clicked.
+  const [relIssuesTarget, setRelIssuesTarget] = useState<{ id: string; name: string } | null>(null);
+  const relSearchRef = useRef<HTMLInputElement>(null);
+  // Relationship download popup (same as the audit-trail download).
+  const [showRelDownload, setShowRelDownload] = useState(false);
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV' | 'PNG'>('PDF');
+  const [relDlPwProtected, setRelDlPwProtected] = useState(false);
+  const [relDlShowPw, setRelDlShowPw] = useState(false);
+  const [relDlPassword, setRelDlPassword] = useState('');
+  // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
+  // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
+  useEffect(() => {
+    if (activeMainTab !== 'relationship') return;
+    const onKey = (e: KeyboardEvent) => {
+      const inField = e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setRelFull((v) => !v);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        relSearchRef.current?.focus();
+        return;
+      }
+      if (inField) return;
+      if (e.key === '1') setRelView('graph');
+      else if (e.key === '2') setRelView('tree');
+      else if (e.key === '3') setRelView('grid');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeMainTab]);
   const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
-  // Expiry Reminder popup (bell icon in the contract header).
-  const [showExpiryReminder, setShowExpiryReminder] = useState(false);
-  const [reminderEmails, setReminderEmails] = useState<string[]>([]);
-  const [reminderEmailInput, setReminderEmailInput] = useState('');
-  const [reminderTechnician, setReminderTechnician] = useState('');
-  const [showReminderTechDropdown, setShowReminderTechDropdown] = useState(false);
-  const [reminderTechSearch, setReminderTechSearch] = useState('');
-  const [notifyBefore, setNotifyBefore] = useState('0');
-  const [notifyInterval, setNotifyInterval] = useState('0');
-  // True once the user has configured any expiry-reminder detail (decorates the bell).
-  const reminderConfigured = reminderEmails.length > 0 || !!reminderTechnician || Number(notifyBefore) > 0 || Number(notifyInterval) > 0;
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLocationHistory, setShowLocationHistory] = useState(false);
   // Whether the Hardware tab's jump-to-section list is open.
@@ -391,6 +424,43 @@ onStackMinimizedChange,
   const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
+
+  // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
+  // a deployment record (Installation tab); once that record's status turns Success the computer
+  // moves into the Installed bucket in the Computers tab.
+  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(INITIAL_COMPUTERS);
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(INITIAL_INSTALLATIONS);
+  // Patches tab — this endpoint's patch state (Missing / Installed / Ignored). Lives in the drawer
+  // so bucket moves survive tab switches.
+  const [endpointPatches, setEndpointPatches] = useState<EndpointPatch[]>(INITIAL_ENDPOINT_PATCHES);
+  const handleInstallPatch = (agentIds: string[]) => {
+    setPatchInstallations((prev) => {
+      const existing = new Set(prev.map((r) => r.agentId));
+      const toAdd = agentIds
+        .filter((id) => !existing.has(id))
+        .map((id) => {
+          const c = patchComputers.find((x) => x.id === id);
+          return {
+            id: `INST-${id}`,
+            agentId: id,
+            hostName: c?.hostName ?? id,
+            ipAddress: c?.ipAddress ?? '---',
+            configType: 'Install',
+            deploymentDate: '---',
+            installationStatus: 'Yet to Receive' as const,
+            retryStatus: 0,
+            downloadStatus: 'Success',
+            taskType: 'Manual Remote Deployment',
+          };
+        });
+      return [...toAdd, ...prev];
+    });
+    const n = agentIds.length;
+    toast.success(`${n} computer${n > 1 ? 's' : ''} queued for install`);
+  };
+  const handleInstallationSuccess = (agentId: string) => {
+    setPatchComputers((prev) => prev.map((c) => (c.id === agentId ? { ...c, bucket: 'Installed' } : c)));
+  };
 
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
@@ -481,7 +551,7 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'notifications'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'affected-products' | 'file-details'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -781,7 +851,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Contract Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Endpoint Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1016,8 +1086,11 @@ onStackMinimizedChange,
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Contract detail tabs (Approvals, Relationship, Financials removed — Overview + History only).
-      const allTabs: string[] = ['properties', 'renewals', 'child-contracts', 'audit'];
+      // Patch detail tabs — Overview (properties) · Vulnerabilities · Endpoint (computers) ·
+      // Installation · Superseded · Audit Trail.
+      // Approvals, Relationship, Relations and Financials were removed for the Patch page.
+      // Endpoint page: no Superseded tab (supersedence is a patch concept, not an endpoint's).
+      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'installation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1042,6 +1115,9 @@ onStackMinimizedChange,
         'tasks': 60,
         'approvals': 85,
         'relations': 80,
+        'computers': 100,
+        'vulnerabilities': 120,
+        'superseded': 110,
         'audit': 100,
         'resolution': 90
       };
@@ -2003,263 +2079,90 @@ onStackMinimizedChange,
       {/* Drawer Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Header Actions */}
-        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
+              {/* Agent-health dot before the id pill — 10px, same as the Hardware asset header */}
+              <span
+                className="inline-block size-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: (activePatchRecord?.endpoint?.agentOnline ?? true) ? '#22C55E' : '#EAB308' }}
+              />
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Contract KPIs — Created · Status · Expires · Vendor · Cost · Type */}
+            {/* Endpoint KPIs — System Health · Missing Patches · Reboot Required · Last Scan */}
             {(() => {
-              const s = activeContract?.status;
-              const statusColor = s === 'Active' ? '#22A06B' : s === 'Not Started' ? '#D97706' : '#9CA3AF';
-              // Owner — the contract manager responsible (mock; contracts carry no owner field in the data).
-              const owner = { name: 'Rakesh Rathod', initials: 'RR', color: '#8B5CF6' };
-              // Creator — who logged this contract (shown in the Created hover tooltip).
-              const creator = { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' };
-              // Vendor — drop the "VEN-##: " prefix for a clean header chip.
-              const vendorName = activeContract?.vendor ? activeContract.vendor.replace(/^VEN-\d+:\s*/, '') : null;
               const items: HeaderKpiItem[] = [];
-              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center gap-1.5 cursor-default">
-                      <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                      <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <div className="flex items-center gap-2">
-                      <span className="size-6 rounded flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ backgroundColor: creator.color }}>{creator.initials}</span>
-                      <div className="leading-tight">
-                        <div className="text-[10px] text-white/60">Created by</div>
-                        <div className="text-[12px] font-medium text-white">{creator.name}</div>
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              ) });
-              if (s) items.push({ key: 'status', tip: `Status: ${s}`, node: (
+              const p = activePatchRecord;
+              const ep = p?.endpoint;
+
+              const health = ep?.systemHealth ?? null;
+              const healthColor = health === 'Healthy' ? '#22C55E' : health === 'Warning' ? '#F59E0B' : health === 'Critical' ? '#EF4444' : '#9CA3AF';
+              items.push({ key: 'health', tip: health ? `System Health: ${health}` : 'System Health: not evaluated yet', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-                  <span className="text-[12px] font-medium" style={{ color: statusColor }}>{s}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">System Health</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: healthColor }} />
+                  <span className={`text-[12px] font-medium ${health ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{health ?? '---'}</span>
                 </span>
               ) });
-              if (vendorName) items.push({ key: 'vendor', tip: `Vendor: ${vendorName}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Vendor</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{vendorName}</span>
-                </span>
-              ) });
-              if (activeContract?.cost) items.push({ key: 'cost', tip: `Cost: ${activeContract.cost}`, node: (
+
+              // Live count from the Patches tab — drops as patches get installed there.
+              const missing = endpointPatches.filter((x) => x.bucket === 'Missing').length;
+              items.push({ key: 'missing', tip: missing > 0 ? `${missing} patches are missing on this endpoint — see the Patches tab` : 'No missing patches — endpoint is fully patched', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Cost</span>
-                  <span className="text-[12px] font-medium text-[#22A06B]">{activeContract.cost}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Missing Patches</span>
+                  <span className="text-[12px] font-semibold" style={{ color: missing > 0 ? '#DC2626' : '#22A06B' }}>{missing > 0 ? missing : 'None'}</span>
                 </span>
               ) });
-              if (activeContract?.contractType) items.push({ key: 'type', tip: `Type: ${activeContract.contractType}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Type</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeContract.contractType}</span>
+
+              const reboot = (p?.rebootRequired ?? 'No') === 'Yes';
+              items.push({ key: 'reboot', tip: reboot ? 'A pending patch needs a restart to finish installing' : 'No pending restart', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Reboot Required</span>
+                  {reboot && <span className="size-2 rounded-full flex-shrink-0 bg-[#F59E0B]" />}
+                  <span className="text-[12px] font-medium" style={{ color: reboot ? '#D97706' : '#364658' }}>{reboot ? 'Yes' : 'No'}</span>
                 </span>
               ) });
-              items.push({ key: 'owner', tip: `Owner: ${owner.name}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Owner</span>
-                  <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: owner.color }}>{owner.initials}</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{owner.name}</span>
+
+              // Matches the right panel's Scan Info block (static mock there too).
+              items.push({ key: 'scan', tip: 'Last Patch Scan: Thu, Jul 23, 2026 05:28 PM (In Progress)', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Last Scan</span>
+                  <span className="text-[12px] font-medium text-[#364658]">Jul 23, 2026</span>
                 </span>
               ) });
+
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
-          <div className="flex items-center gap-2">
-            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Contract URL" />
-            {/* Expiry Reminder (bell) */}
-            <div className="relative">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setShowExpiryReminder((v) => !v)}
-                    className={`relative p-1.5 border rounded hover:bg-[#F5F7FA] ${showExpiryReminder ? 'border-[#3D8BD0] bg-[#EAF3FB]' : reminderConfigured ? 'border-[#3D8BD0] bg-[#EAF3FB]' : 'border-[#DFE5ED] bg-white'}`}
-                  >
-                    <Bell size={16} className={reminderConfigured ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} fill={reminderConfigured ? '#3D8BD0' : 'none'} />
-                    {reminderConfigured && <span className="absolute top-1 right-1 size-2 rounded-full bg-[#22C55E] border border-white" />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{reminderConfigured ? 'Expiry Reminder set' : 'Expiry Reminder'}</TooltipContent>
-              </Tooltip>
-
-              {showExpiryReminder && (
-                <>
-                  <div className="fixed inset-0 z-[9998]" onClick={() => { setShowExpiryReminder(false); setShowReminderTechDropdown(false); }} />
-                  <div className="absolute top-full right-0 pt-1 z-[9999] w-[360px]">
-                    <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4">
-                      <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Expiry Reminder</h3>
-
-                      {/* Emails — type and press Enter to add as a pill */}
-                      <div className="mb-4">
-                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Emails</div>
-                        <div className="flex flex-wrap items-center gap-1.5 rounded border border-[#DFE5ED] px-2 py-1.5 focus-within:border-[#3D8BD0] transition-colors">
-                          {reminderEmails.map((em, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 rounded bg-[#EFF3F8] text-[#364658] text-[12px] pl-2 pr-1 py-1">
-                              {em}
-                              <button onClick={() => setReminderEmails((prev) => prev.filter((_, idx) => idx !== i))} className="text-[#7B8FA5] hover:text-[#DC2626]"><X size={12} /></button>
-                            </span>
-                          ))}
-                          <input
-                            type="email"
-                            value={reminderEmailInput}
-                            onChange={(e) => setReminderEmailInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if ((e.key === 'Enter' || e.key === ',') && reminderEmailInput.trim()) {
-                                e.preventDefault();
-                                setReminderEmails((prev) => [...prev, reminderEmailInput.trim()]);
-                                setReminderEmailInput('');
-                              } else if (e.key === 'Backspace' && !reminderEmailInput && reminderEmails.length) {
-                                setReminderEmails((prev) => prev.slice(0, -1));
-                              }
-                            }}
-                            onBlur={() => { if (reminderEmailInput.trim()) { setReminderEmails((prev) => [...prev, reminderEmailInput.trim()]); setReminderEmailInput(''); } }}
-                            placeholder={reminderEmails.length ? '' : 'name@company.com'}
-                            className="flex-1 min-w-[120px] bg-transparent text-[13px] text-[#364658] placeholder:text-[#9ca3af] outline-none py-1"
-                          />
-                        </div>
-                        <div className="text-[11px] text-[#9CA3AF] mt-1">Press Enter to add each email.</div>
-                      </div>
-
-                      {/* Technician — user picker (avatars + status dots + search) */}
-                      <div className="mb-4">
-                        <div className="text-[13px] text-[#7B8FA5] mb-1.5">Technician</div>
-                        <div className="relative">
-                          {(() => {
-                            const sel = TECHNICIAN_OPTIONS.find((o) => o.name === reminderTechnician);
-                            return (
-                              <button onClick={() => setShowReminderTechDropdown((v) => !v)} className="w-full h-[36px] flex items-center justify-between rounded-md border border-[#DFE5ED] px-3 text-[13px] text-[#364658] hover:bg-[#F5F7FA]">
-                                {sel ? (
-                                  <span className="flex items-center gap-2 min-w-0">
-                                    <span className="size-5 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: sel.color }}>{sel.initials}</span>
-                                    <span className="truncate">{sel.name}</span>
-                                  </span>
-                                ) : <span className="text-[#9CA3AF]">Select</span>}
-                                <ChevronDown size={14} className="text-[#7B8FA5] flex-shrink-0" />
-                              </button>
-                            );
-                          })()}
-                          {showReminderTechDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 z-[10000] bg-white rounded-md shadow-lg border border-[#DFE5ED] py-1">
-                              <div className="px-2 pt-1 pb-2">
-                                <div className="relative">
-                                  <input
-                                    type="text"
-                                    autoFocus
-                                    value={reminderTechSearch}
-                                    onChange={(e) => setReminderTechSearch(e.target.value)}
-                                    placeholder="Search for users..."
-                                    className="w-full pl-3 pr-8 py-1.5 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                                  />
-                                  <Search size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                                </div>
-                              </div>
-                              <div className="max-h-[240px] overflow-y-auto">
-                                {TECHNICIAN_OPTIONS.filter((o) => o.name.toLowerCase().includes(reminderTechSearch.toLowerCase())).map((o) => (
-                                  <button key={o.name} onClick={() => { setReminderTechnician(o.name); setShowReminderTechDropdown(false); setReminderTechSearch(''); }} className="w-full flex items-center justify-between px-3 py-2 hover:bg-[#F9FAFB] text-left transition-colors">
-                                    <span className="flex items-center gap-2.5 min-w-0">
-                                      <span className="size-6 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: o.color }}>{o.initials}</span>
-                                      <span className="text-[13px] text-[#364658] truncate">{o.name}</span>
-                                    </span>
-                                    <span className="flex items-center gap-2 flex-shrink-0">
-                                      <span className="size-2 rounded-full" style={{ backgroundColor: o.status }} />
-                                      {reminderTechnician === o.name && <Check size={14} className="text-[#3D8BD0]" />}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Notify Before / Interval */}
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div>
-                          <div className="text-[13px] text-[#7B8FA5] mb-1.5">Notify Before (Days)</div>
-                          <input type="number" min={0} value={notifyBefore} onChange={(e) => setNotifyBefore(e.target.value)} className="w-full h-[36px] rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] text-[#7B8FA5] mb-1.5">Notify Interval (Days)</div>
-                          <input type="number" min={0} value={notifyInterval} onChange={(e) => setNotifyInterval(e.target.value)} className="w-full h-[36px] rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none" />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => setShowExpiryReminder(false)} className="px-4 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6]">Cancel</button>
-                        <button onClick={() => setShowExpiryReminder(false)} className="px-4 py-1.5 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Update</button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
-            <div className="relative">
-              <div className="inline-flex items-stretch h-8">
-                <button
-                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
-                >
-                  Add Relation
-                </button>
-                <button
-                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
-                  title="Relation options"
-                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
-                >
-                  <ChevronDown size={14} className="text-[#6b7280]" />
-                </button>
-              </div>
-              {showRelationModeMenu && (
-                <>
-                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
-                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
-                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
-                  </div>
-                </>
-              )}
-              
-              {showPropertiesRelationDropdown && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
-                  ref={propertiesRelationDropdownRef}
-                >
-                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
-                  {['Request', 'Asset', 'Purchase'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setPropertiesRelationType(type);
-                        setShowPropertiesRelationDropdown(false);
-                        setShowPropertiesRelationModal(true);
-                      }}
-                      className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Endpoints aren't approved/declined (that's a patch decision) — the useful header
+                actions are refreshing the agent status and kicking off an on-demand patch scan. */}
             <button
-              onClick={() => toast.success('Contract renewal started')}
-              className="px-4 py-1.5 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+              title="Refresh"
+              onClick={() => toast.success('Endpoint status refreshed')}
+              className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
             >
-              Renew Contract
+              <RefreshCw size={16} className="text-[#6b7280]" />
             </button>
-            <HardwareAssetActionsMenu contract />
+            <button
+              onClick={() => toast.success(`Patch scan started on ${activeAsset?.name ?? 'endpoint'}`)}
+              className="flex items-center h-8 px-4 bg-[#3D8BD0] text-white text-[12px] font-medium rounded hover:bg-[#2F7AB8] transition-colors"
+            >
+              Scan Now
+            </button>
+            <HardwareAssetActionsMenu
+              patch
+              onOpenApprovalPopup={() => {
+                setShowCreateApprovalPopup(true);
+                setActiveMainTab('approvals');
+              }}
+              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
+            />
           </div>
         </div>
 
@@ -2267,8 +2170,11 @@ onStackMinimizedChange,
         <div className="flex flex-1 overflow-hidden" data-onboarding-container>
           {/* Left Content */}
           <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
-            {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Scrollable Content Area — the Superseded tab is a full-height React Flow map
+                (like the CMDB Dependency Map), so it must NOT scroll: become a flex column with
+                overflow-hidden there so the map fills EXACTLY (its controls never clip) and no
+                gutter/scrollbar appears. */}
+            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto'}>
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -2560,11 +2466,12 @@ onStackMinimizedChange,
               <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
-                    { id: 'properties', label: 'Overview' },
-                    { id: 'renewals', label: 'Renewals' },
-                    { id: 'child-contracts', label: 'Child Contracts' },
+                    { id: 'properties', label: 'Properties' },
+                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
+                    { id: 'computers', label: 'Endpoint' },
+                    { id: 'installation', label: 'Deployment' },
                     { id: 'audit', label: 'Audit Trail' },
-                  ].filter(tab => (tab as any).condition !== false);
+                  ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
                   const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
@@ -2576,7 +2483,7 @@ onStackMinimizedChange,
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
-                    'installation': 'Installation',
+                    'installation': 'Deployment',
                     'meter': 'Meter',
                     'baseline': 'Baseline',
                     'relationship': 'Relationship',
@@ -2584,13 +2491,14 @@ onStackMinimizedChange,
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'renewals': 'Renewals',
-                    'child-contracts': 'Child Contracts',
+                    'computers': 'Patches',
+                    'vulnerabilities': 'Vulnerabilities',
+                    'superseded': 'Superseded',
                     'audit': 'Audit Trail'
                   };
 
                   const renderTab = (tabId: string) => (
-                    <button 
+                    <button
                       key={tabId}
                       className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
                       onClick={() => setActiveMainTab(tabId as any)}
@@ -2890,144 +2798,220 @@ onStackMinimizedChange,
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
-              {/* AI summary (no heading — icon + short asset summary) */}
-              <div className="mb-6">
-                <AssetAiSummary
-                  summary="This contract is active and on track, though its term is approaching renewal."
-                  points={[
-                    'Renewal date is approaching — decide whether to renew, renegotiate or let it expire.',
-                    'Linked to active assets and purchase orders.',
-                    'No pending approvals are currently blocking this contract.',
-                  ]}
-                
-                  actions={[
-                    { label: 'Renew Contract', question: 'Renew this contract before the term ends', answer: 'The renewal date is approaching. I can initiate a renewal, open a renegotiation, or set it to expire. Recommended: decide before the term ends to avoid a lapse in coverage.' },
-                  ]}
-                onAction={(q, a) => quickActionHandlerRef.current?.(q, a)}/>
-              </div>
-              {/* KPI strip — Warranty / Impact / Approval */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
-                  {(() => {
-                    const impactSeed = [...(activeAssetId ?? 'NON-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-                    const impactCounts: [string, number][] = [
-                      ['Incident', (impactSeed % 3) + 4],
-                      ['Asset', Math.floor(impactSeed / 4) % 3],
-                      ['Purchase', Math.floor(impactSeed / 7) % 3],
-                    ];
-                    const impactVisibleCount = impactCounts.filter(([, n]) => n > 0).length;
-                    // Contract Expires — real days-to-go from endDate (matches the header chip).
-                    const expCard = (() => {
-                      const raw = activeContract?.endDate;
-                      if (!raw) return { value: '---', unit: undefined as string | undefined, color: '#9CA3AF', days: null as number | null };
-                      const [d, m, y] = raw.split('/').map(Number);
-                      if (!d || !m || !y) return { value: raw, unit: undefined, color: '#7B8FA5', days: null };
-                      const exp = new Date(y, m - 1, d);
-                      const today = new Date(); today.setHours(0, 0, 0, 0);
-                      const days = Math.round((exp.getTime() - today.getTime()) / 86400000);
-                      if (days < 0) return { value: 'Expired', unit: undefined, color: '#DC2626', days };
-                      if (days === 0) return { value: 'Today', unit: undefined, color: '#DC2626', days };
-                      const color = days <= 30 ? '#D97706' : '#3D8BD0';
-                      return { value: String(days), unit: 'days', color, days };
-                    })();
-                    return [
-                    { label: 'Contract Type', value: activeContract?.contractType ?? '---', sub: 'Contract type', color: '#3D8BD0', icon: FileText },
-                    { label: 'Cost', value: activeContract?.cost ?? '---', sub: 'Total cost', color: '#22A06B', icon: CircleDollarSign },
-                    { label: 'Vendor', value: activeContract?.vendor ?? '---', sub: 'Supplier', color: '#8B5CF6', icon: Briefcase, isText: true },
-                    { label: 'Contract Expires', value: expCard.value, unit: expCard.unit, sub: 'Until expiry', color: expCard.color, icon: Clock,
-                      ai: { action: 'Renew contract', q: 'When does this contract expire and how do I renew it?',
-                        a: `**Contract expiry:** ${expCard.days != null && expCard.days >= 0 ? `Expires in **${expCard.days} days**` : expCard.days != null ? '**Expired**' : 'No end date on record'}.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry\n• Confirm the renewal term with the contract owner\n\nWould you like me to draft a renewal request?` } },
-                    ...(impactVisibleCount > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, counts: impactCounts }] : []),
-                    { label: 'Child Contracts', value: '2', sub: 'Linked contracts', color: '#14B8A6', icon: Copy },
-                  ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Activity; counts?: [string, number][]; isText?: boolean; ai?: { action: string; q: string; a: string } }[]; })().map((c) => {
-                    const Icon = c.icon;
-                    if (c.counts) {
-                      const visible = c.counts.filter(([, n]) => n > 0);
+              {/* Description — OPTIONAL. Only some patches carry release notes, so this renders
+                  nothing at all when absent (no empty band). Clamped to 2 lines with View more. */}
+              {activePatchRecord?.description && (() => {
+                const text = activePatchRecord.description!;
+                const isLong = text.length > 160;
+                return (
+                  <div className="mb-6 bg-white rounded-lg border border-[#E5E7EB] p-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658] mb-2">Description</h3>
+                    <p className={`text-[13px] text-[#364658] leading-relaxed whitespace-pre-line ${!descExpanded && isLong ? 'line-clamp-2' : ''}`}>
+                      {text}
+                    </p>
+                    {isLong && (
+                      <button
+                        onClick={() => setDescExpanded((v) => !v)}
+                        className="mt-1.5 text-[13px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
+                      >
+                        {descExpanded ? 'View less' : 'View more'}
+                        {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* KPI strip — each card shows a headline count plus its own distribution as a
+                  stacked bar + legend (far easier to read at this size than a pie), and each card
+                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
+              {(() => {
+                const wide = drawerWidth > 1080;
+
+                type Seg = { label: string; value: number; color: string };
+                type Kpi = {
+                  key: string; label: string; icon: typeof Activity; color: string;
+                  total: number; segments?: Seg[]; note?: string;
+                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
+                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
+                  chart: 'donut' | 'bar' | 'none' | 'list';
+                  /** Preview rows for chart: 'list'. */
+                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
+                  /** Spans half the row instead of a third. */
+                  half?: boolean;
+                  onClick: () => void;
+                };
+
+                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
+                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
+
+                // This endpoint's own patch buckets — live from the Patches tab state.
+                const epMissing = endpointPatches.filter((x) => x.bucket === 'Missing').length;
+                const epInstalled = endpointPatches.filter((x) => x.bucket === 'Installed').length;
+                const epIgnored = endpointPatches.filter((x) => x.bucket === 'Ignored').length;
+
+                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
+                const depSuccess = dep('Success');
+                const depFailed = dep('Failed');
+                const depProgress = dep('In Progress');
+                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
+
+                const kpis: Kpi[] = [
+                  {
+                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
+                    chart: 'donut', total: VULNERABILITIES.length,
+                    segments: [
+                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
+                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('vulnerabilities'),
+                  },
+                  {
+                    key: 'patches', label: 'Patches', icon: Package, color: '#3D8BD0',
+                    chart: 'donut', total: endpointPatches.length,
+                    segments: [
+                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
+                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
+                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('computers'),
+                  },
+                  {
+                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
+                    chart: 'donut', total: patchInstallations.length,
+                    segments: [
+                      { label: 'Success', value: depSuccess, color: '#22C55E' },
+                      { label: 'Failed', value: depFailed, color: '#EF4444' },
+                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
+                      { label: 'Others', value: depOther, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('installation'),
+                  },
+                  // No Affected Products / Files preview cards here — those are patch-catalog
+                  // concepts; the endpoint Overview keeps just the three gauges.
+                ];
+
+                return (
+                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
+                     the two list cards take half each (span 3) — together they fill the row. */
+                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-2'}`}>
+                    {kpis.map((k) => {
+                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
+                      // Records beyond the inline preview — surfaced in the link as "+N more".
+                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
+                      const isDonut = k.chart === 'donut' && segs.length > 0;
+                      const dia = wide ? 104 : 88;      // gauge diameter
+                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
+                      let acc = 0;                      // running offset per segment
                       return (
-                        <div key={c.label} className={`${visible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                            <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this contract</div>
+                        <div
+                          key={k.key}
+                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
+                              <k.icon size={15} />
+                            </span>
+                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
+                            {/* Only this link navigates — the card itself is not clickable
+                                (same as the Software Overview cards' "View more ›"). Preview cards
+                                carry the remaining count instead, like the Hardware "Users" card. */}
+                            <button
+                              onClick={k.onClick}
+                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
+                            >
+                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
+                            </button>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {visible.map(([l, n]) => {
-                              const m = ({
-                                Incident: { icon: IconRequest, color: '#DC2626' },
-                                Asset: { icon: IconAssets, color: '#3D8BD0' },
-                                Purchase: { icon: ShoppingCart, color: '#D97706' },
-                              } as Record<string, { icon: React.ComponentType<{ size?: number }>; color: string }>)[l];
-                              const Ic = m.icon;
-                              const recs = (RELATED_RECORDS[String(l)] || []).slice(0, Math.min(3, Number(n)));
-                              return (
-                                <Tooltip key={l}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }}
-                                      className="group/imp flex items-center gap-1.5 rounded bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = m.color)}
-                                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                                    >
-                                      <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${m.color}1A`, color: m.color }}><Ic size={12} /></span>
-                                      <span className="text-[14px] font-bold leading-none" style={{ color: m.color }}>{n}</span>
-                                      <span className="text-[11px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{l}</span>
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                                    
-                                    <div className="max-h-[260px] overflow-y-auto">
-                                      {recs.map((r) => (
-                                        <button key={r.id} onClick={() => onOpenRelation?.({ ticketId: r.id, subject: r.subject, type: (l === 'Incident' ? 'Request' : String(l)), status: r.status, priority: r.priority, assignedTo: { name: r.assignee } })} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                            <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                          </div>
-                                          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
-                                            <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                            <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
-                                          </div>
-                                        </button>
-                                      ))}
+
+                          {isDonut ? (
+                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
+                            <div className="mt-3 flex items-center gap-4">
+                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
+                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
+                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+                                  {segs.map((s) => {
+                                    const len = (s.value / Math.max(k.total, 1)) * C;
+                                    const off = -(acc / Math.max(k.total, 1)) * C;
+                                    acc += s.value;
+                                    return (
+                                      <circle
+                                        key={s.label}
+                                        cx="50" cy="50" r="40" fill="none"
+                                        stroke={s.color} strokeWidth="16"
+                                        strokeDasharray={`${len} ${C - len}`}
+                                        strokeDashoffset={off}
+                                      />
+                                    );
+                                  })}
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-[18px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
+                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
+                                </div>
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                {segs.map((s) => (
+                                  <div key={s.label} className="flex items-center gap-2">
+                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{s.label}</span>
+                                    <span className="flex-shrink-0 text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : k.chart === 'list' ? (
+                            /* Just the first 2 records — no count line; the total lives in the
+                               "+N more" link, exactly like the Hardware Overview "Users" card. */
+                            <>
+                              <div className="mt-3 space-y-2">
+                                {(k.items ?? []).map((it) => (
+                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
+                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
+                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
                                     </div>
-                                    {Number(n) > 3 && (
-                                      <button onClick={() => { setRelationsInitialFilter(l === 'Incident' ? 'Request' : String(l)); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2.5 border-t border-[#F0F2F5] text-[12px] font-medium text-[#3D8BD0] hover:bg-[#F9FAFB] transition-colors cursor-pointer">View all {n}</button>
-                                    )}
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            })}
-                          </div>
+                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
+                                {k.total}
+                              </div>
+                              {segs.length > 0 ? (
+                                <>
+                                  {/* Stacked distribution bar */}
+                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                                    {segs.map((s) => (
+                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
+                                    ))}
+                                  </div>
+                                  {/* Legend */}
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                                    {segs.map((s) => (
+                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                        {s.label}
+                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
+                              )}
+                            </>
+                          )}
                         </div>
                       );
-                    }
-                    return (
-                      <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                          <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
-                        </div>
-                        {c.isText ? (
-                          <div className="text-[15px] font-semibold leading-snug break-words" style={{ color: c.color }} title={c.value}>{c.value}</div>
-                        ) : (
-                          <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</div>
-                        )}
-                        {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
-                        {c.ai && (
-                          <button
-                            onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
-                            title={`Ask ServiceOps AI — ${c.ai.action}`}
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-                            className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
-                          >
-                            <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
-                            <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    })}
+                  </div>
+                );
+              })()}
 
             </div>
             )}
@@ -3521,7 +3505,8 @@ onStackMinimizedChange,
             })()}
 
             {/* Installation — hardware assets where this software is installed */}
-            {activeMainTab === 'installation' && (() => {
+            {/* Legacy Software-clone Installation grid — replaced by PatchInstallationTab below (kept as dead code). */}
+            {false && (() => {
               const all = [
                 { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', type: 'Windows Laptop', ip: '10.190.44.202', group: 'Unassigned', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Tue, Apr 28, 2026 11:44 AM' },
                 { id: 'LAP-6712', host: 'FIN-LT-0188', type: 'Windows Laptop', ip: '10.20.22.188', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Mar 17, 2026 09:20 AM' },
@@ -3933,11 +3918,15 @@ onStackMinimizedChange,
             )}
 
             {activeMainTab === 'relationship' && (() => {
+              // Node colors are merged into 4 groups (legend): Assets (hardware+software+non-IT+
+              // consumable), Users (technician/requester/user group), CI, Department. Key order
+              // here IS the legend order.
               const typeMeta: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-                user: { color: '#6366F1', icon: <User size={14} />, label: 'User' },
-                software: { color: '#10B981', icon: <AppWindow size={14} />, label: 'Software' },
-                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Hardware' },
-                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'Asset' },
+                hardware: { color: '#F59E0B', icon: <Cpu size={14} />, label: 'Assets' },
+                software: { color: '#F59E0B', icon: <AppWindow size={14} />, label: 'Assets' },
+                user: { color: '#6366F1', icon: <User size={14} />, label: 'Users' },
+                asset: { color: '#EC4899', icon: <Network size={14} />, label: 'CI' },
+                department: { color: '#10B981', icon: <Users size={14} />, label: 'Department' },
               };
               const nodes: { label: string; type: keyof typeof typeMeta }[] = [
                 { label: 'J. Doe', type: 'user' },
@@ -3948,52 +3937,482 @@ onStackMinimizedChange,
                 { label: 'DC1-SW-CORE-01', type: 'asset' },
                 { label: 'LG Monitor', type: 'asset' },
               ];
+              const center = relView === 'tree' ? { x: 50, y: 14 } : { x: 50, y: 50 };
               const positioned = nodes.map((n, i) => {
+                if (relView === 'tree') {
+                  const x = nodes.length === 1 ? 50 : 8 + (i / (nodes.length - 1)) * 84;
+                  return { ...n, x, y: 74 };
+                }
                 const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
                 return { ...n, x: 50 + 36 * Math.cos(angle), y: 50 + 38 * Math.sin(angle) };
               });
-              return (
-                <div className="px-6 py-6">
-                  {/* Legend */}
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    {Object.values(typeMeta).map((t) => (
-                      <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                        <span className="size-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.label}
-                      </span>
-                    ))}
+              type PosNode = typeof positioned[number];
+
+              const nodeCard = (n: PosNode) => {
+                const m = typeMeta[n.type];
+                return (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
+                    <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                    <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
                   </div>
+                );
+              };
+              const centerName = activeAsset?.name || activeTicket?.subject || 'This Asset';
 
-                  {/* Topology */}
-                  <div className="relative w-full h-[520px] rounded-lg border border-[#E5E7EB] bg-[#FAFBFC] overflow-hidden">
-                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                      {positioned.map((n) => (
-                        <line key={n.label} x1="50%" y1="50%" x2={`${n.x}%`} y2={`${n.y}%`} stroke="#CBD5E1" strokeWidth={1.5} />
-                      ))}
-                    </svg>
-
-                    {/* Center: this asset */}
-                    <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}>
-                      <div className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl bg-[#3D8BD0] text-white shadow-md max-w-[180px]">
-                        <Monitor size={20} />
-                        <span className="text-[12px] font-semibold text-center truncate max-w-[150px]">{activeAsset?.name || activeTicket?.subject || 'This Asset'}</span>
-                        <span className="text-[10px] opacity-90">{activeAsset?.id}</span>
-                      </div>
-                    </div>
-
-                    {/* Connected nodes */}
-                    {positioned.map((n) => {
-                      const m = typeMeta[n.type];
-                      return (
-                        <div key={n.label} className="absolute z-10" style={{ left: `${n.x}%`, top: `${n.y}%`, transform: 'translate(-50%,-50%)' }}>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] shadow-sm max-w-[180px]">
-                            <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
-                            <span className="text-[12px] font-medium text-[#364658] truncate">{n.label}</span>
+              // NOTE: the type legend (User/Software/Hardware/Asset dots) was removed from
+              // this toolbar — it will be re-placed elsewhere later. A node search sits in
+              // its place: typing highlights matching nodes and fades everything else.
+              const legend = (
+                <div className="flex items-center gap-2">
+                  <div className="relative w-[260px]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <input
+                      ref={relSearchRef}
+                      value={relSearch}
+                      onChange={(e) => setRelSearch(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setRelSearch(''); e.currentTarget.blur(); } }}
+                      placeholder="Search...   Ctrl + F | Esc to clear"
+                      className="w-full h-8 pl-9 pr-3 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                    />
+                  </div>
+                  {/* Filters — node type + connection type in ONE popup with two TABS (side-by-side
+                      columns read as parent→child, so tabs make the two independent filters clear);
+                      selections keep the popup open, a dot marks a tab whose filter is active */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => { setShowRelFilter((v) => !v); setRelConnSearch(''); setRelFilterTab(relConnFilter.length && !relFilter.length ? 'connection' : 'type'); }}
+                          className={`inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${relFilter.length || relConnFilter.length ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
+                        >
+                          <Filter size={14} className={relFilter.length || relConnFilter.length ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                          <span className="max-w-[200px] truncate">{[relFilter.length ? (relFilter.length === 1 ? relFilter[0] : `${relFilter[0]} +${relFilter.length - 1}`) : null, relConnFilter.length ? (relConnFilter.length === 1 ? relConnFilter[0] : `${relConnFilter[0]} +${relConnFilter.length - 1}`) : null].filter(Boolean).join(' · ') || 'All'}</span>
+                          <ChevronDown size={14} className={`transition-transform ${showRelFilter ? 'rotate-180' : ''} ${relFilter.length || relConnFilter.length ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Filter by node type & connection</TooltipContent>
+                    </Tooltip>
+                    {showRelFilter && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelFilter(false)} />
+                        <div className="absolute left-0 top-full mt-1 w-[280px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 flex flex-col">
+                          {/* Selected filters as removable chips (both tabs combined) */}
+                          {(relFilter.length > 0 || relConnFilter.length > 0) && (
+                            <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-2.5 border-b border-[#EEF1F4]">
+                              {relFilter.map((f) => (
+                                <span key={`t-${f}`} className="inline-flex items-center gap-1 rounded-md bg-[#F1F5F9] pl-2 pr-1 py-0.5 text-[12px] font-medium text-[#364658]">
+                                  {f}
+                                  <button onClick={() => setRelFilter((p) => p.filter((x) => x !== f))} className="rounded p-0.5 text-[#7B8FA5] hover:text-[#364658] hover:bg-black/10 transition-colors"><X size={11} /></button>
+                                </span>
+                              ))}
+                              {relConnFilter.map((f) => (
+                                <span key={`c-${f}`} className="inline-flex items-center gap-1 rounded-md bg-[#F1F5F9] pl-2 pr-1 py-0.5 text-[12px] font-medium text-[#364658]">
+                                  {f}
+                                  <button onClick={() => setRelConnFilter((p) => p.filter((x) => x !== f))} className="rounded p-0.5 text-[#7B8FA5] hover:text-[#364658] hover:bg-black/10 transition-colors"><X size={11} /></button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Tabs */}
+                          <div className="flex border-b border-[#EEF1F4]">
+                            <button
+                              onClick={() => setRelFilterTab('type')}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${relFilterTab === 'type' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
+                            >
+                              Node Type
+                              {relFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+                            </button>
+                            <button
+                              onClick={() => setRelFilterTab('connection')}
+                              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${relFilterTab === 'connection' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
+                            >
+                              Connection
+                              {relConnFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+                            </button>
+                          </div>
+                          {relFilterTab === 'type' ? (
+                            <div className="overflow-y-auto py-1 max-h-[320px]">
+                              <button
+                                onClick={() => setRelFilter([])}
+                                className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relFilter.length ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                              >
+                                All
+                                {!relFilter.length && <Check size={14} className="text-[#3D8BD0]" />}
+                              </button>
+                              {(['Hardware Asset', 'Software Asset', 'Non-IT Asset', 'Consumable Asset', 'CI', 'Department', 'Technician', 'Requester', 'User Group', 'Active Issues'] as const).map((opt) => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setRelFilter((p) => (p.includes(opt) ? p.filter((x) => x !== opt) : [...p, opt]))}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relFilter.includes(opt) ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                >
+                                  {opt === 'Active Issues' ? (<span className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#EF4444] flex-shrink-0" />{opt}</span>) : opt}
+                                  {relFilter.includes(opt) && <Check size={14} className="text-[#3D8BD0]" />}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col max-h-[320px]">
+                              <div className="relative px-2 pt-2 pb-1.5">
+                                <Search size={13} className="absolute left-4 top-[17px] text-[#9CA3AF]" />
+                                <input
+                                  type="text"
+                                  value={relConnSearch}
+                                  onChange={(e) => setRelConnSearch(e.target.value)}
+                                  placeholder="Search"
+                                  className="w-full pl-7 pr-2 py-1.5 text-[13px] text-[#364658] border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0]"
+                                />
+                              </div>
+                              <div className="overflow-y-auto py-1">
+                                <button
+                                  onClick={() => setRelConnFilter([])}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${!relConnFilter.length ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                >
+                                  All
+                                  {!relConnFilter.length && <Check size={14} className="text-[#3D8BD0]" />}
+                                </button>
+                                {[...REL_RELATIONS, ...relConnTypes.filter((r) => !REL_RELATIONS.includes(r))].filter((opt) => opt.toLowerCase().includes(relConnSearch.trim().toLowerCase())).map((opt) => (
+                                  <button
+                                    key={opt}
+                                    onClick={() => setRelConnFilter((p) => (p.includes(opt) ? p.filter((x) => x !== opt) : [...p, opt]))}
+                                    className={`w-full flex items-center justify-between px-4 py-2 text-[13px] text-left transition-colors ${relConnFilter.includes(opt) ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`}
+                                  >
+                                    {opt}
+                                    {relConnFilter.includes(opt) && <Check size={14} className="text-[#3D8BD0]" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Footer: clear both + done */}
+                          <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#EEF1F4]">
+                            <button
+                              onClick={() => { setRelFilter([]); setRelConnFilter([]); }}
+                              disabled={!relFilter.length && !relConnFilter.length}
+                              className="text-[12px] font-medium text-[#3D8BD0] hover:underline disabled:text-[#9CA3AF] disabled:no-underline disabled:cursor-not-allowed"
+                            >
+                              Clear all
+                            </button>
+                            <button onClick={() => setShowRelFilter(false)} className="px-3 py-1.5 rounded bg-[#3D8BD0] text-white text-[12px] font-medium hover:bg-[#2F7AB8] transition-colors">Done</button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </>
+                    )}
                   </div>
+                  {/* Saved views */}
+                  <RelSavedViews
+                    storageKey="relViews:non-it"
+                    reset={() => { setRelView('graph'); setRelFilter([]); setRelConnFilter([]); setRelKey((k) => k + 1); }}
+                    capture={() => ({ mode: relView, filter: relFilter, connFilter: relConnFilter, graph: relSnapRef.current?.capture() ?? null })}
+                    apply={(v) => {
+                      setRelView(v.mode as 'graph' | 'tree' | 'grid');
+                      setRelFilter(Array.isArray(v.filter) ? v.filter : v.filter ? [v.filter] : []);
+                      setRelConnFilter(Array.isArray(v.connFilter) ? v.connFilter : v.connFilter ? [v.connFilter] : []);
+                      // Restore canvas state AFTER the mode-change relayout effect has run.
+                      setTimeout(() => { if (v.graph) relSnapRef.current?.restore(v.graph); }, 120);
+                    }}
+                  />
+                </div>
+              );
+
+              const viewBtns = [
+                // Icons mirror what each view actually renders: radial orbit graph ·
+                // top-down hierarchy · numbered relationship list.
+                { key: 'graph', icon: <Orbit size={15} />, title: 'Full view' },
+                { key: 'tree', icon: <Network size={15} />, title: 'Tree view' },
+                { key: 'grid', icon: <ListIcon size={15} />, title: 'Grid view' },
+              ] as const;
+              const controls = (
+                <div className="flex items-center gap-2">
+                  {relConfig.locked && (
+                    <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#F59E0B]/50 bg-[#FEF3C7] px-2.5 text-[12px] font-medium text-[#B45309]">
+                        <Lock size={13} />
+                        Locked
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Node layout is locked (Advanced Configuration)</TooltipContent>
+                  </Tooltip>
+                  )}
+                  {/* View-mode segmented group */}
+                  <div className="inline-flex items-center rounded border border-[#DFE5ED] bg-white p-0.5">
+                    {viewBtns.map((b) => (
+                      <Tooltip key={b.key}>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => setRelView(b.key)} className={`inline-flex items-center justify-center size-7 rounded transition-colors ${relView === b.key ? 'bg-[#3D8BD0] text-white' : 'text-[#6B7280] hover:bg-[#F5F7FA]'}`}>{b.icon}</button>
+                        </TooltipTrigger>
+                        <TooltipContent>{b.title}</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  {/* Expand all / Collapse all */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (relAllExpanded) { setRelCollapseKey((k) => k + 1); setRelAllExpanded(false); }
+                          else { setRelExpandKey((k) => k + 1); setRelAllExpanded(true); }
+                        }}
+                        className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                      >
+                        {relAllExpanded ? <ChevronsDownUp size={15} className="text-[#6b7280]" /> : <ChevronsUpDown size={15} className="text-[#6b7280]" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relAllExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
+                  </Tooltip>
+                  {/* Refresh */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelKey((k) => k + 1)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><RefreshCw size={15} className="text-[#6b7280]" /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Refresh</TooltipContent>
+                  </Tooltip>
+                  {/* Download */}
+                  <div className="relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => setShowRelDownload((v) => !v)} className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"><Download size={15} className="text-[#6b7280]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Download</TooltipContent>
+                    </Tooltip>
+                    {showRelDownload && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowRelDownload(false)} />
+                        <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                          <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+                          {/* Format */}
+                          <div className="mb-4">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
+                            <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
+                              {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
+                                <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Password Protected toggle */}
+                          <div className="mb-3">
+                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label>
+                            <button onClick={() => setRelDlPwProtected((v) => !v)} role="switch" aria-checked={relDlPwProtected} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${relDlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}>
+                              <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${relDlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+                            </button>
+                          </div>
+                          {/* Attachment password */}
+                          {relDlPwProtected && (
+                            <div className="mb-1">
+                              <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
+                              <div className="relative">
+                                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                                <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
+                                <button onClick={() => setRelDlShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{relDlShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button>
+                            <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {/* Settings → Advanced Configuration side panel */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => { setRelDraft(relConfig); setShowRelSettings(true); }} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${showRelSettings ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}><Settings2 size={15} /></button>
+                    </TooltipTrigger>
+                    <TooltipContent>Settings</TooltipContent>
+                  </Tooltip>
+                  {/* Full screen */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button onClick={() => setRelFull((v) => !v)} className={`inline-flex items-center justify-center h-8 w-8 rounded border transition-colors ${relFull ? 'bg-[#3D8BD0] text-white border-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA]'}`}>{relFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+                    </TooltipTrigger>
+                    <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+                  </Tooltip>
+                </div>
+              );
+
+              const graphArea = (
+                <div className={`relative w-full h-full overflow-hidden ${relView === 'grid' ? 'bg-white' : ''}`}>
+                  {relView === 'grid' ? (
+                    <div className="p-4 h-full overflow-auto">
+                      <div className="space-y-2.5 min-w-[720px]">
+                        {positioned.map((n, i) => {
+                          const m = typeMeta[n.type];
+                          const rel = n.type === 'user' ? 'Users' : 'Depends On';
+                          return (
+                            <div key={n.label} className="flex items-center gap-3">
+                              <span className="w-6 text-right text-[13px] text-[#64748B] flex-shrink-0">{i + 1}.</span>
+                              {/* Source (this CI) */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md bg-[#3D8BD0] text-white flex-shrink-0"><HardDrive size={14} /></span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{activeAsset?.id ? `${activeAsset.id}: ${centerName}` : centerName}</span>
+                              </div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Relationship type */}
+                              <div className="w-[200px] flex-shrink-0 text-center px-4 py-2.5 rounded-md bg-[#1E293B] text-white text-[13px] font-medium truncate">{rel}</div>
+                              <div className="h-px w-5 bg-[#CBD5E1] flex-shrink-0" />
+                              {/* Target */}
+                              <div className="flex-1 basis-0 min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-[#E5E7EB] shadow-sm">
+                                <span className="flex size-6 items-center justify-center rounded-md text-white flex-shrink-0" style={{ backgroundColor: m.color }}>{m.icon}</span>
+                                <span className="text-[13px] font-medium text-[#364658] truncate">{n.label}</span>
+                              </div>
+                              {/* Remove */}
+                              <button title="Remove relation" className="flex-shrink-0 inline-flex items-center justify-center h-8 w-8 rounded border border-[#FCA5A5] text-[#EF4444] hover:bg-[#FEF2F2] transition-colors"><Trash2 size={15} /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <RelationshipGraph
+                      mode={relView as 'graph' | 'tree'}
+                      refreshSignal={relKey}
+                      snapshotRef={relSnapRef}
+                      connectionFilter={relConnFilter}
+                      onConnectionTypesChange={setRelConnTypes}
+                      expandAllSignal={relExpandKey}
+                      collapseAllSignal={relCollapseKey}
+                      nodes={nodes}
+                      typeMeta={typeMeta}
+                      centerName={centerName}
+                      centerId={activeAsset?.id}
+                      searchTerm={relSearch}
+                      config={relConfig}
+                      typeFilter={relFilter.length ? relFilter.map((f) => ({ 'Hardware Asset': 'hardware', 'Software Asset': 'software', 'Non-IT Asset': 'hardware', 'Consumable Asset': 'hardware', 'CI': 'asset', 'Department': 'department', 'Technician': 'user', 'Requester': 'user', 'User Group': 'user', 'Active Issues': 'active-issues' } as const)[f as 'CI']).filter(Boolean) : null}
+                      onOpenNode={(info) => {
+                        // Open the node's record as a tab in this same drawer (same flow as the
+                        // Impact popup's "Open related records"): CI-style nodes → CMDB, the
+                        // rest → Hardware Asset. The opened record shows its own default
+                        // (Overview) tab; THIS asset keeps its Relationship tab when reselected.
+                        onOpenRelation?.({ ticketId: info.id, subject: info.name, type: info.type === 'asset' ? 'CI' : 'Asset', status: 'In Use', priority: 'Medium', assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                      }}
+                      onAddRelation={(info) => setRelAddTarget(info)}
+                      onShowIssues={(info) => setRelIssuesTarget(info)}
+                      extraChildren={relExtras}
+                    />
+                  )}
+                </div>
+              );
+
+              // Advanced Configuration side panel: live preview (uses the DRAFT config) +
+              // functional sliders; Apply commits the draft to the real graph.
+              const viewLabel = relView === 'graph' ? 'Full View' : relView === 'tree' ? 'Tree View' : 'Grid View';
+              const settingsPanel = showRelSettings ? (
+                <>
+                  <div className="fixed inset-0 bg-black/30 z-[10004]" onClick={() => setShowRelSettings(false)} />
+                  <div className="fixed top-0 right-0 h-full w-[560px] max-w-[94vw] bg-white shadow-2xl z-[10005] flex flex-col">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                      <h2 className="text-[17px] font-semibold text-[#111827]">Advanced Configuration <span className="text-[13px] font-normal text-[#7B8FA5]">({viewLabel})</span></h2>
+                      <button onClick={() => setShowRelSettings(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {/* Live preview — driven by the draft values */}
+                      <div className="h-[230px] border-b border-[#E5E7EB] overflow-hidden">
+                        <RelationshipGraph
+                          mode={relView === 'tree' ? 'tree' : 'graph'}
+                          nodes={nodes}
+                          typeMeta={typeMeta}
+                          centerName={centerName}
+                          centerId={activeAsset?.id}
+                          config={relDraft}
+                          previewMode
+                        />
+                      </div>
+                      <div className="px-6 py-5 space-y-6">
+                        {/* Lock Node Visualization — freezes manual node dragging for everyone */}
+                        <div className="flex items-center justify-between gap-4 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                          <div className="flex items-start gap-2.5">
+                            <Lock size={16} className="mt-0.5 flex-shrink-0 text-[#364658]" />
+                            <div>
+                              <div className="text-[13px] font-semibold text-[#364658]">Lock Node Visualization</div>
+                              <div className="text-[12px] text-[#7B8FA5]">When locked, nodes can't be moved manually — the layout stays fixed for everyone.</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRelDraft((p) => ({ ...p, locked: !p.locked }))}
+                            className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${relDraft.locked ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`}
+                          >
+                            <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${relDraft.locked ? 'left-[22px]' : 'left-0.5'}`} />
+                          </button>
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Force Simulation</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Node Distance" info="Extra spacing between nodes on every group ring." min={0} max={200} step={5} value={relDraft.nodeDistance} onChange={(v) => setRelDraft((p) => ({ ...p, nodeDistance: v }))} />
+                            <RelSliderRow label="Repulsion Strength" info="How strongly groups push each other apart when they get close." min={0} max={5} step={0.1} value={relDraft.repulsion} onChange={(v) => setRelDraft((p) => ({ ...p, repulsion: v }))} />
+                            <RelSliderRow label="Gravity" info="How strongly each group is pulled toward its parent node." min={0.02} max={0.9} step={0.01} value={relDraft.gravity} onChange={(v) => setRelDraft((p) => ({ ...p, gravity: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Zoom</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                            <RelSliderRow label="Min Zoom" info="How far the user can zoom out." min={0.05} max={0.5} step={0.01} value={relDraft.minZoom} onChange={(v) => setRelDraft((p) => ({ ...p, minZoom: v }))} />
+                            <RelSliderRow label="Max Zoom" info="How far the user can zoom in." min={2} max={5} step={0.5} value={relDraft.maxZoom} onChange={(v) => setRelDraft((p) => ({ ...p, maxZoom: v }))} />
+                          </div>
+                        </div>
+                        <div className="border-t border-[#F0F1F3] pt-5">
+                          <h3 className="text-[15px] font-semibold text-[#111827] mb-4">Labels</h3>
+                          <div className="grid grid-cols-2 gap-x-8">
+                            <RelSliderRow label="Label Width" info="Maximum width of each node's name label before it truncates." min={20} max={300} step={10} value={relDraft.labelWidth} onChange={(v) => setRelDraft((p) => ({ ...p, labelWidth: v }))} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                      <button onClick={() => setRelDraft(DEFAULT_REL_GRAPH_CONFIG)} className="px-4 py-2 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Reset to Defaults</button>
+                      <button onClick={() => { setRelConfig(relDraft); setShowRelSettings(false); }} className="px-4 py-2 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                    </div>
+                  </div>
+                </>
+              ) : null;
+
+              // Add Relationship side panel (opened from a node's hover "+")
+              const addRelPanel = relAddTarget ? (
+                <AddRelationshipPanel
+                  sourceName={relAddTarget.name}
+                  onClose={() => setRelAddTarget(null)}
+                  onAdd={(items) => {
+                    setRelExtras((p) => ({ ...p, [relAddTarget.id]: [...(p[relAddTarget.id] ?? []), ...items] }));
+                    setRelAddTarget(null);
+                  }}
+                />
+              ) : null;
+
+              // Active Issues side panel (opened from a red node's hover-card strip);
+              // clicking a record opens its real detail page as a tab in this drawer.
+              const issuesPanel = relIssuesTarget ? (
+                <ActiveIssuesPanel
+                  assetName={relIssuesTarget.name}
+                  onClose={() => setRelIssuesTarget(null)}
+                  onOpenIssue={(issue, kind) => {
+                    setRelIssuesTarget(null);
+                    onOpenRelation?.({ ticketId: issue.id, subject: issue.subject, type: kind, status: issue.status, priority: issue.priority, assignedTo: { name: 'Rohan Mehta' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+                  }}
+                />
+              ) : null;
+
+              if (relFull) {
+                return (
+                  <div className="fixed inset-0 z-[10000] bg-white flex flex-col p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">{legend}{controls}</div>
+                    <div className="flex-1 min-h-0">{graphArea}</div>
+                    {settingsPanel}
+                    {addRelPanel}
+                    {issuesPanel}
+                  </div>
+                );
+              }
+              return (
+                // Fill the viewport below the sticky tab strip (~48px) so the dotted canvas
+                // reaches the bottom edge without making the page scroll.
+                <div className="h-[calc(100%-48px)] flex flex-col">
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]">{legend}{controls}</div>
+                  <div className="flex-1 min-h-0">{graphArea}</div>
+                  {settingsPanel}
+                  {addRelPanel}
+                  {issuesPanel}
                 </div>
               );
             })()}
@@ -6073,88 +6492,19 @@ onStackMinimizedChange,
               />
             )}
 
-            {/* Renewals Tab Content */}
-            {activeMainTab === 'renewals' && (
-              <div className="px-6 py-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1100px]">
-                    <thead className="border-b border-[#e5e7eb]">
-                      <tr className="bg-white">
-                        {['Name', 'Contract Type', 'Status', 'Contract Number', 'Contract Start Date', 'Contract End Date', 'Renewal Date', 'Vendor'].map((h) => (
-                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                      {[
-                        { id: 'CON-94', name: 'Imperva DAM Renewal', created: 'Thu, Mar 26, 2026', type: 'Software License', status: 'Active', statusColor: '#22C55E', number: '---', start: '26/03/2026', end: '27/03/2027', renewal: '26/03/2026', vendor: 'VEN-61: Imperva' },
-                        { id: 'CON-93', name: 'Imperva DAM Renewal', created: 'Tue, Mar 24, 2026', type: 'Software License', status: 'Expired', statusColor: '#9CA3AF', number: '---', start: '01/01/2024', end: '26/03/2026', renewal: '---', vendor: 'VEN-61: Imperva' },
-                      ].map((r) => (
-                        <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
-                              <div className="min-w-0">
-                                <div className="text-[12px] text-[#364658] truncate max-w-[160px]">{r.name}</div>
-                                <div className="text-[11px] text-[#9CA3AF]">{r.created}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.type}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[12px] text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span></td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.number === '---' ? <span className="text-[#9ca3af]">---</span> : r.number}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.start}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.end}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.renewal === '---' ? <span className="text-[#9ca3af]">---</span> : r.renewal}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.vendor}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
+            {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
+
+            {/* Patches Tab Content — this endpoint's Missing / Installed / Ignored patches */}
+            {activeMainTab === 'computers' && (
+              <EndpointPatchesTab patches={endpointPatches} setPatches={setEndpointPatches} />
             )}
 
-            {/* Child Contracts Tab Content */}
-            {activeMainTab === 'child-contracts' && (
-              <div className="px-6 py-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1000px]">
-                    <thead className="border-b border-[#e5e7eb]">
-                      <tr className="bg-white">
-                        {['Name', 'Contract Type', 'Status', 'Contract Number', 'Contract Start Date', 'Contract End Date', 'Vendor'].map((h) => (
-                          <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                      {[
-                        { id: 'CON-118', name: 'Firewall Support Addendum', created: 'Mon, Apr 06, 2026', type: 'Support', status: 'Active', statusColor: '#22C55E', number: 'ADD-118', start: '06/04/2026', end: '05/04/2027', vendor: 'VEN-22: Hewlett Packard' },
-                        { id: 'CON-121', name: 'Onsite Maintenance Rider', created: 'Wed, Apr 15, 2026', type: 'Maintenance', status: 'Not Started', statusColor: '#D97706', number: '---', start: '01/07/2026', end: '30/06/2027', vendor: 'VEN-12: Hitachi Vantara' },
-                      ].map((r) => (
-                        <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
-                              <div className="min-w-0">
-                                <div className="text-[12px] text-[#364658] truncate max-w-[160px]">{r.name}</div>
-                                <div className="text-[11px] text-[#9CA3AF]">{r.created}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.type}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[12px] text-[#364658]"><span className="size-2 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span></td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.number === '---' ? <span className="text-[#9ca3af]">---</span> : r.number}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.start}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.end}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.vendor}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {/* Deployment Tab Content — Patch / Package / Registry pushes to this endpoint */}
+            {activeMainTab === 'installation' && <EndpointDeploymentTab />}
+
+            {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
+            {activeMainTab === 'superseded' && <PatchSupersededTab patchId={activeAsset?.id} patchName={activeAsset?.name} />}
 
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && (() => {
@@ -6166,11 +6516,11 @@ onStackMinimizedChange,
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Priya Nair', initials: 'PN', color: '#3D8BD0', action: 'Contract Renewed', details: 'Extended the contract end date at renewal', field: 'End Date', from: 'Jul 31, 2026', to: 'Jul 31, 2027', time: 'Sat, Jun 20, 2026 04:39 PM' },
-                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Contract Cost Updated', details: 'Updated the contract cost after renegotiation', field: 'Cost', from: '$42,000', to: '$48,500', time: 'Sat, Jun 20, 2026 02:12 PM' },
-                { user: 'Priya Nair', initials: 'PN', color: '#3D8BD0', action: 'Auto-Renewal Enabled', details: 'Enabled automatic renewal 30 days before expiry', field: 'Auto-Renewal', from: 'Disabled', to: 'Enabled', time: 'Sat, Jun 20, 2026 11:05 AM' },
-                { user: 'Priya Nair', initials: 'PN', color: '#3D8BD0', action: 'Status Changed', details: 'Activated the contract after vendor sign-off', field: 'Status', from: 'Draft', to: 'Active', time: 'Fri, May 22, 2026 05:30 PM' },
-                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Contract Created', details: 'Created the contract from the approved purchase order', time: 'Fri, May 22, 2026 10:14 AM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Patch Approved', details: 'Approved the patch for deployment', field: 'Approval Status', from: 'Not Approved', to: 'Approved', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Test Status Updated', details: 'Marked the patch as passed in the pilot test ring', field: 'Test Status', from: 'Not Tested', to: 'Passed', time: 'Sat, Jun 20, 2026 02:12 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Downloaded', details: 'Downloaded the patch package (3.77 MB) to the file server', field: 'Download Status', from: '---', to: 'Success', time: 'Sat, Jun 20, 2026 11:05 AM' },
+                { user: 'Jainam Shah', initials: 'JS', color: '#F59E0B', action: 'Added to Deployment', details: 'Added the patch to deployment "April 2026 Patch Tuesday" (PDR-1433)', time: 'Fri, May 22, 2026 05:30 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Synced', details: 'Patch discovered and synced from the vendor catalog by the patch scan', time: 'Fri, May 22, 2026 10:14 AM' },
               ];
               const changeLogs = [
                 { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
@@ -6209,9 +6559,10 @@ onStackMinimizedChange,
 
               return (
                 <div className="px-6 py-6">
-                  {/* Sticky toolbar: category dropdown (left) + date range / filter / download (right) */}
+                  {/* Sticky toolbar: title (left) + date range / filter / download (right).
+                      The Patch page has only Audit Trail history, so the category dropdown was removed. */}
                   <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
-                    <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Audit Trail</h3>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Audit Trail</h3>
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
                       <div className="relative">
@@ -7364,10 +7715,12 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Contract Fields"
+            fieldsTitle="Endpoint Fields"
             assetMode={true}
             softwareMode={true}
-            contractMode={true}
+            nonItMode={true}
+            patchMode={true}
+            endpointMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7477,8 +7830,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Contract Properties"
-            showNotifications={true}
+            propertiesTitle="Endpoint Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -8510,4 +8862,4 @@ onStackMinimizedChange,
   );
 }
 
-export default ContractDrawer;
+export default EndpointDrawer;

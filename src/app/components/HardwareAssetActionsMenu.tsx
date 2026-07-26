@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   MoreVertical, UserCheck, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
   Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Barcode, XCircle, PackageCheck, MinusSquare,
+  Package, Download, X,
 } from 'lucide-react';
 
 interface HardwareAssetActionsMenuProps {
@@ -17,9 +18,13 @@ interface HardwareAssetActionsMenuProps {
   purchase?: boolean;
   // CMDB / CI menu: Ask for Approval, Sync Warranty, Scan Now, Exclude From Scan, Used By/Location History
   cmdb?: boolean;
+  // Patch menu: ONLY Deploy Patch + Download to File Server
+  patch?: boolean;
+  // Patch DEPLOYMENT menu: ONLY Update Configuration + Cancel Deployment
+  patchDeploy?: boolean;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false, cmdb = false }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false, cmdb = false, patch = false, patchDeploy = false }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -93,6 +98,20 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
+      {open && patch && (
+        <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Item label="Deploy Patch" icon={<Package size={15} />} />
+          <Item label="Download to File Server" icon={<Download size={15} />} />
+        </div>
+      )}
+
+      {open && patchDeploy && (
+        <div className="absolute right-0 top-full mt-1 w-[230px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+          <Item label="Update Configuration" icon={<UserCheck size={15} />} />
+          <Item label="Cancel Deployment" icon={<X size={15} />} />
+        </div>
+      )}
+
       {open && cmdb && (
         <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Section label="Actions" />
@@ -113,7 +132,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
-      {open && !minimal && !nonIt && !contract && !purchase && !cmdb && (
+      {open && !minimal && !nonIt && !contract && !purchase && !cmdb && !patch && !patchDeploy && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />

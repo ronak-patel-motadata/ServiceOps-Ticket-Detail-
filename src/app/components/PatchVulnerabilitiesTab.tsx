@@ -235,8 +235,8 @@ export function PatchVulnerabilitiesTab({ endpoints = INITIAL_COMPUTERS }: Patch
                   </span>
                 </td>
 
-                <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#3D8BD0]">{v.title}</td>
-                <td className="px-4 py-3 text-[12px] text-[#3D8BD0]"><span className="block max-w-[300px] truncate" title={v.description}>{v.description}</span></td>
+                <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{v.title}</td>
+                <td className="px-4 py-3 text-[12px] text-[#364658]"><span className="block max-w-[300px] truncate" title={v.description}>{v.description}</span></td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{v.exploitStatus}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px]">
                   <span className="inline-flex items-center gap-1.5 text-[#364658]">

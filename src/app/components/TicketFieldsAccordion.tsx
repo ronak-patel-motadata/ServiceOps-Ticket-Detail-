@@ -21,6 +21,8 @@ interface TicketFieldsAccordionProps {
   contractMode?: boolean;
   purchaseMode?: boolean;
   patchMode?: boolean;
+  patchDeployMode?: boolean;
+  endpointMode?: boolean;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -215,6 +217,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     contractMode = false,
     purchaseMode = false,
     patchMode = false,
+    patchDeployMode = false,
+    endpointMode = false,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -487,6 +491,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           contractMode={contractMode}
           purchaseMode={purchaseMode}
           patchMode={patchMode}
+          patchDeployMode={patchDeployMode}
+          endpointMode={endpointMode}
           footer={systemFieldsSection}
         />
       )}
@@ -819,22 +825,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           </div>
           )}
 
-          {/* View More Button - Only show when collapsed (hidden entirely in V2 compact mode) */}
-          {!compactTicketFields && !showMoreFields && !propertiesSearchQuery && (
-          <div className="mt-3">
-            <button
-              onClick={() => setShowMoreFields(!showMoreFields)}
-              className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
-            >
-              View more
-              <ChevronDown size={14} />
-            </button>
-          </div>
-          )}
-
-          {/* Additional Ticket Fields (always open in V2 compact mode — the field subset is
-              governed by getFilteredTicketFields, so only V2's kept fields render) */}
-          {(showMoreFields || propertiesSearchQuery || compactTicketFields) && (
+          {/* Urgency / Impact / Tags are upfront too — 7 fields before "View more" */}
             <div className="mt-3 space-y-2">
               {/* Urgency */}
               {getFilteredTicketFields().includes('Urgency') && (
@@ -1017,7 +1008,25 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                 )}
               </div>
               )}
+            </div>
 
+          {/* View More Button - Only show when collapsed (hidden entirely in V2 compact mode) */}
+          {!compactTicketFields && !showMoreFields && !propertiesSearchQuery && (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowMoreFields(!showMoreFields)}
+              className="text-[13px] text-[#3D8BD0] hover:text-[#2563EB] font-medium flex items-center gap-1 transition-colors"
+            >
+              View more
+              <ChevronDown size={14} />
+            </button>
+          </div>
+          )}
+
+          {/* Additional Ticket Fields (never expanded in V2 compact mode — its 7 kept fields are
+              all upfront, and the View more toggle is hidden there) */}
+          {(showMoreFields || propertiesSearchQuery) && (
+            <div className="mt-3 space-y-2">
               {/* Category */}
               {getFilteredTicketFields().includes('Category') && (
               <div className="flex items-center justify-between gap-3">

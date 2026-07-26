@@ -82,19 +82,19 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
   );
 }
 
-// Patch sub-modules surfaced in the hover flyout. Only "Patches" has a page today; the rest are
-// prototype placeholders (no navigation yet).
+// Patch sub-modules surfaced in the hover flyout. Patches + Patch Deployment navigate; the
+// rest are prototype placeholders (no navigation yet).
 const PATCH_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <IconPatch size={16} />, label: 'Patches', page: 'patches' },
-  { icon: <Rocket size={16} />, label: 'Patch Deployment' },
-  { icon: <Monitor size={16} />, label: 'Endpoint' },
+  { icon: <Rocket size={16} />, label: 'Patch Deployment', page: 'patch-deployments' },
+  { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
   { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test' },
   { icon: <Settings size={16} />, label: 'Automatic Patch Deployment' },
 ];
 
 /** Patch nav item with a hover flyout listing the patch sub-modules (mirrors AssetsNavItem). */
 function PatchNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
-  const sectionActive = activePage === 'patches';
+  const sectionActive = activePage === 'patches' || activePage === 'patch-deployments' || activePage === 'endpoints';
   return (
     <div className="relative group">
       <NavItem icon={<IconPatch size={20} />} active={sectionActive} title="Patch" disableTooltip />

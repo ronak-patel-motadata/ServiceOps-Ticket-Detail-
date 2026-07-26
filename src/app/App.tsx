@@ -12,10 +12,12 @@ import { ContractsListPage } from './components/ContractsListPage';
 import { PurchasesListPage } from './components/PurchasesListPage';
 import { CmdbListPage } from './components/CmdbListPage';
 import { PatchesListPage } from './components/PatchesListPage';
+import { PatchDeploymentsListPage } from './components/PatchDeploymentsListPage';
+import { EndpointsListPage } from './components/EndpointsListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
@@ -40,6 +42,8 @@ export default function App() {
       {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
       {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
+      {activePage === 'patch-deployments' && <PatchDeploymentsListPage onNavigate={navigate} />}
+      {activePage === 'endpoints' && <EndpointsListPage onNavigate={navigate} />}
       <Toaster position="top-right" />
     </DrawerStackProvider>
   );

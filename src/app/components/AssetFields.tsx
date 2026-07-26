@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import { DateField } from './DateField';
-import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon, X, Plus, Clock, CheckCircle } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /** Asset detail values used to seed the editable asset field dropdowns. */
@@ -364,6 +364,11 @@ interface AssetFieldsProps {
   purchaseMode?: boolean;
   // Patch variant: shows ONLY the patch fields (category/severity/approval/test/release date/…).
   patchMode?: boolean;
+  // Patch DEPLOYMENT page: within patchMode, show the deployment-run fields
+  // (Status / Task Type / Deployment Policy / Install After / Expiry Date) instead.
+  patchDeployMode?: boolean;
+  // ENDPOINT page: endpoint-inventory fields (host/OS/agent/scan info) instead of the patch catalog's.
+  endpointMode?: boolean;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
@@ -371,7 +376,7 @@ interface AssetFieldsProps {
   footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, endpointMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -382,6 +387,10 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
 
   const [open, setOpen] = useState<Field>(null);
   const [showMore, setShowMore] = useState(false);
+  // Tags chip editor (asset variants) — local prototype state, seeded with realistic tags.
+  const [assetTags, setAssetTags] = useState<string[]>(['production', 'critical']);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [tagInputValue, setTagInputValue] = useState('');
   const [editingField, setEditingField] = useState<string | null>(null);
   const [typeSearch, setTypeSearch] = useState('');
   const [statusSearch, setStatusSearch] = useState('');
@@ -496,14 +505,75 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     }
   };
 
+  // Tags — chip editor (same treatment as the ticket accordion), rendered as the last upfront
+  // field before "View more" in the asset / contract / purchase variants.
+  const tagsRow = (!q || 'tags'.includes(q)) && (
+    <div className="space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] pt-1">Tags</div>
+        <div className="flex flex-wrap gap-2 flex-1">
+          {assetTags.map((tag, index) => (
+            <span key={index} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F3F4F6] text-[#364658] text-[11px] rounded-md">
+              {tag}
+              <button
+                className="hover:text-[#2563EB]"
+                onClick={() => setAssetTags(assetTags.filter((_, i) => i !== index))}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+          {!showTagInput && (
+            <button
+              onClick={() => setShowTagInput(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[#3D8BD0] text-[12px] hover:bg-[#F3F4F6] rounded transition-colors"
+            >
+              <Plus size={12} />
+              Add tag
+            </button>
+          )}
+        </div>
+      </div>
+      {showTagInput && (
+        <input
+          type="text"
+          placeholder="Add tags..."
+          value={tagInputValue}
+          onChange={(e) => setTagInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && tagInputValue.trim()) {
+              setAssetTags([...assetTags, tagInputValue.trim()]);
+              setTagInputValue('');
+              setShowTagInput(false);
+            } else if (e.key === 'Escape') {
+              setTagInputValue('');
+              setShowTagInput(false);
+            }
+          }}
+          onBlur={() => {
+            if (tagInputValue.trim()) {
+              setAssetTags([...assetTags, tagInputValue.trim()]);
+            }
+            setTagInputValue('');
+            setShowTagInput(false);
+          }}
+          autoFocus
+          className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F3F4F6] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+        />
+      )}
+    </div>
+  );
+
   // Patch variant: ALL patch fields are READ-ONLY (nothing here is user-editable).
   if (patchMode) {
     const severityColor = (v: string) => (({ 'Critical': '#EF4444', 'Important': '#F59E0B', 'Moderate': '#EAB308', 'Low': '#111827', 'Unspecified': '#6B7280' } as Record<string, string>)[v] ?? '#6B7280');
     const approvalColor = (v: string) => (({ 'Approved': '#22C55E', 'Not Approved': '#F59E0B', 'Declined': '#DC2626' } as Record<string, string>)[v] ?? '#9CA3AF');
 
     // kind: undefined = plain text · 'severity'/'approval' = colored dot + text · 'url' = clickable
-    // link · 'user' = blue name text.
-    type PatchField = { label: string; value: string; kind?: 'severity' | 'approval' | 'url' | 'user'; sub?: string };
+    // link · 'user' = blue name text · 'link' = blue record ref. `dot` = explicit dot color
+    // (deployment statuses / system health). `pill` = right-aligned scan-status pill.
+    // `section` = subsection header rendered ABOVE the row (Scan Info).
+    type PatchField = { label: string; value: string; kind?: 'severity' | 'approval' | 'url' | 'user' | 'link'; sub?: string; dot?: string; pill?: 'progress' | 'done'; section?: string };
     const PATCH_FIELDS: PatchField[] = [
       { label: 'Patch Category', value: 'Updates' },
       { label: 'Severity', value: 'Low', kind: 'severity' },
@@ -532,10 +602,61 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Last Updated By', value: 'Rakesh Rathod', kind: 'user' },
     ];
 
+    // Patch DEPLOYMENT page variant — the deployment run's own properties, not the patch catalog's.
+    const PATCH_DEPLOYMENT_FIELDS: PatchField[] = [
+      { label: 'Status', value: 'Ready to Deploy', dot: '#3D8BD0' },
+      { label: 'Task Type', value: 'Auto Patch Deploy Task' },
+      { label: 'Deployment Policy', value: 'Production Servers — Staged Rollout' },
+      { label: 'Install After', value: 'Sun, Jun 07, 2026 03:30 PM' },
+      { label: 'Expiry Date', value: '---' },
+      { label: 'Remote Offices', value: 'Ahmedabad HQ, Mumbai Office' },
+      { label: 'Notify to', value: 'IT Support Team' },
+      { label: 'Retry Failed Configuration', value: 'Enabled' },
+      { label: 'Retry Count', value: '2' },
+      { label: 'Last Updated Date', value: 'Sun, Jun 07, 2026 03:30 PM', sub: '(2 months ago)' },
+      { label: 'Created By', value: 'Jainam Shah (Archived)', kind: 'user' },
+      { label: 'Last Updated By', value: 'Jainam Shah (Archived)', kind: 'user' },
+    ];
+    // ENDPOINT page variant — the computer's inventory, not a patch's catalog entry.
+    // Order: summary fields → Tags (inserted after OS Version) → agent/identity fields → Scan Info.
+    const ENDPOINT_FIELDS: PatchField[] = [
+      { label: 'System Health', value: 'Healthy', dot: '#22C55E' },
+      { label: 'Used By', value: '---' },
+      { label: 'Service Pack', value: 'None' },
+      { label: 'IP Address', value: '192.168.29.100' },
+      { label: 'Host Name', value: 'DESKTOP-5JPPI6F' },
+      { label: 'Architecture', value: '64 BIT' },
+      { label: 'OS Name', value: 'Microsoft Windows 11 Pro' },
+      { label: 'OS Version', value: '10.0.26200.8457' },
+      { label: 'Asset ID', value: 'AST-13', kind: 'link' },
+      { label: 'CI ID', value: 'CI-3', kind: 'link' },
+      { label: 'Agent ID', value: 'EP-408' },
+      { label: 'Reboot Required', value: 'Yes' },
+      { label: 'Agent Version', value: '8.7.406' },
+      { label: 'Poller', value: '---' },
+      { label: 'MAC Address', value: '00:09:0F:AA:00:01' },
+      { label: 'Domain Name', value: 'WORKGROUP' },
+      { label: 'Remote Office', value: 'Ahmedabad HQ' },
+      { label: 'Last Logged In User', value: 'stuti ahluwalia' },
+      { label: 'Language', value: 'English (United States)' },
+      { label: 'Patch Scan Date', value: 'Thu, Jul 23, 2026 05:28 PM', pill: 'progress', section: 'Scan Info' },
+      { label: 'Vulnerability Scan Date', value: 'Fri, Jul 24, 2026 08:52 PM', pill: 'done' },
+      { label: 'Last Reboot Time', value: 'Thu, Jul 09, 2026 03:15 PM' },
+    ];
+
+    const fields = patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : PATCH_FIELDS;
+
     const roRow = (f: PatchField) => {
       const empty = !f.value || f.value === '---';
       let valueNode: React.ReactNode;
-      if (f.kind === 'severity' || f.kind === 'approval') {
+      if (f.dot) {
+        valueNode = (
+          <span className="inline-flex items-center gap-2 text-[13px] text-[#364658] break-words">
+            <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.dot }} />
+            {f.value}
+          </span>
+        );
+      } else if (f.kind === 'severity' || f.kind === 'approval') {
         const color = f.kind === 'severity' ? severityColor(f.value) : approvalColor(f.value);
         valueNode = (
           <span className="inline-flex items-center gap-2 text-[13px] text-[#364658] break-words">
@@ -547,23 +668,56 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         valueNode = empty
           ? <span className="text-[13px] text-[#9CA3AF]">---</span>
           : <a href={f.value} target="_blank" rel="noopener noreferrer" className="text-[13px] text-[#3D8BD0] hover:underline break-words">{f.value}</a>;
+      } else if (f.kind === 'link') {
+        valueNode = <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline break-words">{f.value}</span>;
       } else {
         valueNode = <span className={`text-[13px] break-words ${f.kind === 'user' ? 'text-[#3D8BD0]' : empty ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{f.value}</span>;
       }
+      // Scan-status pill (endpoint Scan Info rows) — stacked on its own line UNDER the date.
+      const pillNode = f.pill && (
+        <span className="mt-1.5 block">
+          <span
+            className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-medium"
+            style={f.pill === 'done' ? { backgroundColor: '#ECFDF3', color: '#067647' } : { backgroundColor: '#FFF8EB', color: '#B54708' }}
+          >
+            {f.pill === 'done' ? <CheckCircle size={11} /> : <Clock size={11} />}
+            {f.pill === 'done' ? 'Completed' : 'In Progress'}
+          </span>
+        </span>
+      );
       return (
-        <div key={f.label} className="flex items-start justify-between gap-3">
-          <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568] pt-2">{f.label}</div>
-          <div className="flex-1 min-w-0 px-3 py-2">
-            {valueNode}
-            {f.sub && <span className="text-[12px] text-[#9CA3AF] block">{f.sub}</span>}
+        <Fragment key={f.label}>
+          {f.section && (
+            <div className="pt-3 border-t border-[#E5E7EB] mt-3">
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">{f.section}</div>
+            </div>
+          )}
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568] pt-2">{f.label}</div>
+            <div className="flex-1 min-w-0 px-3 py-2">
+              {valueNode}
+              {f.sub && <span className="text-[12px] text-[#9CA3AF] block">{f.sub}</span>}
+              {pillNode}
+            </div>
           </div>
-        </div>
+        </Fragment>
       );
     };
 
+    // Tags (editable chip editor) — the one non-read-only row on this panel. Patch page: after
+    // "Refrence Url"; Endpoint page: after "OS Version" (between summary and agent fields).
+    // The fallback keeps it findable when searching "tags".
+    const tagsAfter = endpointMode ? 'OS Version' : 'Refrence Url';
+    const visible = fields.filter((f) => !q || f.label.toLowerCase().includes(q));
     return (
       <div className="px-4 pb-4 space-y-2" ref={ref}>
-        {PATCH_FIELDS.filter((f) => !q || f.label.toLowerCase().includes(q)).map(roRow)}
+        {visible.map((f) => (
+          <Fragment key={f.label}>
+            {roRow(f)}
+            {f.label === tagsAfter && tagsRow}
+          </Fragment>
+        ))}
+        {q && 'tags'.includes(q) && !visible.some((f) => f.label === tagsAfter) && tagsRow}
       </div>
     );
   }
@@ -611,8 +765,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
           </div>
         )}
 
-        {/* System Fields (moved here) — license has no "View more", so shown inline */}
-        {footer}
+        {/* No System Fields here — the license page keeps just Product + License Type. */}
       </div>
     );
   }
@@ -692,6 +845,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
             </div>
           </div>
         )}
+
+        {/* Tags — last upfront field before "View more" */}
+        {tagsRow}
 
         {/* View more fields: Owner (user picker) + Department (dropdown) */}
         {(showMore || q) && (!q || 'owner'.includes(q)) && (
@@ -884,6 +1040,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         {(!q || 'cost center'.includes(q)) && selectRow('Cost Center', COST_CENTER_OPTIONS)}
         {(!q || 'purchase required by'.includes(q)) && dateRow('Purchase Required By')}
         {(!q || 'purchase order date'.includes(q)) && dateRow('Purchase Order Date')}
+
+        {/* Tags — last upfront field before "View more" */}
+        {tagsRow}
 
         {/* View more fields */}
         {(showMore || q) && (!q || 'owner'.includes(q)) && (
@@ -1198,6 +1357,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         </div>
       </FieldRow>
       )}
+
+      {/* Tags — last upfront field before "View more" */}
+      {tagsRow}
 
       {/* Additional fields behind "View more" — per-module field set (license/contract/purchase render their own set above and never reach here) */}
       {(showMore || q) && (cmdbMode ? CMDB_MORE_FIELDS : nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}

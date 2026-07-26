@@ -4889,7 +4889,7 @@ onStackActiveGroupChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                               <div className="relative" ref={aiAssistMenuDiagnosisRef}>
@@ -5028,9 +5028,9 @@ onStackActiveGroupChange,
                               </div>
 
                               {/* Formatting Tools */}
-                              <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
+                              <div className="flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
                                 {/* Always visible quick access icons */}
-                                <EditorToolbarActions />
+                                <EditorToolbarActions fullWidthRow />
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
@@ -5160,7 +5160,7 @@ onStackActiveGroupChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
@@ -5307,9 +5307,9 @@ onStackActiveGroupChange,
                             </div>
 
                             {/* Formatting Tools */}
-                            <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
+                            <div className="flex items-center gap-1" ref={formattingMenuSolutionRef}>
                               {/* Always visible quick access icons */}
-                              <EditorToolbarActions />
+                              <EditorToolbarActions fullWidthRow />
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (

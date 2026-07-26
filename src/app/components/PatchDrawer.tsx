@@ -2168,7 +2168,7 @@ onStackMinimizedChange,
               );
             })()}
             <HardwareAssetActionsMenu
-              nonIt
+              patch
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
@@ -6570,11 +6570,11 @@ onStackMinimizedChange,
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Method Changed', details: 'Changed Depreciation Method from "Sum Of The Years Digit" to "Double Declining Balance"', field: 'Method', from: 'Sum Of The Years Digit', to: 'Double Declining Balance', time: 'Sat, Jun 20, 2026 04:39 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Type Changed', details: 'Changed Depreciation Type from "Useful Life" to "Depreciation Percentage"', field: 'Type', from: 'Useful Life', to: 'Depreciation Percentage', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Useful Life Changed', details: 'Changed Useful Life from "200" to "12"', field: 'Useful Life', from: '200', to: '12', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Salvage Amount Changed', details: 'Changed Salvage Amount from "18" to "100"', field: 'Salvage', from: '18', to: '100', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Purchase Cost Added', details: 'Added the asset purchase cost', time: 'Sat, Jun 20, 2026 04:20 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Patch Approved', details: 'Approved the patch for deployment', field: 'Approval Status', from: 'Not Approved', to: 'Approved', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Test Status Updated', details: 'Marked the patch as passed in the pilot test ring', field: 'Test Status', from: 'Not Tested', to: 'Passed', time: 'Sat, Jun 20, 2026 02:12 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Downloaded', details: 'Downloaded the patch package (3.77 MB) to the file server', field: 'Download Status', from: '---', to: 'Success', time: 'Sat, Jun 20, 2026 11:05 AM' },
+                { user: 'Jainam Shah', initials: 'JS', color: '#F59E0B', action: 'Added to Deployment', details: 'Added the patch to deployment "April 2026 Patch Tuesday" (PDR-1433)', time: 'Fri, May 22, 2026 05:30 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Synced', details: 'Patch discovered and synced from the vendor catalog by the patch scan', time: 'Fri, May 22, 2026 10:14 AM' },
               ];
               const changeLogs = [
                 { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
@@ -6884,7 +6884,7 @@ onStackMinimizedChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                               <div className="relative" ref={aiAssistMenuDiagnosisRef}>
@@ -7023,9 +7023,9 @@ onStackMinimizedChange,
                               </div>
 
                               {/* Formatting Tools */}
-                              <div className="relative flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
+                              <div className="flex items-center gap-1" ref={formattingMenuDiagnosisRef}>
                                 {/* Always visible quick access icons */}
-                                <EditorToolbarActions />
+                                <EditorToolbarActions fullWidthRow />
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
@@ -7155,7 +7155,7 @@ onStackMinimizedChange,
                           </div>
 
                           {/* Bottom Toolbar */}
-                          <div className="flex items-center justify-between">
+                          <div className="relative flex items-center justify-between">
                             {/* Left Side - AI Assist and Formatting Tools */}
                             <div className="flex items-center gap-1">
                             <div className="relative" ref={aiAssistMenuSolutionRef}>
@@ -7302,9 +7302,9 @@ onStackMinimizedChange,
                             </div>
 
                             {/* Formatting Tools */}
-                            <div className="relative flex items-center gap-1" ref={formattingMenuSolutionRef}>
+                            <div className="flex items-center gap-1" ref={formattingMenuSolutionRef}>
                               {/* Always visible quick access icons */}
-                              <EditorToolbarActions />
+                              <EditorToolbarActions fullWidthRow />
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (
