@@ -15,6 +15,8 @@ import { CmdbDrawer } from './CmdbDrawer';
 import { PatchDrawer } from './PatchDrawer';
 import { PatchDeploymentDrawer } from './PatchDeploymentDrawer';
 import { EndpointDrawer } from './EndpointDrawer';
+import { VulnerabilityDrawer } from './VulnerabilityDrawer';
+import { DetectedCveDrawer } from './DetectedCveDrawer';
 import { MOCK_TICKETS } from './TicketListPage';
 import { mockProblems } from './ProblemListPage';
 import { mockChanges } from './ChangeListPage';
@@ -28,7 +30,7 @@ import { DrawerShortcuts } from './DrawerShortcuts';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -157,6 +159,10 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       case 'patch-deployments': drawer = <PatchDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Endpoint detail page — clone of the Patch detail page; the list adapts the endpoint record.
       case 'endpoints': drawer = <EndpointDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      // Vulnerability detail page — clone of the Patch detail page; the list adapts the record.
+      case 'vulnerabilities': drawer = <VulnerabilityDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      // Detected CVE detail page — clone of the Patch Deployment detail page; the list adapts the record.
+      case 'detected-cves': drawer = <DetectedCveDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
     }
   }
 

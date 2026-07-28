@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Pagination } from './Pagination';
-import { Search, X, Monitor, LayoutGrid, List as ListIcon, Filter, Check, ChevronDown } from 'lucide-react';
+import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Check, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
+import { DeploymentTopologyView } from './DeploymentTopologyView';
 
 // Full set of installation-status values the filter can pick from (superset of what's in the data).
 const STATUS_FILTER_OPTIONS = [
@@ -47,7 +48,22 @@ interface PatchInstallationTabProps {
 
 export function PatchInstallationTab({ installations }: PatchInstallationTabProps) {
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<'list' | 'card'>('card');
+  const [view, setView] = useState<'list' | 'card' | 'topology'>('card');
+  // Full screen — the whole tab (any view) promoted to a fixed overlay (Superseded-tab pattern).
+  const [isFull, setIsFull] = useState(false);
+  // Ctrl+F focuses the topology node search (the placeholder advertises it, like the Superseded map).
+  const topoSearchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (view !== 'topology') return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        topoSearchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view]);
   const [filterOpen, setFilterOpen] = useState(false);
   // Status filter — empty = "All" (show everything); otherwise only the picked statuses.
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -75,9 +91,30 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
   const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="px-6 py-4 @container">
-      {/* Search + card/list view toggle */}
+    <div className={`@container ${isFull ? 'fixed inset-0 z-[10000] overflow-y-auto bg-white px-6 py-4' : 'px-6 py-4'}`}>
+      {/* Search + status filter + card/list/topology view toggle. In topology mode the same
+          search/filter SPOTLIGHT the canvas (matching nodes stay lit, the rest fade). */}
       <div className="flex items-center gap-3 mb-3">
+        {view === 'topology' ? (
+          <>
+            {/* Compact node search — same recipe as the Superseded map toolbar */}
+            <div className="relative w-[280px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+              <input
+                ref={topoSearchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') { setSearch(''); e.currentTarget.blur(); } }}
+                placeholder="Search...   Ctrl + F | Esc to clear"
+                className="h-8 w-full rounded border border-[#DFE5ED] pl-9 pr-8 text-[13px] text-[#364658] outline-none placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658]"><X size={15} /></button>
+              )}
+            </div>
+          </>
+        ) : (
         <div className="relative flex-1">
           <input
             type="text"
@@ -92,6 +129,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" size={16} />
           )}
         </div>
+        )}
         {/* Filter by installation status — "All" by default; picking statuses shows them as pills */}
         <div className="relative flex-shrink-0">
           <button
@@ -151,16 +189,48 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
           )}
         </div>
 
-        <button
-          title={view === 'list' ? 'Card view' : 'List view'}
-          onClick={() => setView((v) => (v === 'list' ? 'card' : 'list'))}
-          className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-        >
-          {view === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-        </button>
+        {/* Topology: filter sits right after the search; spacer pushes the view toggle to the edge */}
+        {view === 'topology' && <div className="flex-1" />}
+
+        {/* View toggle — Card · List · Topology (segmented) */}
+        <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+          {([
+            { key: 'card', icon: <LayoutGrid size={15} />, tip: 'Card view' },
+            { key: 'list', icon: <ListIcon size={15} />, tip: 'List view' },
+            { key: 'topology', icon: <Network size={15} />, tip: 'Topology view' },
+          ] as const).map((v, i) => (
+            <Tooltip key={v.key}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => { setView(v.key); setSearch(''); setStatusFilter([]); }}
+                  className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${view === v.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                >
+                  {v.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{v.tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+
+        {/* Full screen — same control as the Dependency Map / Superseded toolbars */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setIsFull((v) => !v)}
+              className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border transition-colors ${isFull ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA]'}`}
+            >
+              {isFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{isFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+        </Tooltip>
       </div>
 
-      {installations.length === 0 ? (
+      {view === 'topology' ? (
+        /* Topology view — the deployment architecture canvas (records don't gate it) */
+        <DeploymentTopologyView search={search} statusFilter={statusFilter} fullscreen={isFull} />
+      ) : installations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="inline-flex items-center justify-center size-14 rounded-full bg-[#F5F7FA] mb-3">
             <Monitor className="size-6 text-[#9CA3AF]" />
@@ -257,8 +327,8 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
         </div>
       )}
 
-      {/* Pagination — sticky to the bottom of the scroll viewport (both card and list views) */}
-      {installations.length > 0 && (
+      {/* Pagination — sticky to the bottom of the scroll viewport (card and list views only) */}
+      {view !== 'topology' && installations.length > 0 && (
         <div className="sticky bottom-0 z-30 -mx-6 -mb-4 mt-4 bg-white">
           <Pagination
             currentPage={currentPage}

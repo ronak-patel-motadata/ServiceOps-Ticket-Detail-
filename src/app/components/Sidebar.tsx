@@ -6,6 +6,7 @@ import {
   IconRelease,
   IconAssets,
   IconCMDB,
+  IconVulnerability,
   IconPatch,
   IconPackage,
   IconProject,
@@ -76,6 +77,44 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
               })}
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Vulnerability sub-modules surfaced in the hover flyout. Vulnerabilities + Detected CVEs
+// navigate; Endpoint is a placeholder (deliberately NOT reusing the Patch module's Endpoint page).
+const VULNERABILITY_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
+  { icon: <IconPatch size={16} />, label: 'Vulnerabilities', page: 'vulnerabilities' },
+  { icon: <IconVulnerability size={16} />, label: 'Detected CVEs', page: 'detected-cves' },
+  { icon: <Monitor size={16} />, label: 'Endpoint' },
+];
+
+/** Vulnerability nav item with a hover flyout listing its sub-modules (mirrors PatchNavItem). */
+function VulnerabilityNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
+  const sectionActive = activePage === 'vulnerabilities' || activePage === 'detected-cves';
+  return (
+    <div className="relative group">
+      <NavItem icon={<IconVulnerability size={20} />} active={sectionActive} title="Vulnerability" disableTooltip />
+      {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
+      <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
+        <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+          {VULNERABILITY_ITEMS.map((item) => {
+            const isActive = !!item.page && item.page === activePage;
+            return (
+              <button
+                key={item.label}
+                onClick={() => item.page && onNavigate?.(item.page)}
+                className={`w-full px-3 py-2 text-[13px] text-left transition-colors flex items-center gap-2.5 whitespace-nowrap ${
+                  isActive ? 'bg-[#3D8BD0] text-white' : 'hover:bg-[#F5F7FA] text-[#364658]'
+                }`}
+              >
+                <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-[#6B7280]'}`}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -199,6 +238,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
           title="CMDB"
           onClick={() => onNavigate?.('cmdb')}
         />
+        <VulnerabilityNavItem activePage={activePage} onNavigate={onNavigate} />
         <PatchNavItem activePage={activePage} onNavigate={onNavigate} />
         <NavItem icon={<IconPackage size={20} />} title="Package" />
         <NavItem icon={<IconProject size={20} />} title="Project" />

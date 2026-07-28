@@ -106,12 +106,34 @@ Also listed in the tab's own ⌨ keyboard-shortcuts popup (top-right canvas cont
 
 ---
 
+## 4. Deployment Topology canvas
+
+Works when a Deployment tab's **Topology** view is active (Patch / Patch Deployment /
+Vulnerability / Detected CVE detail pages). Same single-key model as the other canvases.
+
+Implemented in **`src/app/components/DeploymentTopologyView.tsx`** (canvas keys) and
+`PatchInstallationTab.tsx` (`Ctrl+F` search focus while the Topology view is active).
+
+| Shortcut | Action |
+|---|---|
+| `↑ ↓ ← →` | Pan the canvas |
+| `+` / `−` | Zoom in / out |
+| `F` | Fit & center all nodes |
+| `R` | Reset view (expand all, re-fit) |
+| `Ctrl + F` | Focus the node search |
+| `Esc` | Clear search (in the field) / close the shortcuts popup |
+
+Also listed in the view's own ⌨ keyboard-shortcuts popup (top-right canvas controls).
+
+---
+
 ## Maintenance
 
 When you add, change, or remove a shortcut:
 1. Update the implementation (`DrawerShortcuts.tsx` for drawer-wide,
-   `RelationshipGraph.tsx` for the Relationship/Dependency Map canvas, or
-   `PatchSupersededTab.tsx` for the Superseded map).
+   `RelationshipGraph.tsx` for the Relationship/Dependency Map canvas,
+   `PatchSupersededTab.tsx` for the Superseded map, or
+   `DeploymentTopologyView.tsx` for the Deployment Topology canvas).
 2. Update the in-app cheat-sheet (`SHORTCUTS` array in `DrawerShortcuts.tsx`, and/or the
    matching canvas shortcuts popup).
 3. Update **this file**.

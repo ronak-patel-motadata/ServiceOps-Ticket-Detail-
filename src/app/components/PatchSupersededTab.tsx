@@ -242,23 +242,25 @@ function PatchCenterNode({ data }: NodeProps) {
 
 function BusLabelNode({ data }: NodeProps) {
   const { label, tip } = data as { label: string; tip?: string };
+  // The wrapper stays click-transparent for the canvas; the PILL re-enables pointer events so
+  // hovering anywhere on it (not just the info icon) shows the tooltip. The pill is small, so
+  // the pan/drag surface it costs is negligible.
+  const pill = (
+    <span className={`flex items-center gap-1 whitespace-nowrap rounded-full border border-[#DCE3EC] bg-white px-2.5 py-0.5 text-[11px] font-medium text-[#64748B] shadow-sm ${tip ? 'pointer-events-auto cursor-help' : ''}`}>
+      {label}
+      {tip && <span className="inline-flex text-[#9CA3AF] transition-colors"><Info size={11} /></span>}
+    </span>
+  );
   return (
-    // The node stays click-transparent for the canvas; ONLY the info icon re-enables pointer
-    // events so its tooltip can hover without the label ever blocking pan/drag.
     <div className="pointer-events-none flex w-[140px] justify-center">
-      <span className="flex items-center gap-1 whitespace-nowrap rounded-full border border-[#DCE3EC] bg-white px-2.5 py-0.5 text-[11px] font-medium text-[#64748B] shadow-sm">
-        {label}
-        {tip && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="pointer-events-auto inline-flex cursor-help text-[#9CA3AF] transition-colors hover:text-[#3D8BD0]"><Info size={11} /></span>
-            </TooltipTrigger>
-            {/* text-wrap overrides the base tooltip's text-balance, which would split the text
-                into equal short lines and leave the right half of the max-width box empty. */}
-            <TooltipContent side="top" className="max-w-[280px] text-wrap">{tip}</TooltipContent>
-          </Tooltip>
-        )}
-      </span>
+      {tip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{pill}</TooltipTrigger>
+          {/* text-wrap overrides the base tooltip's text-balance, which would split the text
+              into equal short lines and leave the right half of the max-width box empty. */}
+          <TooltipContent side="top" className="max-w-[280px] text-wrap">{tip}</TooltipContent>
+        </Tooltip>
+      ) : pill}
     </div>
   );
 }
