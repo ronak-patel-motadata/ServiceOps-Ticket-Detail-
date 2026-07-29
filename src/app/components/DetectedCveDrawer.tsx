@@ -853,7 +853,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'CVE Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1093,7 +1093,8 @@ onStackMinimizedChange,
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
       // "patches-list" = the patches this deployment rolls out (after Endpoint).
-      let allTabs: string[] = ['properties', 'computers', 'patches-list', 'installation', 'audit'];
+      // CVE page: no Deployment tab (deployment runs live on the Patch Deployment module).
+      let allTabs: string[] = ['properties', 'computers', 'patches-list', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -2089,92 +2090,115 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Deployment KPIs — Status · Install Progress · Endpoints · Patches · Install After ·
-                Expiry. The pro deployment-run metrics (Intune/SCCM pattern): lifecycle state,
-                rollout progress, scope, and the schedule window. */}
+            {/* CVE KPIs — Severity · CVSS 3.1 Score · Exploit · Patch · Impacted Endpoints ·
+                Published. The pro vulnerability triage metrics: how bad, how exploitable, is it
+                weaponized, can it be fixed, and how much of the fleet is exposed. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              const dep = activePatchRecord?.deployment;
+              const c = activePatchRecord?.cve;
 
-              // Lifecycle status — same dot colors as the Patch Deployments list.
-              const status = dep?.status ?? 'Ready to Deploy';
-              const statusColor = ({ 'Ready to Deploy': '#3D8BD0', 'In Progress': '#F59E0B', 'Completed': '#22A06B', 'Expired': '#EF4444', 'Draft': '#94A3B8', 'Cancelled': '#6B7280' } as Record<string, string>)[status] ?? '#6B7280';
-              items.push({ key: 'status', tip: `Status: ${status}`, node: (
+              // Severity — colored dot (Critical red / High orange / Medium amber / Low neutral).
+              const sev = c?.severity ?? 'Medium';
+              const sevColor = ({ Critical: '#EF4444', High: '#F59E0B', Medium: '#EAB308', Low: '#111827' } as Record<string, string>)[sev] ?? '#6B7280';
+              const sevText = ({ Critical: '#B42318', High: '#C4320A', Medium: '#B54708', Low: '#475467' } as Record<string, string>)[sev] ?? '#364658';
+              items.push({ key: 'severity', tip: `Severity: ${sev}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{status}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Severity</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevColor }} />
+                  <span className="text-[12px] font-medium" style={{ color: sevText }}>{sev}</span>
                 </span>
               ) });
 
-              // Install progress — LIVE from the Endpoint tab state (installed / in-scope,
-              // ignored endpoints excluded from the denominator like SCCM compliance).
-              const installed = patchComputers.filter((c) => c.bucket === 'Installed').length;
-              const inScope = patchComputers.filter((c) => c.bucket !== 'Ignored').length;
-              const pct = inScope ? Math.round((installed / inScope) * 100) : 0;
-              const pctColor = pct >= 90 ? '#22A06B' : pct >= 50 ? '#D97706' : '#EF4444';
-              items.push({ key: 'progress', tip: `Install Progress: ${installed} of ${inScope} in-scope endpoints installed (${patchComputers.length - inScope} ignored)`, node: (
+              // CVSS 3.1 base score — the headline risk number (color-graded like NVD).
+              const score = c?.cvssScore ?? 0;
+              const scoreColor = score >= 9 ? '#B42318' : score >= 7 ? '#C4320A' : score >= 4 ? '#B54708' : '#475467';
+              items.push({ key: 'cvss', tip: `CVSS 3.1 Base Score: ${score}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Install Progress</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{installed}/{inScope}</span>
-                  <span className="text-[12px] font-medium" style={{ color: pctColor }}>{pct}%</span>
+                  <span className="text-[11px] text-[#7B8FA5]">CVSS 3.1</span>
+                  <span className="text-[12px] font-semibold" style={{ color: scoreColor }}>{score}</span>
                 </span>
               ) });
 
-              // Rollout scope — how many patches this run carries.
-              items.push({ key: 'patches', tip: `Patches in this deployment: ${DEPLOYED_PATCHES.length}`, node: (
+              // Exploit status — the single most important triage signal; red "Exploited" when
+              // weaponized in the wild.
+              const exploited = c?.exploitStatus === 'Yes';
+              items.push({ key: 'exploit', tip: exploited ? 'Exploited: active exploitation reported in the wild — prioritize' : 'Exploited: no known in-the-wild exploitation', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Patches</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{DEPLOYED_PATCHES.length}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Exploit</span>
+                  {exploited && <span className="size-2 rounded-full flex-shrink-0 bg-[#EF4444]" />}
+                  <span className="text-[12px] font-medium" style={{ color: exploited ? '#DC2626' : '#364658' }}>{exploited ? 'Exploited' : 'Not Exploited'}</span>
                 </span>
               ) });
 
-              // Schedule window — 'Tue, Jul 21, 2026 09:00 PM' → 'Jul 21, 2026 09:00 PM'
-              // (weekday trimmed, TIME kept — the install window hour matters for a deployment).
-              const shortDT = (v: string) => v.replace(/^[A-Za-z]{3},\s*/, '');
-              const installAfter = dep?.installAfter ?? activePatchRecord?.releaseDate ?? null;
-              items.push({ key: 'install-after', tip: installAfter ? `Install After: ${installAfter}` : 'Install After: not scheduled — deploys immediately', node: (
+              // Patch availability — is there a fix to deploy?
+              const patchable = (c?.patchAvailability ?? 'No') === 'Yes';
+              items.push({ key: 'patch', tip: patchable ? 'Patch Available: a vendor fix can be deployed from the Patches tab' : 'Patch Available: no vendor fix yet — mitigate manually', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Install After</span>
-                  <span className={`text-[12px] font-medium ${installAfter ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{installAfter ? shortDT(installAfter) : 'Immediate'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Patch</span>
+                  <span className="text-[12px] font-medium" style={{ color: patchable ? '#22A06B' : '#D97706' }}>{patchable ? 'Available' : 'Unavailable'}</span>
                 </span>
               ) });
 
-              // Deadline — red once the window has lapsed (real clock, matches the Expired status).
-              const expiry = dep?.expiryDate ?? null;
-              const expired = expiry ? new Date(expiry.replace(/^[A-Za-z]{3},\s*/, '')) < new Date() : false;
-              items.push({ key: 'expiry', tip: expiry ? `Expiry Date: ${expiry}${expired ? ' (window lapsed)' : ''}` : 'Expiry Date: no expiry — the deployment window stays open', node: (
+              // Fleet exposure — how many managed endpoints are affected.
+              const impacted = activePatchRecord?.missingSystem ?? 0;
+              items.push({ key: 'impacted', tip: `${impacted} managed endpoint${impacted === 1 ? '' : 's'} impacted by this CVE`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Expiry</span>
-                  <span className={`text-[12px] font-medium ${expiry ? (expired ? 'text-[#DC2626]' : 'text-[#364658]') : 'text-[#9CA3AF]'}`}>{expiry ? shortDT(expiry) : '---'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Impacted Endpoints</span>
+                  <span className="text-[12px] font-semibold" style={{ color: impacted > 0 ? '#DC2626' : '#22A06B' }}>{impacted}</span>
                 </span>
               ) });
+
+              // Published — 'Tue, Jun 11, 2024 10:45 PM' → 'Jun 11, 2024' (weekday + time trimmed).
+              const published = activePatchRecord?.releaseDate;
+              if (published) {
+                const shortDate = published.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
+                items.push({ key: 'published', tip: `Published Date: ${published}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Published</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{shortDate}</span>
+                  </span>
+                ) });
+              }
 
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
-            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
-              <Edit size={16} className="text-[#6b7280]" />
-            </button>
-            {/* Refresh — deployments aren't approved/declined here (that happens on the Patch
-                page); the useful header action is refreshing the rollout status. */}
+            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy CVE URL" />
+            {/* Refresh — re-scan / refresh the CVE detection data */}
             <button
               title="Refresh"
-              onClick={() => toast.success('Deployment status refreshed')}
+              onClick={() => toast.success('CVE data refreshed')}
               className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
             >
               <RefreshCw size={16} className="text-[#6b7280]" />
             </button>
-            <HardwareAssetActionsMenu
-              patchDeploy
-              onOpenApprovalPopup={() => {
-                setShowCreateApprovalPopup(true);
-                setActiveMainTab('approvals');
-              }}
-              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
-            />
+            {/* Approve / Decline the CVE's remediation — both show while undecided; after a
+                decision only the opposite action remains, so it can be flipped. */}
+            {(() => {
+              const cid = activeAsset?.id ?? '';
+              const decision = patchDecision[cid] ?? 'none';
+              return (
+                <>
+                  {decision !== 'approved' && (
+                    <button
+                      onClick={() => { setPatchDecision((p) => ({ ...p, [cid]: 'approved' })); toast.success(`${cid || 'CVE'} approved`); }}
+                      className="flex items-center h-8 px-4 bg-[#16A34A] text-white text-[12px] font-medium rounded hover:bg-[#15803D]"
+                    >
+                      Approve
+                    </button>
+                  )}
+                  {decision !== 'declined' && (
+                    <button
+                      onClick={() => { setPatchDecision((p) => ({ ...p, [cid]: 'declined' })); toast.error(`${cid || 'CVE'} declined`); }}
+                      className="flex items-center h-8 px-4 bg-[#DC2626] text-white text-[12px] font-medium rounded hover:bg-[#B91C1C]"
+                    >
+                      Decline
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -2481,7 +2505,6 @@ onStackMinimizedChange,
                     { id: 'properties', label: 'Properties' },
                     { id: 'computers', label: 'Endpoint' },
                     { id: 'patches-list', label: 'Patches' },
-                    { id: 'installation', label: 'Deployment' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2835,195 +2858,92 @@ onStackMinimizedChange,
                 );
               })()}
 
-              {/* KPI strip — each card shows a headline count plus its own distribution as a
-                  stacked bar + legend (far easier to read at this size than a pie), and each card
-                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
+              {/* CVSS 3.1 Metrics + References — the CVE facts, in the standard Overview card
+                  style (tinted icon badge headers, label-over-value grids). */}
               {(() => {
-                const wide = drawerWidth > 1080;
-
-                type Seg = { label: string; value: number; color: string };
-                type Kpi = {
-                  key: string; label: string; icon: typeof Activity; color: string;
-                  total: number; segments?: Seg[]; note?: string;
-                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
-                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
-                  chart: 'donut' | 'bar' | 'none' | 'list';
-                  /** Preview rows for chart: 'list'. */
-                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
-                  /** Spans half the row instead of a third. */
-                  half?: boolean;
-                  onClick: () => void;
+                const c = activePatchRecord?.cve;
+                if (!c) return null;
+                const score = c.cvssScore;
+                // Realistic sub-score split + vector for the mock (derived, deterministic).
+                const impactScore = Math.round(score * 0.65 * 10) / 10;
+                const exploitability = Math.max(0.5, Math.round((score - impactScore) * 10) / 10);
+                const vector = score >= 9
+                  ? 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
+                  : score >= 7
+                    ? 'CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H'
+                    : 'CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N';
+                const sevPill: Record<string, { bg: string; text: string }> = {
+                  Critical: { bg: '#FEF3F2', text: '#B42318' },
+                  High: { bg: '#FFF4ED', text: '#C4320A' },
+                  Medium: { bg: '#FFFAEB', text: '#B54708' },
+                  Low: { bg: '#F2F4F7', text: '#475467' },
                 };
-
-                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
-                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
-
-                const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
-                const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
-                const epIgnored = patchComputers.filter((c) => c.bucket === 'Ignored').length;
-
-                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
-                const depSuccess = dep('Success');
-                const depFailed = dep('Failed');
-                const depProgress = dep('In Progress');
-                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
-
-                const kpis: Kpi[] = [
-                  {
-                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
-                    chart: 'donut', total: VULNERABILITIES.length,
-                    segments: [
-                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
-                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('vulnerabilities'),
-                  },
-                  {
-                    key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
-                    chart: 'donut', total: patchComputers.length,
-                    segments: [
-                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
-                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
-                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('computers'),
-                  },
-                  {
-                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
-                    chart: 'donut', total: patchInstallations.length,
-                    segments: [
-                      { label: 'Success', value: depSuccess, color: '#22C55E' },
-                      { label: 'Failed', value: depFailed, color: '#EF4444' },
-                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
-                      { label: 'Others', value: depOther, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('installation'),
-                  },
-                  // Deployment Overview: no Affected Products / Files preview cards — those are
-                  // patch-catalog details (and their right-rail groups don't exist on this page).
-                ];
-
-                return (
-                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
-                     the two list cards take half each (span 3) — together they fill the row. */
-                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-2'}`}>
-                    {kpis.map((k) => {
-                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
-                      // Records beyond the inline preview — surfaced in the link as "+N more".
-                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
-                      const isDonut = k.chart === 'donut' && segs.length > 0;
-                      const dia = wide ? 104 : 88;      // gauge diameter
-                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
-                      let acc = 0;                      // running offset per segment
-                      return (
-                        <div
-                          key={k.key}
-                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
-                              <k.icon size={15} />
-                            </span>
-                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
-                            {/* Only this link navigates — the card itself is not clickable
-                                (same as the Software Overview cards' "View more ›"). Preview cards
-                                carry the remaining count instead, like the Hardware "Users" card. */}
-                            <button
-                              onClick={k.onClick}
-                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
-                            >
-                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
-                            </button>
-                          </div>
-
-                          {isDonut ? (
-                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
-                            <div className="mt-3 flex items-center gap-4">
-                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
-                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
-                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
-                                  {segs.map((s) => {
-                                    const len = (s.value / Math.max(k.total, 1)) * C;
-                                    const off = -(acc / Math.max(k.total, 1)) * C;
-                                    acc += s.value;
-                                    return (
-                                      <circle
-                                        key={s.label}
-                                        cx="50" cy="50" r="40" fill="none"
-                                        stroke={s.color} strokeWidth="16"
-                                        strokeDasharray={`${len} ${C - len}`}
-                                        strokeDashoffset={off}
-                                      />
-                                    );
-                                  })}
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span className="text-[18px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
-                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
-                                </div>
-                              </div>
-                              <div className="min-w-0 flex-1 space-y-2">
-                                {segs.map((s) => (
-                                  <div key={s.label} className="flex items-center gap-2">
-                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{s.label}</span>
-                                    <span className="flex-shrink-0 text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : k.chart === 'list' ? (
-                            /* Just the first 2 records — no count line; the total lives in the
-                               "+N more" link, exactly like the Hardware Overview "Users" card. */
-                            <>
-                              <div className="mt-3 space-y-2">
-                                {(k.items ?? []).map((it) => (
-                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
-                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
-                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
-                                    </div>
-                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
-                                {k.total}
-                              </div>
-                              {segs.length > 0 ? (
-                                <>
-                                  {/* Stacked distribution bar */}
-                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
-                                    {segs.map((s) => (
-                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
-                                    ))}
-                                  </div>
-                                  {/* Legend */}
-                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                                    {segs.map((s) => (
-                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                        {s.label}
-                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+                const pill = sevPill[c.severity] ?? sevPill.Low;
+                const refUrl = `https://msrc.microsoft.com/update-guide/vulnerability/${activePatchRecord?.id}`;
+                const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+                  <div className="min-w-0">
+                    <div className="text-[12px] text-[#64748B]">{label}</div>
+                    <div className="mt-0.5 text-[13px] font-medium text-[#364658]">{children}</div>
                   </div>
                 );
+                return (
+                  <>
+                    {/* References */}
+                    <div className="mb-6 rounded-lg border border-[#E5E7EB] bg-white p-4">
+                      <div className="mb-2 flex items-center gap-2.5">
+                        <span className="flex size-7 items-center justify-center rounded bg-[#8B5CF6]/10 text-[#8B5CF6]"><Link size={15} /></span>
+                        <h3 className="text-[14px] font-semibold text-[#364658]">References</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px]">
+                          <thead className="border-b border-[#e5e7eb]">
+                            <tr>
+                              {['Reference URL', 'Source', 'Tags'].map((h) => (
+                                <th key={h} className="px-3 py-2 text-left text-[12px] font-semibold tracking-wider text-[#364658] whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb]">
+                            <tr className="transition-colors hover:bg-[#f9fafb]">
+                              <td className="px-3 py-2.5 text-[12px]">
+                                <a href={refUrl} target="_blank" rel="noopener noreferrer" className="text-[#3D8BD0] hover:underline break-all">{refUrl}</a>
+                              </td>
+                              <td className="px-3 py-2.5 whitespace-nowrap text-[12px] text-[#364658]">secure@microsoft.com</td>
+                              <td className="px-3 py-2.5 whitespace-nowrap text-[12px]">
+                                <span className="inline-flex gap-1">
+                                  {['Patch', 'Vendor Advisory'].map((t) => (
+                                    <span key={t} className="inline-block rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] text-[#475467]">{t}</span>
+                                  ))}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* CVSS 3.1 metrics */}
+                    <div className="mb-6 rounded-lg border border-[#E5E7EB] bg-white p-4">
+                      <div className="mb-3 flex items-center gap-2.5">
+                        <span className="flex size-7 items-center justify-center rounded bg-[#3D8BD0]/10 text-[#3D8BD0]"><Gauge size={15} /></span>
+                        <h3 className="text-[14px] font-semibold text-[#364658]">CVSS 3.1 Metrics</h3>
+                        <span className="ml-auto text-[13px] font-semibold text-[#364658]">Base Score <span className={score >= 9 ? 'text-[#B42318]' : score >= 7 ? 'text-[#C4320A]' : 'text-[#B54708]'}>{score}</span></span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-4 @2xl:grid-cols-3">
+                        <Field label="Exploitability Score">{exploitability}</Field>
+                        <Field label="Impact Score">{impactScore}</Field>
+                        <Field label="Severity">
+                          <span className="inline-block rounded-sm px-2 py-0.5 text-[12px] font-medium" style={{ backgroundColor: pill.bg, color: pill.text }}>{c.severity}</span>
+                        </Field>
+                        <Field label="Access Vector"><span className="break-all text-[12.5px]">{vector}</span></Field>
+                        <Field label="Source">secure@microsoft.com</Field>
+                        <Field label="Type">{score >= 9 ? 'Primary' : 'Secondary'}</Field>
+                      </div>
+                    </div>
+                  </>
+                );
               })()}
+
 
             </div>
             )}
@@ -7732,12 +7652,12 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Patch Deployment Fields"
+            fieldsTitle="CVE Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
-            patchDeployMode={true}
+            cveMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7847,7 +7767,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Patch Deployment Properties"
+            propertiesTitle="CVE Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

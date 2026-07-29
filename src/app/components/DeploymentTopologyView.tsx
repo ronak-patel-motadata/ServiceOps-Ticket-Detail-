@@ -18,7 +18,8 @@ import '@xyflow/react/dist/style.css';
 import {
   ServerCog, Database, Server, Monitor, Globe, ChevronDown, Check, Minus,
   CheckCircle2, XCircle, Clock, Loader2, Maximize, Plus, RotateCcw,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldCheck, Search, X, User, ChevronRight, Keyboard,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldCheck, Search, X, User, ChevronRight, Keyboard, List,
+  MoveHorizontal, MoveVertical,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
@@ -101,6 +102,36 @@ const fs = (extra: Partial<TopoNode>, children: TopoNode[]): TopoNode => ({
   id: 'mainfs', kind: 'mainfs', name: 'Main File Server', sub: 'Patch Store · Local Office', patches: '128 patches stored', source: 'Internet', ...extra, children,
 });
 
+/* Enterprise-scale scenario: 18 Remote Offices, index-generated (deterministic — no randomness)
+ * with a varied but tidy status mix, so the map demos a real customer footprint. */
+const ENTERPRISE_OFFICE_NAMES = [
+  'Mumbai Office', 'Bengaluru Campus', 'Delhi NCR Office', 'Pune Development Center', 'Hyderabad Office',
+  'Chennai Office', 'Kolkata Office', 'Ahmedabad Plant', 'Muscat Office', 'Dubai Office',
+  'Singapore Office', 'Sydney Office', 'London Office', 'Frankfurt Office', 'New York Office',
+  'Toronto Office', 'Tokyo Office', 'Berlin Office',
+];
+const enterpriseChildren = (): TopoNode[] => {
+  const kids: TopoNode[] = ENTERPRISE_OFFICE_NAMES.map((office, i) => {
+    const total = 8 + ((i * 5) % 13); // 8–20 endpoints per office
+    const failed = i % 6 === 4 ? 1 + (i % 2) : 0;
+    const inProgress = i % 3 === 1 ? 2 + (i % 3) : 0;
+    const success = Math.max(0, total - failed - inProgress - (i % 4 === 3 ? 3 : 0));
+    const other = total - success - failed - inProgress;
+    const dsStatus: DeployStatus = inProgress > 0 ? 'In Progress' : other > 0 ? 'Waiting' : 'Success';
+    return {
+      id: `ds6-${i + 1}`, kind: 'ds', name: `DS-${i + 1}`, sub: `Remote Office ${i + 1} — ${office}`, group: office,
+      status: dsStatus, source: 'Main File Server', patches: `${38 + ((i * 7) % 25)} patches cached`,
+      children: [{
+        id: `grp6-${i + 1}`, kind: 'group', name: office, sub: `Endpoint Group · ${total} endpoints`, group: office,
+        status: dsStatus, source: `DS-${i + 1}`, patches: `${success}/${total} installed`,
+        endpointStats: { success, failed, inProgress, other },
+      }],
+    };
+  });
+  kids.push({ id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'Success', source: 'Main File Server', patches: '9/9 installed', endpointStats: { success: 9, failed: 0, inProgress: 0, other: 0 } });
+  return kids;
+};
+
 export const DEPLOY_SCENARIOS: Scenario[] = [
   {
     key: 's1', label: 'Main File Server Only',
@@ -150,7 +181,7 @@ export const DEPLOY_SCENARIOS: Scenario[] = [
           { id: 'grp-blr', kind: 'group', name: 'Bengaluru Campus', sub: 'Endpoint Group · 12 endpoints', group: 'Bengaluru Campus', status: 'Pending', source: 'DS-2', patches: '0/12 installed', endpointStats: { success: 0, failed: 0, inProgress: 0, other: 12 } },
         ],
       },
-      { id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'Success', source: 'Main File Server', patches: '9/9 installed' },
+      { id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'Success', source: 'Main File Server', patches: '9/9 installed', endpointStats: { success: 9, failed: 0, inProgress: 0, other: 0 } },
     ])]),
     internetLinks: ['mainfs', 'ds1'],
   },
@@ -172,17 +203,28 @@ export const DEPLOY_SCENARIOS: Scenario[] = [
     ])]),
     internetLinks: ['mainfs', 'ds1', 'ds2', 'grp-mum', 'grp-blr', 'grp-local'],
   },
+  {
+    key: 's6', label: 'Enterprise Scale (18 Remote Offices)',
+    desc: 'A real customer footprint: the Main File Server downloads and stores every patch and distributes to 18 Remote Office Distributed Servers plus the Local Office group. Collapse branches or use search/filter to focus on one office.',
+    root: so([fs({ status: 'Success' }, enterpriseChildren())]),
+    internetLinks: ['mainfs'],
+  },
 ];
 
 /* ------------------------------- layout ------------------------------- */
 
-const COL_X = [0, 300, 620, 940];
-const ROW_H = 112;
-const INTERNET_POS = { x: COL_X[1] + 130, y: -180 };
+type Orientation = 'horizontal' | 'vertical';
+const CARD_W = 190;
+// Depth positions along the FLOW axis (x when horizontal, y when vertical) + the leaf spread
+// step along the CROSS axis. Vertical rows are spaced generously so the tallest card + arrow fit.
+const COL_X = [0, 300, 620, 940];   // horizontal depth (x)
+const ROW_Y = [0, 165, 335, 510];   // vertical depth (y)
+const CROSS_H = 112;                 // horizontal leaf spread (y)
+const CROSS_V = 234;                 // vertical leaf spread (x)
 
 /* Every card kind renders at a FIXED height (content vertically centered inside), the layout
  * positions rows by card CENTER, and the side handles sit at 50% — so connectors attach at the
- * exact middle of every node AND same-row connections stay dead-horizontal. */
+ * exact middle of every node AND same-row connections stay dead-straight. */
 // Sized to each kind's actual content + the shared py-2.5 padding, so every card shows the
 // SAME breathing room top/bottom (extra height would read as uneven padding).
 const KIND_H: Record<NodeKind, number> = { serviceops: 78, mainfs: 100, ds: 78, group: 94, internet: 58 };
@@ -192,11 +234,20 @@ const countDescendants = (n: TopoNode): number =>
 
 interface FlowBuild { nodes: RFNode[]; edges: RFEdge[]; byId: Map<string, TopoNode> }
 
-function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) => boolean): FlowBuild {
+function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) => boolean, orient: Orientation): FlowBuild {
   const nodes: RFNode[] = [];
   const edges: RFEdge[] = [];
   const byId = new Map<string, TopoNode>();
-  let leafY = 0;
+  const horiz = orient === 'horizontal';
+  const crossStep = horiz ? CROSS_H : CROSS_V;
+  let leafC = 0; // running position along the CROSS (spread) axis
+  // Map (depth, cross) → the node's top-left {x,y} for the current orientation, keeping the
+  // FLOW-axis handle centered on the card.
+  const posFor = (depth: number, cross: number, kind: NodeKind) => horiz
+    ? { x: COL_X[Math.min(depth, COL_X.length - 1)], y: cross - KIND_H[kind] / 2 }
+    : { x: cross - CARD_W / 2, y: ROW_Y[Math.min(depth, ROW_Y.length - 1)] };
+  // Tree-edge handles: horizontal flows Right→Left; vertical flows Bottom→Top.
+  const treeHandles = horiz ? { s: 'sr', t: 'tl' } : { s: 'sb', t: 'tt' };
 
   const treeEdgeKind = (parent: TopoNode, child: TopoNode): EdgeKind => {
     if (parent.kind === 'serviceops') return 'trigger';
@@ -251,20 +302,19 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
   const place = (n: TopoNode, depth: number): number => {
     byId.set(n.id, n);
     const kids = collapsed.has(n.id) ? [] : (n.children ?? []);
-    let y: number;
-    let kidYs: number[] = [];
+    let c: number;              // this node's CROSS position
+    let kidCs: number[] = [];
     if (kids.length === 0) {
-      y = leafY;
-      leafY += ROW_H;
+      c = leafC;
+      leafC += crossStep;
     } else {
-      kidYs = kids.map((k) => place(k, depth + 1));
-      y = (kidYs[0] + kidYs[kidYs.length - 1]) / 2;
+      kidCs = kids.map((k) => place(k, depth + 1));
+      c = (kidCs[0] + kidCs[kidCs.length - 1]) / 2;
     }
     nodes.push({
       id: n.id,
       type: 'topo',
-      // y is the row CENTER — cards render at KIND_H exactly, so centers (and handles) align.
-      position: { x: COL_X[Math.min(depth, COL_X.length - 1)], y: y - KIND_H[n.kind] / 2 },
+      position: posFor(depth, c, n.kind),
       data: {
         ...n,
         hasKids: (n.children?.length ?? 0) > 0,
@@ -283,13 +333,13 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       // The ServiceOps→Main FS trigger link is ALWAYS green (the management connection is
       // healthy in every scenario); every other connector takes the target's delivery color.
       const color = kind === 'trigger' ? '#12B76A' : edgeColor(k);
-      // Same-row parent→child (their layout centers match) → a plain STRAIGHT line; the
-      // smoothstep elbow is only for genuine fan-outs to a different row.
-      const level = Math.abs(kidYs[i] - y) < 1;
+      // Parent + child share a cross position (directly in-line) → a plain STRAIGHT line; the
+      // smoothstep elbow is only for genuine fan-outs off the centerline.
+      const level = Math.abs(kidCs[i] - c) < 1;
       edges.push({
         id: `e-${n.id}-${k.id}`,
         source: n.id, target: k.id,
-        sourceHandle: 'out', targetHandle: 'in',
+        sourceHandle: treeHandles.s, targetHandle: treeHandles.t,
         type: level ? 'straight' : 'smoothstep',
         ...(level ? {} : { pathOptions: { borderRadius: 14 } }),
         animated: kind !== 'fallback' && active(k.status),
@@ -298,15 +348,17 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
         data: { kind },
       } as RFEdge);
     });
-    return y;
+    return c;
   };
   place(sc.root, 0);
 
-  // Internet — the external patch source, in its own lane above the servers.
+  // Internet — the external patch source. Horizontal: its own lane ABOVE the servers.
+  // Vertical: to the LEFT of the Main File Server row.
   const internet: TopoNode = { id: 'internet', kind: 'internet', name: 'Internet', sub: 'External Patch Source (Vendor CDN)' };
   byId.set('internet', internet);
+  const internetPos = horiz ? { x: COL_X[1] + 130, y: -180 } : { x: -340, y: ROW_Y[1] + 8 };
   nodes.push({
-    id: 'internet', type: 'topo', position: INTERNET_POS,
+    id: 'internet', type: 'topo', position: internetPos,
     data: { ...internet, dim: isDim(internet) },
     draggable: false, selectable: false,
   });
@@ -314,13 +366,16 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
   sc.internetLinks.filter((t) => placedIds.has(t)).forEach((t, i) => {
     const target = byId.get(t);
     const color = target ? edgeColor(target) : '#94A3B8';
-    // Main FS keeps its dedicated top-lane drop; every other Internet link takes the custom
-    // LANE edge (top lane → inter-column gap → target's left side) so it never crosses a card.
+    // Main FS gets a dedicated straight drop; every other Internet link takes the custom LANE
+    // edge (routes through free corridors so it never crosses a card). Handles/lane geometry
+    // flip with orientation.
     const laned = t !== 'mainfs';
+    const netSource = horiz ? 'nd' : 'nr';                      // Internet: down (horiz) / right (vert)
+    const netTarget = laned ? (horiz ? 'tl' : 'tl') : (horiz ? 'tt' : 'tl'); // into target's Left/Top
     edges.push({
       id: `e-net-${t}`,
       source: 'internet', target: t,
-      sourceHandle: 'down', targetHandle: laned ? 'in' : 'net',
+      sourceHandle: netSource, targetHandle: netTarget,
       type: laned ? 'lane' : 'smoothstep',
       ...(laned ? {} : { pathOptions: { borderRadius: 14 } }),
       animated: active(target?.status) || t === 'mainfs',
@@ -329,7 +384,7 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       // down, so the Internet link reads as a two-way collaboration.
       markerStart: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
-      data: { kind: 'internet', lane: i * 10 },
+      data: { kind: 'internet', lane: i * 10, orient },
     } as RFEdge);
   });
 
@@ -361,7 +416,9 @@ function TopoNodeCard({ data }: NodeProps) {
   if (d.kind === 'internet') {
     return (
       <div className={`relative flex w-[190px] items-center gap-2.5 rounded-lg border border-[#D1E9D6] bg-white px-3 py-2.5 shadow-sm transition-opacity ${dimCls}`} style={{ height: KIND_H.internet }}>
-        <Handle type="source" position={Position.Bottom} id="down" className={hiddenHandle} />
+        {/* Internet source: Bottom (horizontal layout) or Right (vertical layout) */}
+        <Handle type="source" position={Position.Bottom} id="nd" className={hiddenHandle} />
+        <Handle type="source" position={Position.Right} id="nr" className={hiddenHandle} />
         <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: '#22C55E1A', color: '#16A34A' }}><Icon size={16} /></span>
         <div className="min-w-0">
           <div className="truncate text-[12px] font-semibold text-[#364658]">{d.name}</div>
@@ -376,9 +433,12 @@ function TopoNodeCard({ data }: NodeProps) {
       className={`relative flex w-[190px] flex-col justify-center rounded-lg border border-[#E2E8F0] bg-white px-3 py-2.5 shadow-sm transition-all hover:border-[#CBD5E1] hover:shadow-md ${dimCls}`}
       style={{ height: KIND_H[d.kind] }}
     >
-      <Handle type="target" position={Position.Left} id="in" className={hiddenHandle} />
-      <Handle type="source" position={Position.Right} id="out" className={hiddenHandle} />
-      <Handle type="target" position={Position.Top} id="net" className={hiddenHandle} />
+      {/* All four sides — the tree edges pick handles by orientation (horizontal: Left/Right;
+          vertical: Top/Bottom). 'tl' also receives the Internet lane edges. */}
+      <Handle type="target" position={Position.Left} id="tl" className={hiddenHandle} />
+      <Handle type="source" position={Position.Right} id="sr" className={hiddenHandle} />
+      <Handle type="target" position={Position.Top} id="tt" className={hiddenHandle} />
+      <Handle type="source" position={Position.Bottom} id="sb" className={hiddenHandle} />
 
       <div className="flex items-center gap-2.5">
         <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${kind.color}1A`, color: kind.color }}><Icon size={16} /></span>
@@ -481,20 +541,40 @@ const nodeTypes = { topo: TopoNodeCard };
 function LaneEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, style, markerEnd, markerStart, data } = props;
   const off = ((data as any)?.lane as number | undefined) ?? 0;
+  const vert = (data as any)?.orient === 'vertical';
   const r = 10;
-  const laneY = sourceY + 16 + off;   // just below the Internet card, still above every row
-  const cx = targetX - 28 - off;      // inter-column gap, left of the target card
-  const dir = Math.sign(cx - sourceX) || 1;
-  const path = [
-    `M ${sourceX} ${sourceY}`,
-    `L ${sourceX} ${laneY - r}`,
-    `Q ${sourceX} ${laneY} ${sourceX + dir * r} ${laneY}`,
-    `L ${cx - dir * r} ${laneY}`,
-    `Q ${cx} ${laneY} ${cx} ${laneY + r}`,
-    `L ${cx} ${targetY - r}`,
-    `Q ${cx} ${targetY} ${cx + r} ${targetY}`,
-    `L ${targetX} ${targetY}`,
-  ].join(' ');
+  let path: string;
+  if (vert) {
+    // Internet sits LEFT; run right into a vertical corridor beside it, down/up to the target's
+    // row, then right into its Left handle — always through free space.
+    const laneX = sourceX + 16 + off;
+    const cy = targetY;
+    const dv = Math.sign(cy - sourceY) || 1;
+    path = [
+      `M ${sourceX} ${sourceY}`,
+      `L ${laneX - r} ${sourceY}`,
+      `Q ${laneX} ${sourceY} ${laneX} ${sourceY + dv * r}`,
+      `L ${laneX} ${cy - dv * r}`,
+      `Q ${laneX} ${cy} ${laneX + r} ${cy}`,
+      `L ${targetX} ${cy}`,
+    ].join(' ');
+  } else {
+    // Internet sits ABOVE; drop into the top lane, along to the inter-column gap left of the
+    // target, down its corridor, then right into its Left handle.
+    const laneY = sourceY + 16 + off;
+    const cx = targetX - 28 - off;
+    const dir = Math.sign(cx - sourceX) || 1;
+    path = [
+      `M ${sourceX} ${sourceY}`,
+      `L ${sourceX} ${laneY - r}`,
+      `Q ${sourceX} ${laneY} ${sourceX + dir * r} ${laneY}`,
+      `L ${cx - dir * r} ${laneY}`,
+      `Q ${cx} ${laneY} ${cx} ${laneY + r}`,
+      `L ${cx} ${targetY - r}`,
+      `Q ${cx} ${targetY} ${cx + r} ${targetY}`,
+      `L ${targetX} ${targetY}`,
+    ].join(' ');
+  }
   return <BaseEdge path={path} style={style} markerEnd={markerEnd as string} markerStart={markerStart as string} />;
 }
 
@@ -797,6 +877,7 @@ function FitOnChange({ signal }: { signal: number }) {
 
 export function DeploymentTopologyView({ search = '', statusFilter = [], fullscreen = false }: { search?: string; statusFilter?: string[]; fullscreen?: boolean }) {
   const [scenarioKey, setScenarioKey] = useState('s3');
+  const [orient, setOrient] = useState<Orientation>('horizontal');
   const [showScenarioMenu, setShowScenarioMenu] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [fitSignal, setFitSignal] = useState(0);
@@ -814,6 +895,8 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Side popup listing a group's endpoints (opened from the hover card's View more).
   const [groupPanel, setGroupPanel] = useState<string | null>(null);
+  // Collapsible status legend (CMDB map pattern — the toggle icon stays visible).
+  const [showLegend, setShowLegend] = useState(true);
 
   const showNodeCard = (node: TopoNode, cx: number, yTop: number, yBot: number, wrapW: number) => {
     const estH = 165 + (node.error ? 64 : 0) + (node.endpointStats ? 72 : 0);
@@ -850,6 +933,8 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
   }, [fullscreen]);
   // React Flow doesn't refit on container resize — nudge it when fullscreen toggles.
   useEffect(() => { setFitSignal((s) => s + 1); }, [fullscreen]);
+  // Re-fit when the flow direction flips (the whole layout transposes).
+  useEffect(() => { setFitSignal((s) => s + 1); }, [orient]);
 
   const scenario = DEPLOY_SCENARIOS.find((s) => s.key === scenarioKey) ?? DEPLOY_SCENARIOS[0];
 
@@ -884,11 +969,11 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
       ));
       return !(textOk && statusOk);
     };
-    const built = buildFlow(scenario, collapsed, isDim);
+    const built = buildFlow(scenario, collapsed, isDim, orient);
     // Thread the collapse handler into every node's data (nodes are plain data objects).
     built.nodes.forEach((n) => { (n.data as any).onToggle = toggleCollapse; });
     return built;
-  }, [scenario, collapsed, toggleCollapse, search, statusFilter]);
+  }, [scenario, collapsed, toggleCollapse, search, statusFilter, orient]);
 
   const selectScenario = (key: string) => {
     setScenarioKey(key);
@@ -938,6 +1023,26 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
           )}
         </div>
         <p className="min-w-0 flex-1 truncate text-[12px] text-[#7B8FA5]" title={scenario.desc}>{scenario.desc}</p>
+
+        {/* Flow direction — Horizontal (left→right) · Vertical (top→bottom) segmented toggle */}
+        <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+          {([
+            { key: 'horizontal' as const, icon: <MoveHorizontal size={15} />, tip: 'Horizontal flow' },
+            { key: 'vertical' as const, icon: <MoveVertical size={15} />, tip: 'Vertical flow' },
+          ]).map((o, i) => (
+            <Tooltip key={o.key}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setOrient(o.key)}
+                  className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${orient === o.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                >
+                  {o.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{o.tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
       </div>
 
       {/* Canvas */}
@@ -987,20 +1092,41 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
           <CanvasControls onReset={resetView} />
           <FitOnChange signal={fitSignal} />
 
-          {/* Status legend (bottom-right) — connector color = the receiving node's status */}
-          <div className="absolute bottom-3 right-3 z-10 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Connection Status</div>
-            {([
-              ['Success', '#12B76A'],
-              ['Failed', '#F04438'],
-              ['In Progress', '#F79009'],
-              ['Pending', '#94A3B8'],
-            ] as [string, string][]).map(([label, color]) => (
-              <div key={label} className="flex items-center gap-2 py-0.5">
-                <span className="h-0.5 w-5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-[10.5px] text-[#475467]">{label}</span>
+          {/* Status legend (bottom-right) — collapsible, CMDB-map pattern: the card has a
+              chevron collapse button and the List toggle icon stays visible below it. */}
+          <div className="absolute bottom-3 right-3 z-10 flex flex-col items-end gap-2">
+            {showLegend && (
+              <div className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 shadow-sm">
+                <div className="mb-1 flex items-center justify-between gap-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Connection Status</span>
+                  <button onClick={() => setShowLegend(false)} className="text-[#9CA3AF] transition-colors hover:text-[#364658]" title="Collapse">
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+                {([
+                  ['Success', '#12B76A'],
+                  ['Failed', '#F04438'],
+                  ['In Progress', '#F79009'],
+                  ['Pending', '#94A3B8'],
+                ] as [string, string][]).map(([label, color]) => (
+                  <div key={label} className="flex items-center gap-2 py-0.5">
+                    <span className="h-0.5 w-5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                    <span className="text-[10.5px] text-[#475467]">{label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowLegend((v) => !v)}
+                  className={`flex size-8 items-center justify-center rounded border shadow-sm transition-colors ${showLegend ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F5F7FA]'}`}
+                >
+                  <List size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Connection status legend</TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Rich node hover card — Dependency-Map/Superseded treatment (replaces the old

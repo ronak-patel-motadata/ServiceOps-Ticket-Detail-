@@ -122,6 +122,9 @@ const cveToPatchShape = (c: DetectedCve): Patch => ({
   rebootRequired: 'No',
   approvalStatus: 'Approved',
   category: 'Security Updates',
+  // NVD-style long description for the Overview tab, composed from the record's real facts.
+  description: `${c.description}. Tracked as ${c.id} (${c.cweId}), this vulnerability was published on ${c.publishedDate} and carries a CVSS 3.1 base score of ${c.cvssScore}. ${c.exploitStatus === 'Yes' ? 'Exploitation in the wild has been reported — remediation should be prioritized.' : 'No in-the-wild exploitation has been reported so far.'} A vendor patch is ${c.patchAvailability === 'Yes' ? 'available and can be deployed through the linked patches' : 'not yet available'}, and ${c.impactedEndpoints} managed endpoint${c.impactedEndpoints === 1 ? ' is' : 's are'} currently impacted.`,
+  cve: { severity: c.severity, cweId: c.cweId, cvssScore: c.cvssScore, exploitStatus: c.exploitStatus, patchAvailability: c.patchAvailability, nvdStatus: c.status },
 });
 
 export function DetectedCvesListPage({ onNavigate }: { onNavigate: (page: string) => void }) {

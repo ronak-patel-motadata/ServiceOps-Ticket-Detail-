@@ -23,6 +23,7 @@ interface TicketFieldsAccordionProps {
   patchMode?: boolean;
   patchDeployMode?: boolean;
   endpointMode?: boolean;
+  cveMode?: boolean;
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -219,6 +220,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     patchMode = false,
     patchDeployMode = false,
     endpointMode = false,
+    cveMode = false,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -493,6 +495,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           patchMode={patchMode}
           patchDeployMode={patchDeployMode}
           endpointMode={endpointMode}
+          cveMode={cveMode}
           footer={systemFieldsSection}
         />
       )}

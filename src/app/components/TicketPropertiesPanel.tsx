@@ -47,6 +47,8 @@ interface TicketPropertiesPanelProps {
   patchDeployMode?: boolean;
   // ENDPOINT page: endpoint-inventory fields in the (renamed) Endpoint Fields accordion
   endpointMode?: boolean;
+  // DETECTED CVE page: CVE-metadata fields in the CVE Fields accordion
+  cveMode?: boolean;
   // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
   // always visible, no View more / System Fields (those move to the Incident Details tab)
   compactTicketFields?: boolean;
@@ -357,6 +359,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     patchMode = false,
     patchDeployMode = false,
     endpointMode = false,
+    cveMode = false,
     compactTicketFields = false,
     hideAdditionalFields = false,
     assetState,
@@ -1435,7 +1438,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               V2 ticket page (compactTicketFields): the panel holds only 7 fixed fields, so the
               properties field-search + filter are dropped — search lives in the Incident
               Details tab instead. Activity/Suggestions searches are unaffected. */}
-          {((activeGroup === 'properties' && !compactTicketFields) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
+          {((activeGroup === 'properties' && !compactTicketFields && !cveMode) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded px-2 py-1.5">
                 <Search size={16} className="text-[#7B8FA5]" />
@@ -1838,6 +1841,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           patchMode={patchMode}
           patchDeployMode={patchDeployMode}
           endpointMode={endpointMode}
+          cveMode={cveMode}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -2110,9 +2114,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="border-t border-[#E5E7EB]"></div>
         </div>
 
-        {/* Info Section - Features Available. Hidden in V2 compact mode — pin/search/filter
-            were all removed from the V2 panel, so the hints would describe nothing. */}
-        {!compactTicketFields && (
+        {/* Info Section - Features Available. Hidden in V2 compact mode AND on the CVE page —
+            both drop the pin/search/filter affordances, so the hints would describe nothing. */}
+        {!compactTicketFields && !cveMode && (
         <div className="mt-4 px-0">
           <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
             {/* Pin hint hidden on the Patch / Patch Deployment pages — their fields are
@@ -3793,7 +3797,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           )}
 
           {/* Affected Products — Patch page only (replaces Notes; deployment/endpoint pages drop it) */}
-          {patchMode && !patchDeployMode && !endpointMode && (
+          {patchMode && !patchDeployMode && !endpointMode && !cveMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -3845,7 +3849,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         )}
 
         {/* File Details — Patch page only (replaces Attachments; deployment/endpoint pages drop it) */}
-        {patchMode && !patchDeployMode && !endpointMode && (
+        {patchMode && !patchDeployMode && !endpointMode && !cveMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button

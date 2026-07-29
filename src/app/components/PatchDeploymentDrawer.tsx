@@ -2849,8 +2849,12 @@ onStackMinimizedChange,
                   onClick: () => void;
                 };
 
-                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
-                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
+                // Patches in this deployment, broken down by severity for the Overview donut.
+                const patchSev = (s: string) => DEPLOYED_PATCHES.filter((p) => p.severity === s).length;
+                const patchCritical = patchSev('Critical');
+                const patchImportant = patchSev('Important');
+                const patchModerate = patchSev('Moderate');
+                const patchLow = patchSev('Low');
 
                 const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
                 const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
@@ -2864,13 +2868,15 @@ onStackMinimizedChange,
 
                 const kpis: Kpi[] = [
                   {
-                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
-                    chart: 'donut', total: VULNERABILITIES.length,
+                    key: 'patches', label: 'Patches', icon: Package, color: '#3D8BD0',
+                    chart: 'donut', total: DEPLOYED_PATCHES.length,
                     segments: [
-                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
-                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
+                      { label: 'Critical', value: patchCritical, color: '#EF4444' },
+                      { label: 'Important', value: patchImportant, color: '#F59E0B' },
+                      { label: 'Moderate', value: patchModerate, color: '#EAB308' },
+                      { label: 'Low', value: patchLow, color: '#94A3B8' },
                     ],
-                    onClick: () => setActiveMainTab('vulnerabilities'),
+                    onClick: () => setActiveMainTab('patches-list'),
                   },
                   {
                     key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
@@ -6511,7 +6517,7 @@ onStackMinimizedChange,
 
             {/* Installation Tab Content — deployment records for this patch */}
             {activeMainTab === 'installation' && (
-              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} />
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology />
             )}
 
             {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}

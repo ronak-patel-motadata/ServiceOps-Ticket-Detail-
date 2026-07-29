@@ -369,6 +369,8 @@ interface AssetFieldsProps {
   patchDeployMode?: boolean;
   // ENDPOINT page: endpoint-inventory fields (host/OS/agent/scan info) instead of the patch catalog's.
   endpointMode?: boolean;
+  // DETECTED CVE page: CVE-metadata fields.
+  cveMode?: boolean;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
@@ -376,7 +378,7 @@ interface AssetFieldsProps {
   footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, endpointMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -644,7 +646,20 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Last Reboot Time', value: 'Thu, Jul 09, 2026 03:15 PM' },
     ];
 
-    const fields = patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : PATCH_FIELDS;
+    // DETECTED CVE page variant — the CVE's own metadata. Order: 6 summary fields → Tags →
+    // dates. The values are static mock (matching the Overview cards' derived facts).
+    const CVE_FIELDS: PatchField[] = [
+      { label: 'CWE ID', value: 'CWE-367' },
+      { label: 'Status', value: 'Modified' },
+      { label: 'Severity', value: 'High', kind: 'severity' },
+      { label: 'Approval Status', value: 'Approved', kind: 'approval' },
+      { label: 'Exploit Status', value: 'No' },
+      { label: 'Patch Availability', value: 'Yes' },
+      { label: 'Published Date', value: 'Tue, Jun 11, 2024 10:45 PM' },
+      { label: 'Last Updated Date', value: 'Mon, Jul 27, 2026 11:26 AM' },
+    ];
+
+    const fields = patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
 
     const roRow = (f: PatchField) => {
       const empty = !f.value || f.value === '---';
@@ -705,9 +720,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     };
 
     // Tags (editable chip editor) — the one non-read-only row on this panel. Patch page: after
-    // "Refrence Url"; Endpoint page: after "OS Version" (between summary and agent fields).
-    // The fallback keeps it findable when searching "tags".
-    const tagsAfter = endpointMode ? 'OS Version' : 'Refrence Url';
+    // "Refrence Url"; Endpoint page: after "OS Version"; CVE page: after the 6 summary fields
+    // (before the dates). The fallback keeps it findable when searching "tags".
+    const tagsAfter = endpointMode ? 'OS Version' : cveMode ? 'Patch Availability' : 'Refrence Url';
     const visible = fields.filter((f) => !q || f.label.toLowerCase().includes(q));
     return (
       <div className="px-4 pb-4 space-y-2" ref={ref}>

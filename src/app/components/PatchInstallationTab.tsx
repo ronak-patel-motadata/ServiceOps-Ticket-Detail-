@@ -44,9 +44,11 @@ interface PatchInstallationTabProps {
   setInstallations: Dispatch<SetStateAction<PatchInstallation[]>>;
   /** Called when a deployment's status turns Success → moves the agent into the Installed bucket. */
   onInstalled: (agentId: string) => void;
+  /** Show the Topology view toggle — Patch DEPLOYMENT page only (opt-in). */
+  showTopology?: boolean;
 }
 
-export function PatchInstallationTab({ installations }: PatchInstallationTabProps) {
+export function PatchInstallationTab({ installations, showTopology = false }: PatchInstallationTabProps) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'list' | 'card' | 'topology'>('card');
   // Full screen — the whole tab (any view) promoted to a fixed overlay (Superseded-tab pattern).
@@ -192,12 +194,12 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
         {/* Topology: filter sits right after the search; spacer pushes the view toggle to the edge */}
         {view === 'topology' && <div className="flex-1" />}
 
-        {/* View toggle — Card · List · Topology (segmented) */}
+        {/* View toggle — Card · List (· Topology only on the Patch Deployment page) */}
         <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
           {([
             { key: 'card', icon: <LayoutGrid size={15} />, tip: 'Card view' },
             { key: 'list', icon: <ListIcon size={15} />, tip: 'List view' },
-            { key: 'topology', icon: <Network size={15} />, tip: 'Topology view' },
+            ...(showTopology ? [{ key: 'topology' as const, icon: <Network size={15} />, tip: 'Topology view' }] : []),
           ] as const).map((v, i) => (
             <Tooltip key={v.key}>
               <TooltipTrigger asChild>
@@ -213,7 +215,9 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
           ))}
         </div>
 
-        {/* Full screen — same control as the Dependency Map / Superseded toolbars */}
+        {/* Full screen — Patch Deployment page only (same control as the Dependency Map /
+            Superseded toolbars), rides alongside the Topology view */}
+        {showTopology && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -225,6 +229,7 @@ export function PatchInstallationTab({ installations }: PatchInstallationTabProp
           </TooltipTrigger>
           <TooltipContent>{isFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
         </Tooltip>
+        )}
       </div>
 
       {view === 'topology' ? (
