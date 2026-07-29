@@ -49,6 +49,9 @@ interface TopoNode {
   source?: string;
   patches?: string;
   error?: string;
+  /** DELIVERY failure — the DS/office could not RECEIVE the patch from its parent (distinct from
+   *  endpoint-local install failures). Turns the incoming line AND the node border red. */
+  deliveryFailed?: boolean;
   /** Endpoint GROUP only: how many member endpoints are in each deployment state (hover card). */
   endpointStats?: { success: number; failed: number; inProgress: number; other: number };
   /** Downloads directly from the Internet → its tree edge renders as the dashed fallback path. */
@@ -169,7 +172,7 @@ export const DEPLOY_SCENARIOS: Scenario[] = [
   },
   {
     key: 's4', label: 'Mixed DS Internet Access',
-    desc: 'Mixed access: DS-1 has Internet and downloads directly; DS-2 has none and receives patches from the Main File Server. The Main File Server still downloads and stores every patch either way.',
+    desc: 'Mixed access: DS-1 has Internet and downloads directly; DS-2 gets patches from the Main File Server — but that distribution has FAILED here (red), so its Bengaluru office is stuck waiting to receive. The Main File Server still downloads and stores every patch.',
     root: so([fs({ status: 'In Progress', progress: 74 }, [
       {
         id: 'ds1', kind: 'ds', name: 'DS-1', sub: 'Remote Office 1 — Mumbai Office · Internet access', group: 'Mumbai Office', status: 'In Progress', progress: 41, source: 'Internet', patches: '54 patches cached', netDirect: true, children: [
@@ -177,7 +180,9 @@ export const DEPLOY_SCENARIOS: Scenario[] = [
         ],
       },
       {
-        id: 'ds2', kind: 'ds', name: 'DS-2', sub: 'Remote Office 2 — Bengaluru Campus · No Internet', group: 'Bengaluru Campus', status: 'In Progress', source: 'Main File Server', patches: '41 patches cached', children: [
+        // DELIVERY FAILURE demo — the Main FS → DS-2 distribution failed: red line + red border,
+        // and its office can't receive (stuck Pending, gray line downstream).
+        id: 'ds2', kind: 'ds', name: 'DS-2', sub: 'Remote Office 2 — Bengaluru Campus · No Internet', group: 'Bengaluru Campus', status: 'Failed', source: 'Main File Server', patches: '18 patches cached', deliveryFailed: true, error: 'Distribution from the Main File Server failed — the distribution point is unreachable (0x80D02002). Endpoints in this office cannot receive patches until it recovers.', children: [
           { id: 'grp-blr', kind: 'group', name: 'Bengaluru Campus', sub: 'Endpoint Group · 12 endpoints', group: 'Bengaluru Campus', status: 'Pending', source: 'DS-2', patches: '0/12 installed', endpointStats: { success: 0, failed: 0, inProgress: 0, other: 12 } },
         ],
       },
@@ -257,7 +262,6 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
     return 'fileserver';
   };
 
-  const active = (s?: DeployStatus) => s === 'In Progress';
   // Connector color = the RECEIVING node's deployment status (4 colors only, per request):
   // Success green · Failed red · In Progress orange · everything queued gray.
   const statusColor = (s?: DeployStatus) =>
@@ -283,6 +287,8 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
   // · into a Waiting/Pending SERVER → inherit downstream evidence: if its offices already show
   //   successes (or active transfers), patches clearly flowed through this link → green/orange.
   const edgeColor = (k: TopoNode): string => {
+    // Delivery failure (couldn't receive from the parent) — the link is red, full stop.
+    if (k.deliveryFailed) return '#F04438';
     if (k.kind === 'group' && k.endpointStats) {
       const s = k.endpointStats;
       if (s.inProgress > 0) return '#F79009';
@@ -342,8 +348,10 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
         sourceHandle: treeHandles.s, targetHandle: treeHandles.t,
         type: level ? 'straight' : 'smoothstep',
         ...(level ? {} : { pathOptions: { borderRadius: 14 } }),
-        animated: kind !== 'fallback' && active(k.status),
-        style: { stroke: color, strokeWidth: 1.6, ...(EDGE_META[kind].dashed ? { strokeDasharray: '5 5' } : {}) },
+        // SOLID always — the dashed-flow treatment is a HOVER effect (CMDB-map pattern),
+        // applied in displayEdges, never a resting state.
+        animated: false,
+        style: { stroke: color, strokeWidth: 1.6 },
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
         data: { kind },
       } as RFEdge);
@@ -378,7 +386,7 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       sourceHandle: netSource, targetHandle: netTarget,
       type: laned ? 'lane' : 'smoothstep',
       ...(laned ? {} : { pathOptions: { borderRadius: 14 } }),
-      animated: active(target?.status) || t === 'mainfs',
+      animated: false,
       style: { stroke: color, strokeWidth: 1.6 },
       // Arrowheads on BOTH ends — the downloader requests upstream while the patch data flows
       // down, so the Internet link reads as a two-way collaboration.
@@ -387,6 +395,11 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       data: { kind: 'internet', lane: i * 10, orient },
     } as RFEdge);
   });
+
+  // Red incoming line ⟺ red node border: any node whose incoming connector is red (a failed
+  // delivery) gets a red card border so the failure reads on the node itself, not just the line.
+  const redTargets = new Set(edges.filter((e) => (e.style as any)?.stroke === '#F04438').map((e) => e.target));
+  nodes.forEach((n) => { if (redTargets.has(n.id)) (n.data as any).borderRed = true; });
 
   // Search/filter spotlight: edges touching a dimmed node fade with it (and stop animating).
   const dimIds = new Set(nodes.filter((n) => (n.data as any).dim).map((n) => n.id));
@@ -407,11 +420,13 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
 const hiddenHandle = 'opacity-0 !pointer-events-none !min-w-0 !min-h-0 !w-1 !h-1 !border-0 !bg-transparent';
 
 function TopoNodeCard({ data }: NodeProps) {
-  const d = data as unknown as TopoNode & { hasKids?: boolean; collapsed?: boolean; hiddenCount?: number; dim?: boolean; onToggle?: (id: string) => void };
+  const d = data as unknown as TopoNode & { hasKids?: boolean; collapsed?: boolean; hiddenCount?: number; dim?: boolean; borderRed?: boolean; onToggle?: (id: string) => void };
   const kind = KIND_META[d.kind];
   const st = d.status ? STATUS_META[d.status] : null;
   const Icon = kind.icon;
   const dimCls = d.dim ? 'opacity-30' : '';
+  // Failed-delivery node → red border + soft red ring (matches its red incoming line).
+  const redCls = d.borderRed ? 'border-[#F04438] ring-2 ring-[#F04438]/25' : 'border-[#E2E8F0]';
 
   if (d.kind === 'internet') {
     return (
@@ -430,7 +445,7 @@ function TopoNodeCard({ data }: NodeProps) {
 
   return (
     <div
-      className={`relative flex w-[190px] flex-col justify-center rounded-lg border border-[#E2E8F0] bg-white px-3 py-2.5 shadow-sm transition-all hover:border-[#CBD5E1] hover:shadow-md ${dimCls}`}
+      className={`relative flex w-[190px] flex-col justify-center rounded-lg border bg-white px-3 py-2.5 shadow-sm transition-all hover:shadow-md ${redCls} ${d.borderRed ? '' : 'hover:border-[#CBD5E1]'} ${dimCls}`}
       style={{ height: KIND_H[d.kind] }}
     >
       {/* All four sides — the tree edges pick handles by orientation (horizontal: Left/Right;
@@ -887,6 +902,9 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
   const HOVER_W = 270, HOVER_GAP = 12, HOVER_PAD = 8;
   const [nodeTip, setNodeTip] = useState<{ left: number; top: number; placement: 'above' | 'below'; arrowLeft: number; yTop: number; yBot: number; node: TopoNode } | null>(null);
   const [edgeTip, setEdgeTip] = useState<{ x: number; y: number; kind: EdgeKind } | null>(null);
+  // Hovered NODE — every link touching it gets the animated dashed-flow treatment, like the
+  // CMDB Dependency Map. Resting edges are always solid.
+  const [hoverNodeId, setHoverNodeId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -975,6 +993,13 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
     return built;
   }, [scenario, collapsed, toggleCollapse, search, statusFilter, orient]);
 
+  // Hover flow-highlight: every link connected to the hovered node animates as dashed flow;
+  // everything else stays solid.
+  const displayEdges = useMemo(() => {
+    if (!hoverNodeId) return edges;
+    return edges.map((e) => (e.source === hoverNodeId || e.target === hoverNodeId ? { ...e, animated: true } : e));
+  }, [edges, hoverNodeId]);
+
   const selectScenario = (key: string) => {
     setScenarioKey(key);
     setCollapsed(new Set());
@@ -1050,7 +1075,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
         <div ref={wrapperRef} className="relative border-t border-[#EEF1F5]" style={{ backgroundColor: '#FAFBFC', height: canvasH }}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -1065,6 +1090,8 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
             onNodeClick={(_, n) => { if (collapsed.has(n.id)) toggleCollapse(n.id); }}
             onNodeMouseEnter={(e, n) => {
               if (hoverTimer.current) clearTimeout(hoverTimer.current);
+              // Animate this node's connected lines immediately (dashed flow, CMDB pattern).
+              setHoverNodeId(n.id);
               const node = byId.get(n.id);
               const el = (e.target as HTMLElement).closest('.react-flow__node') as HTMLElement | null;
               const rect = wrapperRef.current?.getBoundingClientRect();
@@ -1081,6 +1108,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
             onNodeMouseLeave={() => {
               if (hoverTimer.current) clearTimeout(hoverTimer.current);
               if (hideTimer.current) clearTimeout(hideTimer.current);
+              setHoverNodeId(null);
               hideTimer.current = setTimeout(() => setNodeTip(null), 180);
             }}
             onEdgeMouseEnter={(e, edge) => setEdgeTip({ ...rel(e), kind: ((edge.data as any)?.kind ?? 'fileserver') as EdgeKind })}

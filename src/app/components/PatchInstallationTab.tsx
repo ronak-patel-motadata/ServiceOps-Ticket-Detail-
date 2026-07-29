@@ -5,6 +5,7 @@ import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Chec
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
 import { DeploymentTopologyView } from './DeploymentTopologyView';
+import { EndpointConfigFlow } from './EndpointConfigFlow';
 
 // Full set of installation-status values the filter can pick from (superset of what's in the data).
 const STATUS_FILTER_OPTIONS = [
@@ -53,6 +54,8 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
   const [view, setView] = useState<'list' | 'card' | 'topology'>('card');
   // Full screen — the whole tab (any view) promoted to a fixed overlay (Superseded-tab pattern).
   const [isFull, setIsFull] = useState(false);
+  // "View Configuration" → the endpoint's individual deployment-chain flow (center popup).
+  const [configFor, setConfigFor] = useState<PatchInstallation | null>(null);
   // Ctrl+F focuses the topology node search (the placeholder advertises it, like the Superseded map).
   const topoSearchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -285,7 +288,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[170px] truncate">{r.taskType}</span></td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <button className="inline-block rounded bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-medium text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">View Configuration</button>
+                    <button onClick={() => setConfigFor(r)} className="inline-block rounded bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-medium text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">View Configuration</button>
                   </td>
                 </tr>
               ))}
@@ -325,7 +328,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
               </div>
 
               <div className="mt-3">
-                <button className="w-full rounded bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-medium text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">View Configuration</button>
+                <button onClick={() => setConfigFor(r)} className="w-full rounded bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-medium text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">View Configuration</button>
               </div>
             </div>
           ))}
@@ -345,6 +348,9 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
           />
         </div>
       )}
+
+      {/* Individual endpoint deployment-chain flow (center popup) */}
+      {configFor && <EndpointConfigFlow record={configFor} onClose={() => setConfigFor(null)} />}
     </div>
   );
 }
