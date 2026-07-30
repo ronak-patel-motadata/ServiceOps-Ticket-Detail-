@@ -3768,7 +3768,7 @@ onStackActiveGroupChange,
                     <button
                       onClick={() => {
                         if (quickActionHandlerRef.current) {
-                          quickActionHandlerRef.current('Find Similar Tickets');
+                          quickActionHandlerRef.current('Find Similar Requests');
                         }
                       }}
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}

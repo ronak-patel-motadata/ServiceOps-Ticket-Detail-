@@ -14,7 +14,7 @@ export const getAIResponse = (option: string): string => {
     'Acknowledge': "Thank you for reaching out to us. We've received your request and our team is reviewing it. We appreciate your patience and will get back to you shortly with an update.",
     'Request Additional Details': "Thank you for contacting us. To better assist you with this issue, could you please provide us with some additional information? Specifically, we would need to know more details about when this issue started occurring and any error messages you may have encountered. This will help us resolve your request more efficiently.",
     'Follow up': "I wanted to follow up on your recent request to ensure everything has been resolved to your satisfaction. If you're still experiencing any issues or have additional questions, please don't hesitate to let us know. We're here to help!",
-    'Request Closure\nConfirmation': "We believe we've successfully resolved your issue. Before we close this ticket, could you please confirm that everything is working as expected on your end? If you have any remaining concerns or questions, please let us know and we'll be happy to assist you further."
+    'Request Closure\nConfirmation': "We believe we've successfully resolved your issue. Before we close this request, could you please confirm that everything is working as expected on your end? If you have any remaining concerns or questions, please let us know and we'll be happy to assist you further."
   };
   return responses[option] || "Thank you for your message. We're looking into this and will get back to you soon.";
 };
@@ -309,7 +309,7 @@ export const getFilteredPinnedFields = (pinnedFields: string[], searchQuery: str
 };
 
 export const getGroupTitle = (activeGroup: string) => {
-  if (activeGroup === 'properties') return 'Ticket Properties';
+  if (activeGroup === 'properties') return 'Request Properties';
   if (activeGroup === 'activity') return 'Activity & Resources';
   if (activeGroup === 'chatbot') return 'ServiceOps AI';
   if (activeGroup === 'users') return 'Users';

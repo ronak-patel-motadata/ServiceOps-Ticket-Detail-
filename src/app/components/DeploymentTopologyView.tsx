@@ -890,7 +890,16 @@ function FitOnChange({ signal }: { signal: number }) {
 
 /* ------------------------------- main component ------------------------------- */
 
-export function DeploymentTopologyView({ search = '', statusFilter = [], fullscreen = false }: { search?: string; statusFilter?: string[]; fullscreen?: boolean }) {
+/* Deterministic "did this office receive that patch" membership for the mock canvas — ~2/3 of
+ * offices carry any given patch, stable across renders (no Math.random). */
+function officeHasPatch(officeName: string, patchId: string) {
+  let h = 0;
+  const s = officeName + '|' + patchId;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 3 !== 0;
+}
+
+export function DeploymentTopologyView({ search = '', statusFilter = [], patchFilter = [], fullscreen = false }: { search?: string; statusFilter?: string[]; patchFilter?: string[]; fullscreen?: boolean }) {
   const [scenarioKey, setScenarioKey] = useState('s3');
   const [orient, setOrient] = useState<Orientation>('horizontal');
   const [showScenarioMenu, setShowScenarioMenu] = useState(false);
@@ -977,7 +986,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
     // Filter pill) hits the node's deployment status. Non-matching nodes/edges fade.
     const q = search.trim().toLowerCase();
     const isDim = (n: TopoNode) => {
-      if (!q && statusFilter.length === 0) return false;
+      if (!q && statusFilter.length === 0 && patchFilter.length === 0) return false;
       const textOk = !q || n.name.toLowerCase().includes(q) || (n.sub ?? '').toLowerCase().includes(q) || (n.group ?? '').toLowerCase().includes(q);
       // The Filter pill shares the LIST view's option set — map its vocabulary onto the
       // canvas statuses where they differ ("Yet to Receive" ≈ a node still Pending/Waiting).
@@ -985,13 +994,18 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], fullscr
         statusFilter.includes(n.status) ||
         (statusFilter.includes('Yet to Receive') && (n.status === 'Pending' || n.status === 'Waiting'))
       ));
-      return !(textOk && statusOk);
+      // Patch filter spotlights the OFFICES that received the selected patch(es). Infrastructure
+      // (ServiceOps / Main FS / DS / Internet) stays lit — the Main File Server stores EVERY
+      // patch, so a patch filter only discriminates at the endpoint-group level.
+      const patchOk = patchFilter.length === 0 || n.kind !== 'group' ||
+        patchFilter.some((pid) => officeHasPatch(n.name, pid));
+      return !(textOk && statusOk && patchOk);
     };
     const built = buildFlow(scenario, collapsed, isDim, orient);
     // Thread the collapse handler into every node's data (nodes are plain data objects).
     built.nodes.forEach((n) => { (n.data as any).onToggle = toggleCollapse; });
     return built;
-  }, [scenario, collapsed, toggleCollapse, search, statusFilter, orient]);
+  }, [scenario, collapsed, toggleCollapse, search, statusFilter, patchFilter, orient]);
 
   // Hover flow-highlight: every link connected to the hovered node animates as dashed flow;
   // everything else stays solid.

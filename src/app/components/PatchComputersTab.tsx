@@ -127,6 +127,12 @@ export interface PatchInstallation {
   retryStatus: number;
   downloadStatus: string;
   taskType: string;
+  // Present ONLY on the Patch DEPLOYMENT page's patch×endpoint deployment matrix — one row per
+  // (patch, endpoint) pair, so the grid can show WHICH patch landed on WHICH endpoint + filter.
+  patchId?: string;
+  patchName?: string;
+  patchSeverity?: 'Critical' | 'Important' | 'Moderate' | 'Low';
+  result?: string;
 }
 
 // Three deployments, one per status (Yet to Receive / Success / Failed) to show each style.

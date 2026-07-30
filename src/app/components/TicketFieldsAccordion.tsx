@@ -206,7 +206,7 @@ function ProblemFieldRow({
 
 export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
   const {
-    fieldsTitle = 'Ticket Fields',
+    fieldsTitle = 'Request Fields',
     showProblemFields = false,
     statusGroupLabel,
     assetMode = false,

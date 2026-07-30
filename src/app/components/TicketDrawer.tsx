@@ -150,6 +150,32 @@ const DEMO_STAGED_TASKS: any[] = [
   { id: 'TASK-13', subject: 'Manager sign-off on onboarding', userGroup: 'Management', assignee: 'Sarah Johnson', taskType: 'Verification', startDate: '2026-07-02', endDate: '2026-07-03', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Reporting manager confirms onboarding completion.', completed: false, stage: 3 },
 ];
 
+// Individual (non-staged) task pool — every ticket EXCEPT the Service Request INC-35 seeds a
+// small varied slice of these (no `stage`, so the Tasks tab renders its flat list).
+const DEMO_INDIVIDUAL_TASKS: any[] = [
+  { id: 'TASK-21', subject: 'Run network diagnostics on affected laptop', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Investigation', startDate: '2026-07-27', endDate: '2026-07-27', status: 'In Progress', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Run the full connectivity diagnostic suite and capture the report.', completed: false },
+  { id: 'TASK-22', subject: 'Check DHCP lease and DNS resolution', userGroup: 'Network Team', assignee: 'Priya Sharma', taskType: 'Investigation', startDate: '2026-07-27', endDate: '2026-07-28', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Verify the endpoint receives a valid lease and resolves internal hosts.', completed: false },
+  { id: 'TASK-23', subject: 'Verify VPN profile configuration', userGroup: 'IT Support', assignee: 'Sarah Johnson', taskType: 'Investigation', startDate: '2026-07-26', endDate: '2026-07-26', status: 'Closed', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Confirm the corporate VPN profile is present and up to date.', completed: true },
+  { id: 'TASK-24', subject: 'Schedule remote session with requester', userGroup: 'Service Desk', assignee: 'Michael Chen', taskType: 'Coordination', startDate: '2026-07-28', endDate: '2026-07-28', status: 'Open', priority: 'Normal', notifyBefore: '2', notifyUnit: 'hours', description: 'Book a remote-assist session to reproduce the issue live.', completed: false },
+  { id: 'TASK-25', subject: 'Update knowledge base article', userGroup: 'Service Desk', assignee: 'Priya Sharma', taskType: 'Documentation', startDate: '2026-07-29', endDate: '2026-07-30', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Fold the confirmed resolution steps into the relevant KB article.', completed: false },
+  { id: 'TASK-26', subject: 'Escalate to network team if unresolved', userGroup: 'Network Team', assignee: 'Sarah Johnson', taskType: 'Escalation', startDate: '2026-07-29', endDate: '2026-07-29', status: 'Open', priority: 'High', notifyBefore: '4', notifyUnit: 'hours', description: 'Raise a network-team escalation with the diagnostic evidence attached.', completed: false },
+  { id: 'TASK-27', subject: 'Follow up with requester for confirmation', userGroup: 'Service Desk', assignee: 'Michael Chen', taskType: 'Coordination', startDate: '2026-07-30', endDate: '2026-07-30', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Confirm with the requester that the issue is resolved before closure.', completed: false },
+  { id: 'TASK-28', subject: 'Collect logs from the affected device', userGroup: 'IT Support', assignee: 'Priya Sharma', taskType: 'Investigation', startDate: '2026-07-26', endDate: '2026-07-27', status: 'Closed', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Pull system and network logs covering the failure window.', completed: true },
+];
+
+// Per-ticket task seed: the Service Request INC-35 gets the staged Service Catalog tasks;
+// every other ticket gets 2-4 individual tasks picked deterministically from the pool.
+const seedTasksFor = (ticketId: string | null): any[] => {
+  if (ticketId === 'INC-35') return DEMO_STAGED_TASKS;
+  let h = 0;
+  const s = ticketId ?? '';
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  h = Math.abs(h);
+  const count = 2 + (h % 3);
+  const start = h % DEMO_INDIVIDUAL_TASKS.length;
+  return Array.from({ length: count }, (_, i) => DEMO_INDIVIDUAL_TASKS[(start + i) % DEMO_INDIVIDUAL_TASKS.length]);
+};
+
 export function TicketDrawer({
   openTickets,
   activeTicketId,
@@ -389,7 +415,9 @@ onStackActiveGroupChange,
   // Tasks State
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>(DEMO_STAGED_TASKS);
+  const [tasks, setTasks] = useState<any[]>(() => seedTasksFor(activeTicketId));
+  // Reseed per record — staged Service Catalog tasks only for INC-35, individual tasks elsewhere.
+  useEffect(() => { setTasks(seedTasksFor(activeTicketId)); }, [activeTicketId]);
   const [showServiceRequestItemStatus, setShowServiceRequestItemStatus] = useState<string | null>(null);
   
   // Tasks count - based on current tasks array
@@ -497,7 +525,7 @@ onStackActiveGroupChange,
   const [showAllAttachments, setShowAllAttachments] = useState(false);
   const [hoveredAttachmentId, setHoveredAttachmentId] = useState<string | null>(null);
   
-  // Similar Tickets
+  // Similar Requests
   const [similarTicketsTab, setSimilarTicketsTab] = useState<'similar' | 'linked'>('similar');
   const [hoveredTicketId, setHoveredTicketId] = useState<string | null>(null);
   const [newlyLinkedTickets, setNewlyLinkedTickets] = useState<any[]>([]);
@@ -705,7 +733,7 @@ onStackActiveGroupChange,
 
   const hasTicketFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
-    return getFilteredTicketFieldsWrapper().length > 0 || 'ticket fields'.includes(propertiesSearchQuery.toLowerCase());
+    return getFilteredTicketFieldsWrapper().length > 0 || 'request fields'.includes(propertiesSearchQuery.toLowerCase());
   };
 
   const hasAdditionalFieldsMatch = () => {
@@ -875,7 +903,7 @@ onStackActiveGroupChange,
     }
   }, [activeTicketId]);
 
-  // Local default when the ticket changes — local-only so a group the user explicitly opened
+  // Local default when the request changes — local-only so a group the user explicitly opened
   // (e.g. Suggestions) persists across opening a related record; only applies when the host has
   // no shared group set.
   useEffect(() => {
@@ -2603,7 +2631,7 @@ onStackActiveGroupChange,
                           <br /><br />
                           The problem first appeared at approximately 8:45 AM today, right after I returned from a short meeting and unlocked my laptop. Everything was working perfectly when I left my desk around 8:15 AM, so the outage seems to have started while the machine was locked and idle.
                           <br /><br />
-                          Before raising this ticket I attempted the usual troubleshooting steps on my own: I rebooted the laptop three times, toggled the Wi-Fi adapter off and on, forgot and re-joined the "Corp-Secure" network, and even tried the guest network as a test. None of these restored connectivity, and the guest network behaved exactly the same way.
+                          Before raising this request I attempted the usual troubleshooting steps on my own: I rebooted the laptop three times, toggled the Wi-Fi adapter off and on, forgot and re-joined the "Corp-Secure" network, and even tried the guest network as a test. None of these restored connectivity, and the guest network behaved exactly the same way.
                           <DescriptionInlineImage />
                           I also ran the built-in network diagnostics tool, and I've attached the exported report below. As shown in the diagram above, my laptop reaches the office access point and the local gateway without any problem, but every request beyond the gateway times out — it looks like the connection is being dropped somewhere between our gateway and the internet service provider.
                           <br /><br />
@@ -3004,14 +3032,14 @@ onStackActiveGroupChange,
                     <button
                       onClick={() => {
                         if (quickActionHandlerRef.current) {
-                          quickActionHandlerRef.current('Find Similar Tickets');
+                          quickActionHandlerRef.current('Find Similar Requests');
                         }
                       }}
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
                       <Search size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                      <span>Find similar tickets</span>
+                      <span>Find similar requests</span>
                     </button>
                     <button
                       onClick={() => {
@@ -5848,7 +5876,7 @@ onStackActiveGroupChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Ticket Properties"
+            propertiesTitle="Request Properties"
             showNotifications={true}
             showIntegration={true}
             onOpenRelation={onOpenRelation}
@@ -6704,7 +6732,7 @@ onStackActiveGroupChange,
                     type="text"
                     value={propertiesRelationSearchQuery}
                     onChange={(e) => setPropertiesRelationSearchQuery(e.target.value)}
-                    placeholder="Search tickets..."
+                    placeholder="Search requests..."
                     className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                   />
                 </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Pagination } from './Pagination';
 import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Check, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
@@ -38,6 +38,9 @@ function StatusPill({ status }: { status: InstallationStatus }) {
 
 const downloadDot = (s: string) => (s === 'Success' ? '#22C55E' : s === 'Failed' ? '#EF4444' : '#64748B');
 
+const sevDot = (s?: string) =>
+  s === 'Critical' ? '#EF4444' : s === 'Important' ? '#F59E0B' : s === 'Moderate' ? '#EAB308' : '#64748B';
+
 const Dash = () => <span className="text-[12px] text-[#9ca3af]">---</span>;
 
 interface PatchInstallationTabProps {
@@ -72,26 +75,45 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
   const [filterOpen, setFilterOpen] = useState(false);
   // Status filter — empty = "All" (show everything); otherwise only the picked statuses.
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const filterActive = statusFilter.length > 0;
-  const filterLabel = statusFilter.length === 0 ? 'All' : `${statusFilter[0]}${statusFilter.length > 1 ? ` +${statusFilter.length - 1}` : ''}`;
+  // Patch filter — Patch DEPLOYMENT page only (rows there are a patch × endpoint matrix, so each
+  // carries a patchId). Selecting patches shows only the endpoints that patch was deployed to.
+  const [patchFilter, setPatchFilter] = useState<string[]>([]);
+  // The unique patches present in the rows — feeds the filter's "Patch" section. Empty on the
+  // plain Patch page (its rows carry no patchId), which hides the section entirely.
+  const patchOptions = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; severity?: string }>();
+    installations.forEach((r) => {
+      if (r.patchId && !seen.has(r.patchId)) seen.set(r.patchId, { id: r.patchId, name: r.patchName ?? r.patchId, severity: r.patchSeverity });
+    });
+    return [...seen.values()];
+  }, [installations]);
+  const hasPatchCols = patchOptions.length > 0;
+  const filterActive = statusFilter.length > 0 || patchFilter.length > 0;
+  const selCount = statusFilter.length + patchFilter.length;
+  const filterLabel = selCount === 0 ? 'All' : `${statusFilter[0] ?? patchFilter[0]}${selCount > 1 ? ` +${selCount - 1}` : ''}`;
   const toggleStatus = (s: string) => setStatusFilter((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  const togglePatch = (p: string) => setPatchFilter((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  const clearFilters = () => { setStatusFilter([]); setPatchFilter([]); };
 
   const q = search.trim().toLowerCase();
   const rows = installations
     .filter((r) => statusFilter.length === 0 || statusFilter.includes(r.installationStatus))
+    .filter((r) => patchFilter.length === 0 || (!!r.patchId && patchFilter.includes(r.patchId)))
     .filter((r) =>
       !q ||
       r.agentId.toLowerCase().includes(q) ||
       r.hostName.toLowerCase().includes(q) ||
       r.ipAddress.toLowerCase().includes(q) ||
       r.installationStatus.toLowerCase().includes(q) ||
-      r.taskType.toLowerCase().includes(q)
+      r.taskType.toLowerCase().includes(q) ||
+      (r.patchId ?? '').toLowerCase().includes(q) ||
+      (r.patchName ?? '').toLowerCase().includes(q)
     );
 
-  // Pagination — one deployment record is created per endpoint, so this list grows quickly.
+  // Pagination — one deployment record is created per (patch, endpoint) pair, so this list grows quickly.
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, view]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, patchFilter, view]);
   const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
   const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -149,9 +171,9 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
           {filterOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 z-50 w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED]">
-                {/* Selected pills */}
-                {statusFilter.length > 0 && (
+              <div className={`absolute right-0 top-full mt-1.5 z-50 ${hasPatchCols ? 'w-[340px]' : 'w-[260px]'} bg-white rounded-lg shadow-lg border border-[#DFE5ED]`}>
+                {/* Selected pills — statuses + patch ids together */}
+                {filterActive && (
                   <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-[#F0F2F5]">
                     {statusFilter.map((s) => (
                       <span key={s} className="inline-flex items-center gap-1 rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] text-[#364658]">
@@ -159,17 +181,25 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                         <button onClick={() => toggleStatus(s)} className="text-[#7B8FA5] hover:text-[#364658]"><X size={12} /></button>
                       </span>
                     ))}
+                    {patchFilter.map((p) => (
+                      <span key={p} className="inline-flex items-center gap-1 rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] text-[#364658]">
+                        {p}
+                        <button onClick={() => togglePatch(p)} className="text-[#7B8FA5] hover:text-[#364658]"><X size={12} /></button>
+                      </span>
+                    ))}
                   </div>
                 )}
-                {/* Options — "All" first, then each status */}
-                <div className="max-h-[260px] overflow-y-auto py-1">
+                <div className="max-h-[340px] overflow-y-auto py-1">
+                  {/* "All" clears every filter */}
                   <button
-                    onClick={() => setStatusFilter([])}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${statusFilter.length === 0 ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                    onClick={clearFilters}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${!filterActive ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
                   >
                     <span className="text-[#364658]">All</span>
-                    {statusFilter.length === 0 && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                    {!filterActive && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
                   </button>
+                  {/* Status section */}
+                  {hasPatchCols && <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Status</div>}
                   {STATUS_FILTER_OPTIONS.map((opt) => {
                     const on = statusFilter.includes(opt);
                     return (
@@ -183,10 +213,32 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                       </button>
                     );
                   })}
+                  {/* Patch section — deployment page only (the rows are a patch × endpoint matrix);
+                      picking a patch shows only the endpoints it was deployed to */}
+                  {hasPatchCols && (
+                    <>
+                      <div className="mt-1 px-3 pt-2 pb-1 border-t border-[#F0F2F5] text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Patch</div>
+                      {patchOptions.map((p) => {
+                        const on = patchFilter.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => togglePatch(p.id)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${on ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                          >
+                            <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(p.severity) }} />
+                            <span className="inline-block flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{p.id}</span>
+                            <span className="min-w-0 flex-1 truncate text-[12px] text-[#364658]" title={p.name}>{p.name}</span>
+                            {on && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
                 {/* Footer */}
                 <div className="flex items-center justify-between px-3 py-2 border-t border-[#F0F2F5]">
-                  <button onClick={() => setStatusFilter([])} className="text-[13px] font-medium text-[#3D8BD0] hover:underline">Clear all</button>
+                  <button onClick={clearFilters} className="text-[13px] font-medium text-[#3D8BD0] hover:underline">Clear all</button>
                   <button onClick={() => setFilterOpen(false)} className="rounded bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#2d6ca0]">Done</button>
                 </div>
               </div>
@@ -207,7 +259,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
             <Tooltip key={v.key}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => { setView(v.key); setSearch(''); setStatusFilter([]); }}
+                  onClick={() => { setView(v.key); setSearch(''); clearFilters(); }}
                   className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${view === v.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
                 >
                   {v.icon}
@@ -237,7 +289,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
 
       {view === 'topology' ? (
         /* Topology view — the deployment architecture canvas (records don't gate it) */
-        <DeploymentTopologyView search={search} statusFilter={statusFilter} fullscreen={isFull} />
+        <DeploymentTopologyView search={search} statusFilter={statusFilter} patchFilter={patchFilter} fullscreen={isFull} />
       ) : installations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="inline-flex items-center justify-center size-14 rounded-full bg-[#F5F7FA] mb-3">
@@ -252,17 +304,20 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
           <table className="w-full min-w-[1400px]">
             <thead className="border-b border-[#e5e7eb]">
               <tr>
-                {['Agent ID', 'Host Name', 'IP Address', 'Configuration Type', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Task Type', 'Actions'].map((h) => (
+                {(hasPatchCols
+                  ? ['Endpoint ID', 'Host Name', 'Patch ID', 'Name', 'Severity', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions']
+                  : ['Agent ID', 'Host Name', 'IP Address', 'Configuration Type', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Task Type', 'Actions']
+                ).map((h) => (
                   <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e5e7eb] bg-white">
               {rows.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
+                <tr><td colSpan={hasPatchCols ? 11 : 10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
               ) : pageRows.map((r) => (
                 <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
-                  {/* Agent ID with health dot */}
+                  {/* Endpoint / Agent ID with health dot */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="inline-flex items-center gap-2">
                       <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
@@ -270,8 +325,26 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[140px] truncate">{r.hostName}</span></td>
-                  <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.ipAddress}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.configType}</td>
+                  {hasPatchCols ? (
+                    <>
+                      {/* Which patch this deployment row carries (patch × endpoint matrix) */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[240px] truncate" title={r.patchName}>{r.patchName}</span></td>
+                      <td className="px-4 py-3 whitespace-nowrap text-[12px]">
+                        <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
+                          {r.patchSeverity}
+                        </span>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.ipAddress}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.configType}</td>
+                    </>
+                  )}
                   <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.deploymentDate === '---' ? <Dash /> : r.deploymentDate}</td>
 
                   {/* Installation Status — clean status pill */}
@@ -286,7 +359,11 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                       {r.downloadStatus}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[170px] truncate">{r.taskType}</span></td>
+                  {hasPatchCols ? (
+                    <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{!r.result || r.result === '---' ? <Dash /> : r.result}</td>
+                  ) : (
+                    <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[170px] truncate">{r.taskType}</span></td>
+                  )}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <button onClick={() => setConfigFor(r)} className="inline-block rounded bg-[#e8f4fd] px-3 py-1.5 text-[12px] font-medium text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">View Configuration</button>
                   </td>
@@ -317,6 +394,15 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                 <span className="flex-shrink-0"><StatusPill status={r.installationStatus} /></span>
               </div>
 
+              {/* Which patch this deployment row carries (patch × endpoint matrix — deployment page) */}
+              {r.patchId && (
+                <div className="mt-3 flex items-center gap-2 rounded border border-[#EEF2F6] bg-[#F8FAFC] px-2.5 py-2 min-w-0">
+                  <span className="inline-block flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
+                  <span className="min-w-0 truncate text-[12px] text-[#364658]" title={r.patchName}>{r.patchName}</span>
+                </div>
+              )}
+
               {/* Details */}
               <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="text-[12px] text-[#364658] truncate">{r.ipAddress}</div></div>
@@ -324,7 +410,11 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Deployment Date</div><div className="text-[12px] truncate" style={{ color: r.deploymentDate === '---' ? '#9ca3af' : '#364658' }}>{r.deploymentDate}</div></div>
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Retry Status</div><div className="text-[12px] text-[#364658]">{r.retryStatus}</div></div>
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Download Status</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: downloadDot(r.downloadStatus) }} />{r.downloadStatus}</div></div>
-                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Task Type</div><div className="text-[12px] text-[#364658] truncate" title={r.taskType}>{r.taskType}</div></div>
+                {r.patchId ? (
+                  <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Result</div><div className="text-[12px] truncate" style={{ color: !r.result || r.result === '---' ? '#9ca3af' : '#364658' }}>{r.result ?? '---'}</div></div>
+                ) : (
+                  <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Task Type</div><div className="text-[12px] text-[#364658] truncate" title={r.taskType}>{r.taskType}</div></div>
+                )}
               </div>
 
               <div className="mt-3">

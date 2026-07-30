@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 /**
  * TicketDetailsOnboarding Component
  * 
- * Displays a first-time user guide when opening the ticket details drawer.
+ * Displays a first-time user guide when opening the request details drawer.
  * The guide highlights key areas of the interface with tooltips pointing to elements.
  * 
  * The onboarding state is stored in localStorage with the key 'hasSeenTicketDetailsOnboarding'.
@@ -33,7 +33,7 @@ const steps: OnboardingStep[] = [
   {
     id: 1,
     title: 'Your main workspace',
-    description: 'Work from the left panel to review the ticket, switch between work tabs, and stay on top of conversations. The reply box stays fixed at the bottom, so actions are always within reach.',
+    description: 'Work from the left panel to review the request, switch between work tabs, and stay on top of conversations. The reply box stays fixed at the bottom, so actions are always within reach.',
     targetSelector: '[data-onboarding="main-workspace"]',
     position: 'right',
     highlightPadding: 16
@@ -41,15 +41,15 @@ const steps: OnboardingStep[] = [
   {
     id: 2,
     title: 'Quick access sidebar',
-    description: 'Use this sidebar to switch between supporting views like ServiceOps AI, AI Suggestions, Ticket Properties, and Activity & Resources without leaving the ticket.',
+    description: 'Use this sidebar to switch between supporting views like ServiceOps AI, AI Suggestions, Request Properties, and Activity & Resources without leaving the request.',
     targetSelector: '[data-onboarding="right-sidebar"]',
     position: 'left',
     highlightPadding: 12
   },
   {
     id: 3,
-    title: 'Ticket details, your way',
-    description: 'View tickets, statuses, additional fields, system fields, and custom fields in one place. Search, filter, or pin important fields to snap the details you need on tap.',
+    title: 'Request details, your way',
+    description: 'View requests, statuses, additional fields, system fields, and custom fields in one place. Search, filter, or pin important fields to snap the details you need on tap.',
     targetSelector: '[data-onboarding="ticket-properties"]',
     position: 'left',
     highlightPadding: 16
@@ -57,7 +57,7 @@ const steps: OnboardingStep[] = [
   {
     id: 4,
     title: 'AI help, built in',
-    description: 'Use AI to summarize the ticket, suggest next steps, draft responses, and help update the ticket faster.',
+    description: 'Use AI to summarize the request, suggest next steps, draft responses, and help update the request faster.',
     targetSelector: '[data-onboarding="ai-prompt-box"]',
     position: 'top',
     highlightPadding: 16
@@ -294,7 +294,7 @@ export function TicketDetailsOnboarding({ onComplete, onSkip, onStepChange }: Ti
             <div className="mt-4 space-y-2 text-[13px] text-white/70">
               <p className="flex items-start gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 mt-0.5 flex-shrink-0"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
-                <span><span className="text-white font-semibold">Ticket Properties</span> — See all ticket details and fields.</span>
+                <span><span className="text-white font-semibold">Request Properties</span> — See all request details and fields.</span>
               </p>
               <p className="flex items-start gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 mt-0.5 flex-shrink-0"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
@@ -302,7 +302,7 @@ export function TicketDetailsOnboarding({ onComplete, onSkip, onStepChange }: Ti
               </p>
               <p className="flex items-start gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 mt-0.5 flex-shrink-0"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></svg>
-                <span><span className="text-white font-semibold">AI Suggestions</span> — Discover similar tickets and relevant KBs.</span>
+                <span><span className="text-white font-semibold">AI Suggestions</span> — Discover similar requests and relevant KBs.</span>
               </p>
             </div>
           )}
@@ -312,7 +312,7 @@ export function TicketDetailsOnboarding({ onComplete, onSkip, onStepChange }: Ti
             <div className="mt-4 space-y-2 text-[13px] text-white/70">
               <p className="flex items-start gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 mt-0.5 flex-shrink-0"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                <span><span className="text-white font-semibold">Search</span> — Find any field quickly across all ticket details</span>
+                <span><span className="text-white font-semibold">Search</span> — Find any field quickly across all request details</span>
               </p>
               <p className="flex items-start gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 mt-0.5 flex-shrink-0"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>

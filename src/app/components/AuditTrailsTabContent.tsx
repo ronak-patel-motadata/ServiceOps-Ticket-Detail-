@@ -31,7 +31,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
       userInitials: 'RR',
       userColor: '#3D8BD0',
       action: 'Description Updated',
-      details: 'Updated the ticket description',
+      details: 'Updated the request description',
       changes: [],
       descriptionChange: {
         old: "I am unable to access the internet on my work laptop since this morning. I've tried restarting my computer multiple times, but the issue persists. The network icon shows that I'm connected to the office Wi-Fi, but when I try to open any website or access company resources, nothing loads.",
@@ -81,7 +81,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
       userInitials: 'SYS',
       userColor: '#6B7280',
       action: 'Comment Added',
-      details: 'Added a new comment to the ticket',
+      details: 'Added a new comment to the request',
       changes: []
     },
     {

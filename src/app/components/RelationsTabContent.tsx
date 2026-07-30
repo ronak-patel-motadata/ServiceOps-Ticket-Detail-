@@ -124,7 +124,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
         id: String(relations.length + 1),
         type: selectedType,
         ticketId: searchTicket,
-        subject: 'Sample ticket subject',
+        subject: 'Sample request subject',
         status: 'Open',
         assignedTo: {
           name: 'John Doe',
@@ -424,7 +424,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   type="text"
                   value={searchTicket}
                   onChange={(e) => setSearchTicket(e.target.value)}
-                  placeholder="Enter ticket ID or search..."
+                  placeholder="Enter request ID or search..."
                   className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                 />
               </div>
@@ -604,7 +604,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search tickets..."
+                  placeholder="Search requests..."
                   className="w-full pl-10 pr-3 py-2 bg-white border border-[#DFE5ED] rounded text-[13px] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#3D8BD0] transition-colors"
                 />
               </div>

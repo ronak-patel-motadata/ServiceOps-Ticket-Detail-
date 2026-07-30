@@ -242,7 +242,7 @@ function SlaCard({ label, value, valueColor, when, sub, badge }: { label: string
   );
 }
 
-/** Total elapsed = time the ticket spent across all statuses (shared by every tab). */
+/** Total elapsed = time the request spent across all statuses (shared by every tab). */
 const TOTAL_ELAPSED = fmtTotal(STATUS_SEGS.reduce((s, x) => s + x.seconds, 0));
 
 export function TicketTransitionModal({ isOpen, onClose, ticketId, penaltyAmount = 0, status = 'Open' }: TicketTransitionModalProps) {
@@ -260,7 +260,7 @@ export function TicketTransitionModal({ isOpen, onClose, ticketId, penaltyAmount
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
-          <h2 className="text-[17px] font-semibold text-[#111827]">Ticket Transition{ticketId ? `: ${ticketId}` : ''}</h2>
+          <h2 className="text-[17px] font-semibold text-[#111827]">Request Transition{ticketId ? `: ${ticketId}` : ''}</h2>
           <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 

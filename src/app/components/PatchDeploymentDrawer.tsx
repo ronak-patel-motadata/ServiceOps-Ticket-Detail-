@@ -51,8 +51,8 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
-import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
-import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
+import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
+import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES, buildDeploymentMatrix } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
@@ -427,17 +427,29 @@ onStackMinimizedChange,
   // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
   // a deployment record (Installation tab); once that record's status turns Success the computer
   // moves into the Installed bucket in the Computers tab.
-  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(INITIAL_COMPUTERS);
-  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(INITIAL_INSTALLATIONS);
+  // Endpoint tab = the endpoints this deployment TARGETS (not the whole estate) — the same 4
+  // endpoints the Deployment tab's patch × endpoint matrix runs over. EP-426 isn't in the
+  // shared estate mock, so it's appended by hand.
+  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(() => [
+    // EP-397's deployments have succeeded → it sits in the Installed bucket (Overview donut).
+    ...INITIAL_COMPUTERS.filter((c) => ['EP-380', 'EP-397', 'EP-400'].includes(c.id))
+      .map((c) => (c.id === 'EP-397' ? { ...c, bucket: 'Installed' as const } : c)),
+    { id: 'EP-426', hostName: 'DESKTOP-A3RMK1H', ipAddress: '192.168.29.100', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  ]);
+  // Deployment tab = the full patch × endpoint matrix (every patch on every endpoint).
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildDeploymentMatrix());
   const handleInstallPatch = (agentIds: string[]) => {
     setPatchInstallations((prev) => {
-      const existing = new Set(prev.map((r) => r.agentId));
-      const toAdd = agentIds
-        .filter((id) => !existing.has(id))
-        .map((id) => {
-          const c = patchComputers.find((x) => x.id === id);
-          return {
-            id: `INST-${id}`,
+      // Matrix semantics: installing on an endpoint pushes EVERY patch in this deployment to it,
+      // so one row is created per (patch, endpoint) pair that doesn't exist yet.
+      const existing = new Set(prev.map((r) => `${r.patchId ?? ''}:${r.agentId}`));
+      const toAdd: PatchInstallation[] = [];
+      agentIds.forEach((id) => {
+        const c = patchComputers.find((x) => x.id === id);
+        DEPLOYED_PATCHES.forEach((p) => {
+          if (existing.has(`${p.id}:${id}`)) return;
+          toAdd.push({
+            id: `INST-${p.id}-${id}`,
             agentId: id,
             hostName: c?.hostName ?? id,
             ipAddress: c?.ipAddress ?? '---',
@@ -447,8 +459,13 @@ onStackMinimizedChange,
             retryStatus: 0,
             downloadStatus: 'Success',
             taskType: 'Manual Remote Deployment',
-          };
+            patchId: p.id,
+            patchName: p.name,
+            patchSeverity: p.severity,
+            result: '---',
+          });
         });
+      });
       return [...toAdd, ...prev];
     });
     const n = agentIds.length;

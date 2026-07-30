@@ -13,9 +13,9 @@ import { SystemFieldsRenderer } from './SystemFieldsRenderer';
  * The "Incident Details" content tab. In V2 the right panel keeps only 7 quick fields
  * (Status / Priority / Assignee / Technician Group / Urgency / Impact / Tags) and has NO
  * Additional Fields accordion — everything moves HERE as a full-width form:
- *   1. Ticket Fields — the SAME 7 quick fields (shown in BOTH places; the drawer owns their
+ *   1. Request Fields — the SAME 7 quick fields (shown in BOTH places; the drawer owns their
  *      state, so an edit here updates the right panel instantly and vice versa)
- *   2. Classification — the ticket fields moved out of the right panel
+ *   2. Classification — the request fields moved out of the right panel
  *   3. Additional Fields — the built-in form fields + Description + the 50+ grouped custom fields
  *   4. System Fields — the read-only system values (shared SystemFieldsRenderer)
  * Field option lists are imported from TicketDrawerUtils so V2 stays in sync with V1's data.
@@ -81,7 +81,7 @@ export function IncidentDetailsTabV2({
           : true;
   /** Search + filter combined — the single gate every field goes through. */
   const show = (label: string, value: string) => matches(label) && passesFilter(label, value);
-  // Moved ticket fields (defaults mirror the V1 drawer's initial state).
+  // Moved request fields (defaults mirror the V1 drawer's initial state).
   const [vals, setVals] = useState<Record<string, string>>({
     'Category': 'Hardware',
     'Department': 'IT',
@@ -213,7 +213,7 @@ export function IncidentDetailsTabV2({
           Sticky under the ~48px main tab strip while the field form scrolls (same treatment as
           the Conversation sub-tab row). */}
       <div className="sticky top-[48px] z-30 -mx-6 flex flex-wrap items-center gap-2 bg-white px-6 py-3">
-        {([['ticket', 'Ticket Fields'], ['additional', 'Additional Fields']] as const).map(([id, label]) => (
+        {([['ticket', 'Request Fields'], ['additional', 'Additional Fields']] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => scrollToSection(id)}
@@ -266,14 +266,14 @@ export function IncidentDetailsTabV2({
 
       {/* Content — spacing lives HERE (not on the sticky toolbar's parent, see note above) */}
       <div className="space-y-5 pt-2">
-      {/* Ticket Fields — ONE card: the same 7 quick fields as the right panel (drawer-owned
+      {/* Request Fields — ONE card: the same 7 quick fields as the right panel (drawer-owned
           state, so both stay in sync) PLUS the fields moved out of the panel (Category /
           Department / Source / Location / Vendor / Support Level). Tags spans the full width.
           scroll-mt clears the sticky tab strip + toolbar when a pill anchors here. */}
       {!anyTicketMatch && !anyAdditionalMatch && noMatches}
       {anyTicketMatch && (
       <div ref={ticketSecRef} className="scroll-mt-[112px] rounded-lg border border-[#E5E7EB] bg-white p-5">
-        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Ticket Fields</h3>
+        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Request Fields</h3>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
           {controlledSelect('Status', selectedStatus, setSelectedStatus, statusOptions)}
           {controlledSelect('Priority', selectedPriority, setSelectedPriority, priorityOptions)}
@@ -344,7 +344,7 @@ export function IncidentDetailsTabV2({
       )}
 
       {/* Additional Fields — built-in form fields + Description + grouped custom fields.
-          Rendered in the SAME scroll as Ticket Fields; the pill anchors here. */}
+          Rendered in the SAME scroll as Request Fields; the pill anchors here. */}
       {anyAdditionalMatch && (
       <div ref={additionalSecRef} className="scroll-mt-[112px] rounded-lg border border-[#E5E7EB] bg-white p-5">
         <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Additional Fields</h3>
