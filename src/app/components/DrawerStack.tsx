@@ -80,6 +80,27 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePage]);
 
+  // Drag-to-reorder open-item tabs: `DrawerTabStrip` broadcasts the new tab order (by id) and we
+  // reorder the stack to match — so the order persists even when the host swaps drawer instances.
+  useEffect(() => {
+    const onReorder = (e: Event) => {
+      const order = (e as CustomEvent).detail?.order as string[] | undefined;
+      if (!order) return;
+      setStack((prev) => {
+        const used = new Set<number>();
+        const next: StackItem[] = [];
+        order.forEach((id) => {
+          const idx = prev.findIndex((s, i) => s.id === id && !used.has(i));
+          if (idx >= 0) { used.add(idx); next.push(prev[idx]); }
+        });
+        prev.forEach((s, i) => { if (!used.has(i)) next.push(s); }); // safety: keep any unmatched
+        return next.length === prev.length ? next : prev;
+      });
+    };
+    window.addEventListener('reorder-drawer-tabs', onReorder as EventListener);
+    return () => window.removeEventListener('reorder-drawer-tabs', onReorder as EventListener);
+  }, []);
+
   const open: DrawerStackApi['open'] = (module, id, subject, data) => {
     const key = `${module}:${id}`;
     setStack((prev) => (prev.some((s) => s.key === key) ? prev : [...prev, { key, module, id, subject, data }]));

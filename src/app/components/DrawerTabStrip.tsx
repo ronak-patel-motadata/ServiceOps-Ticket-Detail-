@@ -43,8 +43,25 @@ export function DrawerTabStrip({
 }) {
   const [showMore, setShowMore] = useState(false);
   const [maxFit, setMaxFit] = useState(items.length);
+  // Drag-to-reorder: the tab being dragged + the tab it's hovering over (drop indicator).
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  // Drop the dragged tab before the target tab, then broadcast the new full order. The host
+  // (DrawerStackProvider) listens for `reorder-drawer-tabs` and reorders the open-item stack, so
+  // the order survives drawer swaps without threading a prop through all 14 drawers.
+  const handleDrop = (targetId: string) => {
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
+    const ids = items.map((i) => i.id).filter((id) => id !== dragId);
+    const at = ids.indexOf(targetId);
+    if (at < 0) { setDragId(null); setDragOverId(null); return; }
+    ids.splice(at, 0, dragId);
+    window.dispatchEvent(new CustomEvent('reorder-drawer-tabs', { detail: { order: ids } }));
+    setDragId(null);
+    setDragOverId(null);
+  };
 
   // Measure available width → how many tabs fit before we need a "More" dropdown.
   useEffect(() => {
@@ -90,7 +107,13 @@ export function DrawerTabStrip({
           <Tooltip key={t.id}>
             <TooltipTrigger asChild>
               <div
-                className={`flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'}`}
+                draggable
+                onDragStart={(e) => { setDragId(t.id); e.dataTransfer.effectAllowed = 'move'; }}
+                onDragOver={(e) => { e.preventDefault(); if (dragId && dragId !== t.id) setDragOverId(t.id); }}
+                onDragLeave={() => setDragOverId((cur) => (cur === t.id ? null : cur))}
+                onDrop={(e) => { e.preventDefault(); handleDrop(t.id); }}
+                onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                className={`relative flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] transition-opacity ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'} ${dragId === t.id ? 'opacity-40' : ''} ${dragOverId === t.id ? 'before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:bg-[#3D8BD0] before:rounded-full' : ''}`}
                 onClick={() => onSelect(t.id)}
               >
                 <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.id}</span>
