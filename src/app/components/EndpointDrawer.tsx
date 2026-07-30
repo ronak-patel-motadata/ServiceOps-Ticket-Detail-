@@ -2894,7 +2894,7 @@ onStackMinimizedChange,
                 return (
                   /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
                      the two list cards take half each (span 3) — together they fill the row. */
-                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-2'}`}>
+                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
                     {kpis.map((k) => {
                       const segs = (k.segments ?? []).filter((s) => s.value > 0);
                       // Records beyond the inline preview — surfaced in the link as "+N more".
@@ -3012,6 +3012,35 @@ onStackMinimizedChange,
                   </div>
                 );
               })()}
+
+              {/* System Overview — the endpoint's hardware / OS identity (Software-Details card
+                  pattern from the software asset drawer). */}
+              <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-white p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">System Overview</h3>
+                </div>
+                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-3`}>
+                  {[
+                    ['Host Name', 'DESKTOP-A3RMK1H'],
+                    ['Operating System', 'Microsoft Windows 11 Pro'],
+                    ['OS Version', '24H2 (Build 26100)'],
+                    ['OS Architecture', '64-bit (x64)'],
+                    ['Manufacturer', 'LENOVO'],
+                    ['Model Name', 'ThinkPad L390 (20NRS08A00)'],
+                    ['Serial Number', 'PF2K8XYZ'],
+                    ['Processor (CPU)', 'Intel Core i5-8365U · 4 cores'],
+                    ['Memory (RAM)', '16.00 GB'],
+                    ['Disk Capacity', '238.47 GB SSD'],
+                    ['IP Address', '192.168.29.100'],
+                    ['Domain Name / Workgroup', 'WORKGROUP'],
+                  ].map(([l, v]) => (
+                    <div key={l} className="min-w-0">
+                      <div className="mb-0.5 text-[12px] text-[#64748B]">{l}</div>
+                      <div className="text-[13px] font-medium text-[#364658] break-words">{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
             </div>
             )}

@@ -83,12 +83,12 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
   );
 }
 
-// Vulnerability sub-modules surfaced in the hover flyout. Vulnerabilities + Detected CVEs
-// navigate; Endpoint is a placeholder (deliberately NOT reusing the Patch module's Endpoint page).
+// Vulnerability sub-modules surfaced in the hover flyout. All three navigate; Endpoint reuses the
+// Patch module's Endpoints listing + detail page (same 'endpoints' route).
 const VULNERABILITY_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <IconPatch size={16} />, label: 'Vulnerabilities', page: 'vulnerabilities' },
   { icon: <IconVulnerability size={16} />, label: 'Detected CVEs', page: 'detected-cves' },
-  { icon: <Monitor size={16} />, label: 'Endpoint' },
+  { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
 ];
 
 /** Vulnerability nav item with a hover flyout listing its sub-modules (mirrors PatchNavItem). */

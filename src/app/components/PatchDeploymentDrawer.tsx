@@ -120,6 +120,199 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
+/* ── Overview "Status by …" breakdown cards ─────────────────────────────────────────────────
+ * Two dropdown-driven cards on the Patch Deployment Overview: pick a category / remote office
+ * and see its deployment status split (Success / Failed / In Progress / Other) + total. */
+type StatusSplit = { success: number; failed: number; inProgress: number; other: number };
+
+const BREAKDOWN_STATUSES: { key: keyof StatusSplit; label: string; color: string }[] = [
+  { key: 'success', label: 'Success', color: '#12B76A' },
+  { key: 'failed', label: 'Failed', color: '#F04438' },
+  { key: 'inProgress', label: 'In Progress', color: '#F79009' },
+  { key: 'other', label: 'Other', color: '#94A3B8' },
+];
+
+// Deployment status by patch category (across the whole deployment, not just the sampled matrix).
+const PATCH_STATUS_BY_CATEGORY: Record<string, StatusSplit> = {
+  'Security Updates': { success: 12, failed: 3, inProgress: 2, other: 1 },
+  'Critical Updates': { success: 6, failed: 1, inProgress: 1, other: 0 },
+  'Servicing Stack Updates': { success: 4, failed: 0, inProgress: 1, other: 0 },
+  'Definition Updates': { success: 0, failed: 0, inProgress: 0, other: 7 },
+  'Feature Packs': { success: 2, failed: 1, inProgress: 0, other: 3 },
+};
+
+// Installation status by remote office.
+const STATUS_BY_REMOTE_OFFICE: Record<string, StatusSplit> = {
+  'Ahmedabad HQ': { success: 28, failed: 4, inProgress: 3, other: 2 },
+  'Mumbai Office': { success: 14, failed: 5, inProgress: 1, other: 0 },
+  'Bengaluru Campus': { success: 9, failed: 3, inProgress: 0, other: 0 },
+  'Pune Data Center': { success: 6, failed: 0, inProgress: 2, other: 1 },
+  'Local Office': { success: 9, failed: 0, inProgress: 0, other: 0 },
+};
+
+// Donut gauge + legend card (Patches / Endpoints / Deployment Status) — extracted so the three
+// gauges can be placed individually (Patches + Endpoints on top, Deployment Status in its section).
+function DonutKpiCard({
+  label, icon: Icon, color, total, segments, onClick, wide,
+}: {
+  label: string;
+  icon: typeof Package;
+  color: string;
+  total: number;
+  segments: { label: string; value: number; color: string }[];
+  onClick?: () => void;
+  wide: boolean;
+}) {
+  const segs = segments.filter((s) => s.value > 0);
+  // These cards span a full half-row now, so the gauge is sized up to fill the extra width
+  // (which also grows the card height proportionally).
+  const dia = wide ? 148 : 116;
+  const C = 2 * Math.PI * 40;
+  let acc = 0;
+  return (
+    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="flex items-center gap-2">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${color}1A`, color }}>
+          <Icon size={15} />
+        </span>
+        <span className="text-[13px] text-[#64748B]">{label}</span>
+        {onClick && (
+          <button onClick={onClick} className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline">
+            View more<ChevronRight size={14} />
+          </button>
+        )}
+      </div>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
+          <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+            {segs.map((s) => {
+              const len = (s.value / Math.max(total, 1)) * C;
+              const off = -(acc / Math.max(total, 1)) * C;
+              acc += s.value;
+              return (
+                <circle key={s.label} cx="50" cy="50" r="40" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={off} />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={`${wide ? 'text-[24px]' : 'text-[20px]'} font-semibold leading-none tabular-nums text-[#364658]`}>{total}</span>
+            <span className="mt-0.5 text-[11px] text-[#7B8FA5]">Total</span>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1 space-y-2">
+          {segs.map((s) => (
+            <div key={s.label} className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              {/* min-width keeps the values aligned in a column, right after the label (no big gap) */}
+              <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
+              <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBreakdownCard({
+  title, icon: Icon, data, totalLabel, allLabel,
+}: {
+  title: string;
+  icon: typeof Package;
+  data: Record<string, StatusSplit>;
+  totalLabel: string;
+  allLabel: string;
+}) {
+  const entries = Object.keys(data);
+  // "All …" (default) aggregates every entry; specific rows drill into one category / office.
+  const options = [allLabel, ...entries];
+  const [selected, setSelected] = useState(allLabel);
+  const [open, setOpen] = useState(false);
+  const d = selected === allLabel
+    ? entries.reduce(
+        (acc, k) => ({
+          success: acc.success + data[k].success,
+          failed: acc.failed + data[k].failed,
+          inProgress: acc.inProgress + data[k].inProgress,
+          other: acc.other + data[k].other,
+        }),
+        { success: 0, failed: 0, inProgress: 0, other: 0 } as StatusSplit,
+      )
+    : (data[selected] ?? { success: 0, failed: 0, inProgress: 0, other: 0 });
+  const total = d.success + d.failed + d.inProgress + d.other;
+
+  return (
+    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#3D8BD01A', color: '#3D8BD0' }}>
+          <Icon size={15} />
+        </span>
+        <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
+      </div>
+
+      {/* Dropdown — pick the category / office to break down */}
+      <div className="relative mb-3">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`flex h-9 w-full items-center justify-between rounded border px-3 text-[13px] transition-colors ${open ? 'border-[#3D8BD0] ring-1 ring-[#3D8BD0]' : 'border-[#DFE5ED] hover:border-[#3D8BD0]'}`}
+        >
+          <span className="truncate text-[#364658]">{selected}</span>
+          <ChevronDown size={15} className={`flex-shrink-0 text-[#7B8FA5] transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[240px] overflow-y-auto rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+              {options.map((o) => (
+                <button
+                  key={o}
+                  onClick={() => { setSelected(o); setOpen(false); }}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] transition-colors ${o === selected ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                >
+                  <span className="truncate text-[#364658]">{o}</span>
+                  {o === selected && <Check size={15} className="flex-shrink-0 text-[#3D8BD0]" />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Proportional stacked bar (at-a-glance distribution) */}
+      <div className="mb-3 flex h-1.5 w-full gap-px overflow-hidden rounded-full">
+        {total === 0 ? (
+          <span className="flex-1 bg-[#EEF2F6]" />
+        ) : (
+          BREAKDOWN_STATUSES.filter((s) => d[s.key] > 0).map((s) => (
+            <span key={s.key} style={{ flexGrow: d[s.key], backgroundColor: s.color }} />
+          ))
+        )}
+      </div>
+
+      {/* Status rows */}
+      <div className="space-y-1.5">
+        {BREAKDOWN_STATUSES.map((s) => (
+          <div key={s.key} className="flex items-center justify-between rounded bg-[#F8FAFC] px-3 py-2">
+            <span className="inline-flex items-center gap-2 text-[13px] text-[#64748B]">
+              <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              {s.label}
+            </span>
+            <span className="text-[13px] font-semibold tabular-nums" style={{ color: d[s.key] > 0 ? s.color : '#94A3B8' }}>{d[s.key]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Total */}
+      <div className="mt-3 flex items-center justify-between border-t border-[#EEF1F4] pt-3">
+        <span className="text-[13px] font-medium text-[#364658]">{totalLabel}</span>
+        <span className="text-[15px] font-bold tabular-nums text-[#364658]">{total}</span>
+      </div>
+    </div>
+  );
+}
+
 interface PatchDrawerProps {
   openAssets: Patch[];
   activeAssetId: string | null;
@@ -2920,130 +3113,60 @@ onStackMinimizedChange,
                   // patch-catalog details (and their right-rail groups don't exist on this page).
                 ];
 
-                return (
-                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
-                     the two list cards take half each (span 3) — together they fill the row. */
-                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-2'}`}>
-                    {kpis.map((k) => {
-                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
-                      // Records beyond the inline preview — surfaced in the link as "+N more".
-                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
-                      const isDonut = k.chart === 'donut' && segs.length > 0;
-                      const dia = wide ? 104 : 88;      // gauge diameter
-                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
-                      let acc = 0;                      // running offset per segment
-                      return (
-                        <div
-                          key={k.key}
-                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
-                              <k.icon size={15} />
-                            </span>
-                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
-                            {/* Only this link navigates — the card itself is not clickable
-                                (same as the Software Overview cards' "View more ›"). Preview cards
-                                carry the remaining count instead, like the Hardware "Users" card. */}
-                            <button
-                              onClick={k.onClick}
-                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
-                            >
-                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
-                            </button>
-                          </div>
+                const patchesKpi = kpis.find((k) => k.key === 'patches')!;
+                const endpointsKpi = kpis.find((k) => k.key === 'endpoints')!;
 
-                          {isDonut ? (
-                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
-                            <div className="mt-3 flex items-center gap-4">
-                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
-                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
-                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
-                                  {segs.map((s) => {
-                                    const len = (s.value / Math.max(k.total, 1)) * C;
-                                    const off = -(acc / Math.max(k.total, 1)) * C;
-                                    acc += s.value;
-                                    return (
-                                      <circle
-                                        key={s.label}
-                                        cx="50" cy="50" r="40" fill="none"
-                                        stroke={s.color} strokeWidth="16"
-                                        strokeDasharray={`${len} ${C - len}`}
-                                        strokeDashoffset={off}
-                                      />
-                                    );
-                                  })}
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span className="text-[18px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
-                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
-                                </div>
+                return (
+                  <>
+                    {/* Row 1 — Patches + Endpoints (the two things being deployed / deployed to) */}
+                    <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      {[patchesKpi, endpointsKpi].map((k) => (
+                        <DonutKpiCard key={k.key} label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} wide={wide} />
+                      ))}
+                    </div>
+
+                    {/* Deployment group — ONE bordered section holding the overall status (4 stat
+                        cards) plus both drill-downs (by category, by remote office), so all the
+                        deployment context reads as one block. */}
+                    <div className="mt-5 rounded-xl border border-[#E5E7EB] p-4">
+                      <div className="mb-4 flex items-center gap-2">
+                        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#8B5CF61A', color: '#8B5CF6' }}>
+                          <Download size={15} />
+                        </span>
+                        <h3 className="text-[15px] font-semibold text-[#364658]">Deployment</h3>
+                        <button onClick={() => setActiveMainTab('installation')} className="ml-auto flex items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline">
+                          View more<ChevronRight size={14} />
+                        </button>
+                      </div>
+
+                      {/* Overall deployment status — one stat card per status */}
+                      <div className={`grid gap-3 ${wide ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                        {BREAKDOWN_STATUSES.map((s) => {
+                          const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
+                          return (
+                            <div key={s.key} className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-center">
+                              <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
+                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                {s.label}
                               </div>
-                              <div className="min-w-0 flex-1 space-y-2">
-                                {segs.map((s) => (
-                                  <div key={s.label} className="flex items-center gap-2">
-                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{s.label}</span>
-                                    <span className="flex-shrink-0 text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
-                                  </div>
-                                ))}
-                              </div>
+                              <div className="mt-1.5 text-[22px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
                             </div>
-                          ) : k.chart === 'list' ? (
-                            /* Just the first 2 records — no count line; the total lives in the
-                               "+N more" link, exactly like the Hardware Overview "Users" card. */
-                            <>
-                              <div className="mt-3 space-y-2">
-                                {(k.items ?? []).map((it) => (
-                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
-                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
-                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
-                                    </div>
-                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
-                                {k.total}
-                              </div>
-                              {segs.length > 0 ? (
-                                <>
-                                  {/* Stacked distribution bar */}
-                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
-                                    {segs.map((s) => (
-                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
-                                    ))}
-                                  </div>
-                                  {/* Legend */}
-                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                                    {segs.map((s) => (
-                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                        {s.label}
-                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Drill-downs — status by category / by remote office */}
+                      <div className={`mt-4 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <StatusBreakdownCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} totalLabel="Total Patches" allLabel="All Categories" />
+                        <StatusBreakdownCard title="Status by Remote Office" icon={MapPin} data={STATUS_BY_REMOTE_OFFICE} totalLabel="Total Installations" allLabel="All Remote Offices" />
+                      </div>
+                    </div>
+                  </>
                 );
               })()}
-
             </div>
             )}
+
 
             {activeMainTab === 'hardware' && (() => {
               type Rec = [string, string][];

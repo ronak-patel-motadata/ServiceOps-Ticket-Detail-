@@ -155,30 +155,107 @@ const DEMO_STAGED_TASKS: any[] = [
   { id: 'TASK-13', subject: 'Manager sign-off on onboarding', userGroup: 'Management', assignee: 'Sarah Johnson', taskType: 'Verification', startDate: '2026-07-02', endDate: '2026-07-03', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Reporting manager confirms onboarding completion.', completed: false, stage: 3 },
 ];
 
-// Individual (non-staged) task pool — every ticket EXCEPT the Service Request INC-35 seeds a
-// small varied slice of these (no `stage`, so the Tasks tab renders its flat list).
-const DEMO_INDIVIDUAL_TASKS: any[] = [
-  { id: 'TASK-21', subject: 'Run network diagnostics on affected laptop', userGroup: 'IT Support', assignee: 'Michael Chen', taskType: 'Investigation', startDate: '2026-07-27', endDate: '2026-07-27', status: 'In Progress', priority: 'High', notifyBefore: '1', notifyUnit: 'days', description: 'Run the full connectivity diagnostic suite and capture the report.', completed: false },
-  { id: 'TASK-22', subject: 'Check DHCP lease and DNS resolution', userGroup: 'Network Team', assignee: 'Priya Sharma', taskType: 'Investigation', startDate: '2026-07-27', endDate: '2026-07-28', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Verify the endpoint receives a valid lease and resolves internal hosts.', completed: false },
-  { id: 'TASK-23', subject: 'Verify VPN profile configuration', userGroup: 'IT Support', assignee: 'Sarah Johnson', taskType: 'Investigation', startDate: '2026-07-26', endDate: '2026-07-26', status: 'Closed', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Confirm the corporate VPN profile is present and up to date.', completed: true },
-  { id: 'TASK-24', subject: 'Schedule remote session with requester', userGroup: 'Service Desk', assignee: 'Michael Chen', taskType: 'Coordination', startDate: '2026-07-28', endDate: '2026-07-28', status: 'Open', priority: 'Normal', notifyBefore: '2', notifyUnit: 'hours', description: 'Book a remote-assist session to reproduce the issue live.', completed: false },
-  { id: 'TASK-25', subject: 'Update knowledge base article', userGroup: 'Service Desk', assignee: 'Priya Sharma', taskType: 'Documentation', startDate: '2026-07-29', endDate: '2026-07-30', status: 'Open', priority: 'Low', notifyBefore: '1', notifyUnit: 'days', description: 'Fold the confirmed resolution steps into the relevant KB article.', completed: false },
-  { id: 'TASK-26', subject: 'Escalate to network team if unresolved', userGroup: 'Network Team', assignee: 'Sarah Johnson', taskType: 'Escalation', startDate: '2026-07-29', endDate: '2026-07-29', status: 'Open', priority: 'High', notifyBefore: '4', notifyUnit: 'hours', description: 'Raise a network-team escalation with the diagnostic evidence attached.', completed: false },
-  { id: 'TASK-27', subject: 'Follow up with requester for confirmation', userGroup: 'Service Desk', assignee: 'Michael Chen', taskType: 'Coordination', startDate: '2026-07-30', endDate: '2026-07-30', status: 'Open', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Confirm with the requester that the issue is resolved before closure.', completed: false },
-  { id: 'TASK-28', subject: 'Collect logs from the affected device', userGroup: 'IT Support', assignee: 'Priya Sharma', taskType: 'Investigation', startDate: '2026-07-26', endDate: '2026-07-27', status: 'Closed', priority: 'Normal', notifyBefore: '1', notifyUnit: 'days', description: 'Pull system and network logs covering the failure window.', completed: true },
+// small themed slice matching the request SUBJECT (no `stage`, so the Tasks tab renders a flat
+// list). Each theme lists resolution steps that read naturally for that kind of request.
+const TASK_THEMES: { match: RegExp; group: string; type: string; tasks: string[] }[] = [
+  {
+    // Connectivity — Internet down / Wi-Fi not working
+    match: /internet|wi-?fi|network|connect|vpn|dns/i,
+    group: 'Network Team', type: 'Investigation',
+    tasks: [
+      'Run network diagnostics on the affected device',
+      'Check DHCP lease and DNS resolution',
+      'Verify the Wi-Fi / VPN profile configuration',
+      'Schedule a remote session with the requester',
+      'Escalate to the network team if unresolved',
+      'Confirm connectivity is restored with the requester',
+    ],
+  },
+  {
+    // Hardware fault — laptop charger / device not working
+    match: /charger|laptop|hardware|monitor|keyboard|mouse|printer|battery|broken|not working|damage/i,
+    group: 'IT Support', type: 'Provisioning',
+    tasks: [
+      'Inspect the reported hardware fault',
+      'Check warranty / AMC coverage for the device',
+      'Arrange a replacement unit from inventory',
+      'Coordinate device pickup and delivery with the requester',
+      'Update the asset record after replacement',
+    ],
+  },
+  {
+    // Procurement — MacBook / equipment allocation request
+    match: /macbook|allocation|allocate|procure|purchase|request for|new laptop|equipment|asset/i,
+    group: 'Procurement', type: 'Coordination',
+    tasks: [
+      'Validate the equipment request against policy',
+      'Obtain manager and IT approval',
+      'Raise a purchase order for the requested item',
+      'Configure and image the new device',
+      'Hand over the device and collect acknowledgement',
+    ],
+  },
+  {
+    // Onboarding — new hire / employee onboarding (individual, non-staged variant)
+    match: /onboard|joining|new hire|employee/i,
+    group: 'HR', type: 'Provisioning',
+    tasks: [
+      'Create the employee account and email alias',
+      'Provision required software and licenses',
+      'Assign hardware and prepare the workstation',
+      'Grant access to the relevant systems and groups',
+      'Verify first-day login and access',
+    ],
+  },
 ];
 
-// Per-ticket task seed: the Service Request INC-35 gets the staged Service Catalog tasks;
-// every other ticket gets 2-4 individual tasks picked deterministically from the pool.
-const seedTasksFor = (ticketId: string | null): any[] => {
+// Fallback for subjects that match no theme ("help", misc requests).
+const GENERIC_TASKS = {
+  group: 'Service Desk', type: 'Investigation',
+  tasks: [
+    'Review the request details and reproduce the issue',
+    'Gather additional information from the requester',
+    'Identify the root cause',
+    'Apply the fix and verify the resolution',
+    'Update the requester and close the request',
+  ],
+};
+
+const TASK_ASSIGNEES = ['Michael Chen', 'Sarah Johnson', 'Priya Sharma'];
+const taskDay = (d: number) => `2026-07-${String(26 + (d % 4)).padStart(2, '0')}`;
+
+// Per-request task seed: the Service Request INC-35 gets the staged Service Catalog tasks; every
+// other request gets 3-4 individual tasks whose NAMES are drawn from the theme matching its
+// subject, so the Tasks tab reflects what the request is actually about.
+const seedTasksFor = (ticketId: string | null, subject?: string): any[] => {
   if (ticketId === 'INC-35') return DEMO_STAGED_TASKS;
+  const theme = TASK_THEMES.find((t) => t.match.test(subject ?? '')) ?? GENERIC_TASKS;
   let h = 0;
   const s = ticketId ?? '';
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   h = Math.abs(h);
-  const count = 2 + (h % 3);
-  const start = h % DEMO_INDIVIDUAL_TASKS.length;
-  return Array.from({ length: count }, (_, i) => DEMO_INDIVIDUAL_TASKS[(start + i) % DEMO_INDIVIDUAL_TASKS.length]);
+  const count = Math.min(theme.tasks.length, 3 + (h % 2)); // 3-4
+  const start = h % theme.tasks.length;
+  return Array.from({ length: count }, (_, i) => {
+    const name = theme.tasks[(start + i) % theme.tasks.length];
+    // First task done, second underway, rest open — reads like a real workflow.
+    const status = i === 0 ? 'Closed' : i === 1 ? 'In Progress' : 'Open';
+    return {
+      id: `TASK-${(h % 900) + i + 100}`,
+      subject: name,
+      userGroup: theme.group,
+      assignee: TASK_ASSIGNEES[(h + i) % TASK_ASSIGNEES.length],
+      taskType: theme.type,
+      startDate: taskDay(i),
+      endDate: taskDay(i + 1),
+      status,
+      priority: i === 0 ? 'High' : i === count - 1 ? 'Low' : 'Normal',
+      notifyBefore: '1',
+      notifyUnit: 'days',
+      description: `${name} for "${subject ?? ticketId}".`,
+      completed: status === 'Closed',
+    };
+  });
 };
 
 export function TicketDrawerV2({
@@ -420,9 +497,10 @@ onStackActiveGroupChange,
   // Tasks State
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>(() => seedTasksFor(activeTicketId));
-  // Reseed per record — staged Service Catalog tasks only for INC-35, individual tasks elsewhere.
-  useEffect(() => { setTasks(seedTasksFor(activeTicketId)); }, [activeTicketId]);
+  const [tasks, setTasks] = useState<any[]>(() => seedTasksFor(activeTicketId, activeTicket?.subject));
+  // Reseed per record — staged Service Catalog tasks only for INC-35; elsewhere individual tasks
+  // whose names match the request subject.
+  useEffect(() => { setTasks(seedTasksFor(activeTicketId, activeTicket?.subject)); }, [activeTicketId, activeTicket?.subject]);
   const [showServiceRequestItemStatus, setShowServiceRequestItemStatus] = useState<string | null>(null);
   
   // Tasks count - based on current tasks array

@@ -2702,8 +2702,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             Overview tab's Affected Products preview rows. */}
         {activeGroup === 'affected-products' && (
           <div className="space-y-2">
-            <div className="text-[13px] text-[#7B8FA5] mb-1">
-              <span className="font-medium text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected
+            {/* One compact meta line — count stays prominent, language is a light trailing note */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#7B8FA5] mb-2">
+              <span><span className="font-semibold text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected</span>
+              <span className="size-1 rounded-full bg-[#CBD5E1] flex-shrink-0" />
+              <span>Supported Languages: <span className="font-medium text-[#364658]">all</span></span>
             </div>
             {PATCH_AFFECTED_PRODUCTS.map((p) => (
               <div key={p.name} className="flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">

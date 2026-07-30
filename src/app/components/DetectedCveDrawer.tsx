@@ -126,6 +126,68 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
+// Donut gauge + legend card (Patches / Endpoints on the CVE Overview) — same treatment as the
+// Patch Deployment Overview cards.
+function DonutKpiCard({
+  label, icon: Icon, color, total, segments, onClick, wide,
+}: {
+  label: string;
+  icon: typeof Package;
+  color: string;
+  total: number;
+  segments: { label: string; value: number; color: string }[];
+  onClick?: () => void;
+  wide: boolean;
+}) {
+  const segs = segments.filter((s) => s.value > 0);
+  const dia = wide ? 148 : 116;
+  const C = 2 * Math.PI * 40;
+  let acc = 0;
+  return (
+    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="flex items-center gap-2">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${color}1A`, color }}>
+          <Icon size={15} />
+        </span>
+        <span className="text-[13px] text-[#64748B]">{label}</span>
+        {onClick && (
+          <button onClick={onClick} className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline">
+            View more<ChevronRight size={14} />
+          </button>
+        )}
+      </div>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
+          <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+            {segs.map((s) => {
+              const len = (s.value / Math.max(total, 1)) * C;
+              const off = -(acc / Math.max(total, 1)) * C;
+              acc += s.value;
+              return (
+                <circle key={s.label} cx="50" cy="50" r="40" fill="none" stroke={s.color} strokeWidth="16" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={off} />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={`${wide ? 'text-[24px]' : 'text-[20px]'} font-semibold leading-none tabular-nums text-[#364658]`}>{total}</span>
+            <span className="mt-0.5 text-[11px] text-[#7B8FA5]">Total</span>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1 space-y-2">
+          {segs.map((s) => (
+            <div key={s.label} className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
+              <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface PatchDrawerProps {
   openAssets: Patch[];
   activeAssetId: string | null;
@@ -2854,6 +2916,37 @@ onStackMinimizedChange,
                         {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </button>
                     )}
+                  </div>
+                );
+              })()}
+
+              {/* Patches + Endpoints donuts — the fixing patches and the impacted endpoints for
+                  this CVE (same two-card row as the Patch Deployment Overview). */}
+              {(() => {
+                const wide = drawerWidth > 1080;
+                const sev = (s: string) => DEPLOYED_PATCHES.filter((p) => p.severity === s).length;
+                const epBucket = (b: string) => patchComputers.filter((c) => c.bucket === b).length;
+                return (
+                  <div className={`mb-6 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <DonutKpiCard
+                      label="Patches" icon={Package} color="#3D8BD0" total={DEPLOYED_PATCHES.length} wide={wide}
+                      segments={[
+                        { label: 'Critical', value: sev('Critical'), color: '#EF4444' },
+                        { label: 'Important', value: sev('Important'), color: '#F59E0B' },
+                        { label: 'Moderate', value: sev('Moderate'), color: '#EAB308' },
+                        { label: 'Low', value: sev('Low'), color: '#94A3B8' },
+                      ]}
+                      onClick={() => setActiveMainTab('patches-list')}
+                    />
+                    <DonutKpiCard
+                      label="Endpoints" icon={Monitor} color="#3D8BD0" total={patchComputers.length} wide={wide}
+                      segments={[
+                        { label: 'Missing', value: epBucket('Missing'), color: '#F59E0B' },
+                        { label: 'Installed', value: epBucket('Installed'), color: '#22C55E' },
+                        { label: 'Ignored', value: epBucket('Ignored'), color: '#94A3B8' },
+                      ]}
+                      onClick={() => setActiveMainTab('computers')}
+                    />
                   </div>
                 );
               })()}

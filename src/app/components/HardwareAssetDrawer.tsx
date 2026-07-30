@@ -428,7 +428,7 @@ onStackMinimizedChange,
         { label: 'Warranty', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
           ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
             a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Dell ProSupport Plus — onsite next-business-day.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term (1 yr / 3 yr) with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
-        { label: 'Antivirus', value: 'Active', sub: 'Protection enabled', color: '#22A06B', icon: Shield,
+        { label: 'Antivirus', value: 'Active', note: 'CrowdStrike Falcon', sub: 'Protection enabled', color: '#22A06B', icon: Shield,
           ai: { action: 'Run a scan', q: 'Run a security scan on this asset',
             a: "**Antivirus:** Active — CrowdStrike Falcon, definitions updated 4 hours ago.\n**Last full scan:** 2 days ago — 0 threats found.\n\n**Recommended next steps:**\n• Trigger an on-demand full scan now\n• Verify real-time protection is enabled\n• Review the quarantine log for the last 30 days\n\nShall I trigger an on-demand scan and notify the asset owner?" } },
         { label: 'Patches', value: '2', sub: 'Missing updates', color: '#D97706', icon: Download,
@@ -514,8 +514,12 @@ onStackMinimizedChange,
             <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
           </div>
           {/* Value */}
-          <div className={`${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>
-            {c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}
+          {/* Value + optional inline note (e.g. the antivirus product name) — the note sits to
+              the RIGHT of the value so the card height matches its neighbours, and flex-wrap
+              drops it below only when there's not enough width (narrow view + long name). */}
+          <div className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 ${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>
+            <span>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</span>
+            {'note' in c && c.note && <span className="text-[12px] font-medium text-[#364658]" title={c.note}>{c.note}</span>}
           </div>
           {/* Subtitle */}
           {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
