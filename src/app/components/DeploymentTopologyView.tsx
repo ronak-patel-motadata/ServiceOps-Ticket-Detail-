@@ -327,6 +327,7 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
         collapsed: collapsed.has(n.id),
         hiddenCount: collapsed.has(n.id) ? countDescendants(n) : 0,
         dim: isDim(n),
+        orient,
       },
       draggable: false,
       selectable: false,
@@ -534,11 +535,12 @@ function TopoNodeCard({ data }: NodeProps) {
         </div>
       )}
 
-      {/* Collapse / expand badge (right edge) — collapse is badge-only; node click opens details */}
+      {/* Collapse / expand badge — sits on the OUTGOING edge side: right edge in horizontal
+          flow, bottom edge in vertical flow. Collapse is badge-only; node click opens details. */}
       {d.hasKids && (
         <button
           onClick={(e) => { e.stopPropagation(); d.onToggle?.(d.id); }}
-          className={`absolute -right-2.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border text-[9px] font-semibold shadow-sm transition-colors ${d.collapsed ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white hover:bg-[#2d6ca0]' : 'border-[#CBD5E1] bg-white text-[#64748B] hover:border-[#3D8BD0] hover:text-[#3D8BD0]'}`}
+          className={`absolute ${(d as any).orient === 'vertical' ? '-bottom-2.5 left-1/2 -translate-x-1/2' : '-right-2.5 top-1/2 -translate-y-1/2'} flex size-5 items-center justify-center rounded-full border text-[9px] font-semibold shadow-sm transition-colors ${d.collapsed ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white hover:bg-[#2d6ca0]' : 'border-[#CBD5E1] bg-white text-[#64748B] hover:border-[#3D8BD0] hover:text-[#3D8BD0]'}`}
         >
           {d.collapsed ? d.hiddenCount : <Minus size={10} />}
         </button>
@@ -767,7 +769,7 @@ function ShortcutRow({ keys, label }: { keys: React.ReactNode; label: string }) 
   );
 }
 
-function CanvasControls({ onReset }: { onReset: () => void }) {
+function CanvasControls({ onReset, orient, onOrientChange }: { onReset: () => void; orient: Orientation; onOrientChange: (o: Orientation) => void }) {
   const rf = useReactFlow();
   const btn = 'inline-flex items-center justify-center size-7 text-[#6B7280] hover:bg-[#F5F7FA] transition-colors';
   const panBy = (dx: number, dy: number) => {
@@ -850,8 +852,18 @@ function CanvasControls({ onReset }: { onReset: () => void }) {
           <Tooltip><TooltipTrigger asChild><button onClick={() => rf.zoomIn({ duration: 150 })} className={btn}><Plus size={14} /></button></TooltipTrigger><TooltipContent side="left">Zoom in</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><button onClick={() => rf.zoomOut({ duration: 150 })} className={`${btn} border-t border-[#E5E7EB]`}><Minus size={14} /></button></TooltipTrigger><TooltipContent side="left">Zoom out</TooltipContent></Tooltip>
         </div>
+        {/* Reset + flow-direction TOGGLE share one card. The toggle shows the orientation you'd
+            SWITCH TO (not the current one); clicking flips the layout and the icon. */}
         <div className={card}>
           <Tooltip><TooltipTrigger asChild><button onClick={onReset} className={btn}><RotateCcw size={13} /></button></TooltipTrigger><TooltipContent side="left">Reset view</TooltipContent></Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => onOrientChange(orient === 'horizontal' ? 'vertical' : 'horizontal')} className={`${btn} border-t border-[#E5E7EB]`}>
+                {orient === 'horizontal' ? <MoveVertical size={14} /> : <MoveHorizontal size={14} />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">{orient === 'horizontal' ? 'Switch to vertical flow' : 'Switch to horizontal flow'}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
       {/* Bottom-left: directional pan */}
@@ -1062,26 +1074,6 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
           )}
         </div>
         <p className="min-w-0 flex-1 truncate text-[12px] text-[#7B8FA5]" title={scenario.desc}>{scenario.desc}</p>
-
-        {/* Flow direction — Horizontal (left→right) · Vertical (top→bottom) segmented toggle */}
-        <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
-          {([
-            { key: 'horizontal' as const, icon: <MoveHorizontal size={15} />, tip: 'Horizontal flow' },
-            { key: 'vertical' as const, icon: <MoveVertical size={15} />, tip: 'Vertical flow' },
-          ]).map((o, i) => (
-            <Tooltip key={o.key}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setOrient(o.key)}
-                  className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${orient === o.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
-                >
-                  {o.icon}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{o.tip}</TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
       </div>
 
       {/* Canvas */}
@@ -1131,7 +1123,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="#D9DEE7" />
           </ReactFlow>
 
-          <CanvasControls onReset={resetView} />
+          <CanvasControls onReset={resetView} orient={orient} onOrientChange={setOrient} />
           <FitOnChange signal={fitSignal} />
 
           {/* Status legend (bottom-right) — collapsible, CMDB-map pattern: the card has a

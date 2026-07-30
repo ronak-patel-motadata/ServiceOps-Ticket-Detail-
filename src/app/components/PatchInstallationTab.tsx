@@ -73,6 +73,9 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
     return () => window.removeEventListener('keydown', onKey);
   }, [view]);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Which tab of the filter popup is showing (CMDB dependency-map Filter-pill pattern) —
+  // opening lands on the tab that has an active filter.
+  const [filterTab, setFilterTab] = useState<'status' | 'patch'>('status');
   // Status filter — empty = "All" (show everything); otherwise only the picked statuses.
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   // Patch filter — Patch DEPLOYMENT page only (rows there are a patch × endpoint matrix, so each
@@ -160,7 +163,10 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
         {/* Filter by installation status — "All" by default; picking statuses shows them as pills */}
         <div className="relative flex-shrink-0">
           <button
-            onClick={() => setFilterOpen((v) => !v)}
+            onClick={() => {
+              if (!filterOpen) setFilterTab(statusFilter.length === 0 && patchFilter.length > 0 ? 'patch' : 'status');
+              setFilterOpen((v) => !v);
+            }}
             title="Filter by status"
             className={`inline-flex h-8 items-center gap-1.5 rounded border px-3 text-[13px] font-medium transition-colors ${filterActive ? 'border-[#3D8BD0] bg-[#F0F8FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6]'}`}
           >
@@ -189,35 +195,63 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                     ))}
                   </div>
                 )}
+                {/* Tabs — Status | Patch (CMDB dependency-map Filter-pill pattern); a blue dot on
+                    a tab label marks an active filter hidden behind the other tab. The plain
+                    Patch page has no patch options, so it keeps the single flat status list. */}
+                {hasPatchCols && (
+                  <div className="flex border-b border-[#EEF1F4]">
+                    <button
+                      onClick={() => setFilterTab('status')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${filterTab === 'status' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
+                    >
+                      Status
+                      {statusFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+                    </button>
+                    <button
+                      onClick={() => setFilterTab('patch')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${filterTab === 'patch' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
+                    >
+                      Patch
+                      {patchFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+                    </button>
+                  </div>
+                )}
                 <div className="max-h-[340px] overflow-y-auto py-1">
-                  {/* "All" clears every filter */}
-                  <button
-                    onClick={clearFilters}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${!filterActive ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
-                  >
-                    <span className="text-[#364658]">All</span>
-                    {!filterActive && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
-                  </button>
-                  {/* Status section */}
-                  {hasPatchCols && <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Status</div>}
-                  {STATUS_FILTER_OPTIONS.map((opt) => {
-                    const on = statusFilter.includes(opt);
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => toggleStatus(opt)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${on ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
-                      >
-                        <span className="text-[#364658]">{opt}</span>
-                        {on && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
-                      </button>
-                    );
-                  })}
-                  {/* Patch section — deployment page only (the rows are a patch × endpoint matrix);
-                      picking a patch shows only the endpoints it was deployed to */}
-                  {hasPatchCols && (
+                  {(!hasPatchCols || filterTab === 'status') ? (
                     <>
-                      <div className="mt-1 px-3 pt-2 pb-1 border-t border-[#F0F2F5] text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Patch</div>
+                      {/* "All" clears this tab's filter */}
+                      <button
+                        onClick={() => setStatusFilter([])}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${statusFilter.length === 0 ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                      >
+                        <span className="text-[#364658]">All</span>
+                        {statusFilter.length === 0 && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                      </button>
+                      {STATUS_FILTER_OPTIONS.map((opt) => {
+                        const on = statusFilter.includes(opt);
+                        return (
+                          <button
+                            key={opt}
+                            onClick={() => toggleStatus(opt)}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${on ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                          >
+                            <span className="text-[#364658]">{opt}</span>
+                            {on && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      {/* Patch tab — deployment page only (the rows are a patch × endpoint matrix);
+                          picking a patch shows only the endpoints it was deployed to */}
+                      <button
+                        onClick={() => setPatchFilter([])}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-[13px] text-left transition-colors ${patchFilter.length === 0 ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                      >
+                        <span className="text-[#364658]">All</span>
+                        {patchFilter.length === 0 && <Check size={15} className="text-[#3D8BD0] flex-shrink-0" />}
+                      </button>
                       {patchOptions.map((p) => {
                         const on = patchFilter.includes(p.id);
                         return (
