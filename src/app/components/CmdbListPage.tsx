@@ -141,8 +141,8 @@ export function CmdbListPage({ onNavigate }: { onNavigate: (page: string) => voi
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <AssetsToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} title="Base CI" viewLabel="All CI" />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <CmdbTable
               cis={paginated}
               selected={selected}
@@ -154,6 +154,7 @@ export function CmdbListPage({ onNavigate }: { onNavigate: (page: string) => voi
               sortDirection={sortDirection}
               onCiClick={handleOpenCi}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -162,7 +163,6 @@ export function CmdbListPage({ onNavigate }: { onNavigate: (page: string) => voi
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
       <CmdbDrawer

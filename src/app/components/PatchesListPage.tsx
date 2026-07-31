@@ -197,8 +197,8 @@ export function PatchesListPage({ onNavigate }: { onNavigate: (page: string) => 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <PatchesToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <PatchesTable
               patches={paginated}
               selected={selected}
@@ -210,6 +210,7 @@ export function PatchesListPage({ onNavigate }: { onNavigate: (page: string) => 
               sortDirection={sortDirection}
               onPatchClick={handleOpenPatch}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -218,7 +219,6 @@ export function PatchesListPage({ onNavigate }: { onNavigate: (page: string) => 
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
     </div>

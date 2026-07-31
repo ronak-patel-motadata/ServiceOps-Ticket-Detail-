@@ -149,8 +149,8 @@ export function PurchasesListPage({ onNavigate }: { onNavigate: (page: string) =
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <AssetsToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} title="Purchases" viewLabel="All Open Purchase Orders" />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <PurchasesTable
               purchases={paginated}
               selected={selected}
@@ -162,6 +162,7 @@ export function PurchasesListPage({ onNavigate }: { onNavigate: (page: string) =
               sortDirection={sortDirection}
               onPurchaseClick={handleOpenPurchase}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -170,7 +171,6 @@ export function PurchasesListPage({ onNavigate }: { onNavigate: (page: string) =
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
       <PurchaseDrawer

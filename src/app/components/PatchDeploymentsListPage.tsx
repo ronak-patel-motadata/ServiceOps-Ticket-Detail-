@@ -176,8 +176,8 @@ export function PatchDeploymentsListPage({ onNavigate }: { onNavigate: (page: st
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <PatchDeploymentsToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <PatchDeploymentsTable
               deployments={paginated}
               selected={selected}
@@ -186,6 +186,7 @@ export function PatchDeploymentsListPage({ onNavigate }: { onNavigate: (page: st
               onSelect={handleSelect}
               onDeploymentClick={handleOpenDeployment}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -194,7 +195,6 @@ export function PatchDeploymentsListPage({ onNavigate }: { onNavigate: (page: st
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
     </div>

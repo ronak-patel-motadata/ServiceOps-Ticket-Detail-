@@ -145,8 +145,8 @@ export function SoftwareLicensesListPage({ onNavigate, onOpenSoftwareAsset }: { 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <AssetsToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} title="Software Licenses" viewLabel="All Software Licenses" />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <SoftwareLicensesTable
               licenses={paginated}
               selected={selected}
@@ -158,6 +158,7 @@ export function SoftwareLicensesListPage({ onNavigate, onOpenSoftwareAsset }: { 
               sortDirection={sortDirection}
               onLicenseClick={handleOpenLicense}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -166,7 +167,6 @@ export function SoftwareLicensesListPage({ onNavigate, onOpenSoftwareAsset }: { 
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
       <SoftwareLicenseDrawer

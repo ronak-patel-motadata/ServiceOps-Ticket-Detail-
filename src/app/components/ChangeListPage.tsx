@@ -153,8 +153,8 @@ export function ChangeListPage({ onNavigate }: { onNavigate: (page: string) => v
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedChanges.size} />
         <ChangeToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <ChangeTable
               changes={paginated}
               selectedChanges={selectedChanges}
@@ -166,6 +166,7 @@ export function ChangeListPage({ onNavigate }: { onNavigate: (page: string) => v
               sortDirection={sortDirection}
               onChangeClick={handleOpenChange}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -174,7 +175,6 @@ export function ChangeListPage({ onNavigate }: { onNavigate: (page: string) => v
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
       <ChangeDrawer

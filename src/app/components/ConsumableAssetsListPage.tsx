@@ -156,8 +156,8 @@ export function ConsumableAssetsListPage({ onNavigate }: { onNavigate: (page: st
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selected.size} />
         <AssetsToolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} title="Consumable Assets" viewLabel="All Consumable Assets" />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <ConsumableAssetsTable
               assets={paginated}
               selected={selected}
@@ -169,6 +169,7 @@ export function ConsumableAssetsListPage({ onNavigate }: { onNavigate: (page: st
               sortDirection={sortDirection}
               onAssetClick={handleOpenAsset}
             />
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -177,7 +178,6 @@ export function ConsumableAssetsListPage({ onNavigate }: { onNavigate: (page: st
               onPageChange={setCurrentPage}
               onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
             />
-          </div>
         </main>
       </div>
       <ConsumableAssetDrawer

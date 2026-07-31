@@ -244,8 +244,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <Toolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-auto bg-white min-h-0">
             <TicketTable
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
@@ -258,6 +258,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               onTicketClick={handleOpenTicket}
             />
             
+          </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -269,7 +270,6 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                 setCurrentPage(1);
               }}
             />
-          </div>
         </main>
       </div>
       
