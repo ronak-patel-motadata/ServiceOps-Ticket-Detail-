@@ -33,6 +33,7 @@ import type { Patch } from './PatchesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
@@ -132,13 +133,18 @@ const BREAKDOWN_STATUSES: { key: keyof StatusSplit; label: string; color: string
   { key: 'other', label: 'Other', color: '#94A3B8' },
 ];
 
-// Deployment status by patch category (across the whole deployment, not just the sampled matrix).
+// Deployment status by patch category — the product's 9 FIXED categories, in catalog order.
+// Rendered as one stacked column per category (hover a bar for the status breakdown).
 const PATCH_STATUS_BY_CATEGORY: Record<string, StatusSplit> = {
-  'Security Updates': { success: 12, failed: 3, inProgress: 2, other: 1 },
-  'Critical Updates': { success: 6, failed: 1, inProgress: 1, other: 0 },
-  'Servicing Stack Updates': { success: 4, failed: 0, inProgress: 1, other: 0 },
-  'Definition Updates': { success: 0, failed: 0, inProgress: 0, other: 7 },
+  'Tools': { success: 1, failed: 0, inProgress: 0, other: 2 },
   'Feature Packs': { success: 2, failed: 1, inProgress: 0, other: 3 },
+  'Service Packs': { success: 2, failed: 0, inProgress: 1, other: 0 },
+  'Update Rollups': { success: 4, failed: 1, inProgress: 0, other: 1 },
+  'Definition Updates': { success: 0, failed: 0, inProgress: 0, other: 7 },
+  'Critical Updates': { success: 6, failed: 1, inProgress: 1, other: 0 },
+  'Updates': { success: 5, failed: 0, inProgress: 1, other: 1 },
+  'Hotfix': { success: 3, failed: 1, inProgress: 0, other: 0 },
+  'Security Updates': { success: 12, failed: 3, inProgress: 2, other: 1 },
 };
 
 // Installation status by remote office.
@@ -308,6 +314,109 @@ function StatusBreakdownCard({
       <div className="mt-3 flex items-center justify-between border-t border-[#EEF1F4] pt-3">
         <span className="text-[13px] font-medium text-[#364658]">{totalLabel}</span>
         <span className="text-[15px] font-bold tabular-nums text-[#364658]">{total}</span>
+      </div>
+    </div>
+  );
+}
+
+/** One stacked column per category (fixed 9), rendered with recharts: Y axis with counts,
+ *  soft horizontal gridlines, rounded top on each stack, and a dark hover tooltip carrying
+ *  the Success / Failed / In Progress / Other breakdown. */
+
+// Rounds ONLY the top segment of each stack (the segment whose key matches the datum's topKey).
+const CatBarShape = (key: string) => (props: any) => {
+  const { x, y, width, height, fill, payload } = props;
+  if (!height || height <= 0) return <g />;
+  if (payload.topKey !== key) return <rect x={x} y={y} width={width} height={height} fill={fill} />;
+  const r = Math.min(4, width / 2, height);
+  return (
+    <path
+      d={`M${x},${y + height} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + width - r},${y} Q${x + width},${y} ${x + width},${y + r} L${x + width},${y + height} Z`}
+      fill={fill}
+    />
+  );
+};
+
+// Two-line category labels (split on the first space) so the 9 names stay readable.
+const CatTick = ({ x, y, payload }: any) => {
+  const words = String(payload.value).split(' ');
+  const l1 = words[0];
+  const l2 = words.slice(1).join(' ');
+  return (
+    <g>
+      <text x={x} y={y + 12} textAnchor="middle" fontSize={10} fill="#7B8FA5">{l1}</text>
+      {l2 && <text x={x} y={y + 23} textAnchor="middle" fontSize={10} fill="#7B8FA5">{l2}</text>}
+    </g>
+  );
+};
+
+// Dark tooltip (product-standard look) with the per-status breakdown + total.
+const CatTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="min-w-[160px] rounded-md bg-[#111827] px-3 py-2 text-white shadow-xl">
+      <div className="mb-1.5 text-[12px] font-semibold">{d.name}</div>
+      {BREAKDOWN_STATUSES.map((s) => (
+        <div key={s.key} className="flex items-center gap-2 py-0.5 text-[11px]">
+          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+          <span className="flex-1 text-white/85">{s.label}</span>
+          <span className="font-semibold tabular-nums">{d[s.key]}</span>
+        </div>
+      ))}
+      <div className="mt-1 flex items-center justify-between border-t border-white/15 pt-1 text-[11px]">
+        <span className="text-white/85">Total</span>
+        <span className="font-semibold tabular-nums">{d.total}</span>
+      </div>
+    </div>
+  );
+};
+
+function CategoryStatusBarsCard({
+  title, icon: Icon, data,
+}: {
+  title: string;
+  icon: typeof Package;
+  data: Record<string, StatusSplit>;
+}) {
+  const chartData = Object.entries(data).map(([name, d]) => {
+    // topKey = the last status present in the stack — that segment gets the rounded top.
+    const present = BREAKDOWN_STATUSES.filter((s) => d[s.key] > 0);
+    return { name, ...d, total: d.success + d.failed + d.inProgress + d.other, topKey: present.length ? present[present.length - 1].key : '' };
+  });
+  return (
+    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      {/* Header */}
+      <div className="mb-5 flex items-center gap-2.5">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#3D8BD01A', color: '#3D8BD0' }}>
+          <Icon size={15} />
+        </span>
+        <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
+      </div>
+
+      {/* Chart — Y axis carries the counts; hover a column for its status breakdown */}
+      <div className="flex-1" style={{ minHeight: 230 }}>
+        <ResponsiveContainer width="100%" height={230}>
+          <BarChart data={chartData} margin={{ top: 12, right: 4, bottom: 0, left: -22 }} barCategoryGap="28%">
+            <CartesianGrid vertical={false} stroke="#F0F2F5" />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="name" interval={0} tick={<CatTick />} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} height={34} />
+            <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
+            {BREAKDOWN_STATUSES.map((s) => (
+              <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={30} shape={CatBarShape(s.key)} isAnimationActive={false} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend — identity is never color-alone */}
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {BREAKDOWN_STATUSES.map((s) => (
+          <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-[#64748B]">
+            <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -3157,7 +3266,7 @@ onStackMinimizedChange,
 
                       {/* Drill-downs — status by category / by remote office */}
                       <div className={`mt-4 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        <StatusBreakdownCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} totalLabel="Total Patches" allLabel="All Categories" />
+                        <CategoryStatusBarsCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} />
                         <StatusBreakdownCard title="Status by Remote Office" icon={MapPin} data={STATUS_BY_REMOTE_OFFICE} totalLabel="Total Installations" allLabel="All Remote Offices" />
                       </div>
                     </div>
@@ -3903,13 +4012,10 @@ onStackMinimizedChange,
                       )}
 
                       {/* View toggle: list / card */}
-                      <button
-                        title={softwareView === 'list' ? 'Card view' : 'List view'}
-                        onClick={() => setSoftwareView((v) => (v === 'list' ? 'card' : 'list'))}
-                        className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                      >
-                        {softwareView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                      </button>
+                      <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+                        <button title="Card view" onClick={() => setSoftwareView('card')} className={`flex h-8 w-9 items-center justify-center transition-colors ${softwareView === 'card' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><LayoutGrid size={15} /></button>
+                        <button title="List view" onClick={() => setSoftwareView('list')} className={`flex h-8 w-9 items-center justify-center border-l border-[#DFE5ED] transition-colors ${softwareView === 'list' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><ListIcon size={15} /></button>
+                      </div>
 
                       <button
                         title="Add Software"

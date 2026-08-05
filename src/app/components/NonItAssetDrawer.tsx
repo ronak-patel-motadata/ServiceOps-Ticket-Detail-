@@ -3863,13 +3863,10 @@ onStackMinimizedChange,
                       )}
 
                       {/* View toggle: list / card */}
-                      <button
-                        title={softwareView === 'list' ? 'Card view' : 'List view'}
-                        onClick={() => setSoftwareView((v) => (v === 'list' ? 'card' : 'list'))}
-                        className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                      >
-                        {softwareView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                      </button>
+                      <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+                        <button title="Card view" onClick={() => setSoftwareView('card')} className={`flex h-8 w-9 items-center justify-center transition-colors ${softwareView === 'card' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><LayoutGrid size={15} /></button>
+                        <button title="List view" onClick={() => setSoftwareView('list')} className={`flex h-8 w-9 items-center justify-center border-l border-[#DFE5ED] transition-colors ${softwareView === 'list' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><ListIcon size={15} /></button>
+                      </div>
 
                       <button
                         title="Add Software"

@@ -3630,13 +3630,10 @@ onStackMinimizedChange,
                         className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                       />
                     </div>
-                    <button
-                      title={consolidatedView === 'list' ? 'Card view' : 'List view'}
-                      onClick={() => setConsolidatedView((v) => (v === 'list' ? 'card' : 'list'))}
-                      className="ml-auto size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                    >
-                      {consolidatedView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                    </button>
+                    <div className="ml-auto flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+                      <button title="Card view" onClick={() => setConsolidatedView('card')} className={`flex h-8 w-9 items-center justify-center transition-colors ${consolidatedView === 'card' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><LayoutGrid size={15} /></button>
+                      <button title="List view" onClick={() => setConsolidatedView('list')} className={`flex h-8 w-9 items-center justify-center border-l border-[#DFE5ED] transition-colors ${consolidatedView === 'list' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><ListIcon size={15} /></button>
+                    </div>
                   </div>
 
                   {consolidatedView === 'list' ? (
@@ -3729,13 +3726,10 @@ onStackMinimizedChange,
                       />
                       <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
                     </div>
-                    <button
-                      title={installationView === 'list' ? 'Card view' : 'List view'}
-                      onClick={() => setInstallationView((v) => (v === 'list' ? 'card' : 'list'))}
-                      className="ml-auto size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                    >
-                      {installationView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                    </button>
+                    <div className="ml-auto flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+                      <button title="Card view" onClick={() => setInstallationView('card')} className={`flex h-8 w-9 items-center justify-center transition-colors ${installationView === 'card' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><LayoutGrid size={15} /></button>
+                      <button title="List view" onClick={() => setInstallationView('list')} className={`flex h-8 w-9 items-center justify-center border-l border-[#DFE5ED] transition-colors ${installationView === 'list' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><ListIcon size={15} /></button>
+                    </div>
                   </div>
 
                   {installationView === 'list' ? (
@@ -3986,13 +3980,10 @@ onStackMinimizedChange,
                       )}
 
                       {/* View toggle: list / card */}
-                      <button
-                        title={softwareView === 'list' ? 'Card view' : 'List view'}
-                        onClick={() => setSoftwareView((v) => (v === 'list' ? 'card' : 'list'))}
-                        className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                      >
-                        {softwareView === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                      </button>
+                      <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+                        <button title="Card view" onClick={() => setSoftwareView('card')} className={`flex h-8 w-9 items-center justify-center transition-colors ${softwareView === 'card' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><LayoutGrid size={15} /></button>
+                        <button title="List view" onClick={() => setSoftwareView('list')} className={`flex h-8 w-9 items-center justify-center border-l border-[#DFE5ED] transition-colors ${softwareView === 'list' ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}><ListIcon size={15} /></button>
+                      </div>
 
                       <button
                         title="Add Software"

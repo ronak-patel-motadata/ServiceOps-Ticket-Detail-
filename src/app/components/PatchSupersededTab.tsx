@@ -201,7 +201,7 @@ function PatchItemNode({ id, data }: NodeProps) {
         <div className="min-w-0 flex-1 text-left">
           <div className="truncate text-[12px] font-semibold text-[#3D8BD0]">{p.kb}</div>
           <div className="truncate text-[11px] text-[#64748B]">{shortTitle(p.title)}</div>
-          <div className="truncate text-[10px] text-[#94A3B8]">{p.build}</div>
+          <div className="truncate text-[10px] text-[#94A3B8]">{p.releaseDate}</div>
         </div>
       </div>
       {/* Count badge → expand; minus badge → collapse (same affordance as the CMDB map) */}

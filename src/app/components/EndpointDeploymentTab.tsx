@@ -180,13 +180,25 @@ export function EndpointDeploymentTab() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" size={16} />
           )}
         </div>
-        <button
-          title={view === 'list' ? 'Card view' : 'List view'}
-          onClick={() => setView((v) => (v === 'list' ? 'card' : 'list'))}
-          className="size-8 flex-shrink-0 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-        >
-          {view === 'list' ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-        </button>
+        {/* View toggle — separate Card · List buttons (Endpoint-tab parity) */}
+        <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+          {([
+            { key: 'card' as const, icon: <LayoutGrid size={15} />, tip: 'Card view' },
+            { key: 'list' as const, icon: <ListIcon size={15} />, tip: 'List view' },
+          ]).map((v, i) => (
+            <Tooltip key={v.key}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setView(v.key)}
+                  className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${view === v.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                >
+                  {v.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{v.tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
       </div>
 
       {/* ---------------- Patch sub-tab ---------------- */}

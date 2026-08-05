@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown, Check, Building2 } from 'lucide-react';
+import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, PackagePlus, FileDown, ChevronDown, Check, Building2, LayoutGrid, List as ListIcon, Monitor } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { toast } from 'sonner';
 import { Pagination } from './Pagination';
 import type { LucideIcon } from 'lucide-react';
@@ -162,6 +163,8 @@ interface PatchComputersTabProps {
 export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false }: PatchComputersTabProps) {
   const [bucket, setBucket] = useState<Bucket>('Missing');
   const [search, setSearch] = useState('');
+  // Card / List view toggle — card default (Deployment-tab parity).
+  const [view, setView] = useState<'card' | 'list'>('card');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showMore, setShowMore] = useState(false);
   // Remote-office group filter — scopes the whole tab, so the bucket counts reflect it too.
@@ -237,12 +240,12 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   // Any change to the bucket / group / search resets to the first page.
-  useEffect(() => { setCurrentPage(1); }, [bucket, office, search]);
+  useEffect(() => { setCurrentPage(1); }, [bucket, office, search, view]);
   const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
   const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="px-6 py-4">
+    <div className="@container px-6 py-4">
       {(() => {
         /* Group filter — scopes the endpoints AND the pill counts. Rendered in the top pills row
            normally; in hideBuckets (deployment page) mode it sits RIGHT of the search field, so
@@ -343,6 +346,25 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
             Add Missing Computer
           </button>
         )}
+        {/* View toggle — Card · List (Deployment-tab parity) */}
+        <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+          {([
+            { key: 'card' as const, icon: <LayoutGrid size={15} />, tip: 'Card view' },
+            { key: 'list' as const, icon: <ListIcon size={15} />, tip: 'List view' },
+          ]).map((v, i) => (
+            <Tooltip key={v.key}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setView(v.key)}
+                  className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${view === v.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                >
+                  {v.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{v.tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
       </div>
         </>
         );
@@ -391,6 +413,65 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
         </div>
       )}
 
+      {view === 'card' ? (
+        /* Card view — container-query responsive (Deployment-tab recipe): 1 col narrow,
+           2 from @2xl, 3 from @4xl. Checkbox in the header keeps bulk-select working. */
+        pageRows.length === 0 ? (
+          <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No {hideBuckets ? '' : bucket.toLowerCase() + ' '}endpoints found.</div>
+        ) : (
+        <div className="grid gap-4 grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3">
+          {pageRows.map((c) => (
+            <div key={c.id} className={`rounded-xl border bg-white p-4 transition-all ${selected.has(c.id) ? 'border-[#3D8BD0] shadow-sm' : 'border-[#E5E7EB] hover:border-[#3D8BD0] hover:shadow-sm'}`}>
+              {/* Header: checkbox · icon badge · (health dot + EP pill + host) · delete */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selected.has(c.id)}
+                  onChange={(e) => toggleRow(c.id, e.target.checked)}
+                  className="mt-2.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                />
+                <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><Monitor size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
+                    <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{c.id}</span>
+                  </div>
+                  <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={c.hostName}>{c.hostName}</button>
+                </div>
+                <button
+                  title="Remove"
+                  onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
+                  className="flex-shrink-0 p-1 text-[#9CA3AF] hover:text-[#DC2626] transition-colors"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+
+              {/* Details */}
+              <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
+                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="text-[12px] text-[#364658] truncate">{c.ipAddress}</div></div>
+                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">OS Name</div><div className="text-[12px] text-[#364658] truncate" title={c.osName}>{c.osName}</div></div>
+                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Version</div><div className="text-[12px] text-[#364658] truncate">{c.version}</div></div>
+                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Used By</div><div className="text-[12px] truncate">{c.usedBy ? <span className="text-[#3D8BD0]">{c.usedBy}</span> : <Dash />}</div></div>
+                <div className="min-w-0">
+                  <div className="text-[11px] text-[#9CA3AF]">System Health</div>
+                  <div className="text-[12px] text-[#364658]">
+                    {c.systemHealth ? (
+                      <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.systemHealth === 'Healthy' ? '#22C55E' : '#EF4444' }} />{c.systemHealth}</span>
+                    ) : <Dash />}
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] text-[#9CA3AF]">Remote Office</div>
+                  <div className="text-[12px]">{c.remoteOffice ? <span className="inline-block max-w-full truncate rounded bg-[#EEF2F6] px-2 py-0.5 text-[12px] text-[#364658]">{c.remoteOffice}</span> : <Dash />}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        )
+      ) : (
+      <>
       {/* Table — standard borderless style (matches the other detail-page tabs) */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1500px]">
@@ -469,6 +550,8 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
           </tbody>
         </table>
       </div>
+      </>
+      )}
 
       {/* Pagination — shared component (same design as the list-page grids). Sticky to the bottom
           of the scroll viewport; the negative margins let it span the tab's horizontal padding and
