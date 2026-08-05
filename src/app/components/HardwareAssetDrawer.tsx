@@ -302,6 +302,44 @@ onStackMinimizedChange,
   const [propertiesSearch, setPropertiesSearch] = useState('');
   const [showLocationMap, setShowLocationMap] = useState(false);
   const [showLocationHistory, setShowLocationHistory] = useState(false);
+  // Location History date filter (same From/To popup as the History tab's Audit Trail filter).
+  const [locHistFilterOpen, setLocHistFilterOpen] = useState(false);
+  const [locHistFrom, setLocHistFrom] = useState('');
+  const [locHistTo, setLocHistTo] = useState('');
+  const [locHistDraftFrom, setLocHistDraftFrom] = useState('');
+  const [locHistDraftTo, setLocHistDraftTo] = useState('');
+  // Geolocation config: `geoConfigured` toggles the card between the set-location view (with an
+  // edit pencil) and an empty "Add Location" state; the config side drawer holds the form.
+  // Seeded per asset (deterministic id hash, like the Impact KPI) so ~1 in 3 assets demos the
+  // blank state out of the box; Add Location / Enable=No flips it at runtime.
+  const geoSeedFor = (id: string | null | undefined) => ([...(id ?? '')].reduce((a, c) => a + c.charCodeAt(0), 0) % 3) !== 0;
+  const [geoConfigured, setGeoConfigured] = useState(() => geoSeedFor(activeAssetId));
+  useEffect(() => { setGeoConfigured(geoSeedFor(activeAssetId)); }, [activeAssetId]);
+  const [showGeoConfig, setShowGeoConfig] = useState(false);
+  const [geoEnabled, setGeoEnabled] = useState<'yes' | 'no'>('yes');
+  const [geoPref, setGeoPref] = useState<'default' | 'live'>('default');
+  const [geoLat, setGeoLat] = useState('23.0225');
+  const [geoLng, setGeoLng] = useState('72.5714');
+  // Open the config drawer — seed the form from the current configured state.
+  const openGeoConfig = () => { setGeoEnabled(geoConfigured ? 'yes' : 'no'); setShowGeoConfig(true); };
+  // "Locate On Map" picker — click the map to drop the pin manually; Done commits the draft
+  // coordinates back into the form. `pickSpan` = visible longitude span (zoom level).
+  const [showGeoPick, setShowGeoPick] = useState(false);
+  const [pickLat, setPickLat] = useState(23.0225);
+  const [pickLng, setPickLng] = useState(72.5714);
+  const [pickSpan, setPickSpan] = useState(40);
+  const geoPickMapRef = useRef<HTMLDivElement>(null);
+  const openGeoPick = () => {
+    const lat = parseFloat(geoLat); const lng = parseFloat(geoLng);
+    setPickLat(Number.isFinite(lat) ? lat : 23.0225);
+    setPickLng(Number.isFinite(lng) ? lng : 72.5714);
+    setPickSpan(40);
+    setShowGeoPick(true);
+  };
+  // Web-Mercator helpers so a click on the embedded map converts to real coordinates.
+  const mercY = (latDeg: number) => Math.log(Math.tan(Math.PI / 4 + (latDeg * Math.PI) / 360));
+  const invMercY = (y: number) => ((2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180) / Math.PI;
+  const saveGeoConfig = () => { setGeoConfigured(geoEnabled === 'yes'); setShowGeoConfig(false); toast.success('Geolocation updated'); };
   // Whether the Hardware tab's jump-to-section list is open.
   const [hardwareNavOpen, setHardwareNavOpen] = useState(false);
   // Common search across all Hardware tab sections.
@@ -3003,22 +3041,50 @@ onStackMinimizedChange,
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white flex flex-col">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
-                    <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                    {/* View history only once a location is configured */}
+                    {geoConfigured && (
+                      <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
+                    )}
                   </div>
                   <div className="flex-1 flex items-center">
-                    <div className="w-full flex items-center gap-3 rounded-lg bg-[#F9FAFB] px-3 py-2.5">
-                      <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-[#364658] truncate">Ahmedabad (India)</div>
-                        <div className="text-[12px] text-[#7B8FA5]">Since 12 Jan 2026</div>
+                    {geoConfigured ? (
+                      <div className="w-full flex items-center gap-3 rounded-lg bg-[#F9FAFB] px-3 py-2.5">
+                        <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-medium text-[#364658] truncate">Ahmedabad (India)</div>
+                          <div className="text-[12px] text-[#7B8FA5]">Since 12 Jan 2026</div>
+                        </div>
+                        <button
+                          onClick={() => setShowLocationMap(true)}
+                          className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex-shrink-0"
+                        >
+                          View on Map
+                        </button>
+                        {/* Edit the configured geolocation */}
+                        <button
+                          onClick={openGeoConfig}
+                          title="Edit geolocation"
+                          className="flex size-8 flex-shrink-0 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#6B7280] hover:text-[#3D8BD0] hover:border-[#3D8BD0] transition-colors"
+                        >
+                          <Edit size={15} />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setShowLocationMap(true)}
-                        className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex-shrink-0"
-                      >
-                        View on Map
-                      </button>
-                    </div>
+                    ) : (
+                      /* Empty state — no location configured yet: short text left, action right */
+                      <div className="w-full flex items-center gap-3 rounded-lg border border-dashed border-[#DFE5ED] bg-[#F9FAFB] px-3 py-2.5">
+                        <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-medium text-[#364658]">No location set</div>
+                          <div className="text-[12px] text-[#7B8FA5] truncate">Configure geolocation to track this asset.</div>
+                        </div>
+                        <button
+                          onClick={openGeoConfig}
+                          className="inline-flex flex-shrink-0 items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
+                        >
+                          <Plus size={16} /> Add Location
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3068,10 +3134,10 @@ onStackMinimizedChange,
             </div>
             )}
 
-            {/* Current Location — map popup */}
+            {/* Current Location — map popup (above the geolocation config drawer, which can open it) */}
             {showLocationMap && (
               <div
-                className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
+                className="fixed inset-0 z-[10005] flex items-center justify-center bg-black/50 p-4"
                 onClick={() => setShowLocationMap(false)}
               >
                 <div
@@ -3092,6 +3158,17 @@ onStackMinimizedChange,
                     </button>
                   </div>
                   <div className="p-5">
+                    {/* Geolocation sync info — clean label-over-value band above the map */}
+                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-[#EEF1F4] bg-[#F8FAFC] px-4 py-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-[#7B8FA5]">Geolocation Last Sync Time</div>
+                        <div className="mt-0.5 text-[13px] font-medium text-[#364658]">Jul 23, 2026 04:12 PM</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-[#7B8FA5]">Geolocation Last Sync Location</div>
+                        <div className="mt-0.5 text-[13px] font-medium text-[#364658] break-words">Ahmedabad, Gujarat, India (23.0225° N, 72.5714° E)</div>
+                      </div>
+                    </div>
                     <iframe
                       title="Asset location map"
                       className="w-full h-[420px] rounded-lg border border-[#E5E7EB]"
@@ -3127,51 +3204,294 @@ onStackMinimizedChange,
                   className="fixed top-0 right-0 h-full w-[440px] max-w-[90vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
                   style={{ transform: showLocationHistory ? 'translateX(0)' : 'translateX(100%)' }}
                 >
-                  {/* Header */}
+                  {/* Header — title + date-range text + filter (History-tab recipe) + close */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <div className="flex items-center gap-2">
                       <MapPin size={18} className="text-[#3D8BD0]" />
                       <h2 className="text-[18px] font-semibold text-[#111827]">Location History</h2>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {(locHistFrom || locHistTo) && (() => {
+                        const fmt = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                        return (
+                          <span className="text-[12px] text-[#7B8FA5]">
+                            {locHistFrom && locHistTo ? `${fmt(locHistFrom)} — ${fmt(locHistTo)}` : locHistFrom ? `From ${fmt(locHistFrom)}` : `Until ${fmt(locHistTo)}`}
+                          </span>
+                        );
+                      })()}
+                      <div className="relative">
+                        <button
+                          onClick={() => { setLocHistDraftFrom(locHistFrom); setLocHistDraftTo(locHistTo); setLocHistFilterOpen((o) => !o); }}
+                          title="Filter"
+                          className={`size-8 flex items-center justify-center rounded border transition-colors hover:bg-[#F3F4F6] ${locHistFrom || locHistTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}
+                        >
+                          <Filter size={15} />
+                        </button>
+                        {locHistFilterOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setLocHistFilterOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
+                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
+                              <div className="space-y-3">
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><DateField value={locHistDraftFrom} onChange={setLocHistDraftFrom} /></div>
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={locHistDraftTo} min={locHistDraftFrom || undefined} onChange={setLocHistDraftTo} /></div>
+                              </div>
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                                <button onClick={() => { setLocHistFrom(''); setLocHistTo(''); setLocHistDraftFrom(''); setLocHistDraftTo(''); setLocHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                                <button onClick={() => { setLocHistFrom(locHistDraftFrom); setLocHistTo(locHistDraftTo); setLocHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowLocationHistory(false)}
+                        className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  {/* Timeline — entries whose stay OVERLAPS the applied From/To range */}
+                  <div className="flex-1 overflow-auto px-6 py-5">
+                    {(() => {
+                      const all = [
+                        { name: 'Ahmedabad (India)', period: 'Since 12 Jan 2026', by: 'Riya Shah', current: true, start: '2026-01-12', end: '' },
+                        { name: 'Mumbai (India)', period: '04 Aug 2024 – 12 Jan 2026', by: 'Karan Mehta', current: false, start: '2024-08-04', end: '2026-01-12' },
+                        { name: 'Pune (India)', period: '17 Mar 2023 – 04 Aug 2024', by: 'Amit Verma', current: false, start: '2023-03-17', end: '2024-08-04' },
+                        { name: 'Bengaluru (India)', period: '02 Sep 2022 – 17 Mar 2023', by: 'System (provisioning)', current: false, start: '2022-09-02', end: '2023-03-17' },
+                      ];
+                      const rows = all.filter((h) =>
+                        (!locHistFrom || !h.end || h.end >= locHistFrom) && (!locHistTo || h.start <= locHistTo)
+                      );
+                      if (rows.length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <span className="flex size-11 items-center justify-center rounded-full bg-[#F3F4F6] text-[#9CA3AF] mb-2"><MapPin size={20} /></span>
+                            <p className="text-[13px] font-medium text-[#364658]">No location changes in this range</p>
+                            <p className="text-[12px] text-[#7B8FA5] mt-0.5">Adjust or clear the date filter to see more history.</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-0">
+                          {rows.map((h, i, arr) => (
+                            <div key={h.name + h.period} className="flex gap-3">
+                              {/* timeline rail */}
+                              <div className="flex flex-col items-center">
+                                <span className={`mt-1 size-2.5 rounded-full flex-shrink-0 ${h.current ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`} />
+                                {i < arr.length - 1 && <span className="w-px flex-1 bg-[#E5E7EB]" />}
+                              </div>
+                              <div className={`min-w-0 ${i < arr.length - 1 ? 'pb-4' : ''}`}>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] font-medium text-[#364658]">{h.name}</span>
+                                  {h.current && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF3FB] text-[#3D8BD0]">Current</span>
+                                  )}
+                                </div>
+                                <div className="text-[12px] text-[#64748B] mt-0.5">{h.period}</div>
+                                <div className="text-[11px] text-[#9CA3AF] mt-0.5">Updated by {h.by}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Geolocation configuration — side drawer (Add / Edit location) */}
+            {showGeoConfig && (
+              <>
+                <div
+                  className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300"
+                  onClick={() => setShowGeoConfig(false)}
+                />
+                <div
+                  className="fixed top-0 right-0 h-full w-[480px] max-w-[90vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
+                  style={{ transform: showGeoConfig ? 'translateX(0)' : 'translateX(100%)' }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={18} className="text-[#3D8BD0]" />
+                      <h2 className="text-[18px] font-semibold text-[#111827]">{geoConfigured ? 'Edit Geolocation' : 'Add Geolocation'}</h2>
+                    </div>
                     <button
-                      onClick={() => setShowLocationHistory(false)}
+                      onClick={() => setShowGeoConfig(false)}
                       className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
                   </div>
-                  {/* Timeline */}
+
+                  {/* Body — the geolocation form only (map lives behind "View on Map" on the card;
+                      history behind the card's "View history") */}
                   <div className="flex-1 overflow-auto px-6 py-5">
-                    <div className="space-y-0">
-                      {[
-                        { name: 'Ahmedabad (India)', period: 'Since 12 Jan 2026', by: 'Riya Shah', current: true },
-                        { name: 'Mumbai (India)', period: '04 Aug 2024 – 12 Jan 2026', by: 'Karan Mehta', current: false },
-                        { name: 'Pune (India)', period: '17 Mar 2023 – 04 Aug 2024', by: 'Amit Verma', current: false },
-                        { name: 'Bengaluru (India)', period: '02 Sep 2022 – 17 Mar 2023', by: 'System (provisioning)', current: false },
-                      ].map((h, i, arr) => (
-                        <div key={h.name + h.period} className="flex gap-3">
-                          {/* timeline rail */}
-                          <div className="flex flex-col items-center">
-                            <span className={`mt-1 size-2.5 rounded-full flex-shrink-0 ${h.current ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`} />
-                            {i < arr.length - 1 && <span className="w-px flex-1 bg-[#E5E7EB]" />}
-                          </div>
-                          <div className={`min-w-0 ${i < arr.length - 1 ? 'pb-4' : ''}`}>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[13px] font-medium text-[#364658]">{h.name}</span>
-                              {h.current && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF3FB] text-[#3D8BD0]">Current</span>
-                              )}
-                            </div>
-                            <div className="text-[12px] text-[#64748B] mt-0.5">{h.period}</div>
-                            <div className="text-[11px] text-[#9CA3AF] mt-0.5">Updated by {h.by}</div>
-                          </div>
+                    <div className="space-y-6">
+                      {/* Enable Geolocation */}
+                      <div>
+                        <div className="text-[13px] text-[#64748B] mb-2">Enable Geolocation <span className="text-[#EF4444]">*</span></div>
+                        <div className="flex items-center gap-6">
+                          {(['yes', 'no'] as const).map((v) => (
+                            <label key={v} className="inline-flex items-center gap-2 cursor-pointer">
+                              <input type="radio" name="geoEnabled" checked={geoEnabled === v} onChange={() => setGeoEnabled(v)} className="accent-[#3D8BD0]" />
+                              <span className="text-[13px] text-[#364658] capitalize">{v}</span>
+                            </label>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+
+                      {/* The rest only applies when geolocation is enabled */}
+                      {geoEnabled === 'yes' && (
+                        <>
+                          {/* Geolocation Preference */}
+                          <div>
+                            <div className="text-[13px] text-[#64748B] mb-2">Geolocation Preference <span className="text-[#EF4444]">*</span></div>
+                            <div className="flex items-center gap-6">
+                              <label className="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="geoPref" checked={geoPref === 'default'} onChange={() => setGeoPref('default')} className="accent-[#3D8BD0]" />
+                                <span className="text-[13px] text-[#364658]">Default</span>
+                              </label>
+                              <label className="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="geoPref" checked={geoPref === 'live'} onChange={() => setGeoPref('live')} className="accent-[#3D8BD0]" />
+                                <span className="text-[13px] text-[#364658]">Live Location</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Latitude / Longitude */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="min-w-0">
+                              <label className="block text-[13px] text-[#64748B] mb-1.5">Latitude</label>
+                              <input value={geoLat} onChange={(e) => setGeoLat(e.target.value)} disabled={geoPref === 'live'} className="w-full h-9 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]" />
+                            </div>
+                            <div className="min-w-0">
+                              <label className="block text-[13px] text-[#64748B] mb-1.5">Longitude</label>
+                              <input value={geoLng} onChange={(e) => setGeoLng(e.target.value)} disabled={geoPref === 'live'} className="w-full h-9 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]" />
+                            </div>
+                          </div>
+
+                          {/* Locate On Map — opens the pin-picker popup above this drawer */}
+                          <div>
+                            <label className="block text-[13px] text-[#64748B] mb-1.5">Locate On Map</label>
+                            <button
+                              onClick={openGeoPick}
+                              title="Locate on map"
+                              className="flex size-9 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#3D8BD0] hover:border-[#3D8BD0] hover:bg-[#F5F9FD] transition-colors"
+                            >
+                              <MapPin size={16} />
+                            </button>
+                          </div>
+                          {geoPref === 'live' && (
+                            <p className="text-[12px] text-[#7B8FA5]">Live Location is tracked from the agent — coordinates are read-only.</p>
+                          )}
+                        </>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Footer — Update / Cancel */}
+                  <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
+                    <button onClick={saveGeoConfig} className="rounded bg-[#111827] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#000] transition-colors">Update</button>
+                    <button onClick={() => setShowGeoConfig(false)} className="rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors">Cancel</button>
                   </div>
                 </div>
               </>
             )}
+
+            {/* Locate On Map — pin-picker popup (opens above the geolocation drawer). Click the
+                map to drop the pin; the marker re-renders at the real clicked coordinates. */}
+            {showGeoPick && (() => {
+              // Compute a bbox around the draft pin matching the map's aspect ratio, so the
+              // embed doesn't letterbox and click→coordinate mapping stays accurate.
+              const el = geoPickMapRef.current;
+              const aspect = el ? Math.max(0.5, el.clientWidth / el.clientHeight) : 1.9;
+              const lonHalf = pickSpan / 2;
+              const yHalf = ((pickSpan * Math.PI) / 180 / aspect) / 2;
+              const cy = mercY(pickLat);
+              const latMin = invMercY(cy - yHalf);
+              const latMax = invMercY(cy + yHalf);
+              const lonMin = pickLng - lonHalf;
+              const lonMax = pickLng + lonHalf;
+              const bbox = `${lonMin}%2C${latMin}%2C${lonMax}%2C${latMax}`;
+              const placePin = (e: React.MouseEvent<HTMLDivElement>) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const fx = (e.clientX - rect.left) / rect.width;
+                const fy = (e.clientY - rect.top) / rect.height;
+                const yMin = mercY(latMin); const yMax = mercY(latMax);
+                setPickLng(+(lonMin + fx * (lonMax - lonMin)).toFixed(4));
+                setPickLat(+invMercY(yMax - fy * (yMax - yMin)).toFixed(4));
+              };
+              return (
+                <div
+                  className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/50 p-4"
+                  onClick={() => setShowGeoPick(false)}
+                >
+                  <div
+                    className="bg-white rounded-xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={16} className="text-[#3D8BD0]" />
+                        <h3 className="text-[14px] font-semibold text-[#364658]">Locate On Map</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowGeoPick(false)}
+                        className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"
+                        title="Close"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Map — click anywhere to place the pin */}
+                    <div className="p-5 pb-0">
+                      <div ref={geoPickMapRef} className="relative h-[440px] w-full overflow-hidden rounded-lg border border-[#E5E7EB]">
+                        <iframe
+                          title="Locate on map"
+                          className="absolute inset-0 h-full w-full"
+                          loading="lazy"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${pickLat}%2C${pickLng}`}
+                        />
+                        {/* Click-capture layer (the iframe can't report clicks) */}
+                        <div className="absolute inset-0 cursor-crosshair" onClick={placePin} />
+                        {/* Hint chip */}
+                        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#111827]/80 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm">
+                          Click on the map to place the pin
+                        </div>
+                        {/* Zoom controls — same card recipe as the canvas maps */}
+                        <div className="absolute right-3 top-3 flex flex-col overflow-hidden rounded-lg border border-[#E5E7EB] bg-white shadow-sm">
+                          <button onClick={() => setPickSpan((s) => Math.max(1, s / 2))} className="flex size-8 items-center justify-center text-[#364658] hover:bg-[#F3F4F6] transition-colors" title="Zoom in"><Plus size={14} /></button>
+                          <button onClick={() => setPickSpan((s) => Math.min(160, s * 2))} className="flex size-8 items-center justify-center border-t border-[#E5E7EB] text-[#364658] hover:bg-[#F3F4F6] transition-colors" title="Zoom out"><Minus size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer — picked coordinates + Done / Cancel */}
+                    <div className="flex items-center justify-between gap-3 px-5 py-4 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                        <MapPin size={13} className="text-[#3D8BD0]" />
+                        Pin at <span className="font-medium text-[#364658] tabular-nums">{pickLat}°, {pickLng}°</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setGeoLat(String(pickLat)); setGeoLng(String(pickLng)); setShowGeoPick(false); }}
+                          className="rounded bg-[#111827] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#000] transition-colors"
+                        >
+                          Done
+                        </button>
+                        <button onClick={() => setShowGeoPick(false)} className="rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors">Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {activeMainTab === 'properties' && (
             <div className="px-6 py-6">
@@ -4595,8 +4915,9 @@ onStackMinimizedChange,
                     ))}
                   </div>
 
-                  {/* Depreciation + Cost breakdown — one row */}
-                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-start`}>
+                  {/* Depreciation + Cost breakdown — one row, equal heights (the breakdown rows
+                      spread to fill whatever height the Depreciation card takes) */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
                   {/* Depreciation chart */}
                   <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -4643,12 +4964,16 @@ onStackMinimizedChange,
                             <circle cx={px((elapsed / lifeMonths) * 12)} cy={py(currentBV)} r={4} fill="#3D8BD0" stroke="#fff" strokeWidth={2} />
                           )}
                         </svg>
+                        {/* Depreciation properties — the product's field set, minus Purchase Cost
+                            (already a top hero KPI). Salvage type/percentage derive from config. */}
                         <div className="flex flex-wrap gap-2 mt-3">
                           {[
-                            ['Method', configured ? deprConfig.method : (deprConfig.derivation === 'none' ? 'Do Not Depreciate' : 'Not configured')],
-                            ['Purchase Cost', `${num(base)} ATS`],
-                            ['Salvage', deprConfig.salvageValue ? `${num(salvage)} ${deprConfig.currency}` : '—'],
-                            [deprConfig.type === 'useful' ? 'Useful Life' : 'Rate', deprConfig.usefulLife ? (deprConfig.type === 'useful' ? `${deprConfig.usefulLife} mo` : `${deprConfig.usefulLife}%`) : '—'],
+                            ['Acquisition Date', 'Feb 26, 2025'],
+                            ['Depreciation Method', configured ? deprConfig.method : (deprConfig.derivation === 'none' ? 'Do Not Depreciate' : 'Not configured')],
+                            [deprConfig.type === 'useful' ? 'Useful Life' : 'Depreciation %/Year', deprConfig.usefulLife ? (deprConfig.type === 'useful' ? `${deprConfig.usefulLife} mo` : `${deprConfig.usefulLife}%`) : '—'],
+                            ['Salvage Value Type', deprConfig.salvageValue ? 'Value' : '—'],
+                            ['Salvage Percentage', deprConfig.salvageValue && base > 0 ? `${Math.round((salvage / base) * 100)}%` : '—'],
+                            ['Salvage Value', deprConfig.salvageValue ? `${num(salvage)} ${deprConfig.currency}` : '—'],
                           ].map(([l, v]) => (
                             <span key={l} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F9FAFB] text-[12px]">
                               <span className="text-[#7B8FA5]">{l}:</span>
@@ -4663,9 +4988,9 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Cost breakdown */}
-                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
+                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5 flex flex-col">
                     <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Cost breakdown</h3>
-                    <div className="space-y-3">
+                    <div className="flex-1 flex flex-col justify-between gap-3">
                       {factors.map(({ f, c }) => {
                         const amt = byFactor(f);
                         return (
@@ -4702,7 +5027,7 @@ onStackMinimizedChange,
                                 </div>
                                 {r.description && <div className="text-[12px] text-[#7B8FA5] mt-0.5 truncate">{r.description}</div>}
                               </div>
-                              <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                              <div className="hidden group-hover:flex items-center gap-2.5 flex-shrink-0">
                                 <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={14} /></button>
                                 <button title="Delete" onClick={() => setCostRecords((prev) => prev.filter((x) => x.id !== r.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={14} /></button>
                               </div>
