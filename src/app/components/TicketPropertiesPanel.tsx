@@ -2862,7 +2862,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <button
                     key={f}
                     onClick={() => setSimilarFilter(f)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] font-medium border transition-colors ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium border transition-colors ${
                       similarFilter === f
                         ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
                         : 'border-[#DFE5ED] bg-white text-[#7B8FA5] hover:bg-[#F5F7FA]'
