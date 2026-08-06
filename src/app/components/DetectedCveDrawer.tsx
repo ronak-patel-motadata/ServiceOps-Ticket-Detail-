@@ -1157,7 +1157,7 @@ onStackMinimizedChange,
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
       // "patches-list" = the patches this deployment rolls out (after Endpoint).
       // CVE page: no Deployment tab (deployment runs live on the Patch Deployment module).
-      let allTabs: string[] = ['properties', 'computers', 'patches-list', 'audit'];
+      let allTabs: string[] = ['properties', 'patches-list', 'computers', 'remediation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1184,6 +1184,7 @@ onStackMinimizedChange,
         'relations': 80,
         'computers': 100,
         'patches-list': 90,
+        'remediation': 115,
         'vulnerabilities': 120,
         'superseded': 110,
         'audit': 100,
@@ -2566,8 +2567,9 @@ onStackMinimizedChange,
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
-                    { id: 'computers', label: 'Endpoint' },
                     { id: 'patches-list', label: 'Patches' },
+                    { id: 'computers', label: 'Endpoint' },
+                    { id: 'remediation', label: 'Remediation' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2591,6 +2593,7 @@ onStackMinimizedChange,
                     'relations': 'Relations',
                     'computers': 'Endpoint',
                     'patches-list': 'Patches',
+                    'remediation': 'Remediation',
                     'vulnerabilities': 'Vulnerabilities',
                     'superseded': 'Superseded',
                     'audit': 'Audit Trail'
@@ -6527,8 +6530,9 @@ onStackMinimizedChange,
             {/* Patches Tab Content — the patches this deployment rolls out */}
             {(activeMainTab as string) === 'patches-list' && <PatchDeploymentPatchesTab />}
 
-            {/* Installation Tab Content — deployment records for this patch */}
-            {activeMainTab === 'installation' && (
+            {/* Remediation Tab Content — the CVE's fixing deployments (same grid + data as the
+                Patch page's Deployment tab) */}
+            {activeMainTab === 'remediation' && (
               <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} />
             )}
 

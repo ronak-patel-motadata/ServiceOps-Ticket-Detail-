@@ -55,7 +55,7 @@ import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES, buildDeploymentMatrix } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard } from './OverviewKpiCards';
+import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -1439,7 +1439,7 @@ onStackMinimizedChange,
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
       // "patches-list" = the patches this deployment rolls out (after Endpoint).
-      let allTabs: string[] = ['properties', 'computers', 'patches-list', 'installation', 'audit'];
+      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'patches-list', 'installation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -2453,25 +2453,12 @@ onStackMinimizedChange,
                 </span>
               ) });
 
-              // Install progress — LIVE from the Endpoint tab state (installed / in-scope,
-              // ignored endpoints excluded from the denominator like SCCM compliance).
-              const installed = patchComputers.filter((c) => c.bucket === 'Installed').length;
-              const inScope = patchComputers.filter((c) => c.bucket !== 'Ignored').length;
-              const pct = inScope ? Math.round((installed / inScope) * 100) : 0;
-              const pctColor = pct >= 90 ? '#22A06B' : pct >= 50 ? '#D97706' : '#EF4444';
-              items.push({ key: 'progress', tip: `Install Progress: ${installed} of ${inScope} in-scope endpoints installed (${patchComputers.length - inScope} ignored)`, node: (
+              // Deployment Policy — the policy this run executes under (replaces the old
+              // Install Progress + Patches KPIs).
+              items.push({ key: 'policy', tip: 'Deployment Policy: Production Servers — Staged Rollout', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Install Progress</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{installed}/{inScope}</span>
-                  <span className="text-[12px] font-medium" style={{ color: pctColor }}>{pct}%</span>
-                </span>
-              ) });
-
-              // Rollout scope — how many patches this run carries.
-              items.push({ key: 'patches', tip: `Patches in this deployment: ${DEPLOYED_PATCHES.length}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Patches</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{DEPLOYED_PATCHES.length}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Deployment Policy</span>
+                  <span className="text-[12px] font-medium text-[#364658]">Production Servers — Staged Rollout</span>
                 </span>
               ) });
 
@@ -2825,6 +2812,7 @@ onStackMinimizedChange,
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
+                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
                     { id: 'computers', label: 'Endpoint' },
                     { id: 'patches-list', label: 'Patches' },
                     { id: 'installation', label: 'Deployment' },
@@ -3257,14 +3245,24 @@ onStackMinimizedChange,
 
                 const patchesKpi = kpis.find((k) => k.key === 'patches')!;
                 const endpointsKpi = kpis.find((k) => k.key === 'endpoints')!;
+                // Vulnerabilities across the deployment's patches (same card as the Patch page).
+                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
+                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
 
                 return (
                   <>
-                    {/* Row 1 — Patches + Endpoints (the two things being deployed / deployed to).
-                        Different forms so the pair doesn't repeat the same donut: Patches keeps
-                        the gauge, Endpoints uses the horizontal bar list. */}
-                    <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      <DonutKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} wide={wide} />
+                    {/* Row 1 — Vulnerabilities + Patches + Endpoints, each in a DIFFERENT form
+                        (donut · columns · bar list) so the trio doesn't repeat the same chart. */}
+                    <div className={`grid gap-4 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                      <DonutKpiCard
+                        label="Vulnerabilities" icon={ShieldCheck} color="#DC2626" total={VULNERABILITIES.length}
+                        segments={[
+                          { label: 'Approved', value: vulnApproved, color: '#22C55E' },
+                          { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
+                        ]}
+                        onClick={() => setActiveMainTab('vulnerabilities')} wide={wide}
+                      />
+                      <ColumnKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} />
                       <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
                     </div>
 

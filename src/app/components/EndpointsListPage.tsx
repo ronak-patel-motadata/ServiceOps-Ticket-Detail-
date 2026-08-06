@@ -28,13 +28,13 @@ export interface Endpoint {
 export const mockEndpoints: Endpoint[] = [
   { id: 'EP-408', agentOnline: true, hostName: 'FIN-LT-0188', ipAddress: '10.20.22.188', osName: 'Microsoft Windows 11 Pro', version: '10.0.26200.8328', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Mumbai Office', systemHealth: 'Healthy', tags: ['finance'], rebootRequired: 'No' },
   { id: 'EP-406', agentOnline: true, hostName: 'SAL-LT-0204', ipAddress: '10.20.23.204', osName: 'Microsoft Windows 10 Enterprise', version: '10.0.19045.6466', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Bengaluru Campus', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
-  { id: 'EP-400', agentOnline: true, hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', osName: 'Microsoft Windows 11 Pro', version: '10.0.26200.8655', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Hyderabad Office', systemHealth: 'Healthy', tags: [], rebootRequired: 'Yes' },
+  { id: 'EP-400', agentOnline: true, hostName: 'ENG-LT-0312', ipAddress: '10.20.19.112', osName: 'Ubuntu Linux 22.04 LTS', version: '6.8.0-45-generic', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Hyderabad Office', systemHealth: 'Healthy', tags: [], rebootRequired: 'Yes' },
   { id: 'EP-397', agentOnline: true, hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', osName: 'Microsoft Windows 11 Pro', version: '10.0.26200.8655', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Ahmedabad HQ', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
   { id: 'EP-396', agentOnline: false, hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', osName: 'Microsoft Windows 10 Pro', version: null, servicePack: null, architecture: '64 BIT', remoteOffice: 'Mumbai Office', systemHealth: null, tags: [], rebootRequired: 'No' },
-  { id: 'EP-392', agentOnline: true, hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', osName: 'Microsoft Windows 11 Enterprise', version: '10.0.26200.7462', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Ahmedabad HQ', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
+  { id: 'EP-392', agentOnline: true, hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', osName: 'macOS 14 Sonoma', version: '14.7.1 (23H222)', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Ahmedabad HQ', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
   { id: 'EP-391', agentOnline: true, hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', osName: 'Microsoft Windows 10 Pro', version: '10.0.19045.6466', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Bengaluru Campus', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
-  { id: 'EP-389', agentOnline: false, hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', osName: 'Microsoft Windows 11 Pro', version: '10.0.26200.6691', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Delhi NCR Office', systemHealth: 'Warning', tags: [], rebootRequired: 'Yes' },
-  { id: 'EP-388', agentOnline: true, hostName: 'PARTH-UPADHYAY', ipAddress: '10.20.40.182', osName: 'Microsoft Windows 11 Pro', version: '10.0.26200.8037', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Ahmedabad HQ', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
+  { id: 'EP-389', agentOnline: false, hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', osName: 'Red Hat Enterprise Linux 9', version: '5.14.0-427.el9', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Delhi NCR Office', systemHealth: 'Warning', tags: [], rebootRequired: 'Yes' },
+  { id: 'EP-388', agentOnline: true, hostName: 'PARTH-UPADHYAY', ipAddress: '10.20.40.182', osName: 'macOS 15 Sequoia', version: '15.5 (24F74)', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Ahmedabad HQ', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
   { id: 'EP-386', agentOnline: true, hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', osName: 'Microsoft Windows 10 Pro', version: '10.0.19045.6466', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Bengaluru Campus', systemHealth: 'Healthy', tags: ['vip'], rebootRequired: 'No' },
   { id: 'EP-384', agentOnline: true, hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', osName: 'Microsoft Windows 10 Pro', version: '10.0.19045.6466', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Pune Development Center', systemHealth: 'Healthy', tags: [], rebootRequired: 'No' },
   { id: 'EP-383', agentOnline: false, hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', osName: 'Microsoft Windows 10 Pro', version: '10.0.19045.6466', servicePack: 'None', architecture: '64 BIT', remoteOffice: 'Delhi NCR Office', systemHealth: null, tags: [], rebootRequired: 'No' },
@@ -123,7 +123,7 @@ const endpointToPatchShape = (e: Endpoint): Patch => ({
   rebootRequired: e.rebootRequired === 'Yes' ? 'Yes' : 'No',
   approvalStatus: 'Approved',
   category: 'Endpoint',
-  endpoint: { agentOnline: e.agentOnline, systemHealth: e.systemHealth },
+  endpoint: { agentOnline: e.agentOnline, systemHealth: e.systemHealth, osName: e.osName },
 });
 
 export function EndpointsListPage({ onNavigate }: { onNavigate: (page: string) => void }) {

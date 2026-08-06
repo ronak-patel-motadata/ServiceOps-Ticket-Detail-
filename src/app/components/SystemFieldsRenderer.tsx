@@ -66,8 +66,8 @@ export function SystemFieldsRenderer({
     return (
       <div className="space-y-3">
         {PURCHASE_SYSTEM_FIELDS.filter((f) => !pinnedFields.includes(f.label)).map((f) => (
-          <div key={f.label} className="flex items-start justify-between gap-3">
-            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1 pt-2">
+          <div key={f.label} className="flex items-center justify-between gap-3">
+            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>{f.label}</span>
               <PinButton field={f.label} />
             </div>
@@ -85,8 +85,8 @@ export function SystemFieldsRenderer({
     return (
       <div className="space-y-3">
         {ASSET_SYSTEM_FIELDS.filter((f) => !pinnedFields.includes(f.label)).map((f) => (
-          <div key={f.label} className="flex items-start justify-between gap-3">
-            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1 pt-2">
+          <div key={f.label} className="flex items-center justify-between gap-3">
+            <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
               <span>{f.label}</span>
               <PinButton field={f.label} />
             </div>

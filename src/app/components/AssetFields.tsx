@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
 import { DateField } from './DateField';
-import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon, X, Plus, Clock, CheckCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon, X, Plus, Clock, CheckCircle, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /** Asset detail values used to seed the editable asset field dropdowns. */
@@ -575,7 +575,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     // link · 'user' = blue name text · 'link' = blue record ref. `dot` = explicit dot color
     // (deployment statuses / system health). `pill` = right-aligned scan-status pill.
     // `section` = subsection header rendered ABOVE the row (Scan Info).
-    type PatchField = { label: string; value: string; kind?: 'severity' | 'approval' | 'url' | 'user' | 'link'; sub?: string; dot?: string; pill?: 'progress' | 'done'; section?: string };
+    type PatchField = { label: string; value: string; kind?: 'severity' | 'approval' | 'url' | 'user' | 'link'; sub?: string; dot?: string; pill?: 'progress' | 'done'; section?: string; info?: string };
     const PATCH_FIELDS: PatchField[] = [
       { label: 'Patch Category', value: 'Updates' },
       { label: 'Severity', value: 'Low', kind: 'severity' },
@@ -641,9 +641,6 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Remote Office', value: 'Ahmedabad HQ' },
       { label: 'Last Logged In User', value: 'stuti ahluwalia' },
       { label: 'Language', value: 'English (United States)' },
-      { label: 'Patch Scan Date', value: 'Thu, Jul 23, 2026 05:28 PM', pill: 'progress', section: 'Scan Info' },
-      { label: 'Vulnerability Scan Date', value: 'Fri, Jul 24, 2026 08:52 PM', pill: 'done' },
-      { label: 'Last Reboot Time', value: 'Thu, Jul 09, 2026 03:15 PM' },
     ];
 
     // DETECTED CVE page variant — the CVE's own metadata. Order: 6 summary fields → Tags →
@@ -652,7 +649,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'CWE ID', value: 'CWE-367' },
       { label: 'Status', value: 'Modified' },
       { label: 'Severity', value: 'High', kind: 'severity' },
-      { label: 'Approval Status', value: 'Approved', kind: 'approval' },
+      { label: 'Approval Status', value: 'Approved', kind: 'approval', info: 'Shows whether a patch for this CVE is available in Patch Management.' },
       { label: 'Exploit Status', value: 'No' },
       { label: 'Patch Availability', value: 'Yes' },
       { label: 'Published Date', value: 'Tue, Jun 11, 2024 10:45 PM' },
@@ -707,8 +704,21 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
               <div className="text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">{f.section}</div>
             </div>
           )}
-          <div className="flex items-start justify-between gap-3">
-            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568] pt-2">{f.label}</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">
+              {f.info ? (
+                <span className="inline-flex items-center gap-1">
+                  {f.label}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help text-[#9CA3AF] transition-colors hover:text-[#64748B]"><Info size={12} /></span>
+                    </TooltipTrigger>
+                    {/* text-wrap overrides the base text-balance so the copy wraps naturally */}
+                    <TooltipContent className="max-w-[240px] text-wrap">{f.info}</TooltipContent>
+                  </Tooltip>
+                </span>
+              ) : f.label}
+            </div>
             <div className="flex-1 min-w-0 px-3 py-2">
               {valueNode}
               {f.sub && <span className="text-[12px] text-[#9CA3AF] block">{f.sub}</span>}

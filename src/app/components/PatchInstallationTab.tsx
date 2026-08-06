@@ -4,6 +4,8 @@ import { Pagination } from './Pagination';
 import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Check, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
+import { INITIAL_COMPUTERS } from './PatchComputersTab';
+import { OsBadge } from './OsBadge';
 import { DeploymentTopologyView } from './DeploymentTopologyView';
 import { EndpointConfigFlow } from './EndpointConfigFlow';
 
@@ -42,6 +44,12 @@ const sevDot = (s?: string) =>
   s === 'Critical' ? '#EF4444' : s === 'Important' ? '#F59E0B' : s === 'Moderate' ? '#EAB308' : '#64748B';
 
 const Dash = () => <span className="text-[12px] text-[#9ca3af]">---</span>;
+
+// Deployment rows reference endpoints by agent id — resolve the OS from the fleet mock for the
+// OS badge (EP-426 exists only in the deployment matrix; matrix extras default to Windows).
+const OS_BY_AGENT = new Map<string, string>(INITIAL_COMPUTERS.map((c) => [c.id, c.osName]));
+OS_BY_AGENT.set('EP-426', 'Microsoft Windows 11 Pro');
+const osFor = (agentId: string) => OS_BY_AGENT.get(agentId) ?? 'Microsoft Windows 11 Pro';
 
 interface PatchInstallationTabProps {
   installations: PatchInstallation[];
@@ -354,7 +362,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                   {/* Endpoint / Agent ID with health dot */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="inline-flex items-center gap-2">
-                      <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
+                      <OsBadge osName={osFor(r.agentId)} dotColor="#EAB308" size="sm" />
                       <button className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">{r.agentId}</button>
                     </span>
                   </td>
@@ -417,10 +425,9 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
               {/* Header: icon badge · (health dot + Agent ID + host) · status pill.
                   flex-wrap lets the pill drop below on very narrow cards instead of squashing. */}
               <div className="flex items-start gap-3 flex-wrap">
-                <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><Monitor size={18} /></span>
+                <OsBadge osName={osFor(r.agentId)} dotColor="#EAB308" size="lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
                     <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.agentId}</span>
                   </div>
                   <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={r.hostName}>{r.hostName}</button>

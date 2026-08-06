@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -727,6 +727,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Jira integration — a record can be linked to at most ONE Jira issue (starts empty).
   type JiraIntegration = { id: string; project: string; issueType: string; priority: string; subject: string; application: string };
+  // Scan Info card (Endpoint page) — own accordion below Endpoint Fields
+  const [scanInfoExpanded, setScanInfoExpanded] = useState(true);
   const [integration, setIntegration] = useState<JiraIntegration | null>(null);
   const [showAddIntegration, setShowAddIntegration] = useState(false);
   const [intgSubject, setIntgSubject] = useState('Cannot Create KB Article');
@@ -757,7 +759,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Each module gets its own stored order so layouts don't leak across modules.
   // Only the Change detail page includes the Change Calendar section.
   const sectionStorageKey = patchMode
-    ? 'patchPropertiesSectionOrder'
+    ? (endpointMode ? 'endpointPropertiesSectionOrder' : 'patchPropertiesSectionOrder')
     : hideAdditionalFields
       ? 'ticketV2PropertiesSectionOrder' // V2 ticket page — separate key so V1's saved layout is never clobbered
       : assetMode
@@ -766,7 +768,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           ? 'changePropertiesSectionOrderV2'
           : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = patchMode
-    ? ['Ticket Fields'] // Patch page has no Additional Fields section
+    ? (endpointMode ? ['Ticket Fields', 'Scan Info'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
     : hideAdditionalFields
       ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
       : showChangeCalendar
@@ -789,6 +791,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           let cleaned = showChangeCalendar ? parsed : parsed.filter((s) => s !== 'Change Calendar');
           // V2 ticket page has no Additional Fields section (moved to the Incident Details tab).
           if (hideAdditionalFields) cleaned = cleaned.filter((s) => s !== 'Additional Fields');
+          // Scan Info is an Endpoint-page-only section.
+          if (patchMode && endpointMode && !cleaned.includes('Scan Info')) { const si = cleaned.indexOf('Ticket Fields'); cleaned.splice(si >= 0 ? si + 1 : cleaned.length, 0, 'Scan Info'); }
+          if (!endpointMode) cleaned = cleaned.filter((s) => s !== 'Scan Info');
           // Agent Information is pinned at the top on the asset page — not a reorderable section.
           return assetMode ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
         } catch (e) {
@@ -2092,12 +2097,55 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         />
             );
           }
+          if (section === 'Scan Info' && endpointMode && (!propertiesSearchQuery || 'scan info patch scan date vulnerability scan date last reboot time'.includes(propertiesSearchQuery.toLowerCase()))) {
+            return (
+        <div key="scan-info" className="border border-[#DFE5ED] rounded-lg bg-white">
+          <button
+            onClick={() => setScanInfoExpanded(!scanInfoExpanded)}
+            className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+          >
+            <div className="flex items-center gap-2">
+              <ScanLine size={16} className="text-[#4A5568]" />
+              <span className="text-[13px] font-semibold text-[#364658]">Scan Info</span>
+            </div>
+            {scanInfoExpanded ? <ChevronUp size={16} className="text-[#7B8FA5]" /> : <ChevronDown size={16} className="text-[#7B8FA5]" />}
+          </button>
+          {scanInfoExpanded && (
+            <div className="px-4 pb-4 space-y-3">
+              {([
+                { label: 'Patch Scan Date', value: 'Thu, Jul 23, 2026 05:28 PM', pill: 'progress' },
+                { label: 'Vulnerability Scan Date', value: 'Fri, Jul 24, 2026 08:52 PM', pill: 'done' },
+                { label: 'Last Reboot Time', value: 'Thu, Jul 09, 2026 03:15 PM' },
+              ] as { label: string; value: string; pill?: 'progress' | 'done' }[]).map((f) => (
+                <div key={f.label} className="flex items-center justify-between gap-3">
+                  <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{f.label}</div>
+                  <div className="flex-1 min-w-0 px-3 py-1">
+                    <span className="text-[13px] text-[#364658] break-words">{f.value}</span>
+                    {f.pill && (
+                      <span className="mt-1.5 block">
+                        <span
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-medium"
+                          style={f.pill === 'done' ? { backgroundColor: '#ECFDF3', color: '#067647' } : { backgroundColor: '#FFF8EB', color: '#B54708' }}
+                        >
+                          {f.pill === 'done' ? <CheckCircle size={11} /> : <Clock size={11} />}
+                          {f.pill === 'done' ? 'Completed' : 'In Progress'}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+            );
+          }
           return null;
         })}
 
         {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder)
             and in V2 compact mode (the slim panel isn't meant to be reconfigured) */}
-        {!patchMode && !compactTicketFields && (
+        {(!patchMode || endpointMode) && !compactTicketFields && (
         <div className="px-4 mx-[0px] mt-6 mb-5">
           <button
             onClick={() => setShowCustomizeModal(true)}
@@ -4267,6 +4315,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <GripVertical size={16} className="text-[#7B8FA5] cursor-grab active:cursor-grabbing" />
                       {section === 'Change Calendar' ? (
                         <CalendarDays size={16} className="text-[#364658]" />
+                      ) : section === 'Scan Info' ? (
+                        <ScanLine size={16} className="text-[#364658]" />
                       ) : section === 'Ticket Fields' ? (
                         <FileText size={16} className="text-[#364658]" />
                       ) : section === 'Requester Information' ? (

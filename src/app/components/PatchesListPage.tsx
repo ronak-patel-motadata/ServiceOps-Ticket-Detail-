@@ -30,7 +30,7 @@ export interface Patch {
   deployment?: { status: string; policy: string; installAfter: string | null; expiryDate: string | null };
   /** Present ONLY when the record is an ENDPOINT opened via endpointToPatchShape —
    *  carries the agent/health values so the endpoint drawer's header KPIs stay data-driven. */
-  endpoint?: { agentOnline: boolean; systemHealth: 'Healthy' | 'Warning' | 'Critical' | null };
+  endpoint?: { agentOnline: boolean; systemHealth: 'Healthy' | 'Warning' | 'Critical' | null; osName?: string };
   /** Present ONLY when the record is a DETECTED CVE opened via cveToPatchShape —
    *  carries the CVE facts so the CVE drawer's Overview (metrics/references) stays data-driven. */
   cve?: { severity: string; cweId: string; cvssScore: number; exploitStatus: string; patchAvailability: string; nvdStatus: string };

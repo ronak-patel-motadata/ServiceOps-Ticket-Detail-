@@ -58,6 +58,7 @@ import { INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type Patc
 import { EndpointPatchesTab, INITIAL_ENDPOINT_PATCHES, type EndpointPatch } from './EndpointPatchesTab';
 import { EndpointDeploymentTab } from './EndpointDeploymentTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
+import { OsBadge, osLabelOf } from './OsBadge';
 import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
@@ -2083,11 +2084,20 @@ onStackMinimizedChange,
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
-              {/* Agent-health dot before the id pill — 10px, same as the Hardware asset header */}
-              <span
-                className="inline-block size-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: (activePatchRecord?.endpoint?.agentOnline ?? true) ? '#22C55E' : '#EAB308' }}
-              />
+              {/* OS-type icon (Windows / Linux / Mac, derived from the endpoint's osName) with the
+                  agent-health dot as a badge on its top-right corner. */}
+              {(() => {
+                const osName = activePatchRecord?.endpoint?.osName ?? '';
+                const online = activePatchRecord?.endpoint?.agentOnline ?? true;
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex-shrink-0"><OsBadge osName={osName} dotColor={online ? '#22C55E' : '#EAB308'} size="md" /></span>
+                    </TooltipTrigger>
+                    <TooltipContent>{(osName || osLabelOf(osName)) + ' · Agent ' + (online ? 'Online' : 'Offline')}</TooltipContent>
+                  </Tooltip>
+                );
+              })()}
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>

@@ -4,6 +4,7 @@ import { Search, X, Trash2, Plus, User, Download, RotateCcw, Power, ScanLine, Pa
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { toast } from 'sonner';
 import { Pagination } from './Pagination';
+import { OsBadge } from './OsBadge';
 import type { LucideIcon } from 'lucide-react';
 
 export type Bucket = 'Missing' | 'Installed' | 'Ignored';
@@ -56,7 +57,7 @@ const OFFICE_CODES: [string, string][] = [
 ];
 const OS_POOL = [
   'Microsoft Windows 11 Pro', 'Microsoft Windows 10 Pro', 'Microsoft Windows 11 Enterprise',
-  'Microsoft Windows 10 Enterprise', 'Microsoft Windows Server 2019', 'Microsoft Windows Server 2022',
+  'Microsoft Windows 10 Enterprise', 'Microsoft Windows Server 2022', 'Ubuntu Linux 22.04 LTS', 'macOS 14 Sonoma',
 ];
 const VERSION_POOL = ['8.7.301', '8.7.404', '8.7.408', '8.6.300', '8.6.101', '8.7.200'];
 const OWNER_POOL = [
@@ -88,12 +89,12 @@ const BULK_MISSING: PatchComputer[] = Array.from({ length: 52 }, (_, i): PatchCo
 export const INITIAL_COMPUTERS: PatchComputer[] = [
   { id: 'EP-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
   { id: 'EP-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', poller: '---', createdBy: '---', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.404', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
-  { id: 'EP-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Microsoft Windows 11 Pro', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
+  { id: 'EP-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', poller: '---', createdBy: 'default', osName: 'Ubuntu Linux 22.04 LTS', version: '8.6.300', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: null, bucket: 'Missing' },
   { id: 'EP-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Pro', version: '8.7.200', servicePack: '---', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Mumbai Office', bucket: 'Missing' },
-  { id: 'EP-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'Microsoft Windows 11 Enterprise', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
+  { id: 'EP-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', poller: '---', createdBy: 'RW', osName: 'macOS 14 Sonoma', version: '8.7.408', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Ahmedabad HQ', bucket: 'Missing' },
   { id: 'EP-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', poller: '---', createdBy: 'Adarsh Fuinnc', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
-  { id: 'EP-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'requester test', systemHealth: null, remoteOffice: null, bucket: 'Missing' },
-  { id: 'EP-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 10 Enterprise', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  { id: 'EP-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', poller: '---', createdBy: 'Default', osName: 'Red Hat Enterprise Linux 9', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'requester test', systemHealth: null, remoteOffice: null, bucket: 'Missing' },
+  { id: 'EP-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', poller: '---', createdBy: 'Default', osName: 'macOS 15 Sequoia', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
   { id: 'EP-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: 'Chintan Makwana', systemHealth: 'Healthy', remoteOffice: 'Bengaluru Campus', bucket: 'Missing' },
   { id: 'EP-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', poller: '---', createdBy: 'arjun system', osName: 'Microsoft Windows 10 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Pune Development Center', bucket: 'Missing' },
   { id: 'EP-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: null, remoteOffice: 'Delhi NCR Office', bucket: 'Missing' },
@@ -442,10 +443,9 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                   onChange={(e) => toggleRow(c.id, e.target.checked)}
                   className="mt-2.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
                 />
-                <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><Monitor size={18} /></span>
+                <OsBadge osName={c.osName} dotColor="#EAB308" size="lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
                     <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{c.id}</span>
                   </div>
                   <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={c.hostName}>{c.hostName}</button>
@@ -518,7 +518,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                 {/* Agent ID with health dot */}
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="inline-flex items-center gap-2">
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#EAB308]" />
+                    <OsBadge osName={c.osName} dotColor="#EAB308" size="sm" />
                     <button className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] hover:bg-[#d0e8f9] transition-colors">{c.id}</button>
                   </span>
                 </td>
