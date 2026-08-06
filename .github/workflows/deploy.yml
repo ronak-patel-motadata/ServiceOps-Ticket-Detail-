@@ -53,3 +53,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # GitHub Pages propagation has been slow lately — the default 10-minute
+          # wait hit "Timeout reached, aborting!"; give it 20 minutes.
+          timeout: 1200000
