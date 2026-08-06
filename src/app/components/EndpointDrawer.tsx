@@ -58,6 +58,7 @@ import { INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type Patc
 import { EndpointPatchesTab, INITIAL_ENDPOINT_PATCHES, type EndpointPatch } from './EndpointPatchesTab';
 import { EndpointDeploymentTab } from './EndpointDeploymentTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
+import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -2835,6 +2836,7 @@ onStackMinimizedChange,
                   /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
                    *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
                   chart: 'donut' | 'bar' | 'none' | 'list';
+                  kind?: 'bars' | 'columns';
                   /** Preview rows for chart: 'list'. */
                   items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
                   /** Spans half the row instead of a third. */
@@ -2868,7 +2870,7 @@ onStackMinimizedChange,
                   },
                   {
                     key: 'patches', label: 'Patches', icon: Package, color: '#3D8BD0',
-                    chart: 'donut', total: endpointPatches.length,
+                    chart: 'donut', kind: 'bars', total: endpointPatches.length,
                     segments: [
                       { label: 'Missing', value: epMissing, color: '#F59E0B' },
                       { label: 'Installed', value: epInstalled, color: '#22C55E' },
@@ -2878,7 +2880,7 @@ onStackMinimizedChange,
                   },
                   {
                     key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
-                    chart: 'donut', total: patchInstallations.length,
+                    chart: 'donut', kind: 'columns', total: patchInstallations.length,
                     segments: [
                       { label: 'Success', value: depSuccess, color: '#22C55E' },
                       { label: 'Failed', value: depFailed, color: '#EF4444' },
@@ -2896,11 +2898,20 @@ onStackMinimizedChange,
                      the two list cards take half each (span 3) — together they fill the row. */
                   <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
                     {kpis.map((k) => {
+                      if (k.chart === 'donut' && k.kind) {
+                        return (
+                          <div key={k.key} className={wide ? 'col-span-2' : ''}>
+                            {k.kind === 'bars'
+                              ? <BarListKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />
+                              : <ColumnKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />}
+                          </div>
+                        );
+                      }
                       const segs = (k.segments ?? []).filter((s) => s.value > 0);
                       // Records beyond the inline preview — surfaced in the link as "+N more".
                       const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
                       const isDonut = k.chart === 'donut' && segs.length > 0;
-                      const dia = wide ? 104 : 88;      // gauge diameter
+                      const dia = wide ? 140 : 112;      // gauge diameter
                       const C = 2 * Math.PI * 40;       // circumference of the r=40 track
                       let acc = 0;                      // running offset per segment
                       return (
@@ -2926,7 +2937,7 @@ onStackMinimizedChange,
 
                           {isDonut ? (
                             /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
-                            <div className="mt-3 flex items-center gap-4">
+                            <div className="mt-2 flex flex-1 items-center gap-4">
                               <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
                                 <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
                                   <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
@@ -2946,7 +2957,7 @@ onStackMinimizedChange,
                                   })}
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span className="text-[18px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
+                                  <span className="text-[22px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
                                   <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
                                 </div>
                               </div>
@@ -2954,8 +2965,8 @@ onStackMinimizedChange,
                                 {segs.map((s) => (
                                   <div key={s.label} className="flex items-center gap-2">
                                     <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{s.label}</span>
-                                    <span className="flex-shrink-0 text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+                                    <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
+                                    <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
                                   </div>
                                 ))}
                               </div>

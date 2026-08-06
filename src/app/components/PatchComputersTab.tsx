@@ -136,11 +136,23 @@ export interface PatchInstallation {
   result?: string;
 }
 
-// Three deployments, one per status (Yet to Receive / Success / Failed) to show each style.
+// A realistic deployment run across the fleet (hosts match INITIAL_COMPUTERS):
+// 6 Success · 2 Failed · 3 In Progress · 3 Yet to Receive = 14 deployments.
 export const INITIAL_INSTALLATIONS: PatchInstallation[] = [
   { id: 'INST-EP-380', agentId: 'EP-380', hostName: 'ACIWSUSV-01', ipAddress: '192.168.1.13', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
   { id: 'INST-EP-397', agentId: 'EP-397', hostName: 'Jevyjava-LT', ipAddress: '192.168.112.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 04:58 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
   { id: 'INST-EP-400', agentId: 'EP-400', hostName: 'PARTH-UPADHYAY', ipAddress: '192.168.1.75', configType: 'Install', deploymentDate: 'Mon, Jul 20, 2026 03:40 PM', installationStatus: 'Failed', retryStatus: 2, downloadStatus: 'Failed', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-396', agentId: 'EP-396', hostName: 'DESKTOP-A19KJ', ipAddress: '10.20.41.40', configType: 'Install', deploymentDate: 'Tue, Jul 21, 2026 10:12 AM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-392', agentId: 'EP-392', hostName: 'DHRUVPANCHAL', ipAddress: '10.20.40.202', configType: 'Install', deploymentDate: 'Tue, Jul 21, 2026 11:03 AM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-391', agentId: 'EP-391', hostName: 'Adarsh-PC', ipAddress: '192.168.1.11', configType: 'Install', deploymentDate: 'Wed, Jul 22, 2026 09:26 AM', installationStatus: 'In Progress', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-389', agentId: 'EP-389', hostName: 'DESKTOP-N81KQ', ipAddress: '10.20.41.103', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-388', agentId: 'EP-388', hostName: 'PARTH-UPADHYAY-2', ipAddress: '10.20.40.182', configType: 'Install', deploymentDate: 'Tue, Jul 21, 2026 02:45 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-386', agentId: 'EP-386', hostName: 'DESKTOP-DK09P', ipAddress: '192.168.0.104', configType: 'Install', deploymentDate: 'Wed, Jul 22, 2026 09:41 AM', installationStatus: 'In Progress', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-384', agentId: 'EP-384', hostName: 'ARJUN-CHAUHAN', ipAddress: '192.168.1.14', configType: 'Install', deploymentDate: 'Tue, Jul 21, 2026 05:17 PM', installationStatus: 'Failed', retryStatus: 1, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-383', agentId: 'EP-383', hostName: 'DESKTOP-5F2AL', ipAddress: '192.168.29.101', configType: 'Install', deploymentDate: 'Tue, Jul 21, 2026 06:02 PM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-382', agentId: 'EP-382', hostName: 'ACI10068-LP', ipAddress: '20.0.20.32', configType: 'Install', deploymentDate: '---', installationStatus: 'Yet to Receive', retryStatus: 0, downloadStatus: 'Success', taskType: 'Manual Remote Deployment' },
+  { id: 'INST-EP-350', agentId: 'EP-350', hostName: 'DESKTOP-1P8YT', ipAddress: '192.168.177.20', configType: 'Install', deploymentDate: 'Wed, Jul 22, 2026 08:19 AM', installationStatus: 'Success', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
+  { id: 'INST-EP-349', agentId: 'EP-349', hostName: 'DESKTOP-1KQZ9', ipAddress: '10.59.98.96', configType: 'Install', deploymentDate: 'Wed, Jul 22, 2026 08:33 AM', installationStatus: 'In Progress', retryStatus: 0, downloadStatus: 'Success', taskType: 'Auto Patch Deployment' },
 ];
 
 const BUCKETS: Bucket[] = ['Missing', 'Installed', 'Ignored'];

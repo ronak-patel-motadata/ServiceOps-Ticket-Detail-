@@ -55,6 +55,7 @@ import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES, buildDeploymentMatrix } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
+import { BarListKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -384,8 +385,24 @@ function CategoryStatusBarsCard({
     const present = BREAKDOWN_STATUSES.filter((s) => d[s.key] > 0);
     return { name, ...d, total: d.success + d.failed + d.inProgress + d.other, topKey: present.length ? present[present.length - 1].key : '' };
   });
+  // Responsive flip: 9 vertical columns need ~540px of label room — below that the card
+  // renders HORIZONTAL bars instead (category names on the Y axis get full width, nothing
+  // overlaps). Measured against the CARD's own width, so the squeezed 2-up wide layout and
+  // the stacked narrow view both flip correctly.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [cardW, setCardW] = useState(0);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setCardW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const horizontal = cardW > 0 && cardW < 540;
   return (
-    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+    <div ref={rootRef} className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
       {/* Header */}
       <div className="mb-5 flex items-center gap-2.5">
         <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#3D8BD01A', color: '#3D8BD0' }}>
@@ -394,20 +411,36 @@ function CategoryStatusBarsCard({
         <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
       </div>
 
-      {/* Chart — Y axis carries the counts; hover a column for its status breakdown */}
-      <div className="flex-1" style={{ minHeight: 230 }}>
-        <ResponsiveContainer width="100%" height={230}>
-          <BarChart data={chartData} margin={{ top: 12, right: 4, bottom: 0, left: -22 }} barCategoryGap="28%">
-            <CartesianGrid vertical={false} stroke="#F0F2F5" />
-            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-            <XAxis dataKey="name" interval={0} tick={<CatTick />} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} height={34} />
-            <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
-            {BREAKDOWN_STATUSES.map((s) => (
-              <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={30} shape={CatBarShape(s.key)} isAnimationActive={false} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Chart — counts on the value axis; hover a bar for its status breakdown */}
+      {horizontal ? (
+        <div className="flex-1" style={{ minHeight: 290 }}>
+          <ResponsiveContainer width="100%" height={290}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 0 }} barCategoryGap="26%">
+              <CartesianGrid horizontal={false} stroke="#F0F2F5" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={106} interval={0} tick={{ fontSize: 10, fill: '#7B8FA5' }} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} />
+              <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
+              {BREAKDOWN_STATUSES.map((s) => (
+                <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={14} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="flex-1" style={{ minHeight: 230 }}>
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={chartData} margin={{ top: 12, right: 4, bottom: 0, left: -22 }} barCategoryGap="28%">
+              <CartesianGrid vertical={false} stroke="#F0F2F5" />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" interval={0} tick={<CatTick />} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} height={34} />
+              <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
+              {BREAKDOWN_STATUSES.map((s) => (
+                <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={30} shape={CatBarShape(s.key)} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Legend — identity is never color-alone */}
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
@@ -3227,11 +3260,12 @@ onStackMinimizedChange,
 
                 return (
                   <>
-                    {/* Row 1 — Patches + Endpoints (the two things being deployed / deployed to) */}
+                    {/* Row 1 — Patches + Endpoints (the two things being deployed / deployed to).
+                        Different forms so the pair doesn't repeat the same donut: Patches keeps
+                        the gauge, Endpoints uses the horizontal bar list. */}
                     <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      {[patchesKpi, endpointsKpi].map((k) => (
-                        <DonutKpiCard key={k.key} label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} wide={wide} />
-                      ))}
+                      <DonutKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} wide={wide} />
+                      <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
                     </div>
 
                     {/* Deployment group — ONE bordered section holding the overall status (4 stat

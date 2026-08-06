@@ -60,6 +60,7 @@ import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
+import { BarListKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -2938,8 +2939,9 @@ onStackMinimizedChange,
                       ]}
                       onClick={() => setActiveMainTab('patches-list')}
                     />
-                    <DonutKpiCard
-                      label="Endpoints" icon={Monitor} color="#3D8BD0" total={patchComputers.length} wide={wide}
+                    {/* Different form than the Patches donut beside it — horizontal bar list */}
+                    <BarListKpiCard
+                      label="Endpoints" icon={Monitor} color="#3D8BD0" total={patchComputers.length}
                       segments={[
                         { label: 'Missing', value: epBucket('Missing'), color: '#F59E0B' },
                         { label: 'Installed', value: epBucket('Installed'), color: '#22C55E' },
