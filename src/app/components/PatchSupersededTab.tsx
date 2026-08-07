@@ -143,6 +143,28 @@ function buildTrees() {
   return { upRoots, downRoots, nodeMap };
 }
 
+/** Ids carrying the "Latest" tag — the newest patch of EACH Superseded-by branch (one per root
+ *  chain), so every group shows which of its versions to install. Walks the whole subtree
+ *  (regardless of expansion) and picks the max release date; ties break on the higher KB number
+ *  so the result is always deterministic. */
+function latestUpNodeIds(roots: SNode[]): Set<string> {
+  const ids = new Set<string>();
+  roots.forEach((root) => {
+    let bestId: string | null = null;
+    let bestTime = -Infinity;
+    let bestKb = -Infinity;
+    const walk = (n: SNode) => {
+      const t = new Date(n.patch.releaseDate.replace(/^[A-Za-z]{3},\s*/, '')).getTime();
+      const kb = parseInt(n.patch.kb.replace(/\D/g, ''), 10) || 0;
+      if (Number.isFinite(t) && (t > bestTime || (t === bestTime && kb > bestKb))) { bestTime = t; bestKb = kb; bestId = n.id; }
+      n.children.forEach(walk);
+    };
+    walk(root);
+    if (bestId) ids.add(bestId);
+  });
+  return ids;
+}
+
 function descendantIds(node: SNode): string[] {
   const ids: string[] = [];
   const walk = (n: SNode) => n.children.forEach((c) => { ids.push(c.id); walk(c); });
@@ -180,10 +202,10 @@ function layoutDir(roots: SNode[], expanded: Set<string>, dir: 'up' | 'down'): P
 
 /* -------------------- custom nodes -------------------- */
 
-type ItemData = { patch: ChainPatch; dim: boolean; color: string; childCount: number; expanded: boolean; onToggle: (id: string) => void };
+type ItemData = { patch: ChainPatch; dim: boolean; color: string; childCount: number; expanded: boolean; isLatest?: boolean; onToggle: (id: string) => void };
 
 function PatchItemNode({ id, data }: NodeProps) {
-  const { patch: p, dim, color, childCount, expanded, onToggle } = data as ItemData;
+  const { patch: p, dim, color, childCount, expanded, isLatest, onToggle } = data as ItemData;
   const hasKids = childCount > 0;
   const toggle = (e: React.MouseEvent) => { e.stopPropagation(); onToggle(id); };
   return (
@@ -199,7 +221,12 @@ function PatchItemNode({ id, data }: NodeProps) {
           <Package />
         </span>
         <div className="min-w-0 flex-1 text-left">
-          <div className="truncate text-[12px] font-semibold text-[#3D8BD0]">{p.kb}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[12px] font-semibold text-[#3D8BD0]">{p.kb}</span>
+            {isLatest && (
+              <span className="flex-shrink-0 rounded-sm bg-[#ECFDF3] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#067647]">Latest</span>
+            )}
+          </div>
           <div className="truncate text-[11px] text-[#64748B]">{shortTitle(p.title)}</div>
           <div className="truncate text-[10px] text-[#94A3B8]">{p.releaseDate}</div>
         </div>
@@ -415,6 +442,8 @@ interface PatchSupersededTabProps {
 function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSignal, fitSignal, onReset }: PatchSupersededTabProps & { q: string; expandAllSignal: number; collapseAllSignal: number; fitSignal: number; onReset?: () => void }) {
   const rf = useReactFlow();
   const { upRoots, downRoots, nodeMap } = useMemo(() => buildTrees(), []);
+  // The newest patch of EACH Superseded-by branch — tagged 'Latest' on the canvas.
+  const latestIds = useMemo(() => latestUpNodeIds(upRoots), [upRoots]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Bump `n` on every toggle to (re)frame the affected subtree once the new nodes are laid out.
   const [focus, setFocus] = useState<{ ids: string[]; n: number }>({ ids: [], n: 0 });
@@ -517,7 +546,7 @@ function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSi
           id: o.node.id,
           type: 'patchItem',
           position: { x: o.x - HALF_W, y: o.y - HALF_H },
-          data: { patch: o.node.patch, dim, color, childCount: o.node.children.length, expanded: expanded.has(o.node.id), onToggle: (nid: string) => toggleRef.current(nid) },
+          data: { patch: o.node.patch, dim, color, childCount: o.node.children.length, expanded: expanded.has(o.node.id), isLatest: latestIds.has(o.node.id), onToggle: (nid: string) => toggleRef.current(nid) },
           draggable: false,
           selectable: false,
         });
@@ -529,7 +558,7 @@ function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSi
 
     return { initialNodes: nodes, initialEdges: edges };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [upRoots, downRoots, expanded, q, patchId, patchName]);
+  }, [upRoots, downRoots, expanded, q, patchId, patchName, latestIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

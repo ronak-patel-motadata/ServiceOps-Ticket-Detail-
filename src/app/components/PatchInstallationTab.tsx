@@ -58,9 +58,12 @@ interface PatchInstallationTabProps {
   onInstalled: (agentId: string) => void;
   /** Show the Topology view toggle — Patch DEPLOYMENT page only (opt-in). */
   showTopology?: boolean;
+  /** Package Deployment page: the matrix rows carry PACKAGES, not patches — the column reads
+   *  "Package ID" and the patch-only Severity column is dropped. */
+  packageMode?: boolean;
 }
 
-export function PatchInstallationTab({ installations, showTopology = false }: PatchInstallationTabProps) {
+export function PatchInstallationTab({ installations, showTopology = false, packageMode = false }: PatchInstallationTabProps) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'list' | 'card' | 'topology'>('card');
   // Full screen — the whole tab (any view) promoted to a fixed overlay (Superseded-tab pattern).
@@ -219,7 +222,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                       onClick={() => setFilterTab('patch')}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${filterTab === 'patch' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
                     >
-                      Patch
+                      {packageMode ? 'Package' : 'Patch'}
                       {patchFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
                     </button>
                   </div>
@@ -347,7 +350,9 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
             <thead className="border-b border-[#e5e7eb]">
               <tr>
                 {(hasPatchCols
-                  ? ['Endpoint ID', 'Host Name', 'Patch ID', 'Name', 'Severity', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions']
+                  ? (packageMode
+                      ? ['Endpoint ID', 'Host Name', 'Package ID', 'Name', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions']
+                      : ['Endpoint ID', 'Host Name', 'Patch ID', 'Name', 'Severity', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions'])
                   : ['Agent ID', 'Host Name', 'IP Address', 'Configuration Type', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Task Type', 'Actions']
                 ).map((h) => (
                   <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
@@ -356,7 +361,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
             </thead>
             <tbody className="divide-y divide-[#e5e7eb] bg-white">
               {rows.length === 0 ? (
-                <tr><td colSpan={hasPatchCols ? 11 : 10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
+                <tr><td colSpan={hasPatchCols ? (packageMode ? 10 : 11) : 10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
               ) : pageRows.map((r) => (
                 <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
                   {/* Endpoint / Agent ID with health dot */}
@@ -374,12 +379,14 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
                         <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[240px] truncate" title={r.patchName}>{r.patchName}</span></td>
-                      <td className="px-4 py-3 whitespace-nowrap text-[12px]">
-                        <span className="inline-flex items-center gap-1.5 text-[#364658]">
-                          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
-                          {r.patchSeverity}
-                        </span>
-                      </td>
+                      {!packageMode && (
+                        <td className="px-4 py-3 whitespace-nowrap text-[12px]">
+                          <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                            <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
+                            {r.patchSeverity}
+                          </span>
+                        </td>
+                      )}
                     </>
                   ) : (
                     <>
@@ -439,7 +446,7 @@ export function PatchInstallationTab({ installations, showTopology = false }: Pa
               {r.patchId && (
                 <div className="mt-3 flex items-center gap-2 rounded border border-[#EEF2F6] bg-[#F8FAFC] px-2.5 py-2 min-w-0">
                   <span className="inline-block flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
+                  {!packageMode && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />}
                   <span className="min-w-0 truncate text-[12px] text-[#364658]" title={r.patchName}>{r.patchName}</span>
                 </div>
               )}

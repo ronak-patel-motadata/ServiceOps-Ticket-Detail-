@@ -6787,7 +6787,7 @@ onStackMinimizedChange,
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
             {activeMainTab === 'computers' && (
-              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets />
+              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions />
             )}
 
             {/* Patches Tab Content — the patches this deployment rolls out */}

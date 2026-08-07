@@ -161,6 +161,45 @@ function PatchNavItem({ activePage, onNavigate }: { activePage?: string; onNavig
   );
 }
 
+// Package sub-modules surfaced in the hover flyout. Endpoint reuses the shared Endpoints
+// listing (same as the Patch / Vulnerability flyouts); the two deployment items are
+// prototype placeholders until those pages exist.
+const PACKAGE_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
+  { icon: <IconPackage size={16} />, label: 'Package Deployments', page: 'package-deployments' },
+  { icon: <ClipboardCheck size={16} />, label: 'Registry Deployments' },
+  { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
+];
+
+/** Package nav item with a hover flyout listing its sub-modules (mirrors PatchNavItem). */
+function PackageNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
+  const sectionActive = activePage === 'package-deployments';
+  return (
+    <div className="relative group">
+      <NavItem icon={<IconPackage size={20} />} active={sectionActive} title="Package" disableTooltip />
+      {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
+      <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
+        <div className="w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+          {PACKAGE_ITEMS.map((item) => {
+            const isActive = !!item.page && item.page === activePage;
+            return (
+              <button
+                key={item.label}
+                onClick={() => item.page && onNavigate?.(item.page)}
+                className={`w-full px-3 py-2 text-[13px] text-left transition-colors flex items-center gap-2.5 whitespace-nowrap ${
+                  isActive ? 'bg-[#3D8BD0] text-white' : 'hover:bg-[#F5F7FA] text-[#364658]'
+                }`}
+              >
+                <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-[#6B7280]'}`}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface NavItemProps {
   icon: React.ReactNode;
   active?: boolean;
@@ -240,7 +279,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         />
         <VulnerabilityNavItem activePage={activePage} onNavigate={onNavigate} />
         <PatchNavItem activePage={activePage} onNavigate={onNavigate} />
-        <NavItem icon={<IconPackage size={20} />} title="Package" />
+        <PackageNavItem activePage={activePage} onNavigate={onNavigate} />
         <NavItem icon={<IconProject size={20} />} title="Project" />
         <NavItem icon={<IconKnowledge size={20} />} title="Knowledge" />
         <NavItem icon={<IconReport size={20} />} title="Report" />

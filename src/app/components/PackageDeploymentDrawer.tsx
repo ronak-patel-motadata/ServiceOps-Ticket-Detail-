@@ -1,11 +1,8 @@
+/* Package Deployment detail page — a separate-file clone of PatchDeploymentDrawer (opened from
+ * the Package Deployments listing). Kept standalone so the package flow can diverge from the
+ * patch flow; adapted onto the Patch shape by packageDeploymentToPatchShape in the list page. */
 /**
- * DetectedCveDrawer Component — the Detected CVE detail page.
- *
- * A 1:1 clone of PatchDeploymentDrawer.tsx, opened from the Detected CVEs listing via the
- * 'detected-cves' DrawerStack module (the list page adapts a DetectedCve onto the Patch shape
- * with cveToPatchShape). SEPARATE file so CVE-specific changes stay isolated.
- *
- * Original note — the Patch DEPLOYMENT detail page.
+ * PatchDeploymentDrawer Component — the Patch DEPLOYMENT detail page.
  *
  * A 1:1 clone of PatchDrawer.tsx (the Patch detail page), opened from the Patch Deployments
  * listing via the 'patch-deployments' DrawerStack module. The list page adapts a
@@ -39,6 +36,7 @@ import type { Patch } from './PatchesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
@@ -57,10 +55,11 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
-import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
-import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
+import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
+import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
+import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard } from './OverviewKpiCards';
+import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -127,8 +126,43 @@ import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-// Donut gauge + legend card (Patches / Endpoints on the CVE Overview) — same treatment as the
-// Patch Deployment Overview cards.
+/* ── Overview "Status by …" breakdown cards ─────────────────────────────────────────────────
+ * Two dropdown-driven cards on the Patch Deployment Overview: pick a category / remote office
+ * and see its deployment status split (Success / Failed / In Progress / Other) + total. */
+type StatusSplit = { success: number; failed: number; inProgress: number; other: number };
+
+const BREAKDOWN_STATUSES: { key: keyof StatusSplit; label: string; color: string }[] = [
+  { key: 'success', label: 'Success', color: '#12B76A' },
+  { key: 'failed', label: 'Failed', color: '#F04438' },
+  { key: 'inProgress', label: 'In Progress', color: '#F79009' },
+  { key: 'other', label: 'Other', color: '#94A3B8' },
+];
+
+// Deployment status by patch category — the product's 9 FIXED categories, in catalog order.
+// Rendered as one stacked column per category (hover a bar for the status breakdown).
+const PATCH_STATUS_BY_CATEGORY: Record<string, StatusSplit> = {
+  'Tools': { success: 1, failed: 0, inProgress: 0, other: 2 },
+  'Feature Packs': { success: 2, failed: 1, inProgress: 0, other: 3 },
+  'Service Packs': { success: 2, failed: 0, inProgress: 1, other: 0 },
+  'Update Rollups': { success: 4, failed: 1, inProgress: 0, other: 1 },
+  'Definition Updates': { success: 0, failed: 0, inProgress: 0, other: 7 },
+  'Critical Updates': { success: 6, failed: 1, inProgress: 1, other: 0 },
+  'Updates': { success: 5, failed: 0, inProgress: 1, other: 1 },
+  'Hotfix': { success: 3, failed: 1, inProgress: 0, other: 0 },
+  'Security Updates': { success: 12, failed: 3, inProgress: 2, other: 1 },
+};
+
+// Installation status by remote office.
+const STATUS_BY_REMOTE_OFFICE: Record<string, StatusSplit> = {
+  'Ahmedabad HQ': { success: 28, failed: 4, inProgress: 3, other: 2 },
+  'Mumbai Office': { success: 14, failed: 5, inProgress: 1, other: 0 },
+  'Bengaluru Campus': { success: 9, failed: 3, inProgress: 0, other: 0 },
+  'Pune Data Center': { success: 6, failed: 0, inProgress: 2, other: 1 },
+  'Local Office': { success: 9, failed: 0, inProgress: 0, other: 0 },
+};
+
+// Donut gauge + legend card (Patches / Endpoints / Deployment Status) — extracted so the three
+// gauges can be placed individually (Patches + Endpoints on top, Deployment Status in its section).
 function DonutKpiCard({
   label, icon: Icon, color, total, segments, onClick, wide,
 }: {
@@ -141,6 +175,8 @@ function DonutKpiCard({
   wide: boolean;
 }) {
   const segs = segments.filter((s) => s.value > 0);
+  // These cards span a full half-row now, so the gauge is sized up to fill the extra width
+  // (which also grows the card height proportionally).
   const dia = wide ? 148 : 116;
   const C = 2 * Math.PI * 40;
   let acc = 0;
@@ -179,11 +215,245 @@ function DonutKpiCard({
           {segs.map((s) => (
             <div key={s.label} className="flex items-center gap-2">
               <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              {/* min-width keeps the values aligned in a column, right after the label (no big gap) */}
               <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
               <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBreakdownCard({
+  title, icon: Icon, data, totalLabel, allLabel,
+}: {
+  title: string;
+  icon: typeof Package;
+  data: Record<string, StatusSplit>;
+  totalLabel: string;
+  allLabel: string;
+}) {
+  const entries = Object.keys(data);
+  // "All …" (default) aggregates every entry; specific rows drill into one category / office.
+  const options = [allLabel, ...entries];
+  const [selected, setSelected] = useState(allLabel);
+  const [open, setOpen] = useState(false);
+  const d = selected === allLabel
+    ? entries.reduce(
+        (acc, k) => ({
+          success: acc.success + data[k].success,
+          failed: acc.failed + data[k].failed,
+          inProgress: acc.inProgress + data[k].inProgress,
+          other: acc.other + data[k].other,
+        }),
+        { success: 0, failed: 0, inProgress: 0, other: 0 } as StatusSplit,
+      )
+    : (data[selected] ?? { success: 0, failed: 0, inProgress: 0, other: 0 });
+  const total = d.success + d.failed + d.inProgress + d.other;
+
+  return (
+    <div className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#3D8BD01A', color: '#3D8BD0' }}>
+          <Icon size={15} />
+        </span>
+        <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
+      </div>
+
+      {/* Dropdown — pick the category / office to break down */}
+      <div className="relative mb-3">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`flex h-9 w-full items-center justify-between rounded border px-3 text-[13px] transition-colors ${open ? 'border-[#3D8BD0] ring-1 ring-[#3D8BD0]' : 'border-[#DFE5ED] hover:border-[#3D8BD0]'}`}
+        >
+          <span className="truncate text-[#364658]">{selected}</span>
+          <ChevronDown size={15} className={`flex-shrink-0 text-[#7B8FA5] transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[240px] overflow-y-auto rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+              {options.map((o) => (
+                <button
+                  key={o}
+                  onClick={() => { setSelected(o); setOpen(false); }}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] transition-colors ${o === selected ? 'bg-[#F1F5F9]' : 'hover:bg-[#F9FAFB]'}`}
+                >
+                  <span className="truncate text-[#364658]">{o}</span>
+                  {o === selected && <Check size={15} className="flex-shrink-0 text-[#3D8BD0]" />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Proportional stacked bar (at-a-glance distribution) */}
+      <div className="mb-3 flex h-1.5 w-full gap-px overflow-hidden rounded-full">
+        {total === 0 ? (
+          <span className="flex-1 bg-[#EEF2F6]" />
+        ) : (
+          BREAKDOWN_STATUSES.filter((s) => d[s.key] > 0).map((s) => (
+            <span key={s.key} style={{ flexGrow: d[s.key], backgroundColor: s.color }} />
+          ))
+        )}
+      </div>
+
+      {/* Status rows */}
+      <div className="space-y-1.5">
+        {BREAKDOWN_STATUSES.map((s) => (
+          <div key={s.key} className="flex items-center justify-between rounded bg-[#F8FAFC] px-3 py-2">
+            <span className="inline-flex items-center gap-2 text-[13px] text-[#64748B]">
+              <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+              {s.label}
+            </span>
+            <span className="text-[13px] font-semibold tabular-nums" style={{ color: d[s.key] > 0 ? s.color : '#94A3B8' }}>{d[s.key]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Total */}
+      <div className="mt-3 flex items-center justify-between border-t border-[#EEF1F4] pt-3">
+        <span className="text-[13px] font-medium text-[#364658]">{totalLabel}</span>
+        <span className="text-[15px] font-bold tabular-nums text-[#364658]">{total}</span>
+      </div>
+    </div>
+  );
+}
+
+/** One stacked column per category (fixed 9), rendered with recharts: Y axis with counts,
+ *  soft horizontal gridlines, rounded top on each stack, and a dark hover tooltip carrying
+ *  the Success / Failed / In Progress / Other breakdown. */
+
+// Rounds ONLY the top segment of each stack (the segment whose key matches the datum's topKey).
+const CatBarShape = (key: string) => (props: any) => {
+  const { x, y, width, height, fill, payload } = props;
+  if (!height || height <= 0) return <g />;
+  if (payload.topKey !== key) return <rect x={x} y={y} width={width} height={height} fill={fill} />;
+  const r = Math.min(4, width / 2, height);
+  return (
+    <path
+      d={`M${x},${y + height} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + width - r},${y} Q${x + width},${y} ${x + width},${y + r} L${x + width},${y + height} Z`}
+      fill={fill}
+    />
+  );
+};
+
+// Two-line category labels (split on the first space) so the 9 names stay readable.
+const CatTick = ({ x, y, payload }: any) => {
+  const words = String(payload.value).split(' ');
+  const l1 = words[0];
+  const l2 = words.slice(1).join(' ');
+  return (
+    <g>
+      <text x={x} y={y + 12} textAnchor="middle" fontSize={10} fill="#7B8FA5">{l1}</text>
+      {l2 && <text x={x} y={y + 23} textAnchor="middle" fontSize={10} fill="#7B8FA5">{l2}</text>}
+    </g>
+  );
+};
+
+// Dark tooltip (product-standard look) with the per-status breakdown + total.
+const CatTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="min-w-[160px] rounded-md bg-[#111827] px-3 py-2 text-white shadow-xl">
+      <div className="mb-1.5 text-[12px] font-semibold">{d.name}</div>
+      {BREAKDOWN_STATUSES.map((s) => (
+        <div key={s.key} className="flex items-center gap-2 py-0.5 text-[11px]">
+          <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+          <span className="flex-1 text-white/85">{s.label}</span>
+          <span className="font-semibold tabular-nums">{d[s.key]}</span>
+        </div>
+      ))}
+      <div className="mt-1 flex items-center justify-between border-t border-white/15 pt-1 text-[11px]">
+        <span className="text-white/85">Total</span>
+        <span className="font-semibold tabular-nums">{d.total}</span>
+      </div>
+    </div>
+  );
+};
+
+function CategoryStatusBarsCard({
+  title, icon: Icon, data,
+}: {
+  title: string;
+  icon: typeof Package;
+  data: Record<string, StatusSplit>;
+}) {
+  const chartData = Object.entries(data).map(([name, d]) => {
+    // topKey = the last status present in the stack — that segment gets the rounded top.
+    const present = BREAKDOWN_STATUSES.filter((s) => d[s.key] > 0);
+    return { name, ...d, total: d.success + d.failed + d.inProgress + d.other, topKey: present.length ? present[present.length - 1].key : '' };
+  });
+  // Responsive flip: 9 vertical columns need ~540px of label room — below that the card
+  // renders HORIZONTAL bars instead (category names on the Y axis get full width, nothing
+  // overlaps). Measured against the CARD's own width, so the squeezed 2-up wide layout and
+  // the stacked narrow view both flip correctly.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [cardW, setCardW] = useState(0);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setCardW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const horizontal = cardW > 0 && cardW < 540;
+  return (
+    <div ref={rootRef} className="flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4">
+      {/* Header */}
+      <div className="mb-5 flex items-center gap-2.5">
+        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#3D8BD01A', color: '#3D8BD0' }}>
+          <Icon size={15} />
+        </span>
+        <h3 className="text-[14px] font-semibold text-[#364658]">{title}</h3>
+      </div>
+
+      {/* Chart — counts on the value axis; hover a bar for its status breakdown */}
+      {horizontal ? (
+        <div className="flex-1" style={{ minHeight: 290 }}>
+          <ResponsiveContainer width="100%" height={290}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 0 }} barCategoryGap="26%">
+              <CartesianGrid horizontal={false} stroke="#F0F2F5" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={106} interval={0} tick={{ fontSize: 10, fill: '#7B8FA5' }} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} />
+              <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
+              {BREAKDOWN_STATUSES.map((s) => (
+                <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={14} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="flex-1" style={{ minHeight: 230 }}>
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={chartData} margin={{ top: 12, right: 4, bottom: 0, left: -22 }} barCategoryGap="28%">
+              <CartesianGrid vertical={false} stroke="#F0F2F5" />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" interval={0} tick={<CatTick />} axisLine={{ stroke: '#EEF1F4' }} tickLine={false} height={34} />
+              <RechartsTooltip content={<CatTooltip />} cursor={{ fill: 'rgba(61, 139, 208, 0.06)' }} />
+              {BREAKDOWN_STATUSES.map((s) => (
+                <Bar key={s.key} dataKey={s.key} stackId="status" fill={s.color} maxBarSize={30} shape={CatBarShape(s.key)} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Legend — identity is never color-alone */}
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {BREAKDOWN_STATUSES.map((s) => (
+          <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-[#64748B]">
+            <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -265,7 +535,7 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
 };
 
-export function DetectedCveDrawer({
+export function PackageDeploymentDrawer({
   openAssets,
   activeAssetId,
   onClose,
@@ -496,17 +766,29 @@ onStackMinimizedChange,
   // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
   // a deployment record (Installation tab); once that record's status turns Success the computer
   // moves into the Installed bucket in the Computers tab.
-  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(INITIAL_COMPUTERS);
-  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(INITIAL_INSTALLATIONS);
+  // Endpoint tab = the endpoints this deployment TARGETS (not the whole estate) — the same 4
+  // endpoints the Deployment tab's patch × endpoint matrix runs over. EP-426 isn't in the
+  // shared estate mock, so it's appended by hand.
+  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(() => [
+    // EP-397's deployments have succeeded → it sits in the Installed bucket (Overview donut).
+    ...INITIAL_COMPUTERS.filter((c) => ['EP-380', 'EP-397', 'EP-400'].includes(c.id))
+      .map((c) => (c.id === 'EP-397' ? { ...c, bucket: 'Installed' as const } : c)),
+    { id: 'EP-426', hostName: 'DESKTOP-A3RMK1H', ipAddress: '192.168.29.100', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
+  ]);
+  // Deployment tab = the full patch × endpoint matrix (every patch on every endpoint).
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildPackageDeploymentMatrix());
   const handleInstallPatch = (agentIds: string[]) => {
     setPatchInstallations((prev) => {
-      const existing = new Set(prev.map((r) => r.agentId));
-      const toAdd = agentIds
-        .filter((id) => !existing.has(id))
-        .map((id) => {
-          const c = patchComputers.find((x) => x.id === id);
-          return {
-            id: `INST-${id}`,
+      // Matrix semantics: installing on an endpoint pushes EVERY patch in this deployment to it,
+      // so one row is created per (patch, endpoint) pair that doesn't exist yet.
+      const existing = new Set(prev.map((r) => `${r.patchId ?? ''}:${r.agentId}`));
+      const toAdd: PatchInstallation[] = [];
+      agentIds.forEach((id) => {
+        const c = patchComputers.find((x) => x.id === id);
+        DEPLOYED_PATCHES.forEach((p) => {
+          if (existing.has(`${p.id}:${id}`)) return;
+          toAdd.push({
+            id: `INST-${p.id}-${id}`,
             agentId: id,
             hostName: c?.hostName ?? id,
             ipAddress: c?.ipAddress ?? '---',
@@ -516,8 +798,13 @@ onStackMinimizedChange,
             retryStatus: 0,
             downloadStatus: 'Success',
             taskType: 'Manual Remote Deployment',
-          };
+            patchId: p.id,
+            patchName: p.name,
+            patchSeverity: p.severity,
+            result: '---',
+          });
         });
+      });
       return [...toAdd, ...prev];
     });
     const n = agentIds.length;
@@ -916,7 +1203,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'CVE Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1155,9 +1442,8 @@ onStackMinimizedChange,
       // Installation · Superseded · Audit Trail.
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
-      // "patches-list" = the patches this deployment rolls out (after Endpoint).
-      // CVE page: no Deployment tab (deployment runs live on the Patch Deployment module).
-      let allTabs: string[] = ['properties', 'patches-list', 'computers', 'remediation', 'audit'];
+      // "packages" = the software packages this deployment installs (after Endpoint).
+      let allTabs: string[] = ['properties', 'computers', 'packages', 'installation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1183,8 +1469,7 @@ onStackMinimizedChange,
         'approvals': 85,
         'relations': 80,
         'computers': 100,
-        'patches-list': 90,
-        'remediation': 115,
+        'packages': 90,
         'vulnerabilities': 120,
         'superseded': 110,
         'audit': 100,
@@ -2154,115 +2439,79 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* CVE KPIs — Severity · CVSS 3.1 Score · Exploit · Patch · Impacted Endpoints ·
-                Published. The pro vulnerability triage metrics: how bad, how exploitable, is it
-                weaponized, can it be fixed, and how much of the fleet is exposed. */}
+            {/* Deployment KPIs — Status · Install Progress · Endpoints · Patches · Install After ·
+                Expiry. The pro deployment-run metrics (Intune/SCCM pattern): lifecycle state,
+                rollout progress, scope, and the schedule window. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              const c = activePatchRecord?.cve;
+              const dep = activePatchRecord?.deployment;
 
-              // Severity — colored dot (Critical red / High orange / Medium amber / Low neutral).
-              const sev = c?.severity ?? 'Medium';
-              const sevColor = ({ Critical: '#EF4444', High: '#F59E0B', Medium: '#EAB308', Low: '#111827' } as Record<string, string>)[sev] ?? '#6B7280';
-              const sevText = ({ Critical: '#B42318', High: '#C4320A', Medium: '#B54708', Low: '#475467' } as Record<string, string>)[sev] ?? '#364658';
-              items.push({ key: 'severity', tip: `Severity: ${sev}`, node: (
+              // Lifecycle status — same dot colors as the Patch Deployments list.
+              const status = dep?.status ?? 'Ready to Deploy';
+              const statusColor = ({ 'Ready to Deploy': '#3D8BD0', 'In Progress': '#F59E0B', 'Completed': '#22A06B', 'Expired': '#EF4444', 'Draft': '#94A3B8', 'Cancelled': '#6B7280' } as Record<string, string>)[status] ?? '#6B7280';
+              items.push({ key: 'status', tip: `Status: ${status}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Severity</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevColor }} />
-                  <span className="text-[12px] font-medium" style={{ color: sevText }}>{sev}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+                  <span className="text-[12px] font-medium text-[#364658]">{status}</span>
                 </span>
               ) });
 
-              // CVSS 3.1 base score — the headline risk number (color-graded like NVD).
-              const score = c?.cvssScore ?? 0;
-              const scoreColor = score >= 9 ? '#B42318' : score >= 7 ? '#C4320A' : score >= 4 ? '#B54708' : '#475467';
-              items.push({ key: 'cvss', tip: `CVSS 3.1 Base Score: ${score}`, node: (
+              // Deployment Policy — the policy this run executes under (replaces the old
+              // Install Progress + Patches KPIs).
+              items.push({ key: 'policy', tip: 'Deployment Policy: Production Servers — Staged Rollout', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">CVSS 3.1</span>
-                  <span className="text-[12px] font-semibold" style={{ color: scoreColor }}>{score}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Deployment Policy</span>
+                  <span className="text-[12px] font-medium text-[#364658]">Production Servers — Staged Rollout</span>
                 </span>
               ) });
 
-              // Exploit status — the single most important triage signal; red "Exploited" when
-              // weaponized in the wild.
-              const exploited = c?.exploitStatus === 'Yes';
-              items.push({ key: 'exploit', tip: exploited ? 'Exploited: active exploitation reported in the wild — prioritize' : 'Exploited: no known in-the-wild exploitation', node: (
+              // Schedule window — 'Tue, Jul 21, 2026 09:00 PM' → 'Jul 21, 2026 09:00 PM'
+              // (weekday trimmed, TIME kept — the install window hour matters for a deployment).
+              const shortDT = (v: string) => v.replace(/^[A-Za-z]{3},\s*/, '');
+              const installAfter = dep?.installAfter ?? activePatchRecord?.releaseDate ?? null;
+              items.push({ key: 'install-after', tip: installAfter ? `Install After: ${installAfter}` : 'Install After: not scheduled — deploys immediately', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Exploit</span>
-                  {exploited && <span className="size-2 rounded-full flex-shrink-0 bg-[#EF4444]" />}
-                  <span className="text-[12px] font-medium" style={{ color: exploited ? '#DC2626' : '#364658' }}>{exploited ? 'Exploited' : 'Not Exploited'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Install After</span>
+                  <span className={`text-[12px] font-medium ${installAfter ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{installAfter ? shortDT(installAfter) : 'Immediate'}</span>
                 </span>
               ) });
 
-              // Patch availability — is there a fix to deploy?
-              const patchable = (c?.patchAvailability ?? 'No') === 'Yes';
-              items.push({ key: 'patch', tip: patchable ? 'Patch Available: a vendor fix can be deployed from the Patches tab' : 'Patch Available: no vendor fix yet — mitigate manually', node: (
+              // Deadline — red once the window has lapsed (real clock, matches the Expired status).
+              const expiry = dep?.expiryDate ?? null;
+              const expired = expiry ? new Date(expiry.replace(/^[A-Za-z]{3},\s*/, '')) < new Date() : false;
+              items.push({ key: 'expiry', tip: expiry ? `Expiry Date: ${expiry}${expired ? ' (window lapsed)' : ''}` : 'Expiry Date: no expiry — the deployment window stays open', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Patch</span>
-                  <span className="text-[12px] font-medium" style={{ color: patchable ? '#22A06B' : '#D97706' }}>{patchable ? 'Available' : 'Unavailable'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Expiry</span>
+                  <span className={`text-[12px] font-medium ${expiry ? (expired ? 'text-[#DC2626]' : 'text-[#364658]') : 'text-[#9CA3AF]'}`}>{expiry ? shortDT(expiry) : '---'}</span>
                 </span>
               ) });
-
-              // Fleet exposure — how many managed endpoints are affected.
-              const impacted = activePatchRecord?.missingSystem ?? 0;
-              items.push({ key: 'impacted', tip: `${impacted} managed endpoint${impacted === 1 ? '' : 's'} impacted by this CVE`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Impacted Endpoints</span>
-                  <span className="text-[12px] font-semibold" style={{ color: impacted > 0 ? '#DC2626' : '#22A06B' }}>{impacted}</span>
-                </span>
-              ) });
-
-              // Published — 'Tue, Jun 11, 2024 10:45 PM' → 'Jun 11, 2024' (weekday + time trimmed).
-              const published = activePatchRecord?.releaseDate;
-              if (published) {
-                const shortDate = published.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
-                items.push({ key: 'published', tip: `Published Date: ${published}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Published</span>
-                    <span className="text-[12px] font-medium text-[#364658]">{shortDate}</span>
-                  </span>
-                ) });
-              }
 
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy CVE URL" />
-            {/* Refresh — re-scan / refresh the CVE detection data */}
+            <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
+            {/* Refresh — deployments aren't approved/declined here (that happens on the Patch
+                page); the useful header action is refreshing the rollout status. */}
             <button
               title="Refresh"
-              onClick={() => toast.success('CVE data refreshed')}
+              onClick={() => toast.success('Deployment status refreshed')}
               className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
             >
               <RefreshCw size={16} className="text-[#6b7280]" />
             </button>
-            {/* Approve / Decline the CVE's remediation — both show while undecided; after a
-                decision only the opposite action remains, so it can be flipped. */}
-            {(() => {
-              const cid = activeAsset?.id ?? '';
-              const decision = patchDecision[cid] ?? 'none';
-              return (
-                <>
-                  {decision !== 'approved' && (
-                    <button
-                      onClick={() => { setPatchDecision((p) => ({ ...p, [cid]: 'approved' })); toast.success(`${cid || 'CVE'} approved`); }}
-                      className="flex items-center h-8 px-4 bg-[#16A34A] text-white text-[12px] font-medium rounded hover:bg-[#15803D]"
-                    >
-                      Approve
-                    </button>
-                  )}
-                  {decision !== 'declined' && (
-                    <button
-                      onClick={() => { setPatchDecision((p) => ({ ...p, [cid]: 'declined' })); toast.error(`${cid || 'CVE'} declined`); }}
-                      className="flex items-center h-8 px-4 bg-[#DC2626] text-white text-[12px] font-medium rounded hover:bg-[#B91C1C]"
-                    >
-                      Decline
-                    </button>
-                  )}
-                </>
-              );
-            })()}
+            <HardwareAssetActionsMenu
+              patchDeploy
+              onOpenApprovalPopup={() => {
+                setShowCreateApprovalPopup(true);
+                setActiveMainTab('approvals');
+              }}
+              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
+            />
           </div>
         </div>
 
@@ -2567,9 +2816,9 @@ onStackMinimizedChange,
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
-                    { id: 'patches-list', label: 'Patches' },
                     { id: 'computers', label: 'Endpoint' },
-                    { id: 'remediation', label: 'Remediation' },
+                    { id: 'packages', label: 'Packages' },
+                    { id: 'installation', label: 'Deployment' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2592,8 +2841,7 @@ onStackMinimizedChange,
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'computers': 'Endpoint',
-                    'patches-list': 'Patches',
-                    'remediation': 'Remediation',
+                    'packages': 'Packages',
                     'vulnerabilities': 'Vulnerabilities',
                     'superseded': 'Superseded',
                     'audit': 'Audit Trail'
@@ -2924,127 +3172,134 @@ onStackMinimizedChange,
                 );
               })()}
 
-              {/* Patches + Endpoints donuts — the fixing patches and the impacted endpoints for
-                  this CVE (same two-card row as the Patch Deployment Overview). */}
+              {/* KPI strip — each card shows a headline count plus its own distribution as a
+                  stacked bar + legend (far easier to read at this size than a pie), and each card
+                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
               {(() => {
                 const wide = drawerWidth > 1080;
-                const sev = (s: string) => DEPLOYED_PATCHES.filter((p) => p.severity === s).length;
-                const epBucket = (b: string) => patchComputers.filter((c) => c.bucket === b).length;
-                return (
-                  <div className={`mb-6 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <DonutKpiCard
-                      label="Patches" icon={Package} color="#3D8BD0" total={DEPLOYED_PATCHES.length} wide={wide}
-                      segments={[
-                        { label: 'Critical', value: sev('Critical'), color: '#EF4444' },
-                        { label: 'Important', value: sev('Important'), color: '#F59E0B' },
-                        { label: 'Moderate', value: sev('Moderate'), color: '#EAB308' },
-                        { label: 'Low', value: sev('Low'), color: '#94A3B8' },
-                      ]}
-                      onClick={() => setActiveMainTab('patches-list')}
-                    />
-                    {/* Different form than the Patches donut beside it — horizontal bar list */}
-                    <BarListKpiCard
-                      label="Endpoints" icon={Monitor} color="#3D8BD0" total={patchComputers.length}
-                      segments={[
-                        { label: 'Missing', value: epBucket('Missing'), color: '#F59E0B' },
-                        { label: 'Installed', value: epBucket('Installed'), color: '#22C55E' },
-                        { label: 'Ignored', value: epBucket('Ignored'), color: '#94A3B8' },
-                      ]}
-                      onClick={() => setActiveMainTab('computers')}
-                    />
-                  </div>
-                );
-              })()}
 
-              {/* CVSS 3.1 Metrics + References — the CVE facts, in the standard Overview card
-                  style (tinted icon badge headers, label-over-value grids). */}
-              {(() => {
-                const c = activePatchRecord?.cve;
-                if (!c) return null;
-                const score = c.cvssScore;
-                // Realistic sub-score split + vector for the mock (derived, deterministic).
-                const impactScore = Math.round(score * 0.65 * 10) / 10;
-                const exploitability = Math.max(0.5, Math.round((score - impactScore) * 10) / 10);
-                const vector = score >= 9
-                  ? 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H'
-                  : score >= 7
-                    ? 'CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H'
-                    : 'CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N';
-                const sevPill: Record<string, { bg: string; text: string }> = {
-                  Critical: { bg: '#FEF3F2', text: '#B42318' },
-                  High: { bg: '#FFF4ED', text: '#C4320A' },
-                  Medium: { bg: '#FFFAEB', text: '#B54708' },
-                  Low: { bg: '#F2F4F7', text: '#475467' },
+                type Seg = { label: string; value: number; color: string };
+                type Kpi = {
+                  key: string; label: string; icon: typeof Activity; color: string;
+                  total: number; segments?: Seg[]; note?: string;
+                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
+                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
+                  chart: 'donut' | 'bar' | 'none' | 'list';
+                  /** Preview rows for chart: 'list'. */
+                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
+                  /** Spans half the row instead of a third. */
+                  half?: boolean;
+                  onClick: () => void;
                 };
-                const pill = sevPill[c.severity] ?? sevPill.Low;
-                const refUrl = `https://msrc.microsoft.com/update-guide/vulnerability/${activePatchRecord?.id}`;
-                const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-                  <div className="min-w-0">
-                    <div className="text-[12px] text-[#64748B]">{label}</div>
-                    <div className="mt-0.5 text-[13px] font-medium text-[#364658]">{children}</div>
-                  </div>
-                );
+
+                // Patches in this deployment, broken down by severity for the Overview donut.
+                const patchSev = (s: string) => DEPLOYED_PATCHES.filter((p) => p.severity === s).length;
+                const patchCritical = patchSev('Critical');
+                const patchImportant = patchSev('Important');
+                const patchModerate = patchSev('Moderate');
+                const patchLow = patchSev('Low');
+
+                const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
+                const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
+                const epIgnored = patchComputers.filter((c) => c.bucket === 'Ignored').length;
+
+                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
+                const depSuccess = dep('Success');
+                const depFailed = dep('Failed');
+                const depProgress = dep('In Progress');
+                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
+
+                const kpis: Kpi[] = [
+                  {
+                    // Packages this run installs, split by the account the installer runs as.
+                    key: 'patches', label: 'Packages', icon: Package, color: '#3D8BD0',
+                    chart: 'donut', total: DEPLOYED_PACKAGES.length,
+                    segments: [
+                      { label: 'System User', value: DEPLOYED_PACKAGES.filter((p) => p.installAsUser === 'System User').length, color: '#3D8BD0' },
+                      { label: 'Logged-in User', value: DEPLOYED_PACKAGES.filter((p) => p.installAsUser === 'Logged-in User').length, color: '#8B5CF6' },
+                    ],
+                    onClick: () => setActiveMainTab('packages'),
+                  },
+                  {
+                    key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
+                    chart: 'donut', total: patchComputers.length,
+                    segments: [
+                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
+                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
+                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('computers'),
+                  },
+                  {
+                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
+                    chart: 'donut', total: patchInstallations.length,
+                    segments: [
+                      { label: 'Success', value: depSuccess, color: '#22C55E' },
+                      { label: 'Failed', value: depFailed, color: '#EF4444' },
+                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
+                      { label: 'Others', value: depOther, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('installation'),
+                  },
+                  // Deployment Overview: no Affected Products / Files preview cards — those are
+                  // patch-catalog details (and their right-rail groups don't exist on this page).
+                ];
+
+                const patchesKpi = kpis.find((k) => k.key === 'patches')!;
+                const endpointsKpi = kpis.find((k) => k.key === 'endpoints')!;
+
                 return (
                   <>
-                    {/* References */}
-                    <div className="mb-6 rounded-lg border border-[#E5E7EB] bg-white p-4">
-                      <div className="mb-2 flex items-center gap-2.5">
-                        <span className="flex size-7 items-center justify-center rounded bg-[#8B5CF6]/10 text-[#8B5CF6]"><Link size={15} /></span>
-                        <h3 className="text-[14px] font-semibold text-[#364658]">References</h3>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[640px]">
-                          <thead className="border-b border-[#e5e7eb]">
-                            <tr>
-                              {['Reference URL', 'Source', 'Tags'].map((h) => (
-                                <th key={h} className="px-3 py-2 text-left text-[12px] font-semibold tracking-wider text-[#364658] whitespace-nowrap">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#e5e7eb]">
-                            <tr className="transition-colors hover:bg-[#f9fafb]">
-                              <td className="px-3 py-2.5 text-[12px]">
-                                <a href={refUrl} target="_blank" rel="noopener noreferrer" className="text-[#3D8BD0] hover:underline break-all">{refUrl}</a>
-                              </td>
-                              <td className="px-3 py-2.5 whitespace-nowrap text-[12px] text-[#364658]">secure@microsoft.com</td>
-                              <td className="px-3 py-2.5 whitespace-nowrap text-[12px]">
-                                <span className="inline-flex gap-1">
-                                  {['Patch', 'Vendor Advisory'].map((t) => (
-                                    <span key={t} className="inline-block rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] text-[#475467]">{t}</span>
-                                  ))}
-                                </span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                    {/* Row 1 — Patches + Endpoints in DIFFERENT forms (columns · bar list) so the
+                        pair doesn't repeat the same chart. (No Vulnerabilities card: the package
+                        flow has no Vulnerabilities tab to drill into.) */}
+                    <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      <ColumnKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} />
+                      <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
                     </div>
 
-                    {/* CVSS 3.1 metrics */}
-                    <div className="mb-6 rounded-lg border border-[#E5E7EB] bg-white p-4">
-                      <div className="mb-3 flex items-center gap-2.5">
-                        <span className="flex size-7 items-center justify-center rounded bg-[#3D8BD0]/10 text-[#3D8BD0]"><Gauge size={15} /></span>
-                        <h3 className="text-[14px] font-semibold text-[#364658]">CVSS 3.1 Metrics</h3>
-                        <span className="ml-auto text-[13px] font-semibold text-[#364658]">Base Score <span className={score >= 9 ? 'text-[#B42318]' : score >= 7 ? 'text-[#C4320A]' : 'text-[#B54708]'}>{score}</span></span>
+                    {/* Deployment group — ONE bordered section holding the overall status (4 stat
+                        cards) plus both drill-downs (by category, by remote office), so all the
+                        deployment context reads as one block. */}
+                    <div className="mt-5 rounded-xl border border-[#E5E7EB] p-4">
+                      <div className="mb-4 flex items-center gap-2">
+                        <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: '#8B5CF61A', color: '#8B5CF6' }}>
+                          <Download size={15} />
+                        </span>
+                        <h3 className="text-[15px] font-semibold text-[#364658]">Deployment</h3>
+                        <button onClick={() => setActiveMainTab('installation')} className="ml-auto flex items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline">
+                          View more<ChevronRight size={14} />
+                        </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-4 @2xl:grid-cols-3">
-                        <Field label="Exploitability Score">{exploitability}</Field>
-                        <Field label="Impact Score">{impactScore}</Field>
-                        <Field label="Severity">
-                          <span className="inline-block rounded-sm px-2 py-0.5 text-[12px] font-medium" style={{ backgroundColor: pill.bg, color: pill.text }}>{c.severity}</span>
-                        </Field>
-                        <Field label="Access Vector"><span className="break-all text-[12.5px]">{vector}</span></Field>
-                        <Field label="Source">secure@microsoft.com</Field>
-                        <Field label="Type">{score >= 9 ? 'Primary' : 'Secondary'}</Field>
+
+                      {/* Overall deployment status — one stat card per status */}
+                      <div className={`grid gap-3 ${wide ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                        {BREAKDOWN_STATUSES.map((s) => {
+                          const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
+                          return (
+                            <div key={s.key} className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-center">
+                              <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
+                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                {s.label}
+                              </div>
+                              <div className="mt-1.5 text-[22px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Drill-downs — status by category / by remote office */}
+                      <div className={`mt-4 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <CategoryStatusBarsCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} />
+                        <StatusBreakdownCard title="Status by Remote Office" icon={MapPin} data={STATUS_BY_REMOTE_OFFICE} totalLabel="Total Installations" allLabel="All Remote Offices" />
                       </div>
                     </div>
                   </>
                 );
               })()}
-
-
             </div>
             )}
+
 
             {activeMainTab === 'hardware' && (() => {
               type Rec = [string, string][];
@@ -6524,16 +6779,15 @@ onStackMinimizedChange,
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
             {activeMainTab === 'computers' && (
-              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions slimColumns />
+              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions packageColumns />
             )}
 
             {/* Patches Tab Content — the patches this deployment rolls out */}
-            {(activeMainTab as string) === 'patches-list' && <PatchDeploymentPatchesTab />}
+            {(activeMainTab as string) === 'packages' && <PackageDeploymentPackagesTab />}
 
-            {/* Remediation Tab Content — the CVE's fixing deployments (same grid + data as the
-                Patch page's Deployment tab) */}
-            {activeMainTab === 'remediation' && (
-              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} />
+            {/* Installation Tab Content — deployment records for this patch */}
+            {activeMainTab === 'installation' && (
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology packageMode />
             )}
 
             {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
@@ -7748,12 +8002,12 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="CVE Fields"
+            fieldsTitle="Patch Deployment Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
-            cveMode={true}
+            patchDeployMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7863,7 +8117,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="CVE Properties"
+            propertiesTitle="Patch Deployment Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -8895,4 +9149,4 @@ onStackMinimizedChange,
   );
 }
 
-export default DetectedCveDrawer;
+export default PackageDeploymentDrawer;

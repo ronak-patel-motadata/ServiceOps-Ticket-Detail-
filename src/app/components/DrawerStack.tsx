@@ -14,6 +14,7 @@ import { PurchaseDrawer } from './PurchaseDrawer';
 import { CmdbDrawer } from './CmdbDrawer';
 import { PatchDrawer } from './PatchDrawer';
 import { PatchDeploymentDrawer } from './PatchDeploymentDrawer';
+import { PackageDeploymentDrawer } from './PackageDeploymentDrawer';
 import { EndpointDrawer } from './EndpointDrawer';
 import { VulnerabilityDrawer } from './VulnerabilityDrawer';
 import { DetectedCveDrawer } from './DetectedCveDrawer';
@@ -30,7 +31,7 @@ import { DrawerShortcuts } from './DrawerShortcuts';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -178,6 +179,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       // Patch Deployment detail page — clone of the Patch detail page; the list page adapts the
       // deployment record onto the Patch shape before opening.
       case 'patch-deployments': drawer = <PatchDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      case 'package-deployments': drawer = <PackageDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Endpoint detail page — clone of the Patch detail page; the list adapts the endpoint record.
       case 'endpoints': drawer = <EndpointDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Vulnerability detail page — clone of the Patch detail page; the list adapts the record.

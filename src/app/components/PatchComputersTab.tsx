@@ -163,6 +163,18 @@ const ALL_ENDPOINTS = 'All Endpoints';
 
 const Dash = () => <span className="text-[12px] text-[#9ca3af]">---</span>;
 
+// Agent Credential Profile — the stored credential the agent authenticates with. Derived
+// deterministically per endpoint (the mock fleet has no such field), OS-appropriate.
+const CRED_WIN = ['Default Windows Credential', 'Corp Domain Admin', 'Local Admin — Workstations', 'Service Account — svc_patch'];
+const CRED_NIX = ['Linux SSH Key — infra', 'Root SSH — datacenter', 'Ansible Service Account'];
+const credentialProfile = (c: PatchComputer) => {
+  const nix = /mac|os x|darwin|linux|ubuntu|red hat|rhel|centos|debian|suse|fedora/i.test(c.osName);
+  const pool = nix ? CRED_NIX : CRED_WIN;
+  let n = 0;
+  for (let i = 0; i < c.id.length; i++) n = (n * 31 + c.id.charCodeAt(i)) | 0;
+  return pool[Math.abs(n) % pool.length];
+};
+
 interface PatchComputersTabProps {
   computers: PatchComputer[];
   setComputers: Dispatch<SetStateAction<PatchComputer[]>>;
@@ -171,9 +183,18 @@ interface PatchComputersTabProps {
   /** Patch DEPLOYMENT page: no Missing/Installed/Ignored sub-tabs — one flat endpoint list
    *  (and no bucket-scoped "Add Missing Computer" button). Opt-in; default unchanged. */
   hideBuckets?: boolean;
+  /** Hide the per-row Actions column / card delete — deployment pages manage endpoints from the
+   *  deployment itself, not row-by-row. Opt-in; default unchanged. */
+  hideActions?: boolean;
+  /** Slim column set (Detected CVE page): ID · Host Name · IP Address · OS Name · OS Version ·
+   *  Architecture · Remote Office — drops the fleet-management columns. Opt-in. */
+  slimColumns?: boolean;
+  /** Package Deployment column set: Endpoint ID · Host Name · IP · Poller · OS Name · Agent
+   *  Credential Profile · Version · Service Pack · Architecture · Used By · Remote Office. */
+  packageColumns?: boolean;
 }
 
-export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false }: PatchComputersTabProps) {
+export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false, hideActions = false, slimColumns = false, packageColumns = false }: PatchComputersTabProps) {
   const [bucket, setBucket] = useState<Bucket>('Missing');
   const [search, setSearch] = useState('');
   // Card / List view toggle — card default (Deployment-tab parity).
@@ -450,21 +471,34 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                   </div>
                   <button className="block mt-1 text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={c.hostName}>{c.hostName}</button>
                 </div>
-                <button
-                  title="Remove"
-                  onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
-                  className="flex-shrink-0 p-1 text-[#9CA3AF] hover:text-[#DC2626] transition-colors"
-                >
-                  <Trash2 size={15} />
-                </button>
+                {!hideActions && (
+                  <button
+                    title="Remove"
+                    onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
+                    className="flex-shrink-0 p-1 text-[#9CA3AF] hover:text-[#DC2626] transition-colors"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
 
               {/* Details */}
               <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="text-[12px] text-[#364658] truncate">{c.ipAddress}</div></div>
+                {/* Package Deployment cards mirror that page's column set (Poller + Agent
+                    Credential Profile + Service Pack, no System Health). */}
+                {packageColumns && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Poller</div><div className="text-[12px] text-[#364658] truncate">{c.poller === '---' ? <Dash /> : c.poller}</div></div>}
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">OS Name</div><div className="text-[12px] text-[#364658] truncate" title={c.osName}>{c.osName}</div></div>
-                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Version</div><div className="text-[12px] text-[#364658] truncate">{c.version}</div></div>
-                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Used By</div><div className="text-[12px] truncate">{c.usedBy ? <span className="text-[#3D8BD0]">{c.usedBy}</span> : <Dash />}</div></div>
+                {packageColumns && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Agent Credential Profile</div><div className="text-[12px] text-[#364658] truncate" title={credentialProfile(c)}>{credentialProfile(c)}</div></div>}
+                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">{slimColumns ? 'OS Version' : 'Version'}</div><div className="text-[12px] text-[#364658] truncate">{c.version}</div></div>
+                {packageColumns && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Service Pack</div><div className="text-[12px] text-[#364658] truncate">{c.servicePack === '---' ? <Dash /> : c.servicePack}</div></div>}
+                {/* Slim (Detected CVE) cards mirror that page's column set: Architecture instead of
+                    the fleet-management fields. */}
+                {(slimColumns || packageColumns) && (
+                  <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Architecture</div><div className="text-[12px] text-[#364658] truncate">{c.architecture === '---' ? <Dash /> : c.architecture}</div></div>
+                )}
+                {!slimColumns && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Used By</div><div className="text-[12px] truncate">{c.usedBy ? <span className="text-[#3D8BD0]">{c.usedBy}</span> : <Dash />}</div></div>}
+                {!slimColumns && !packageColumns && (
                 <div className="min-w-0">
                   <div className="text-[11px] text-[#9CA3AF]">System Health</div>
                   <div className="text-[12px] text-[#364658]">
@@ -473,6 +507,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                     ) : <Dash />}
                   </div>
                 </div>
+                )}
                 <div className="min-w-0">
                   <div className="text-[11px] text-[#9CA3AF]">Remote Office</div>
                   <div className="text-[12px]">{c.remoteOffice ? <span className="inline-block max-w-full truncate rounded bg-[#EEF2F6] px-2 py-0.5 text-[12px] text-[#364658]">{c.remoteOffice}</span> : <Dash />}</div>
@@ -486,7 +521,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
       <>
       {/* Table — standard borderless style (matches the other detail-page tabs) */}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1500px]">
+        <table className={`w-full ${slimColumns ? 'min-w-[1000px]' : 'min-w-[1500px]'}`}>
           <thead className="border-b border-[#e5e7eb]">
             <tr>
               <th className="w-[40px] px-4 py-2.5 text-left">
@@ -497,14 +532,19 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                   className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
                 />
               </th>
-              {['Agent ID', 'Host Name', 'IP Address', 'Poller', 'Agent Created By', 'OS Name', 'Version', 'Service Pack', 'Architecture', 'Used By', 'System Health', 'Remote Office', 'Actions'].map((h) => (
+              {(slimColumns
+                ? ['ID', 'Host Name', 'IP Address', 'OS Name', 'OS Version', 'Architecture', 'Remote Office']
+                : packageColumns
+                  ? ['Endpoint ID', 'Host Name', 'IP Address', 'Poller', 'OS Name', 'Agent Credential Profile', 'Version', 'Service Pack', 'Architecture', 'Used By', 'Remote Office']
+                  : ['Agent ID', 'Host Name', 'IP Address', 'Poller', 'Agent Created By', 'OS Name', 'Version', 'Service Pack', 'Architecture', 'Used By', 'System Health', 'Remote Office', ...(hideActions ? [] : ['Actions'])]
+              ).map((h) => (
                 <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] bg-white">
             {pageRows.length === 0 ? (
-              <tr><td colSpan={14} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} endpoints found.</td></tr>
+              <tr><td colSpan={slimColumns ? 8 : packageColumns ? 12 : hideActions ? 13 : 14} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} endpoints found.</td></tr>
             ) : pageRows.map((c) => (
               <tr key={c.id} className="hover:bg-[#f9fafb] transition-colors">
                 <td className="px-4 py-3">
@@ -524,39 +564,46 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[130px] truncate">{c.hostName}</span></td>
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.ipAddress}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.poller === '---' ? <Dash /> : c.poller}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.createdBy === '---' ? <Dash /> : c.createdBy}</td>
+                {!slimColumns && <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.poller === '---' ? <Dash /> : c.poller}</td>}
+                {!slimColumns && !packageColumns && <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.createdBy === '---' ? <Dash /> : c.createdBy}</td>}
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[160px] truncate">{c.osName}</span></td>
+                {packageColumns && <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[190px] truncate">{credentialProfile(c)}</span></td>}
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.version}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.servicePack === '---' ? <Dash /> : c.servicePack}</td>
+                {!slimColumns && <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.servicePack === '---' ? <Dash /> : c.servicePack}</td>}
                 <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{c.architecture === '---' ? <Dash /> : c.architecture}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-[12px]">
-                  {c.usedBy ? (
-                    <span className="inline-flex items-center gap-1.5 text-[#3D8BD0]"><User size={12} className="text-[#9ca3af]" /><span className="max-w-[120px] truncate">{c.usedBy}</span></span>
-                  ) : <Dash />}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-[12px]">
-                  {c.systemHealth ? (
-                    <span className="inline-flex items-center gap-1.5 text-[#364658]">
-                      <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.systemHealth === 'Healthy' ? '#22C55E' : '#EF4444' }} />
-                      {c.systemHealth}
-                    </span>
-                  ) : <Dash />}
-                </td>
+                {!slimColumns && (
+                  <td className="px-4 py-3 whitespace-nowrap text-[12px]">
+                    {c.usedBy ? (
+                      <span className="inline-flex items-center gap-1.5 text-[#3D8BD0]"><User size={12} className="text-[#9ca3af]" /><span className="max-w-[120px] truncate">{c.usedBy}</span></span>
+                    ) : <Dash />}
+                  </td>
+                )}
+                {!slimColumns && !packageColumns && (
+                  <td className="px-4 py-3 whitespace-nowrap text-[12px]">
+                    {c.systemHealth ? (
+                      <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.systemHealth === 'Healthy' ? '#22C55E' : '#EF4444' }} />
+                        {c.systemHealth}
+                      </span>
+                    ) : <Dash />}
+                  </td>
+                )}
                 <td className="px-4 py-3 whitespace-nowrap text-[12px]">
                   {c.remoteOffice ? (
                     <span className="inline-block rounded bg-[#EEF2F6] px-2 py-0.5 text-[12px] text-[#364658]">{c.remoteOffice}</span>
                   ) : <Dash />}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <button
-                    title="Remove"
-                    onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
-                    className="text-[#EF4444] hover:text-[#DC2626] transition-colors"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </td>
+                {!hideActions && (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <button
+                      title="Remove"
+                      onClick={() => { setComputers((prev) => prev.filter((x) => x.id !== c.id)); setSelected((prev) => { const n = new Set(prev); n.delete(c.id); return n; }); toast.error(`${c.id} removed`); }}
+                      className="text-[#EF4444] hover:text-[#DC2626] transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
