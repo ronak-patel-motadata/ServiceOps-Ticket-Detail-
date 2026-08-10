@@ -912,8 +912,10 @@ onStackMinimizedChange,
   const hasTicketFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
     const query = propertiesSearchQuery.toLowerCase();
-    // Asset fields: match the asset field labels (or the section title).
-    return ASSET_FIELD_LABELS.some(f => f.toLowerCase().includes(query)) || 'asset fields'.includes(query);
+    // Patch-family pages render their own read-only field set (Patch / Deployment / Package /
+    // Registry / Endpoint / CVE), which AssetFields filters internally — so never gate the
+    // accordion on the ASSET label list here or a real match would be hidden.
+    return true;
   };
 
   const hasAdditionalFieldsMatch = () => {

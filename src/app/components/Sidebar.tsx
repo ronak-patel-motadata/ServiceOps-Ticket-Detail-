@@ -166,13 +166,13 @@ function PatchNavItem({ activePage, onNavigate }: { activePage?: string; onNavig
 // prototype placeholders until those pages exist.
 const PACKAGE_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <IconPackage size={16} />, label: 'Package Deployments', page: 'package-deployments' },
-  { icon: <ClipboardCheck size={16} />, label: 'Registry Deployments' },
+  { icon: <ClipboardCheck size={16} />, label: 'Registry Deployments', page: 'registry-deployments' },
   { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
 ];
 
 /** Package nav item with a hover flyout listing its sub-modules (mirrors PatchNavItem). */
 function PackageNavItem({ activePage, onNavigate }: { activePage?: string; onNavigate?: (page: string) => void }) {
-  const sectionActive = activePage === 'package-deployments';
+  const sectionActive = activePage === 'package-deployments' || activePage === 'registry-deployments';
   return (
     <div className="relative group">
       <NavItem icon={<IconPackage size={20} />} active={sectionActive} title="Package" disableTooltip />

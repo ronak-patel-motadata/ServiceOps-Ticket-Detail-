@@ -59,7 +59,7 @@ import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchIns
 import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
+import { BarListKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -1203,7 +1203,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Package Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1262,8 +1262,10 @@ onStackMinimizedChange,
   const hasTicketFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
     const query = propertiesSearchQuery.toLowerCase();
-    // Asset fields: match the asset field labels (or the section title).
-    return ASSET_FIELD_LABELS.some(f => f.toLowerCase().includes(query)) || 'asset fields'.includes(query);
+    // Patch-family pages render their own read-only field set (Patch / Deployment / Package /
+    // Registry / Endpoint / CVE), which AssetFields filters internally — so never gate the
+    // accordion on the ASSET label list here or a real match would be hidden.
+    return true;
   };
 
   const hasAdditionalFieldsMatch = () => {
@@ -2439,7 +2441,7 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Deployment KPIs — Status · Install Progress · Endpoints · Patches · Install After ·
+            {/* Deployment KPIs — Status · Failed · Packages · Endpoints · Install
                 Expiry. The pro deployment-run metrics (Intune/SCCM pattern): lifecycle state,
                 rollout progress, scope, and the schedule window. */}
             {(() => {
@@ -2459,10 +2461,35 @@ onStackMinimizedChange,
 
               // Deployment Policy — the policy this run executes under (replaces the old
               // Install Progress + Patches KPIs).
-              items.push({ key: 'policy', tip: 'Deployment Policy: Production Servers — Staged Rollout', node: (
+              /* Rollout metrics — the set every major endpoint-management console leads with for a
+                 software deployment run: SCCM/MECM shows compliance % + error count, Intune shows
+                 Installed/Failed/Pending against the targeted devices, ManageEngine Endpoint
+                 Central and PDQ Deploy both headline success vs failure counts. Computed LIVE from
+                 the package × endpoint matrix so the header always agrees with the Deployment tab. */
+              const rows = patchInstallations;
+              const failedRuns = rows.filter((r) => r.installationStatus === 'Failed').length;
+              const pkgCount = new Set(rows.map((r) => r.patchId).filter(Boolean)).size;
+              const epCount = new Set(rows.map((r) => r.agentId)).size;
+
+              // Failures — the #1 triage signal; green zero when the rollout is clean.
+              items.push({ key: 'failed', tip: failedRuns > 0 ? `${failedRuns} package installation${failedRuns > 1 ? 's' : ''} failed — see the Deployment tab` : 'No failed installations', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Deployment Policy</span>
-                  <span className="text-[12px] font-medium text-[#364658]">Production Servers — Staged Rollout</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Failed</span>
+                  <span className="text-[12px] font-medium" style={{ color: failedRuns > 0 ? '#DC2626' : '#22A06B' }}>{failedRuns}</span>
+                </span>
+              ) });
+
+              // Scope — how many packages this run carries, across how many endpoints.
+              items.push({ key: 'packages', tip: `Packages in this deployment: ${pkgCount}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Packages</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{pkgCount}</span>
+                </span>
+              ) });
+              items.push({ key: 'endpoints', tip: `Targeted endpoints: ${epCount}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Endpoints</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{epCount}</span>
                 </span>
               ) });
 
@@ -3254,7 +3281,7 @@ onStackMinimizedChange,
                         pair doesn't repeat the same chart. (No Vulnerabilities card: the package
                         flow has no Vulnerabilities tab to drill into.) */}
                     <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      <ColumnKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} />
+                      <DonutKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} wide={wide} />
                       <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
                     </div>
 
@@ -3272,25 +3299,26 @@ onStackMinimizedChange,
                         </button>
                       </div>
 
-                      {/* Overall deployment status — one stat card per status */}
-                      <div className={`grid gap-3 ${wide ? 'grid-cols-4' : 'grid-cols-2'}`}>
-                        {BREAKDOWN_STATUSES.map((s) => {
-                          const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
-                          return (
-                            <div key={s.key} className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-center">
-                              <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
-                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                {s.label}
+                      {/* Two columns: the overall status tiles (2×2) beside the by-office
+                          drill-down. Keeping the drill-down half-width stops its label/value pairs
+                          from being stretched to opposite edges, and the tiles fill the height so
+                          both columns end flush. (No "by Category" card — packages have no
+                          category taxonomy the way patches do.) */}
+                      <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <div className="grid grid-cols-2 gap-4">
+                          {BREAKDOWN_STATUSES.map((s) => {
+                            const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
+                            return (
+                              <div key={s.key} className="flex h-full flex-col items-center justify-center rounded-lg border border-[#E5E7EB] bg-white px-4 py-5 text-center">
+                                <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
+                                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                  {s.label}
+                                </div>
+                                <div className="mt-2 text-[24px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
                               </div>
-                              <div className="mt-1.5 text-[22px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Drill-downs — status by category / by remote office */}
-                      <div className={`mt-4 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        <CategoryStatusBarsCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} />
+                            );
+                          })}
+                        </div>
                         <StatusBreakdownCard title="Status by Remote Office" icon={MapPin} data={STATUS_BY_REMOTE_OFFICE} totalLabel="Total Installations" allLabel="All Remote Offices" />
                       </div>
                     </div>
@@ -8002,12 +8030,13 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Patch Deployment Fields"
+            fieldsTitle="Package Deployment Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
             patchDeployMode={true}
+            packageDeployMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -8117,7 +8146,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Patch Deployment Properties"
+            propertiesTitle="Package Deployment Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

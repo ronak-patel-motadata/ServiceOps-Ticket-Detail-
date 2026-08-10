@@ -22,6 +22,8 @@ interface TicketFieldsAccordionProps {
   purchaseMode?: boolean;
   patchMode?: boolean;
   patchDeployMode?: boolean;
+  packageDeployMode?: boolean;
+  registryDeployMode?: boolean;
   endpointMode?: boolean;
   cveMode?: boolean;
   ticketFieldsExpanded: boolean;
@@ -219,6 +221,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     purchaseMode = false,
     patchMode = false,
     patchDeployMode = false,
+    packageDeployMode = false,
+    registryDeployMode = false,
     endpointMode = false,
     cveMode = false,
     ticketFieldsExpanded,
@@ -494,6 +498,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           purchaseMode={purchaseMode}
           patchMode={patchMode}
           patchDeployMode={patchDeployMode}
+          packageDeployMode={packageDeployMode}
+          registryDeployMode={registryDeployMode}
           endpointMode={endpointMode}
           cveMode={cveMode}
           footer={systemFieldsSection}

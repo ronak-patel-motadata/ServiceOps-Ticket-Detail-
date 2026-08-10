@@ -905,8 +905,9 @@ onStackMinimizedChange,
   const hasTicketFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
     const query = propertiesSearchQuery.toLowerCase();
-    // Asset fields: match the asset field labels (or the section title).
-    return ASSET_FIELD_LABELS.some(f => f.toLowerCase().includes(query)) || 'asset fields'.includes(query);
+    // Patch-family pages render their own read-only field set, which AssetFields filters
+    // internally — never gate the accordion on the ASSET label list or a real match is hidden.
+    return true;
   };
 
   const hasAdditionalFieldsMatch = () => {

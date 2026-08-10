@@ -367,6 +367,8 @@ interface AssetFieldsProps {
   // Patch DEPLOYMENT page: within patchMode, show the deployment-run fields
   // (Status / Task Type / Deployment Policy / Install After / Expiry Date) instead.
   patchDeployMode?: boolean;
+  packageDeployMode?: boolean;
+  registryDeployMode?: boolean;
   // ENDPOINT page: endpoint-inventory fields (host/OS/agent/scan info) instead of the patch catalog's.
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields.
@@ -378,7 +380,7 @@ interface AssetFieldsProps {
   footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -619,6 +621,35 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Created By', value: 'Jainam Shah (Archived)', kind: 'user' },
       { label: 'Last Updated By', value: 'Jainam Shah (Archived)', kind: 'user' },
     ];
+    // PACKAGE DEPLOYMENT page variant — the package run's own properties (no Remote Offices;
+    // retry settings and audit fields close it out).
+    const PACKAGE_DEPLOYMENT_FIELDS: PatchField[] = [
+      { label: 'Status', value: 'Ready to Deploy', dot: '#3D8BD0' },
+      { label: 'Task Type', value: 'Manual Remote Deployment' },
+      { label: 'Deployment Policy', value: '24x7 Deployment Policy' },
+      { label: 'Install After', value: 'Thu, May 21, 2026 10:51 AM' },
+      { label: 'Expiry Date', value: 'Thu, May 28, 2026 10:51 AM' },
+      { label: 'Notify to', value: 'Desktop Support Team' },
+      { label: 'Retry Failed Configuration', value: 'Enabled' },
+      { label: 'Retry Count', value: '3' },
+      { label: 'Last Updated Date', value: 'Thu, May 28, 2026 11:22 AM', sub: '(2 months ago)' },
+      { label: 'Created By', value: 'Dharti Mehta', kind: 'user' },
+      { label: 'Last Updated By', value: 'System' },
+    ];
+    // REGISTRY DEPLOYMENT page variant — the registry run's own properties.
+    const REGISTRY_DEPLOYMENT_FIELDS: PatchField[] = [
+      { label: 'Status', value: 'In Progress', dot: '#F59E0B' },
+      { label: 'Task Type', value: 'Manual Remote Deployment' },
+      { label: 'Deployment Policy', value: 'Business Hours Deployment Policy' },
+      { label: 'Install After', value: 'Thu, Jun 13, 2026 06:43 PM' },
+      { label: 'Expiry Date', value: '---' },
+      { label: 'Notify to', value: 'IT Security Team' },
+      { label: 'Retry Failed Configuration', value: 'Disabled' },
+      { label: 'Retry Count', value: '0' },
+      { label: 'Last Updated Date', value: 'Fri, Jun 14, 2026 10:30 AM', sub: '(2 months ago)' },
+      { label: 'Created By', value: 'Meeral Pithwa (Archived)', kind: 'user' },
+      { label: 'Last Updated By', value: 'System' },
+    ];
     // ENDPOINT page variant — the computer's inventory, not a patch's catalog entry.
     // Order: summary fields → Tags (inserted after OS Version) → agent/identity fields → Scan Info.
     const ENDPOINT_FIELDS: PatchField[] = [
@@ -656,7 +687,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Last Updated Date', value: 'Mon, Jul 27, 2026 11:26 AM' },
     ];
 
-    const fields = patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
+    const fields = registryDeployMode ? REGISTRY_DEPLOYMENT_FIELDS : packageDeployMode ? PACKAGE_DEPLOYMENT_FIELDS : patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
 
     const roRow = (f: PatchField) => {
       const empty = !f.value || f.value === '---';

@@ -1,3 +1,6 @@
+/* Registry Deployment detail page — a separate-file clone of RegistryDeploymentDrawer (opened
+ * from the Registry Deployments listing). Kept standalone so the registry flow can diverge;
+ * adapted onto the Patch shape by registryDeploymentToPatchShape in the list page. */
 /**
  * PatchDeploymentDrawer Component — the Patch DEPLOYMENT detail page.
  *
@@ -53,9 +56,11 @@ import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
-import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES, buildDeploymentMatrix } from './PatchDeploymentPatchesTab';
+import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
+import { buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
+import { RegistryDeploymentRegistryTab, REGISTRY_ENTRIES } from './RegistryDeploymentRegistryTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
+import { BarListKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -531,7 +536,7 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
 };
 
-export function PatchDeploymentDrawer({
+export function RegistryDeploymentDrawer({
   openAssets,
   activeAssetId,
   onClose,
@@ -772,7 +777,7 @@ onStackMinimizedChange,
     { id: 'EP-426', hostName: 'DESKTOP-A3RMK1H', ipAddress: '192.168.29.100', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
   ]);
   // Deployment tab = the full patch × endpoint matrix (every patch on every endpoint).
-  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildDeploymentMatrix());
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildPackageDeploymentMatrix());
   const handleInstallPatch = (agentIds: string[]) => {
     setPatchInstallations((prev) => {
       // Matrix semantics: installing on an endpoint pushes EVERY patch in this deployment to it,
@@ -1199,7 +1204,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Patch Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Registry Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1440,8 +1445,8 @@ onStackMinimizedChange,
       // Installation · Superseded · Audit Trail.
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
-      // "patches-list" = the patches this deployment rolls out (after Endpoint).
-      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'patches-list', 'installation', 'audit'];
+      // "packages" = the software packages this deployment installs (after Endpoint).
+      let allTabs: string[] = ['properties', 'computers', 'registry', 'installation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1467,7 +1472,7 @@ onStackMinimizedChange,
         'approvals': 85,
         'relations': 80,
         'computers': 100,
-        'patches-list': 90,
+        'registry': 85,
         'vulnerabilities': 120,
         'superseded': 110,
         'audit': 100,
@@ -2437,7 +2442,7 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Deployment KPIs — Status · Install Progress · Endpoints · Patches · Install After ·
+            {/* Deployment KPIs — Status · Failed · Packages · Endpoints · Install
                 Expiry. The pro deployment-run metrics (Intune/SCCM pattern): lifecycle state,
                 rollout progress, scope, and the schedule window. */}
             {(() => {
@@ -2457,10 +2462,34 @@ onStackMinimizedChange,
 
               // Deployment Policy — the policy this run executes under (replaces the old
               // Install Progress + Patches KPIs).
-              items.push({ key: 'policy', tip: 'Deployment Policy: Production Servers — Staged Rollout', node: (
+              /* Rollout metrics — the set every major endpoint-management console leads with for a
+                 software deployment run: SCCM/MECM shows compliance % + error count, Intune shows
+                 Installed/Failed/Pending against the targeted devices, ManageEngine Endpoint
+                 Central and PDQ Deploy both headline success vs failure counts. Computed LIVE from
+                 the package × endpoint matrix so the header always agrees with the Deployment tab. */
+              const rows = patchInstallations;
+              const failedRuns = rows.filter((r) => r.installationStatus === 'Failed').length;
+              const epCount = new Set(rows.map((r) => r.agentId)).size;
+
+              // Failures — the #1 triage signal; green zero when the rollout is clean.
+              items.push({ key: 'failed', tip: failedRuns > 0 ? `${failedRuns} package installation${failedRuns > 1 ? 's' : ''} failed — see the Deployment tab` : 'No failed installations', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Deployment Policy</span>
-                  <span className="text-[12px] font-medium text-[#364658]">Production Servers — Staged Rollout</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Failed</span>
+                  <span className="text-[12px] font-medium" style={{ color: failedRuns > 0 ? '#DC2626' : '#22A06B' }}>{failedRuns}</span>
+                </span>
+              ) });
+
+              // Scope — how many registry configurations this run carries, across how many endpoints.
+              items.push({ key: 'registry', tip: `Registry configurations in this deployment: ${REGISTRY_ENTRIES.length}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Registry</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{REGISTRY_ENTRIES.length}</span>
+                </span>
+              ) });
+              items.push({ key: 'endpoints', tip: `Targeted endpoints: ${epCount}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Endpoints</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{epCount}</span>
                 </span>
               ) });
 
@@ -2814,9 +2843,8 @@ onStackMinimizedChange,
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
-                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
                     { id: 'computers', label: 'Endpoint' },
-                    { id: 'patches-list', label: 'Patches' },
+                    { id: 'registry', label: 'Registry' },
                     { id: 'installation', label: 'Deployment' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
@@ -2840,7 +2868,7 @@ onStackMinimizedChange,
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'computers': 'Endpoint',
-                    'patches-list': 'Patches',
+                    'registry': 'Registry',
                     'vulnerabilities': 'Vulnerabilities',
                     'superseded': 'Superseded',
                     'audit': 'Audit Trail'
@@ -3210,15 +3238,14 @@ onStackMinimizedChange,
 
                 const kpis: Kpi[] = [
                   {
-                    key: 'patches', label: 'Patches', icon: Package, color: '#3D8BD0',
-                    chart: 'donut', total: DEPLOYED_PATCHES.length,
+                    // Registry configurations this run applies, split by root hive.
+                    key: 'patches', label: 'Registry', icon: Package, color: '#3D8BD0',
+                    chart: 'donut', total: REGISTRY_ENTRIES.length,
                     segments: [
-                      { label: 'Critical', value: patchCritical, color: '#EF4444' },
-                      { label: 'Important', value: patchImportant, color: '#F59E0B' },
-                      { label: 'Moderate', value: patchModerate, color: '#EAB308' },
-                      { label: 'Low', value: patchLow, color: '#94A3B8' },
+                      { label: 'HKEY_LOCAL_MACHINE', value: REGISTRY_ENTRIES.filter((r) => r.hive === 'HKEY_LOCAL_MACHINE').length, color: '#3D8BD0' },
+                      { label: 'HKEY_CURRENT_USER', value: REGISTRY_ENTRIES.filter((r) => r.hive === 'HKEY_CURRENT_USER').length, color: '#8B5CF6' },
                     ],
-                    onClick: () => setActiveMainTab('patches-list'),
+                    onClick: () => setActiveMainTab('registry'),
                   },
                   {
                     key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
@@ -3247,24 +3274,14 @@ onStackMinimizedChange,
 
                 const patchesKpi = kpis.find((k) => k.key === 'patches')!;
                 const endpointsKpi = kpis.find((k) => k.key === 'endpoints')!;
-                // Vulnerabilities across the deployment's patches (same card as the Patch page).
-                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
-                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
 
                 return (
                   <>
-                    {/* Row 1 — Vulnerabilities + Patches + Endpoints, each in a DIFFERENT form
-                        (donut · columns · bar list) so the trio doesn't repeat the same chart. */}
-                    <div className={`grid gap-4 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                      <DonutKpiCard
-                        label="Vulnerabilities" icon={ShieldCheck} color="#DC2626" total={VULNERABILITIES.length}
-                        segments={[
-                          { label: 'Approved', value: vulnApproved, color: '#22C55E' },
-                          { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
-                        ]}
-                        onClick={() => setActiveMainTab('vulnerabilities')} wide={wide}
-                      />
-                      <ColumnKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} />
+                    {/* Row 1 — Patches + Endpoints in DIFFERENT forms (columns · bar list) so the
+                        pair doesn't repeat the same chart. (No Vulnerabilities card: the package
+                        flow has no Vulnerabilities tab to drill into.) */}
+                    <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      <DonutKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} wide={wide} />
                       <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
                     </div>
 
@@ -3282,25 +3299,26 @@ onStackMinimizedChange,
                         </button>
                       </div>
 
-                      {/* Overall deployment status — one stat card per status */}
-                      <div className={`grid gap-3 ${wide ? 'grid-cols-4' : 'grid-cols-2'}`}>
-                        {BREAKDOWN_STATUSES.map((s) => {
-                          const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
-                          return (
-                            <div key={s.key} className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-center">
-                              <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
-                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                {s.label}
+                      {/* Two columns: the overall status tiles (2×2) beside the by-office
+                          drill-down. Keeping the drill-down half-width stops its label/value pairs
+                          from being stretched to opposite edges, and the tiles fill the height so
+                          both columns end flush. (No "by Category" card — packages have no
+                          category taxonomy the way patches do.) */}
+                      <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <div className="grid grid-cols-2 gap-4">
+                          {BREAKDOWN_STATUSES.map((s) => {
+                            const val = s.key === 'success' ? depSuccess : s.key === 'failed' ? depFailed : s.key === 'inProgress' ? depProgress : depOther;
+                            return (
+                              <div key={s.key} className="flex h-full flex-col items-center justify-center rounded-lg border border-[#E5E7EB] bg-white px-4 py-5 text-center">
+                                <div className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B]">
+                                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                  {s.label}
+                                </div>
+                                <div className="mt-2 text-[24px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
                               </div>
-                              <div className="mt-1.5 text-[22px] font-bold leading-none tabular-nums" style={{ color: val > 0 ? s.color : '#94A3B8' }}>{val}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Drill-downs — status by category / by remote office */}
-                      <div className={`mt-4 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        <CategoryStatusBarsCard title="Patch Status by Category" icon={Layers} data={PATCH_STATUS_BY_CATEGORY} />
+                            );
+                          })}
+                        </div>
                         <StatusBreakdownCard title="Status by Remote Office" icon={MapPin} data={STATUS_BY_REMOTE_OFFICE} totalLabel="Total Installations" allLabel="All Remote Offices" />
                       </div>
                     </div>
@@ -6789,15 +6807,15 @@ onStackMinimizedChange,
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
             {activeMainTab === 'computers' && (
-              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions />
+              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions packageColumns />
             )}
 
             {/* Patches Tab Content — the patches this deployment rolls out */}
-            {(activeMainTab as string) === 'patches-list' && <PatchDeploymentPatchesTab />}
+            {(activeMainTab as string) === 'registry' && <RegistryDeploymentRegistryTab />}
 
             {/* Installation Tab Content — deployment records for this patch */}
             {activeMainTab === 'installation' && (
-              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology />
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology packageMode />
             )}
 
             {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
@@ -8012,12 +8030,13 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Patch Deployment Fields"
+            fieldsTitle="Registry Deployment Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
             patchDeployMode={true}
+            registryDeployMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -8127,7 +8146,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Patch Deployment Properties"
+            propertiesTitle="Registry Deployment Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -9159,4 +9178,4 @@ onStackMinimizedChange,
   );
 }
 
-export default PatchDeploymentDrawer;
+export default RegistryDeploymentDrawer;
