@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, X } from 'lucide-react';
+import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
 
 /* Registry DEPLOYMENT detail page — "Registry" tab: the registry configurations this deployment
  * applies. Standard borderless grid + compact search (Name / Description). */
@@ -20,6 +21,45 @@ export const REGISTRY_ENTRIES: RegistryEntry[] = [
   { name: 'Disable Autorun on Removable Media', description: 'Blocks autorun and autoplay for USB and optical drives', hive: 'HKEY_LOCAL_MACHINE' },
   { name: 'Hide Recently Opened Documents', description: 'Clears and hides the recent documents list at sign-out', hive: 'HKEY_CURRENT_USER' },
 ];
+
+/* The endpoints this registry deployment targets. The Deployment tab shows the FULL registry
+ * template × endpoint matrix (every configuration on every endpoint). */
+export const REGISTRY_DEPLOYMENT_ENDPOINTS = [
+  { id: 'EP-424', hostName: 'Dharati-Bhimani', ip: '10.20.40.124' },
+  { id: 'EP-486', hostName: 'Vasu-Hirpara', ip: '10.20.41.86' },
+  { id: 'EP-607', hostName: 'V5LAP0248', ip: '10.20.22.207' },
+];
+
+// A deterministic status per (template, endpoint) cell so the matrix reads varied but stable.
+const MATRIX_STATUS: InstallationStatus[] = ['Success', 'In Progress', 'Failed', 'Yet to Receive'];
+
+/** Build the registry template × endpoint matrix — one row per pair (the Deployment tab's rows). */
+export function buildRegistryDeploymentMatrix(): PatchInstallation[] {
+  const rows: PatchInstallation[] = [];
+  REGISTRY_ENTRIES.forEach((entry, ri) => {
+    REGISTRY_DEPLOYMENT_ENDPOINTS.forEach((e, ei) => {
+      const status = MATRIX_STATUS[(ri * 2 + ei) % MATRIX_STATUS.length];
+      const done = status === 'Success' || status === 'Failed';
+      rows.push({
+        id: `INST-REG${ri + 1}-${e.id}`,
+        agentId: e.id,
+        hostName: e.hostName,
+        ipAddress: e.ip,
+        configType: 'Install',
+        deploymentDate: done ? 'Thu, Jun 18, 2026 09:12 AM' : '---',
+        installationStatus: status,
+        retryStatus: status === 'Failed' ? 1 : 0,
+        downloadStatus: 'Success',
+        taskType: 'Manual Remote Deployment',
+        // Reuses the matrix fields — on this page they carry the registry TEMPLATE (name only).
+        patchId: `REG-${ri + 1}`,
+        patchName: entry.name,
+        result: status === 'Success' ? 'APPLIED' : status === 'Failed' ? 'FAILED' : '---',
+      });
+    });
+  });
+  return rows;
+}
 
 export function RegistryDeploymentRegistryTab() {
   const [search, setSearch] = useState('');

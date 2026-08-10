@@ -108,3 +108,48 @@ export function ColumnKpiCard({ label, icon, color, total, segments, onClick, he
     </CardShell>
   );
 }
+
+/** Count + preview list — for record types with NO category/status split (packages, registry
+ *  configurations, plain endpoint targets): a big total on the left, the first few actual
+ *  records on the right, "+N more" drilling into the tab. Fills the card with real data
+ *  instead of an invented breakdown. */
+export function CountPreviewKpiCard({ label, icon, color, total, unit, items, onClick, previewCount = 3 }: {
+  label: string;
+  icon: LucideIcon;
+  color: string;
+  total: number;
+  /** Unit line under the number, e.g. "packages in this deployment". */
+  unit: string;
+  items: { title: string; sub?: string }[];
+  onClick?: () => void;
+  previewCount?: number;
+}) {
+  const preview = items.slice(0, previewCount);
+  const rest = items.length - preview.length;
+  return (
+    <CardShell label={label} icon={icon} color={color} onClick={onClick}>
+      <div className="mt-3 flex flex-1 items-center gap-4">
+        {/* Big total */}
+        <div className="flex w-[104px] flex-shrink-0 flex-col items-center justify-center self-stretch rounded-lg py-3" style={{ backgroundColor: `${color}0D` }}>
+          <span className="text-[34px] font-bold leading-none tabular-nums" style={{ color }}>{total}</span>
+          <span className="mt-1.5 max-w-[92px] text-center text-[10.5px] leading-snug text-[#7B8FA5]">{unit}</span>
+        </div>
+        {/* The actual records */}
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+          {preview.map((it) => (
+            <div key={it.title} className="flex min-w-0 items-baseline gap-2 rounded bg-[#F8FAFC] px-2.5 py-1.5">
+              <span className="size-1.5 flex-shrink-0 self-center rounded-full" style={{ backgroundColor: color }} />
+              <span className="truncate text-[12px] font-medium text-[#364658]" title={it.title}>{it.title}</span>
+              {it.sub && <span className="ml-auto flex-shrink-0 text-[11px] text-[#94A3B8]">{it.sub}</span>}
+            </div>
+          ))}
+          {rest > 0 && (
+            <button onClick={onClick} className="self-start px-2.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] hover:underline">
+              +{rest} more ›
+            </button>
+          )}
+        </div>
+      </div>
+    </CardShell>
+  );
+}

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Pagination } from './Pagination';
-import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Check, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { Search, X, Monitor, LayoutGrid, List as ListIcon, Network, Filter, Check, ChevronDown, Minimize2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { PatchInstallation, InstallationStatus } from './PatchComputersTab';
 import { INITIAL_COMPUTERS } from './PatchComputersTab';
 import { OsBadge } from './OsBadge';
-import { DeploymentTopologyView } from './DeploymentTopologyView';
+import { DeploymentTopologyView, PACKAGE_DEPLOY_SCENARIOS, REGISTRY_DEPLOY_SCENARIOS } from './DeploymentTopologyView';
 import { EndpointConfigFlow } from './EndpointConfigFlow';
 
 // Full set of installation-status values the filter can pick from (superset of what's in the data).
@@ -61,9 +61,12 @@ interface PatchInstallationTabProps {
   /** Package Deployment page: the matrix rows carry PACKAGES, not patches — the column reads
    *  "Package ID" and the patch-only Severity column is dropped. */
   packageMode?: boolean;
+  /** Registry Deployment page: rows carry a registry TEMPLATE (one name column, no id pill),
+   *  and there is no per-endpoint download step. */
+  registryMode?: boolean;
 }
 
-export function PatchInstallationTab({ installations, showTopology = false, packageMode = false }: PatchInstallationTabProps) {
+export function PatchInstallationTab({ installations, showTopology = false, packageMode = false, registryMode = false }: PatchInstallationTabProps) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'list' | 'card' | 'topology'>('card');
   // Full screen — the whole tab (any view) promoted to a fixed overlay (Superseded-tab pattern).
@@ -222,7 +225,7 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
                       onClick={() => setFilterTab('patch')}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-colors ${filterTab === 'patch' ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-transparent text-[#64748B] hover:text-[#364658]'}`}
                     >
-                      {packageMode ? 'Package' : 'Patch'}
+                      {registryMode ? 'Registry Template' : packageMode ? 'Package' : 'Patch'}
                       {patchFilter.length > 0 && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
                     </button>
                   </div>
@@ -294,7 +297,10 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
         {/* Topology: filter sits right after the search; spacer pushes the view toggle to the edge */}
         {view === 'topology' && <div className="flex-1" />}
 
-        {/* View toggle — Card · List (· Topology only on the Patch Deployment page) */}
+        {/* View toggle — Card · List (· Topology only on the Patch Deployment page).
+            Hidden in full screen: fullscreen is entered from the topology canvas, and switching
+            views inside the overlay would strand the user without that exit control. */}
+        {!isFull && (
         <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
           {([
             { key: 'card', icon: <LayoutGrid size={15} />, tip: 'Card view' },
@@ -314,27 +320,27 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
             </Tooltip>
           ))}
         </div>
-
-        {/* Full screen — Patch Deployment page only (same control as the Dependency Map /
-            Superseded toolbars), rides alongside the Topology view */}
-        {showTopology && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setIsFull((v) => !v)}
-              className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border transition-colors ${isFull ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA]'}`}
-            >
-              {isFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{isFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
-        </Tooltip>
+        )}
+        {/* Fullscreen EXIT — top-right corner of the expanded view (the canvas card only ENTERS
+            fullscreen; once expanded, the restore control moves up here like a window control). */}
+        {isFull && view === 'topology' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsFull(false)}
+                className='inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border border-[#3D8BD0] bg-[#3D8BD0] text-white transition-colors hover:bg-[#2d6ca0]'
+              >
+                <Minimize2 size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Exit full screen</TooltipContent>
+          </Tooltip>
         )}
       </div>
 
       {view === 'topology' ? (
         /* Topology view — the deployment architecture canvas (records don't gate it) */
-        <DeploymentTopologyView search={search} statusFilter={statusFilter} patchFilter={patchFilter} fullscreen={isFull} />
+        <DeploymentTopologyView search={search} statusFilter={statusFilter} patchFilter={patchFilter} fullscreen={isFull} scenarios={packageMode ? PACKAGE_DEPLOY_SCENARIOS : registryMode ? REGISTRY_DEPLOY_SCENARIOS : undefined} countLabel={packageMode ? 'Package Count' : registryMode ? 'Registry Count' : undefined} onToggleFullscreen={() => setIsFull((v) => !v)} storeFlavor={packageMode ? 'packages' : registryMode ? 'configurations' : 'patches'} />
       ) : installations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="inline-flex items-center justify-center size-14 rounded-full bg-[#F5F7FA] mb-3">
@@ -350,7 +356,9 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
             <thead className="border-b border-[#e5e7eb]">
               <tr>
                 {(hasPatchCols
-                  ? (packageMode
+                  ? (registryMode
+                      ? ['Endpoint ID', 'Host Name', 'Registry Template', 'Deployment Date', 'Installation Status', 'Retry Status', 'Result', 'Actions']
+                      : packageMode
                       ? ['Endpoint ID', 'Host Name', 'Package ID', 'Name', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions']
                       : ['Endpoint ID', 'Host Name', 'Patch ID', 'Name', 'Severity', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Result', 'Actions'])
                   : ['Agent ID', 'Host Name', 'IP Address', 'Configuration Type', 'Deployment Date', 'Installation Status', 'Retry Status', 'Download Status', 'Task Type', 'Actions']
@@ -361,7 +369,7 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
             </thead>
             <tbody className="divide-y divide-[#e5e7eb] bg-white">
               {rows.length === 0 ? (
-                <tr><td colSpan={hasPatchCols ? (packageMode ? 10 : 11) : 10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
+                <tr><td colSpan={hasPatchCols ? (registryMode ? 8 : packageMode ? 10 : 11) : 10} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No deployments match your search.</td></tr>
               ) : pageRows.map((r) => (
                 <tr key={r.id} className="hover:bg-[#f9fafb] transition-colors">
                   {/* Endpoint / Agent ID with health dot */}
@@ -374,12 +382,16 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
                   <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[140px] truncate">{r.hostName}</span></td>
                   {hasPatchCols ? (
                     <>
-                      {/* Which patch this deployment row carries (patch × endpoint matrix) */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
-                      </td>
+                      {/* What this deployment row carries. Registry runs show ONE template-name
+                          column; patch/package runs show an id pill + name. */}
+                      {!registryMode && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
+                        </td>
+                      )}
                       <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[240px] truncate" title={r.patchName}>{r.patchName}</span></td>
-                      {!packageMode && (
+                      {/* Severity is patch-only — packages and registry templates have none. */}
+                      {!packageMode && !registryMode && (
                         <td className="px-4 py-3 whitespace-nowrap text-[12px]">
                           <span className="inline-flex items-center gap-1.5 text-[#364658]">
                             <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />
@@ -402,12 +414,14 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{r.retryStatus}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-[12px]">
-                    <span className="inline-flex items-center gap-1.5 text-[#364658]">
-                      <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: downloadDot(r.downloadStatus) }} />
-                      {r.downloadStatus}
-                    </span>
-                  </td>
+                  {!registryMode && (
+                    <td className="px-4 py-3 whitespace-nowrap text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                        <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: downloadDot(r.downloadStatus) }} />
+                        {r.downloadStatus}
+                      </span>
+                    </td>
+                  )}
                   {hasPatchCols ? (
                     <td className="px-4 py-3 whitespace-nowrap text-[12px] text-[#364658]">{!r.result || r.result === '---' ? <Dash /> : r.result}</td>
                   ) : (
@@ -442,22 +456,29 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
                 <span className="flex-shrink-0"><StatusPill status={r.installationStatus} /></span>
               </div>
 
-              {/* Which patch this deployment row carries (patch × endpoint matrix — deployment page) */}
-              {r.patchId && (
+              {/* What this deployment row carries (× endpoint matrix — deployment pages).
+                  Registry runs have no id pill, so the strip is LABELLED ("Registry Template")
+                  — otherwise the bare name reads as an unexplained string on the card. */}
+              {r.patchId && (registryMode ? (
+                <div className="mt-3 min-w-0 rounded border border-[#EEF2F6] bg-[#F8FAFC] px-2.5 py-2">
+                  <div className="text-[11px] text-[#9CA3AF]">Registry Template</div>
+                  <div className="mt-0.5 truncate text-[12px] font-medium text-[#364658]" title={r.patchName}>{r.patchName}</div>
+                </div>
+              ) : (
                 <div className="mt-3 flex items-center gap-2 rounded border border-[#EEF2F6] bg-[#F8FAFC] px-2.5 py-2 min-w-0">
                   <span className="inline-block flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.patchId}</span>
                   {!packageMode && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevDot(r.patchSeverity) }} />}
                   <span className="min-w-0 truncate text-[12px] text-[#364658]" title={r.patchName}>{r.patchName}</span>
                 </div>
-              )}
+              ))}
 
               {/* Details */}
               <div className="mt-3 pt-3 border-t border-[#F0F2F5] grid grid-cols-2 gap-x-3 gap-y-2">
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="text-[12px] text-[#364658] truncate">{r.ipAddress}</div></div>
-                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Configuration Type</div><div className="text-[12px] text-[#364658] truncate">{r.configType}</div></div>
+                {!registryMode && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Configuration Type</div><div className="text-[12px] text-[#364658] truncate">{r.configType}</div></div>}
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Deployment Date</div><div className="text-[12px] truncate" style={{ color: r.deploymentDate === '---' ? '#9ca3af' : '#364658' }}>{r.deploymentDate}</div></div>
                 <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Retry Status</div><div className="text-[12px] text-[#364658]">{r.retryStatus}</div></div>
-                <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Download Status</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: downloadDot(r.downloadStatus) }} />{r.downloadStatus}</div></div>
+                {!registryMode && <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Download Status</div><div className="text-[12px] text-[#364658] inline-flex items-center gap-1.5"><span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: downloadDot(r.downloadStatus) }} />{r.downloadStatus}</div></div>}
                 {r.patchId ? (
                   <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Result</div><div className="text-[12px] truncate" style={{ color: !r.result || r.result === '---' ? '#9ca3af' : '#364658' }}>{r.result ?? '---'}</div></div>
                 ) : (
@@ -488,7 +509,7 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
       )}
 
       {/* Individual endpoint deployment-chain flow (center popup) */}
-      {configFor && <EndpointConfigFlow record={configFor} onClose={() => setConfigFor(null)} />}
+      {configFor && <EndpointConfigFlow record={configFor} onClose={() => setConfigFor(null)} sharedDirSource={packageMode} noExternalSource={registryMode} />}
     </div>
   );
 }

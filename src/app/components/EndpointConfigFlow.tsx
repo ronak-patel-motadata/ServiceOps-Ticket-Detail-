@@ -5,7 +5,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  ServerCog, Database, Server, Building2, Monitor, Globe, X, CheckCircle2, XCircle, Loader2, Clock, Download,
+  ServerCog, Database, Server, Building2, Monitor, Globe, FolderOpen, X, CheckCircle2, XCircle, Loader2, Clock, Download,
   Maximize, Plus, Minus, RotateCcw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -36,6 +36,8 @@ const KIND = {
   office: { icon: Building2, color: '#0EA5E9', label: 'Remote Office' },
   endpoint: { icon: Monitor, color: '#64748B', label: 'Endpoint' },
   internet: { icon: Globe, color: '#22C55E', label: 'Internet' },
+  // Package flows: the external source is a network share, not the vendor CDN.
+  shareddir: { icon: FolderOpen, color: '#22C55E', label: 'External Package Source' },
 } as const;
 type Kind = keyof typeof KIND;
 
@@ -57,7 +59,7 @@ function ChainNode({ data }: NodeProps) {
   const k = KIND[d.kind];
   const st = d.status ? STATUS_META[d.status] : null;
   const Icon = k.icon;
-  if (d.kind === 'internet') {
+  if (d.kind === 'internet' || d.kind === 'shareddir') {
     return (
       <div className="relative flex w-[188px] items-center gap-2.5 rounded-lg border border-[#D1E9D6] bg-white px-3 py-2.5 shadow-sm">
         <Handle type="source" position={Position.Bottom} id="b" className={hiddenHandle} />
@@ -84,7 +86,7 @@ function ChainNode({ data }: NodeProps) {
       {st && d.status && (
         <div className="mt-1.5 flex items-center gap-1.5">
           <st.icon size={11} className={st.spin ? 'animate-spin' : ''} style={{ color: st.color }} />
-          <span className="text-[10px] font-medium" style={{ color: st.color }}>{st.label}</span>
+          <span className="whitespace-nowrap text-[10px] font-medium" style={{ color: st.color }}>{st.label}</span>
         </div>
       )}
     </div>
@@ -153,7 +155,7 @@ export interface EndpointConfigRecord {
   deploymentDate?: string | null;
 }
 
-export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfigRecord; onClose: () => void }) {
+export function EndpointConfigFlow({ record, onClose, sharedDirSource = false, noExternalSource = false }: { record: EndpointConfigRecord; onClose: () => void; /** Package pages: the external source is a Shared Directory, not the Internet. */ sharedDirSource?: boolean; /** Registry pages: scripts are uploaded manually — no external source node at all. */ noExternalSource?: boolean }) {
   const norm = (s: string): ChainStatus => (
     (['Success', 'Failed', 'In Progress', 'Received', 'Yet to Receive', 'Pending', 'Waiting', 'Cancelled'] as ChainStatus[])
       .includes(s as ChainStatus) ? (s as ChainStatus) : 'Yet to Receive'
@@ -166,7 +168,7 @@ export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfig
     // real status; a failure (install or download) reddens the last hop.
     const chain: { id: string; kind: Kind; name: string; sub?: string; status: ChainStatus }[] = [
       { id: 'serviceops', kind: 'serviceops', name: 'ServiceOps Server', sub: 'Management Server', status: 'Success' },
-      { id: 'mainfs', kind: 'mainfs', name: 'Main File Server', sub: 'Patch Store', status: 'Success' },
+      { id: 'mainfs', kind: 'mainfs', name: 'Main File Server', sub: noExternalSource ? 'Configuration Store' : sharedDirSource ? 'Package Store' : 'Patch Store', status: 'Success' },
       { id: 'ds', kind: 'ds', name: dsName, sub: `Distributed Server`, status: 'Success' },
       { id: 'office', kind: 'office', name: office, sub: 'Remote Office', status: 'Success' },
       { id: 'endpoint', kind: 'endpoint', name: record.hostName, sub: record.ipAddress, status: epStatus },
@@ -179,12 +181,18 @@ export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfig
       data: { ...c, red: c.id === 'endpoint' && (epStatus === 'Failed') },
       draggable: false, selectable: false,
     }));
-    // Internet above the Main File Server.
-    nodes.push({
-      id: 'internet', type: 'chain', position: { x: X[1] + 20, y: -60 },
-      data: { kind: 'internet', name: 'Internet', sub: 'External Patch Source' },
-      draggable: false, selectable: false,
-    });
+    // External source above the Main File Server — the Internet, or (package flows) the
+    // Shared Directory the package files are picked up from. Registry flows have NONE: the
+    // administrator uploads the script manually.
+    if (!noExternalSource) {
+      nodes.push({
+        id: 'internet', type: 'chain', position: { x: X[1] + 20, y: -60 },
+        data: sharedDirSource
+          ? { kind: 'shareddir', name: 'Shared Directory', sub: '\\\\CORP-FS01\\ServiceOps\\Packages' }
+          : { kind: 'internet', name: 'Internet', sub: 'External Patch Source' },
+        draggable: false, selectable: false,
+      });
+    }
 
     const color = (s: ChainStatus) => STATUS_META[s].color;
     const edges: RFEdge[] = [];
@@ -202,17 +210,19 @@ export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfig
         markerEnd: { type: MarkerType.ArrowClosed, color: c, width: 15, height: 15 },
       } as RFEdge);
     }
-    // Internet → Main File Server (always downloads/stores every patch), two-way.
-    edges.push({
-      id: 'e-net-mainfs', source: 'internet', target: 'mainfs', sourceHandle: 'b', targetHandle: 't',
-      type: 'smoothstep', pathOptions: { borderRadius: 12 },
-      style: { stroke: '#12B76A', strokeWidth: 1.8 },
-      markerStart: { type: MarkerType.ArrowClosed, color: '#12B76A', width: 15, height: 15 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#12B76A', width: 15, height: 15 },
-    } as RFEdge);
+    // External source → Main File Server (always downloads/stores every patch), two-way.
+    if (!noExternalSource) {
+      edges.push({
+        id: 'e-net-mainfs', source: 'internet', target: 'mainfs', sourceHandle: 'b', targetHandle: 't',
+        type: 'smoothstep', pathOptions: { borderRadius: 12 },
+        style: { stroke: '#12B76A', strokeWidth: 1.8 },
+        markerStart: { type: MarkerType.ArrowClosed, color: '#12B76A', width: 15, height: 15 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#12B76A', width: 15, height: 15 },
+      } as RFEdge);
+    }
 
     return { nodes, edges };
-  }, [record]);
+  }, [record, sharedDirSource, noExternalSource]);
 
   const epStatus = norm(record.installationStatus);
   const st = STATUS_META[epStatus];
@@ -319,6 +329,12 @@ export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfig
                   ['Retry Status', String(record.retryStatus ?? 0)],
                   ['Task Type', record.taskType ?? 'Manual Remote Deployment'],
                 ]
+              : tip.d.kind === 'shareddir'
+              ? [
+                  ['Share Type', 'Network Share (SMB)'],
+                  ['Access Account', 'svc_serviceops (read-only)'],
+                  ['Last Sync', 'Mon, Jul 27, 2026 09:42 AM'],
+                ]
               : [['Role', tip.d.sub ?? k.label]];
             const failReason = tip.d.kind === 'endpoint' && tip.d.status === 'Failed'
               ? 'Installation failed — the endpoint is offline (shut down or unreachable on the network). It will retry on the next check-in.'
@@ -342,6 +358,13 @@ export function EndpointConfigFlow({ record, onClose }: { record: EndpointConfig
                     <div className="truncate text-[10.5px] text-[#7B8FA5]">{k.label}</div>
                   </div>
                 </div>
+                {/* Shared Directory: the FULL path, wrapped — the card's sub-line truncates it. */}
+                {tip.d.kind === 'shareddir' && (
+                  <div className="border-b border-[#F0F2F5] px-3.5 py-2.5">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Directory Path</div>
+                    <div className="break-all rounded bg-[#F8FAFC] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[#364658]">{tip.d.sub}</div>
+                  </div>
+                )}
                 <div className="space-y-1.5 px-3.5 py-2.5">
                   {s && tip.d.status && (
                     <div className="flex items-center justify-between gap-3">

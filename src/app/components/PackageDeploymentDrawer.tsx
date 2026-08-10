@@ -59,7 +59,7 @@ import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchIns
 import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard } from './OverviewKpiCards';
+import { CountPreviewKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -2946,7 +2946,7 @@ onStackMinimizedChange,
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[14px] font-semibold text-[#364658]">License &amp; compliance</h3>
                 </div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                   {[
                     { label: 'License', value: 'Active', color: '#22A06B', dot: true },
                     { label: 'Compliance', value: 'Compliant', color: '#22A06B' },
@@ -3281,8 +3281,10 @@ onStackMinimizedChange,
                         pair doesn't repeat the same chart. (No Vulnerabilities card: the package
                         flow has no Vulnerabilities tab to drill into.) */}
                     <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      <DonutKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} wide={wide} />
-                      <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
+                      {/* No category/status split exists for packages or their targets — the
+                          cards show the COUNT plus the actual records (count-preview form). */}
+                      <CountPreviewKpiCard label='Packages' icon={Package} color='#3D8BD0' total={DEPLOYED_PACKAGES.length} unit='packages in this deployment' items={DEPLOYED_PACKAGES.map((p) => ({ title: p.name }))} onClick={() => setActiveMainTab('packages')} />
+                      <CountPreviewKpiCard label='Endpoints' icon={Monitor} color='#22A06B' total={patchComputers.length} unit='endpoints targeted' items={patchComputers.map((c) => ({ title: c.hostName, sub: c.ipAddress }))} onClick={() => setActiveMainTab('computers')} />
                     </div>
 
                     {/* Deployment group — ONE bordered section holding the overall status (4 stat
@@ -3691,7 +3693,7 @@ onStackMinimizedChange,
                           </div>
 
                           {!q && section.summary && (
-                            <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4 mb-4`}>
+                            <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-4`}>
                               {section.summary.map(([label, value]) => (
                                 <div key={label} className="border border-[#DFE5ED] rounded-lg p-4 bg-white">
                                   <div className="text-[12px] text-[#7B8FA5] mb-1">{label}</div>
@@ -3738,7 +3740,7 @@ onStackMinimizedChange,
                                       <Trash2 size={15} />
                                     </button>
                                   </div>
-                                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
                                     {fields.map(([label, value]) => (
                                       <div key={label} className="min-w-0">
                                         <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
@@ -3903,7 +3905,7 @@ onStackMinimizedChange,
                     <Gauge size={16} className="text-[#3D8BD0]" />
                     <h3 className="text-[14px] font-semibold text-[#364658]">Usage metering</h3>
                   </div>
-                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                     {summary.map(([l, v, color]) => (
                       <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
                         <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
@@ -4786,7 +4788,7 @@ onStackMinimizedChange,
                     <button onClick={() => { setNewCost({ factor: '', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
                   </div>
                   {/* Hero metrics */}
-                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                     {[
                       { label: 'Total Cost', value: `${num(totalCost)} ATS`, accent: '#364658' },
                       { label: 'Purchase Cost', value: `${num(purchaseCost)} ATS`, accent: '#364658' },

@@ -336,6 +336,34 @@ onStackMinimizedChange,
   const [showLocationHistory, setShowLocationHistory] = useState(false);
   // Whether the Hardware tab's jump-to-section list is open.
   const [hardwareNavOpen, setHardwareNavOpen] = useState(false);
+  // Hardware-tab section nav scroll-spy: the nav row whose section is currently in view is
+  // highlighted; clicking sets it immediately (and pauses the spy so the smooth scroll's
+  // intermediate sections don't flicker through the highlight).
+  const [hardwareActiveSection, setHardwareActiveSection] = useState('computer-system');
+  const hwSpyPauseRef = useRef(0);
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = (e: Event) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (Date.now() < hwSpyPauseRef.current) return;
+        const secs = Array.from(document.querySelectorAll<HTMLElement>('[id^="hw-section-"]'));
+        if (!secs.length) return;
+        let active = secs[0].id;
+        for (const sec of secs) {
+          if (sec.getBoundingClientRect().top <= 150) active = sec.id; else break;
+        }
+        // Scrolled to the very bottom → the last section is the one being read, even if its
+        // heading never crosses the threshold.
+        const t = e.target;
+        if (t instanceof HTMLElement && t.contains(secs[0]) && t.scrollHeight - t.scrollTop - t.clientHeight < 8) active = secs[secs.length - 1].id;
+        setHardwareActiveSection(active.replace('hw-section-', ''));
+      });
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => { document.removeEventListener('scroll', onScroll, true); if (raf) cancelAnimationFrame(raf); };
+  }, []);
   // Common search across all Hardware tab sections.
   const [hardwareSearch, setHardwareSearch] = useState('');
   // Deleted Hardware record cards, keyed as `${categoryId}:${index}`.
@@ -3608,7 +3636,7 @@ onStackMinimizedChange,
                     </button>
                   </div>
                   <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                    <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
                       {section.fields.map(([label, value]) => (
                         <div key={label} className="min-w-0">
                           <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
@@ -3889,16 +3917,20 @@ onStackMinimizedChange,
                 'usb-controller': <Usb className="size-4 text-[#3D8BD0] flex-shrink-0" />,
               };
               const isWide = drawerWidth > 1080;
+              // Effective content width for the grids — the inline nav rail eats ~226px.
+              const hwW = drawerWidth - (hardwareNavOpen && isWide ? 226 : 0);
               const navList = hardwareCategories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => {
                     if (!isWide) setHardwareNavOpen(false);
+                    setHardwareActiveSection(c.id);
+                    hwSpyPauseRef.current = Date.now() + 900;
                     if (typeof document !== 'undefined') {
                       document.getElementById(`hw-section-${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                   }}
-                  className="w-full flex items-center gap-2 text-left px-4 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors"
+                  className={`w-full flex items-center gap-2 text-left px-4 py-2 text-[13px] transition-colors ${hardwareActiveSection === c.id ? 'bg-[#E8F4FD] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F5F7FA]'}`}
                 >
                   {iconFor[c.id]}
                   {c.label}
@@ -3987,7 +4019,7 @@ onStackMinimizedChange,
                           </div>
 
                           {!q && section.summary && (
-                            <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-4 mb-4`}>
+                            <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-4`}>
                               {section.summary.map(([label, value]) => (
                                 <div key={label} className="border border-[#DFE5ED] rounded-lg p-4 bg-white">
                                   <div className="text-[12px] text-[#7B8FA5] mb-1">{label}</div>
@@ -4034,7 +4066,7 @@ onStackMinimizedChange,
                                       <Trash2 size={15} />
                                     </button>
                                   </div>
-                                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                                  <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
                                     {fields.map(([label, value]) => (
                                       <div key={label} className="min-w-0">
                                         <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
@@ -4472,7 +4504,7 @@ onStackMinimizedChange,
                     <button onClick={() => { setNewCost({ factor: '', date: '', amount: '', currency: 'ATS', description: '' }); setShowAddCost(true); }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8] transition-colors"><Plus size={16} /> Add Cost</button>
                   </div>
                   {/* Hero metrics */}
-                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                     {[
                       { label: 'Total Cost', value: `${num(totalCost)} ATS`, accent: '#364658' },
                       { label: 'Purchase Cost', value: `${num(purchaseCost)} ATS`, accent: '#364658' },

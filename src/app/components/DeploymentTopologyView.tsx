@@ -15,11 +15,14 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { REGISTRY_ENTRIES } from './RegistryDeploymentRegistryTab';
+import { Pagination } from './Pagination';
+import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import {
   ServerCog, Database, Server, Monitor, Globe, ChevronDown, Check, Minus,
   CheckCircle2, XCircle, Clock, Loader2, Maximize, Plus, RotateCcw,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ShieldCheck, Search, X, User, ChevronRight, Keyboard, List,
-  MoveHorizontal, MoveVertical,
+  MoveHorizontal, MoveVertical, FolderOpen, Package, Maximize2, Minimize2,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
@@ -32,7 +35,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* ------------------------------- data model ------------------------------- */
 
-type NodeKind = 'serviceops' | 'mainfs' | 'ds' | 'group' | 'internet';
+type NodeKind = 'serviceops' | 'mainfs' | 'ds' | 'group' | 'internet' | 'shareddir';
 type DeployStatus = 'Success' | 'Failed' | 'In Progress' | 'Pending' | 'Waiting';
 
 interface TopoNode {
@@ -56,6 +59,8 @@ interface TopoNode {
   endpointStats?: { success: number; failed: number; inProgress: number; other: number };
   /** Downloads directly from the Internet → its tree edge renders as the dashed fallback path. */
   netDirect?: boolean;
+  /** Main FS card only: overrides the pinned cache-rule line ('Always stores every patch'). */
+  cacheNote?: string;
   children?: TopoNode[];
 }
 
@@ -66,6 +71,9 @@ interface Scenario {
   root: TopoNode;
   /** Node ids that have a direct Internet download link. */
   internetLinks: string[];
+  /** External source card. undefined = the default Internet node; null = HIDDEN (air-gapped
+   *  manual upload); or an override (e.g. a Shared Directory with its UNC path as the sub). */
+  external?: { kind: NodeKind; name: string; sub: string } | null;
 }
 
 const KIND_META: Record<NodeKind, { label: string; color: string; icon: typeof Server }> = {
@@ -76,6 +84,8 @@ const KIND_META: Record<NodeKind, { label: string; color: string; icon: typeof S
   // always the last node of a branch.
   group: { label: 'Endpoint Group', color: '#64748B', icon: Monitor },
   internet: { label: 'Internet', color: '#22C55E', icon: Globe },
+  // Package scenarios: the external source is a network share, not the vendor CDN.
+  shareddir: { label: 'External Package Source', color: '#22C55E', icon: FolderOpen },
 };
 
 const STATUS_META: Record<DeployStatus, { color: string; icon: typeof Clock; spin?: boolean }> = {
@@ -86,13 +96,14 @@ const STATUS_META: Record<DeployStatus, { color: string; icon: typeof Clock; spi
   Waiting: { color: '#94A3B8', icon: Clock },
 };
 
-type EdgeKind = 'trigger' | 'distribution' | 'fileserver' | 'dsdownload' | 'internet' | 'fallback';
+type EdgeKind = 'trigger' | 'distribution' | 'fileserver' | 'dsdownload' | 'internet' | 'shareddir' | 'fallback';
 const EDGE_META: Record<EdgeKind, { color: string; label: string; flow: string; dashed?: boolean }> = {
   trigger: { color: '#94A3B8', label: 'Deployment Trigger', flow: 'Patch Deployment Flow' },
   distribution: { color: '#3D8BD0', label: 'Patch Distribution', flow: 'Patch Distribution Flow' },
   fileserver: { color: '#3D8BD0', label: 'File Server Download', flow: 'Patch Download Flow' },
   dsdownload: { color: '#8B5CF6', label: 'Distributed Server Download', flow: 'Patch Download Flow' },
   internet: { color: '#22C55E', label: 'Internet Download', flow: 'Patch Download Flow' },
+  shareddir: { color: '#22C55E', label: 'Shared Directory Sync', flow: 'Package Source Flow' },
   fallback: { color: '#CBD5E1', label: 'Fallback — Main File Server cache', flow: 'Patch Distribution Flow', dashed: true },
 };
 
@@ -216,10 +227,160 @@ export const DEPLOY_SCENARIOS: Scenario[] = [
   },
 ];
 
+/* PACKAGE Deployment page — its own 2 architectures. Package files never come from a vendor
+ * CDN, so there is no Internet node: they enter the estate manually or from a network share.
+ * Downstream distribution (Main FS → Distributed Servers → Remote Offices) is identical. */
+export const PACKAGE_DEPLOY_SCENARIOS: Scenario[] = [
+  {
+    key: 'p1', label: 'Manual Upload (No Internet)',
+    desc: 'Air-gapped: the administrator uploads the package files to the Main File Server manually — nothing touches the Internet. Distributed Servers sync from the Main File Server and each Remote Office installs from its own DS.',
+    external: null,
+    root: so([fs({ sub: 'Package Store · Local Office', patches: '46 packages stored', source: 'Manual Upload (Administrator)', cacheNote: 'Always stores every package', status: 'In Progress', progress: 72 }, [
+      {
+        id: 'ds1', kind: 'ds', name: 'DS-1', sub: 'Remote Office 1 — Mumbai Office', group: 'Mumbai Office', status: 'In Progress', progress: 58, source: 'Main File Server', patches: '12 packages cached', children: [
+          { id: 'grp-mum', kind: 'group', name: 'Mumbai Office', sub: 'Endpoint Group · 14 endpoints', group: 'Mumbai Office', status: 'In Progress', progress: 43, source: 'DS-1', patches: '6/14 installed', endpointStats: { success: 6, failed: 0, inProgress: 5, other: 3 } },
+        ],
+      },
+      {
+        id: 'ds2', kind: 'ds', name: 'DS-2', sub: 'Remote Office 2 — Bengaluru Campus', group: 'Bengaluru Campus', status: 'Success', source: 'Main File Server', patches: '12 packages cached', children: [
+          { id: 'grp-blr', kind: 'group', name: 'Bengaluru Campus', sub: 'Endpoint Group · 12 endpoints', group: 'Bengaluru Campus', status: 'Success', source: 'DS-2', patches: '12/12 installed', endpointStats: { success: 12, failed: 0, inProgress: 0, other: 0 } },
+        ],
+      },
+      { id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'In Progress', progress: 78, source: 'Main File Server', patches: '7/9 installed', endpointStats: { success: 7, failed: 0, inProgress: 2, other: 0 } },
+    ])]),
+    internetLinks: [],
+  },
+  {
+    key: 'p2', label: 'Shared Directory Source',
+    desc: 'No Internet — the Main File Server picks up the package files from a network Shared Directory; everything downstream distributes exactly the same way.',
+    external: { kind: 'shareddir', name: 'Shared Directory', sub: '\\\\CORP-FS01\\ServiceOps\\Packages' },
+    root: so([fs({ sub: 'Package Store · Local Office', patches: '46 packages stored', source: 'Shared Directory (\\\\CORP-FS01\\ServiceOps\\Packages)', cacheNote: 'Always stores every package', status: 'In Progress', progress: 84 }, [
+      {
+        id: 'ds1', kind: 'ds', name: 'DS-1', sub: 'Remote Office 1 — Mumbai Office', group: 'Mumbai Office', status: 'Success', source: 'Main File Server', patches: '12 packages cached', children: [
+          { id: 'grp-mum', kind: 'group', name: 'Mumbai Office', sub: 'Endpoint Group · 14 endpoints', group: 'Mumbai Office', status: 'In Progress', progress: 71, source: 'DS-1', patches: '10/14 installed', endpointStats: { success: 10, failed: 1, inProgress: 3, other: 0 } },
+        ],
+      },
+      {
+        id: 'ds2', kind: 'ds', name: 'DS-2', sub: 'Remote Office 2 — Bengaluru Campus', group: 'Bengaluru Campus', status: 'In Progress', progress: 52, source: 'Main File Server', patches: '9 packages cached', children: [
+          { id: 'grp-blr', kind: 'group', name: 'Bengaluru Campus', sub: 'Endpoint Group · 12 endpoints', group: 'Bengaluru Campus', status: 'In Progress', progress: 33, source: 'DS-2', patches: '4/12 installed', endpointStats: { success: 4, failed: 0, inProgress: 6, other: 2 } },
+        ],
+      },
+      { id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'Success', source: 'Main File Server', patches: '9/9 installed', endpointStats: { success: 9, failed: 0, inProgress: 0, other: 0 } },
+    ])]),
+    internetLinks: ['mainfs'],
+  },
+];
+
+/* REGISTRY Deployment page — ONE architecture: the administrator authors the registry script and
+ * uploads it manually, so there is no external source node at all. Distribution downstream is the
+ * standard chain (Main FS → Distributed Servers → Remote Offices). */
+export const REGISTRY_DEPLOY_SCENARIOS: Scenario[] = [
+  {
+    key: 'r1', label: 'Manual Script Upload (No Internet)',
+    desc: 'The administrator adds the registry script and uploads the file manually — nothing touches the Internet. The Main File Server stores every configuration, Distributed Servers sync from it, and each Remote Office applies from its own DS.',
+    external: null,
+    root: so([fs({ sub: 'Configuration Store · Local Office', patches: '6 configurations stored', source: 'Manual Upload (Administrator)', cacheNote: 'Always stores every configuration', status: 'In Progress', progress: 64 }, [
+      {
+        id: 'ds1', kind: 'ds', name: 'DS-1', sub: 'Remote Office 1 — Mumbai Office', group: 'Mumbai Office', status: 'In Progress', progress: 57, source: 'Main File Server', patches: '6 configurations cached', children: [
+          { id: 'grp-mum', kind: 'group', name: 'Mumbai Office', sub: 'Endpoint Group · 14 endpoints', group: 'Mumbai Office', status: 'In Progress', progress: 64, source: 'DS-1', patches: '9/14 applied', endpointStats: { success: 9, failed: 1, inProgress: 3, other: 1 } },
+        ],
+      },
+      {
+        id: 'ds2', kind: 'ds', name: 'DS-2', sub: 'Remote Office 2 — Bengaluru Campus', group: 'Bengaluru Campus', status: 'Success', source: 'Main File Server', patches: '6 configurations cached', children: [
+          { id: 'grp-blr', kind: 'group', name: 'Bengaluru Campus', sub: 'Endpoint Group · 12 endpoints', group: 'Bengaluru Campus', status: 'Success', source: 'DS-2', patches: '12/12 applied', endpointStats: { success: 12, failed: 0, inProgress: 0, other: 0 } },
+        ],
+      },
+      { id: 'grp-local', kind: 'group', name: 'Local Office', sub: 'Endpoint Group · 9 endpoints', group: 'Local Office', status: 'In Progress', progress: 81, source: 'Main File Server', patches: '7/9 applied', endpointStats: { success: 7, failed: 0, inProgress: 2, other: 0 } },
+    ])]),
+    internetLinks: [],
+  },
+];
+
+/* What the Main File Server / Shared Directory actually STORES — the count on those nodes is
+ * clickable and opens a side popup listing these. Packages: 46 (matches "46 packages stored"),
+ * two versions per app since the store keeps the previous rollout too. */
+export interface StoreItem { id: string; name: string; version?: string; size?: string; desc?: string; severity?: 'Critical' | 'Important' | 'Moderate' | 'Low' }
+
+const PKG_APPS: [string, string, string, string, string][] = [
+  // [name, current version, size, previous version, size]
+  ['AnyDesk', '8.0.11', '78 MB', '7.1.16', '72 MB'],
+  ['Google Chrome Enterprise', '124.0.6367.91', '112 MB', '123.0.6312.86', '109 MB'],
+  ['Zoom Workplace', '6.0.10', '196 MB', '5.17.11', '188 MB'],
+  ['7-Zip', '24.05', '2 MB', '23.01', '2 MB'],
+  ['Microsoft Teams', '24124.2315', '132 MB', '24081.2211', '128 MB'],
+  ['Slack', '4.38.125', '98 MB', '4.37.94', '96 MB'],
+  ['Adobe Acrobat Reader DC', '24.002.20736', '268 MB', '24.001.20629', '264 MB'],
+  ['Visual Studio Code', '1.89.1', '95 MB', '1.88.1', '93 MB'],
+  ['Git for Windows', '2.45.1', '58 MB', '2.44.0', '57 MB'],
+  ['Node.js LTS', '20.13.1', '31 MB', '20.12.2', '31 MB'],
+  ['Notepad++', '8.6.7', '5 MB', '8.6.5', '5 MB'],
+  ['FileZilla Client', '3.67.0', '12 MB', '3.66.5', '12 MB'],
+  ['PuTTY', '0.81', '4 MB', '0.80', '4 MB'],
+  ['VLC Media Player', '3.0.20', '43 MB', '3.0.19', '42 MB'],
+  ['Mozilla Firefox ESR', '115.11.0', '58 MB', '115.10.0', '58 MB'],
+  ['Power BI Desktop', '2.129.905.0', '412 MB', '2.128.751.0', '405 MB'],
+  ['TeamViewer Host', '15.53.6', '48 MB', '15.52.4', '47 MB'],
+  ['Postman', '11.1.14', '148 MB', '11.0.13', '145 MB'],
+  ['OpenVPN Connect', '3.4.4', '38 MB', '3.4.2', '38 MB'],
+  ['Python', '3.12.3', '26 MB', '3.11.9', '25 MB'],
+  ['Wireshark', '4.2.5', '84 MB', '4.2.4', '84 MB'],
+  ['Eclipse Temurin JRE 8', '8u412-b08', '41 MB', '8u402-b06', '41 MB'],
+  ['WinSCP', '6.3.3', '11 MB', '6.3.2', '11 MB'],
+];
+// Deployment-run ids stay stable (the Packages tab uses PKG-3/7/12/15); the rest fill the gaps.
+const PKG_KNOWN: Record<string, string> = {
+  'AnyDesk|8.0.11': 'PKG-3', 'Google Chrome Enterprise|124.0.6367.91': 'PKG-7',
+  'Zoom Workplace|6.0.10': 'PKG-12', '7-Zip|24.05': 'PKG-15',
+};
+export const PACKAGE_STORE: StoreItem[] = (() => {
+  const used = new Set(Object.values(PKG_KNOWN).map((v) => Number(v.slice(4))));
+  let next = 1;
+  const nextId = () => { while (used.has(next)) next++; used.add(next); return `PKG-${next}`; };
+  return PKG_APPS.flatMap(([name, v1, s1, v2, s2]) => [
+    { id: PKG_KNOWN[`${name}|${v1}`] ?? nextId(), name, version: v1, size: s1 },
+    { id: PKG_KNOWN[`${name}|${v2}`] ?? nextId(), name, version: v2, size: s2 },
+  ]);
+})();
+
+export const REGISTRY_STORE: StoreItem[] = REGISTRY_ENTRIES.map((r, i) => ({ id: `REG-${i + 1}`, name: r.name, desc: r.description }));
+
+/* Patch store — 128 patches (matches the Main FS "128 patches stored"): the four this
+ * deployment rolls out + a deterministic back-catalog of monthly updates across 8 products. */
+const PATCH_FAMILIES: [string, StoreItem['severity'], number][] = [
+  ['Cumulative Update for Windows 11 Version 23H2 for x64-based Systems', 'Critical', 620],
+  ['Cumulative Update for Windows 10 Version 22H2 for x64-based Systems', 'Critical', 580],
+  ['Cumulative Update for Microsoft server operating system version 21H2 for x64', 'Critical', 640],
+  ['Cumulative Update for .NET Framework 3.5 and 4.8.1 for Windows 11', 'Important', 68],
+  ['Security Update for Microsoft Edge (Chromium-based)', 'Important', 142],
+  ['Security Update for Microsoft Office 2021 LTSC', 'Important', 96],
+  ['Update for Microsoft Defender Antimalware Platform', 'Moderate', 4],
+  ['Servicing Stack Update for Windows 11 Version 23H2', 'Moderate', 14],
+];
+const PATCH_MONTHS = [
+  '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10',
+  '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
+];
+export const PATCH_STORE: StoreItem[] = (() => {
+  const deployed: StoreItem[] = DEPLOYED_PATCHES.map((p) => ({ id: p.id, name: p.name, severity: p.severity, size: p.downloadSize }));
+  const generated: StoreItem[] = [];
+  PATCH_MONTHS.forEach((m, mi) => {
+    PATCH_FAMILIES.forEach(([family, severity, size], fi) => {
+      const i = mi * PATCH_FAMILIES.length + fi;
+      generated.push({
+        id: `PCH-${4400 + i}`,
+        name: `${m} ${family} (KB${5031000 + i * 7})`,
+        severity,
+        size: `${size + (i % 7)} MB`,
+      });
+    });
+  });
+  return [...deployed, ...generated.slice(0, 128 - deployed.length)];
+})();
+
 /* ------------------------------- layout ------------------------------- */
 
 type Orientation = 'horizontal' | 'vertical';
-const CARD_W = 190;
+const CARD_W = 200;
 // Depth positions along the FLOW axis (x when horizontal, y when vertical) + the leaf spread
 // step along the CROSS axis. Vertical rows are spaced generously so the tallest card + arrow fit.
 const COL_X = [0, 300, 620, 940];   // horizontal depth (x)
@@ -232,7 +393,7 @@ const CROSS_V = 234;                 // vertical leaf spread (x)
  * exact middle of every node AND same-row connections stay dead-straight. */
 // Sized to each kind's actual content + the shared py-2.5 padding, so every card shows the
 // SAME breathing room top/bottom (extra height would read as uneven padding).
-const KIND_H: Record<NodeKind, number> = { serviceops: 78, mainfs: 100, ds: 78, group: 94, internet: 58 };
+const KIND_H: Record<NodeKind, number> = { serviceops: 78, mainfs: 100, ds: 78, group: 94, internet: 58, shareddir: 58 };
 
 const countDescendants = (n: TopoNode): number =>
   (n.children ?? []).reduce((acc, c) => acc + 1 + countDescendants(c), 0);
@@ -361,9 +522,12 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
   };
   place(sc.root, 0);
 
-  // Internet — the external patch source. Horizontal: its own lane ABOVE the servers.
-  // Vertical: to the LEFT of the Main File Server row.
-  const internet: TopoNode = { id: 'internet', kind: 'internet', name: 'Internet', sub: 'External Patch Source (Vendor CDN)' };
+  // External source — the Internet by default; a scenario can override it (Shared Directory)
+  // or hide it entirely (null = air-gapped manual upload). Horizontal: its own lane ABOVE the
+  // servers. Vertical: to the LEFT of the Main File Server row.
+  if (sc.external !== null) {
+  const ext = sc.external ?? { kind: 'internet' as NodeKind, name: 'Internet', sub: 'External Patch Source (Vendor CDN)' };
+  const internet: TopoNode = { id: 'internet', kind: ext.kind, name: ext.name, sub: ext.sub };
   byId.set('internet', internet);
   const internetPos = horiz ? { x: COL_X[1] + 130, y: -180 } : { x: -340, y: ROW_Y[1] + 8 };
   nodes.push({
@@ -393,9 +557,10 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       // down, so the Internet link reads as a two-way collaboration.
       markerStart: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 15, height: 15 },
-      data: { kind: 'internet', lane: i * 10, orient },
+      data: { kind: ext.kind === 'shareddir' ? 'shareddir' : 'internet', lane: i * 10, orient },
     } as RFEdge);
   });
+  }
 
   // Red incoming line ⟺ red node border: any node whose incoming connector is red (a failed
   // delivery) gets a red card border so the failure reads on the node itself, not just the line.
@@ -429,9 +594,9 @@ function TopoNodeCard({ data }: NodeProps) {
   // Failed-delivery node → red border + soft red ring (matches its red incoming line).
   const redCls = d.borderRed ? 'border-[#F04438] ring-2 ring-[#F04438]/25' : 'border-[#E2E8F0]';
 
-  if (d.kind === 'internet') {
+  if (d.kind === 'internet' || d.kind === 'shareddir') {
     return (
-      <div className={`relative flex w-[190px] items-center gap-2.5 rounded-lg border border-[#D1E9D6] bg-white px-3 py-2.5 shadow-sm transition-opacity ${dimCls}`} style={{ height: KIND_H.internet }}>
+      <div className={`relative flex w-[200px] items-center gap-2.5 rounded-lg border border-[#D1E9D6] bg-white px-3 py-2.5 shadow-sm transition-opacity ${dimCls}`} style={{ height: KIND_H.internet }}>
         {/* Internet source: Bottom (horizontal layout) or Right (vertical layout) */}
         <Handle type="source" position={Position.Bottom} id="nd" className={hiddenHandle} />
         <Handle type="source" position={Position.Right} id="nr" className={hiddenHandle} />
@@ -446,7 +611,7 @@ function TopoNodeCard({ data }: NodeProps) {
 
   return (
     <div
-      className={`relative flex w-[190px] flex-col justify-center rounded-lg border bg-white px-3 py-2.5 shadow-sm transition-all hover:shadow-md ${redCls} ${d.borderRed ? '' : 'hover:border-[#CBD5E1]'} ${dimCls}`}
+      className={`relative flex w-[200px] flex-col justify-center rounded-lg border bg-white px-3 py-2.5 shadow-sm transition-all hover:shadow-md ${redCls} ${d.borderRed ? '' : 'hover:border-[#CBD5E1]'} ${dimCls}`}
       style={{ height: KIND_H[d.kind] }}
     >
       {/* All four sides — the tree edges pick handles by orientation (horizontal: Left/Right;
@@ -471,7 +636,7 @@ function TopoNodeCard({ data }: NodeProps) {
           {st && d.status && (
             <>
               <st.icon size={11} className={st.spin ? 'animate-spin' : ''} style={{ color: st.color }} />
-              <span className="text-[10px] font-medium" style={{ color: st.color }}>{d.status}</span>
+              <span className="whitespace-nowrap text-[10px] font-medium" style={{ color: st.color }}>{d.status}</span>
             </>
           )}
           {d.patches && <span className="ml-auto truncate text-[9.5px] text-[#94A3B8]">{d.patches}</span>}
@@ -531,7 +696,7 @@ function TopoNodeCard({ data }: NodeProps) {
       {/* The cache rule, pinned on the card that owns it */}
       {d.kind === 'mainfs' && (
         <div className="mt-1.5 flex items-center gap-1 text-[9.5px] font-medium text-[#16A34A]">
-          <ShieldCheck size={10} /> Always stores every patch
+          <ShieldCheck size={10} /> {(d as any).cacheNote ?? 'Always stores every patch'}
         </div>
       )}
 
@@ -634,6 +799,107 @@ const PANEL_STATUS_COLOR: Record<PanelStatus, string> = {
 
 /** Side popup listing a group's endpoints — ActiveIssuesPanel pattern (status pills with
  *  counts, removable group chip inside the search field, standard borderless grid). */
+/* Stored-items side popup — opened from the Main File Server / Shared Directory hover card's
+ * count row ("46 packages stored"). GroupEndpointsPanel recipe: overlay + right panel + search +
+ * borderless grid. Packages get ID/Version/Size columns; registry configurations Name/Description
+ * (registry templates have no ids). No category pills — these records have no status split. */
+function StoreItemsPanel({ flavor, source, items, onClose }: { flavor: 'packages' | 'configurations' | 'patches'; source: string; items: StoreItem[]; onClose: () => void }) {
+  const [search, setSearch] = useState('');
+  // Sticky-bottom pagination (standard grid pattern); search resets to page 1 so the
+  // auto-hidden bar can't strand a stale page.
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  useEffect(() => { setCurrentPage(1); }, [search]);
+  const q = search.trim().toLowerCase();
+  const rows = items.filter((it) => !q || it.name.toLowerCase().includes(q) || it.id.toLowerCase().includes(q) || (it.version ?? '').toLowerCase().includes(q) || (it.desc ?? '').toLowerCase().includes(q) || (it.severity ?? '').toLowerCase().includes(q));
+  const totalPages = Math.ceil(rows.length / itemsPerPage) || 1;
+  const pageRows = rows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const isPkg = flavor === 'packages';
+  const isPatch = flavor === 'patches';
+  const cols = isPatch ? ['Patch ID', 'Name', 'Severity', 'Size'] : isPkg ? ['Package ID', 'Name', 'Version', 'Size'] : ['Name', 'Description'];
+  return (
+    <>
+      <div className="fixed inset-0 z-[10000] bg-black/40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-[10001] flex w-[640px] max-w-[94vw] flex-col bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+          <h2 className="text-[16px] font-semibold text-[#364658]">
+            {isPatch ? 'Patches' : isPkg ? 'Packages' : 'Registry Configurations'} <span className="font-normal text-[#7B8FA5]">— {source} · {items.length} stored</span>
+          </h2>
+          <button onClick={onClose} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">
+            <X size={16} className="text-[#64748B]" />
+          </button>
+        </div>
+        <div className="px-6 pt-4">
+          <div className="flex h-9 items-center gap-2 rounded border border-[#d1d5db] bg-white px-3">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Select field or enter a keyword to search..."
+              className="h-full min-w-0 flex-1 text-[13px] text-[#364658] outline-none placeholder:text-[#9ca3af]"
+            />
+            <Search size={15} className="flex-shrink-0 text-[#9ca3af]" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-3">
+          <table className="w-full">
+            <thead className="border-b border-[#e5e7eb]">
+              <tr>
+                {cols.map((h) => (
+                  <th key={h} className="px-3 py-2.5 text-left text-[12px] font-semibold tracking-wider whitespace-nowrap text-[#364658]">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#e5e7eb] bg-white">
+              {pageRows.length === 0 ? (
+                <tr><td colSpan={cols.length} className="px-3 py-12 text-center text-[13px] text-[#9CA3AF]">No {flavor} match your search.</td></tr>
+              ) : pageRows.map((it) => (
+                <tr key={`${it.id}-${it.version ?? ''}`} className="transition-colors hover:bg-[#f9fafb]">
+                  {(isPkg || isPatch) && (
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{it.id}</span>
+                    </td>
+                  )}
+                  <td className="px-3 py-3 text-[12px] text-[#364658]"><span className="block max-w-[260px] truncate" title={it.name}>{it.name}</span></td>
+                  {isPatch ? (
+                    <>
+                      <td className="px-3 py-3 whitespace-nowrap text-[12px]">
+                        <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                          <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: it.severity === 'Critical' ? '#EF4444' : it.severity === 'Important' ? '#F59E0B' : it.severity === 'Moderate' ? '#EAB308' : '#64748B' }} />
+                          {it.severity}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]">{it.size}</td>
+                    </>
+                  ) : isPkg ? (
+                    <>
+                      <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]">{it.version}</td>
+                      <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]">{it.size}</td>
+                    </>
+                  ) : (
+                    <td className="px-3 py-3 text-[12px] text-[#364658]"><span className="block max-w-[320px] truncate" title={it.desc}>{it.desc}</span></td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Sticky-bottom pagination — after the scroll region so it pins to the panel bottom */}
+        <div className="border-t border-[#E5E7EB] bg-white">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            totalItems={rows.length}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(v) => { setItemsPerPage(v); setCurrentPage(1); }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 function GroupEndpointsPanel({ groups, initialGroup, onClose }: { groups: TopoNode[]; initialGroup: string; onClose: () => void }) {
   const [groupFilter, setGroupFilter] = useState<string | null>(initialGroup);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Success' | 'Failed' | 'In Progress' | 'Other'>('All');
@@ -728,7 +994,7 @@ function GroupEndpointsPanel({ groups, initialGroup, onClose }: { groups: TopoNo
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]">{e.hostName}</td>
                   <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]">{e.ip}</td>
-                  <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[190px] truncate" title={e.os}>{e.os}</span></td>
+                  <td className="px-3 py-3 whitespace-nowrap text-[12px] text-[#364658]"><span className="block max-w-[200px] truncate" title={e.os}>{e.os}</span></td>
                   <td className="px-3 py-3 whitespace-nowrap text-[12px]">
                     {e.usedBy ? (
                       <span className="inline-flex items-center gap-1.5 text-[#3D8BD0]"><User size={12} className="text-[#9ca3af]" />{e.usedBy}</span>
@@ -769,7 +1035,7 @@ function ShortcutRow({ keys, label }: { keys: React.ReactNode; label: string }) 
   );
 }
 
-function CanvasControls({ onReset, orient, onOrientChange }: { onReset: () => void; orient: Orientation; onOrientChange: (o: Orientation) => void }) {
+function CanvasControls({ onReset, orient, onOrientChange, fullscreen, onToggleFullscreen }: { onReset: () => void; orient: Orientation; onOrientChange: (o: Orientation) => void; fullscreen?: boolean; onToggleFullscreen?: () => void }) {
   const rf = useReactFlow();
   const btn = 'inline-flex items-center justify-center size-7 text-[#6B7280] hover:bg-[#F5F7FA] transition-colors';
   const panBy = (dx: number, dy: number) => {
@@ -811,6 +1077,20 @@ function CanvasControls({ onReset, orient, onOrientChange }: { onReset: () => vo
       {/* Top-right: keyboard shortcuts · fit & center · zoom in/out · reset — SEPARATE stacked
           cards, the same grouping the Dependency Map / Superseded canvases use. */}
       <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
+        {/* Full screen — its own card at the top of the stack. ENTER only: once expanded, the
+            exit control renders at the overlay's top-right corner instead (toolbar row). */}
+        {onToggleFullscreen && !fullscreen && (
+          <div className={card}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={onToggleFullscreen} className={`${btn} ${fullscreen ? 'bg-[#EAF2FB] text-[#3D8BD0]' : ''}`}>
+                  {fullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">{fullscreen ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
         {/* Keyboard shortcuts + fit & center share ONE card (Superseded-tree grouping) */}
         <div className={card}>
           <Tooltip>
@@ -911,8 +1191,9 @@ function officeHasPatch(officeName: string, patchId: string) {
   return Math.abs(h) % 3 !== 0;
 }
 
-export function DeploymentTopologyView({ search = '', statusFilter = [], patchFilter = [], fullscreen = false }: { search?: string; statusFilter?: string[]; patchFilter?: string[]; fullscreen?: boolean }) {
-  const [scenarioKey, setScenarioKey] = useState('s3');
+export function DeploymentTopologyView({ search = '', statusFilter = [], patchFilter = [], fullscreen = false, scenarios, countLabel = 'Patch Count', storeFlavor, onToggleFullscreen }: { search?: string; statusFilter?: string[]; patchFilter?: string[]; fullscreen?: boolean; /** Override the scenario catalog (Package Deployment page passes its own 2). */ scenarios?: Scenario[]; /** Hover-card count-row label — the page flavor names it (Patch/Package/Registry Count). */ countLabel?: string; /** Enables the stored-items drill-down on the Main FS / Shared Directory count. */ storeFlavor?: 'packages' | 'configurations' | 'patches'; /** Canvas-control fullscreen toggle (the host tab owns the overlay state). */ onToggleFullscreen?: () => void }) {
+  const scenarioList = scenarios ?? DEPLOY_SCENARIOS;
+  const [scenarioKey, setScenarioKey] = useState(() => (scenarios ? scenarios[0].key : 's3'));
   const [orient, setOrient] = useState<Orientation>('horizontal');
   const [showScenarioMenu, setShowScenarioMenu] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -934,6 +1215,8 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Side popup listing a group's endpoints (opened from the hover card's View more).
   const [groupPanel, setGroupPanel] = useState<string | null>(null);
+  // Stored-items side popup (package/registry pages) — holds the source node's name.
+  const [storePanel, setStorePanel] = useState<string | null>(null);
   // Collapsible status legend (CMDB map pattern — the toggle icon stays visible).
   const [showLegend, setShowLegend] = useState(true);
 
@@ -975,7 +1258,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
   // Re-fit when the flow direction flips (the whole layout transposes).
   useEffect(() => { setFitSignal((s) => s + 1); }, [orient]);
 
-  const scenario = DEPLOY_SCENARIOS.find((s) => s.key === scenarioKey) ?? DEPLOY_SCENARIOS[0];
+  const scenario = scenarioList.find((s) => s.key === scenarioKey) ?? scenarioList[0];
 
   // All endpoint-group nodes of the current scenario (feeds the side panel's chip-off view).
   const groupNodes = useMemo(() => {
@@ -1059,7 +1342,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowScenarioMenu(false)} />
               <div className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
-                {DEPLOY_SCENARIOS.map((s, i) => (
+                {scenarioList.map((s, i) => (
                   <button
                     key={s.key}
                     onClick={() => selectScenario(s.key)}
@@ -1123,7 +1406,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="#D9DEE7" />
           </ReactFlow>
 
-          <CanvasControls onReset={resetView} orient={orient} onOrientChange={setOrient} />
+          <CanvasControls onReset={resetView} orient={orient} onOrientChange={setOrient} fullscreen={fullscreen} onToggleFullscreen={onToggleFullscreen} />
           <FitOnChange signal={fitSignal} />
 
           {/* Status legend (bottom-right) — collapsible, CMDB-map pattern: the card has a
@@ -1169,10 +1452,17 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
             const n = nodeTip.node;
             const kind = KIND_META[n.kind];
             const st = n.status ? STATUS_META[n.status] : null;
-            const rows: [string, string][] = [
+            // Shared Directory gets its own row set — the share's properties, not rollout rows.
+            // (Its full UNC path renders as a dedicated block below, wrapped, never truncated.)
+            const rows: [string, string][] = n.kind === 'shareddir' ? [
+              ['Share Type', 'Network Share (SMB)'],
+              ['Access Account', 'svc_serviceops (read-only)'],
+              ['Packages Available', '46 packages'],
+              ['Last Sync', 'Mon, Jul 27, 2026 09:42 AM'],
+            ] : [
               ['Group', n.group ?? (n.kind === 'internet' ? '---' : 'Local Office')],
               ['Download Source', n.source ?? (n.kind === 'internet' ? '---' : 'Not started')],
-              ['Patch Count', n.patches ?? '---'],
+              [countLabel, n.patches ?? '---'],
               ['Last Sync', n.kind === 'internet' ? '---' : 'Mon, Jul 27, 2026 09:42 AM'],
             ];
             return (
@@ -1197,6 +1487,14 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
                     <div className="truncate text-[10.5px] text-[#7B8FA5]">{kind.label}</div>
                   </div>
                 </div>
+                {/* Shared Directory: the FULL path, wrapped — the card's sub-line truncates it,
+                    which is exactly what this hover card exists to fix. */}
+                {n.kind === 'shareddir' && (
+                  <div className="border-b border-[#F0F2F5] px-3.5 py-2.5">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Directory Path</div>
+                    <div className="break-all rounded bg-[#F8FAFC] px-2 py-1.5 font-mono text-[11px] leading-relaxed text-[#364658]">{n.sub}</div>
+                  </div>
+                )}
                 <div className="space-y-1.5 px-3.5 py-2.5">
                   {/* Groups: no overall Status row — the Endpoints-by-Status section carries it */}
                   {st && n.status && n.kind !== 'group' && (
@@ -1208,13 +1506,35 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
                       </span>
                     </div>
                   )}
-                  {rows.map(([l, v]) => (
-                    <div key={l} className="flex items-start justify-between gap-3">
-                      <span className="flex-shrink-0 text-[11px] text-[#7B8FA5]">{l}</span>
-                      <span className="min-w-0 truncate text-right text-[11.5px] text-[#364658]">{v}</span>
-                    </div>
-                  ))}
+                  {rows.map(([l, v]) => {
+                    // Package/registry pages: the STORE nodes' count drills into the full list.
+                    const drill = storeFlavor && (n.kind === 'mainfs' || n.kind === 'shareddir') && (l === countLabel || l === 'Packages Available');
+                    return (
+                      <div key={l} className="flex items-start justify-between gap-3">
+                        <span className="flex-shrink-0 text-[11px] text-[#7B8FA5]">{l}</span>
+                        {drill ? (
+                          <button onClick={() => { setStorePanel(n.name); setNodeTip(null); }} className="min-w-0 truncate text-right text-[11.5px] font-medium text-[#3D8BD0] hover:underline">{v}</button>
+                        ) : (
+                          <span className="min-w-0 truncate text-right text-[11.5px] text-[#364658]">{v}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
+                {/* Store nodes: full-width strip into the stored-items popup (the group cards'
+                    "View all endpoints" pattern) */}
+                {storeFlavor && (n.kind === 'mainfs' || n.kind === 'shareddir') && (
+                  <div className="border-t border-[#F0F2F5] px-3.5 py-2.5">
+                    <button
+                      onClick={() => { setStorePanel(n.name); setNodeTip(null); }}
+                      className="flex w-full items-center gap-1.5 rounded-md bg-[#EBF5FF] px-2.5 py-1.5 text-[11.5px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#DBEAFE]"
+                    >
+                      <Package size={13} className="flex-shrink-0" />
+                      View all {storeFlavor === 'configurations' ? 'configurations' : storeFlavor}
+                      <ChevronRight size={13} className="ml-auto flex-shrink-0" />
+                    </button>
+                  </div>
+                )}
                 {/* Endpoint groups: member-endpoint counts by deployment status */}
                 {n.endpointStats && (
                   <div className="border-t border-[#F0F2F5] px-3.5 py-2.5">
@@ -1268,6 +1588,11 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
       {/* Group endpoints side popup — opened from a group hover card's "View more" */}
       {groupPanel && (
         <GroupEndpointsPanel groups={groupNodes} initialGroup={groupPanel} onClose={() => setGroupPanel(null)} />
+      )}
+
+      {/* Stored packages/configurations side popup — opened from a store node's count */}
+      {storePanel && storeFlavor && (
+        <StoreItemsPanel flavor={storeFlavor} source={storePanel} items={storeFlavor === 'packages' ? PACKAGE_STORE : storeFlavor === 'patches' ? PATCH_STORE : REGISTRY_STORE} onClose={() => setStorePanel(null)} />
       )}
     </div>
   );
