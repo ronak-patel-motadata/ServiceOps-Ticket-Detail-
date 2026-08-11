@@ -1,6 +1,6 @@
-/* Registry Deployment detail page — a separate-file clone of RegistryDeploymentDrawer (opened
- * from the Registry Deployments listing). Kept standalone so the registry flow can diverge;
- * adapted onto the Patch shape by registryDeploymentToPatchShape in the list page. */
+/* Knowledge detail page — a separate-file clone of KnowledgeDrawer, opened from the
+ * Knowledge listing. Kept standalone because the real Knowledge page diverges heavily (no tabs,
+ * full article content, reviews rail); adapted onto the Patch shape by knowledgeToPatchShape. */
 /**
  * PatchDeploymentDrawer Component — the Patch DEPLOYMENT detail page.
  *
@@ -15,7 +15,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files , BookOpen } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
@@ -55,9 +55,10 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
+import { KnowledgeArticleContent } from './KnowledgeArticleContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
-import { RegistryDeploymentRegistryTab, REGISTRY_ENTRIES, buildRegistryDeploymentMatrix } from './RegistryDeploymentRegistryTab';
+import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
 import { CountPreviewKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
@@ -535,7 +536,7 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
 };
 
-export function RegistryDeploymentDrawer({
+export function KnowledgeDrawer({
   openAssets,
   activeAssetId,
   onClose,
@@ -776,7 +777,7 @@ onStackMinimizedChange,
     { id: 'EP-426', hostName: 'DESKTOP-A3RMK1H', ipAddress: '192.168.29.100', poller: '---', createdBy: 'Default', osName: 'Microsoft Windows 11 Pro', version: '8.7.301', servicePack: 'None', architecture: '64 BIT', usedBy: null, systemHealth: 'Healthy', remoteOffice: 'Mumbai Office', bucket: 'Missing' },
   ]);
   // Deployment tab = the full patch × endpoint matrix (every patch on every endpoint).
-  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildRegistryDeploymentMatrix());
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(() => buildPackageDeploymentMatrix());
   const handleInstallPatch = (agentIds: string[]) => {
     setPatchInstallations((prev) => {
       // Matrix semantics: installing on an endpoint pushes EVERY patch in this deployment to it,
@@ -1203,7 +1204,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Registry Deployment Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Knowledge Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1445,7 +1446,7 @@ onStackMinimizedChange,
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
       // Deployment page: no Vulnerabilities / Superseded tabs (those belong to the Patch page);
       // "packages" = the software packages this deployment installs (after Endpoint).
-      let allTabs: string[] = ['properties', 'computers', 'registry', 'installation', 'audit'];
+      let allTabs: string[] = ['properties', 'computers', 'packages', 'installation', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1471,7 +1472,7 @@ onStackMinimizedChange,
         'approvals': 85,
         'relations': 80,
         'computers': 100,
-        'registry': 85,
+        'packages': 90,
         'vulnerabilities': 120,
         'superseded': 110,
         'audit': 100,
@@ -2441,75 +2442,70 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Deployment KPIs — Status · Failed · Packages · Endpoints · Install
-                Expiry. The pro deployment-run metrics (Intune/SCCM pattern): lifecycle state,
-                rollout progress, scope, and the schedule window. */}
+            {/* Knowledge KPIs — Created By · Created · Folder · Total Read. Everything comes from
+                the article record via the knowledge adapter payload, so the strip stays accurate
+                per article rather than repeating a static line. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              const dep = activePatchRecord?.deployment;
+              const kb = activePatchRecord?.knowledge;
 
-              // Lifecycle status — same dot colors as the Patch Deployments list.
-              const status = dep?.status ?? 'Ready to Deploy';
-              const statusColor = ({ 'Ready to Deploy': '#3D8BD0', 'In Progress': '#F59E0B', 'Completed': '#22A06B', 'Expired': '#EF4444', 'Draft': '#94A3B8', 'Cancelled': '#6B7280' } as Record<string, string>)[status] ?? '#6B7280';
-              items.push({ key: 'status', tip: `Status: ${status}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{status}</span>
-                </span>
-              ) });
-
-              // Deployment Policy — the policy this run executes under (replaces the old
-              // Install Progress + Patches KPIs).
-              /* Rollout metrics — the set every major endpoint-management console leads with for a
-                 software deployment run: SCCM/MECM shows compliance % + error count, Intune shows
-                 Installed/Failed/Pending against the targeted devices, ManageEngine Endpoint
-                 Central and PDQ Deploy both headline success vs failure counts. Computed LIVE from
-                 the package × endpoint matrix so the header always agrees with the Deployment tab. */
-              const rows = patchInstallations;
-              const failedRuns = rows.filter((r) => r.installationStatus === 'Failed').length;
-              const epCount = new Set(rows.map((r) => r.agentId)).size;
-
-              // Failures — the #1 triage signal; green zero when the rollout is clean.
-              items.push({ key: 'failed', tip: failedRuns > 0 ? `${failedRuns} package installation${failedRuns > 1 ? 's' : ''} failed — see the Deployment tab` : 'No failed installations', node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Failed</span>
-                  <span className="text-[12px] font-medium" style={{ color: failedRuns > 0 ? '#DC2626' : '#22A06B' }}>{failedRuns}</span>
-                </span>
-              ) });
-
-              // Scope — how many registry configurations this run carries, across how many endpoints.
-              items.push({ key: 'registry', tip: `Registry configurations in this deployment: ${REGISTRY_ENTRIES.length}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Registry</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{REGISTRY_ENTRIES.length}</span>
-                </span>
-              ) });
-              items.push({ key: 'endpoints', tip: `Targeted endpoints: ${epCount}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Endpoints</span>
-                  <span className="text-[12px] font-medium text-[#364658]">{epCount}</span>
-                </span>
-              ) });
-
-              // Schedule window — 'Tue, Jul 21, 2026 09:00 PM' → 'Jul 21, 2026 09:00 PM'
-              // (weekday trimmed, TIME kept — the install window hour matters for a deployment).
               const shortDT = (v: string) => v.replace(/^[A-Za-z]{3},\s*/, '');
-              const installAfter = dep?.installAfter ?? activePatchRecord?.releaseDate ?? null;
-              items.push({ key: 'install-after', tip: installAfter ? `Install After: ${installAfter}` : 'Install After: not scheduled — deploys immediately', node: (
+              const created = kb?.created ?? null;
+              const ago = (() => {
+                if (!created) return null;
+                const d = new Date(created.replace(/^[A-Za-z]{3},\s*/, ''));
+                if (isNaN(d.getTime())) return null;
+                const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+                if (days < 0) return null;
+                if (days === 0) return 'today';
+                if (days === 1) return '1 day ago';
+                if (days < 30) return `${days} days ago`;
+                const months = Math.floor(days / 30);
+                return months === 1 ? '1 month ago' : `${months} months ago`;
+              })();
+
+              /* Author + date share ONE chip: they answer the same question ("who wrote this,
+                 when"), and merging them keeps the strip to three chips so each value has room.
+                 Avatar + name carry the identity; the date follows after a hairline separator in
+                 a lighter tone so the eye reads author first, then recency. */
+              const author = kb?.author ?? 'Unassigned';
+              const initials = author.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase();
+              items.push({
+                key: 'created-by',
+                tip: `Created by ${author}${created ? ` — ${created}${ago ? ` (${ago})` : ''}` : ''}`,
+                node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Created By</span>
+                    <span className="flex size-[18px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials}</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{author}</span>
+                    {created && (
+                      <>
+                        <span className="mx-0.5 h-3 w-px bg-[#E5E7EB]" />
+                        <span className="text-[12px] text-[#364658]">{shortDT(created)}</span>
+                        {ago && <span className="text-[11px] text-[#94A3B8]">({ago})</span>}
+                      </>
+                    )}
+                  </span>
+                ),
+              });
+
+              // Folder — the KB category folder from the listing rail.
+              const folder = kb?.folder ?? null;
+              items.push({ key: 'folder', tip: folder ? `Folder: ${folder}` : 'Not filed in a folder', node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Install After</span>
-                  <span className={`text-[12px] font-medium ${installAfter ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{installAfter ? shortDT(installAfter) : 'Immediate'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Folder</span>
+                  <Folder size={13} className="flex-shrink-0 text-[#94A3B8]" />
+                  <span className={`text-[12px] font-medium ${folder ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{folder ?? '---'}</span>
                 </span>
               ) });
 
-              // Deadline — red once the window has lapsed (real clock, matches the Expired status).
-              const expiry = dep?.expiryDate ?? null;
-              const expired = expiry ? new Date(expiry.replace(/^[A-Za-z]{3},\s*/, '')) < new Date() : false;
-              items.push({ key: 'expiry', tip: expiry ? `Expiry Date: ${expiry}${expired ? ' (window lapsed)' : ''}` : 'Expiry Date: no expiry — the deployment window stays open', node: (
+              // Total Read — how many times the article has been opened.
+              const reads = kb?.totalRead ?? 0;
+              items.push({ key: 'total-read', tip: `Total Read: ${reads.toLocaleString()} views`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Expiry</span>
-                  <span className={`text-[12px] font-medium ${expiry ? (expired ? 'text-[#DC2626]' : 'text-[#364658]') : 'text-[#9CA3AF]'}`}>{expiry ? shortDT(expiry) : '---'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Total Read</span>
+                  <BookOpen size={13} className="flex-shrink-0 text-[#94A3B8]" />
+                  <span className="text-[12px] font-medium tabular-nums text-[#364658]">{reads.toLocaleString()}</span>
                 </span>
               ) });
 
@@ -2836,109 +2832,11 @@ onStackMinimizedChange,
               </div>
             </div>
 
-            {/* Tabs: Conversation, Task, etc. */}
-            <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
-                {(() => {
-                  const tabConfig = [
-                    { id: 'properties', label: 'Properties' },
-                    { id: 'computers', label: 'Endpoint' },
-                    { id: 'registry', label: 'Registry' },
-                    { id: 'installation', label: 'Deployment' },
-                    { id: 'audit', label: 'Audit Trail' },
-                  ].filter(tab => tab.condition !== false);
-
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
-
-                  const tabLabels: Record<string, string> = {
-                    'overview': 'Overview',
-                    'properties': 'Overview',
-                    'hardware': 'Hardware',
-                    'software': 'Software',
-                    'consolidated': 'Consolidated Software',
-                    'installation': 'Deployment',
-                    'meter': 'Meter',
-                    'baseline': 'Baseline',
-                    'relationship': 'Relationship',
-                    'financials': 'Financials',
-                    'service-request': 'Service Request',
-                    'approvals': 'Approvals',
-                    'relations': 'Relations',
-                    'computers': 'Endpoint',
-                    'registry': 'Registry',
-                    'vulnerabilities': 'Vulnerabilities',
-                    'superseded': 'Superseded',
-                    'audit': 'Audit Trail'
-                  };
-
-                  const renderTab = (tabId: string) => (
-                    <button
-                      key={tabId}
-                      className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
-                      onClick={() => setActiveMainTab(tabId as any)}
-                    >
-                      {tabLabels[tabId]}
-                      {tabId === 'conversation' && activeTicket?.id !== 'INC-32' && activeTicket?.id !== 'INC-35' && (
-                        <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
-                          {conversationCount}
-                        </span>
-                      )}
-                      {tabId === 'tasks' && tasksCount > 0 && (
-                        <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
-                          {tasksCount}
-                        </span>
-                      )}
-                      {tabId === 'approvals' && activeTicket?.id !== 'INC-32' && (
-                        <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
-                          {approvalsCount}
-                        </span>
-                      )}
-
-                    </button>
-                  );
-
-                  const hasOverflow = filteredOverflowTabs.length > 0;
-
-                  return (
-                    <>
-                      {filteredVisibleTabs.map(renderTab)}
-                      {hasOverflow && (
-                        <div className="relative" ref={moreDropdownRef}>
-                          <button
-                            className={`px-1 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1 ${filteredOverflowTabs.includes(activeMainTab) ? 'text-[#3D8BD0] border-b-2 border-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'}`}
-                            onClick={() => setShowMoreTabsDropdown(!showMoreTabsDropdown)}
-                          >
-                            {filteredOverflowTabs.includes(activeMainTab) ? tabLabels[activeMainTab] : 'More'}
-                            <ChevronDown className="size-4" />
-                          </button>
-                          {showMoreTabsDropdown && (
-                            <div className="absolute top-full right-0 mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg py-1 min-w-[160px] z-[9999]">
-                              {filteredOverflowTabs.map(tabId => (
-                                <button
-                                  key={tabId}
-                                  className={`w-full text-left px-4 py-2 text-[14px] hover:bg-[#f3f4f6] ${activeMainTab === tabId ? 'text-[#3D8BD0] font-medium' : 'text-[#6b7280]'}`}
-                                  onClick={() => {
-                                    setActiveMainTab(tabId as any);
-                                    setShowMoreTabsDropdown(false);
-                                  }}
-                                >
-                                  {tabLabels[tabId]}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+            {/* No tab strip — the Knowledge page IS the article. */}
+            <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} />
 
             {/* Tab Content */}
-            {activeMainTab === 'overview' && (
+            {false && activeMainTab === 'overview' && (
             <div className="px-6 py-6 space-y-4">
               {/* License & compliance — the headline status for a software asset */}
               <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
@@ -3172,7 +3070,7 @@ onStackMinimizedChange,
               </>
             )}
 
-            {activeMainTab === 'properties' && (
+            {false && activeMainTab === 'properties' && (
             <div className="px-6 py-6">
               {/* Description — OPTIONAL. Only some patches carry release notes, so this renders
                   nothing at all when absent (no empty band). Clamped to 2 lines with View more. */}
@@ -3237,14 +3135,14 @@ onStackMinimizedChange,
 
                 const kpis: Kpi[] = [
                   {
-                    // Registry configurations this run applies, split by root hive.
-                    key: 'patches', label: 'Registry', icon: Package, color: '#3D8BD0',
-                    chart: 'donut', total: REGISTRY_ENTRIES.length,
+                    // Packages this run installs, split by the account the installer runs as.
+                    key: 'patches', label: 'Packages', icon: Package, color: '#3D8BD0',
+                    chart: 'donut', total: DEPLOYED_PACKAGES.length,
                     segments: [
-                      { label: 'HKEY_LOCAL_MACHINE', value: REGISTRY_ENTRIES.filter((r) => r.hive === 'HKEY_LOCAL_MACHINE').length, color: '#3D8BD0' },
-                      { label: 'HKEY_CURRENT_USER', value: REGISTRY_ENTRIES.filter((r) => r.hive === 'HKEY_CURRENT_USER').length, color: '#8B5CF6' },
+                      { label: 'System User', value: DEPLOYED_PACKAGES.filter((p) => p.installAsUser === 'System User').length, color: '#3D8BD0' },
+                      { label: 'Logged-in User', value: DEPLOYED_PACKAGES.filter((p) => p.installAsUser === 'Logged-in User').length, color: '#8B5CF6' },
                     ],
-                    onClick: () => setActiveMainTab('registry'),
+                    onClick: () => setActiveMainTab('packages'),
                   },
                   {
                     key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
@@ -3280,9 +3178,9 @@ onStackMinimizedChange,
                         pair doesn't repeat the same chart. (No Vulnerabilities card: the package
                         flow has no Vulnerabilities tab to drill into.) */}
                     <div className={`grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      {/* No category/status split exists for registry configurations or their
-                          targets — the cards show the COUNT plus the actual records. */}
-                      <CountPreviewKpiCard label='Registry' icon={Package} color='#3D8BD0' total={REGISTRY_ENTRIES.length} unit='registry configurations' items={REGISTRY_ENTRIES.map((r) => ({ title: r.name }))} onClick={() => setActiveMainTab('registry')} />
+                      {/* No category/status split exists for packages or their targets — the
+                          cards show the COUNT plus the actual records (count-preview form). */}
+                      <CountPreviewKpiCard label='Packages' icon={Package} color='#3D8BD0' total={DEPLOYED_PACKAGES.length} unit='packages in this deployment' items={DEPLOYED_PACKAGES.map((p) => ({ title: p.name }))} onClick={() => setActiveMainTab('packages')} />
                       <CountPreviewKpiCard label='Endpoints' icon={Monitor} color='#22A06B' total={patchComputers.length} unit='endpoints targeted' items={patchComputers.map((c) => ({ title: c.hostName, sub: c.ipAddress }))} onClick={() => setActiveMainTab('computers')} />
                     </div>
 
@@ -6807,23 +6705,23 @@ onStackMinimizedChange,
             {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
-            {activeMainTab === 'computers' && (
+            {false && activeMainTab === 'computers' && (
               <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} hideBuckets hideActions packageColumns hideBulkSelect />
             )}
 
             {/* Patches Tab Content — the patches this deployment rolls out */}
-            {(activeMainTab as string) === 'registry' && <RegistryDeploymentRegistryTab />}
+            {(false && activeMainTab as string) === 'packages' && <PackageDeploymentPackagesTab />}
 
             {/* Installation Tab Content — deployment records for this patch */}
-            {activeMainTab === 'installation' && (
-              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology registryMode />
+            {false && activeMainTab === 'installation' && (
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} showTopology packageMode />
             )}
 
             {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
             {activeMainTab === 'superseded' && <PatchSupersededTab patchId={activeAsset?.id} patchName={activeAsset?.name} />}
 
             {/* Audit Trails Tab Content */}
-            {activeMainTab === 'audit' && (() => {
+            {false && activeMainTab === 'audit' && (() => {
               const categories = [
                 { id: 'audit', label: 'Audit Trail' },
                 { id: 'movement', label: 'Movement History' },
@@ -8031,13 +7929,13 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Registry Deployment Fields"
+            fieldsTitle="Knowledge Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
             patchDeployMode={true}
-            registryDeployMode={true}
+            packageDeployMode={true}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -8147,7 +8045,7 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Registry Deployment Properties"
+            propertiesTitle="Knowledge Properties"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -9179,4 +9077,4 @@ onStackMinimizedChange,
   );
 }
 
-export default RegistryDeploymentDrawer;
+export default KnowledgeDrawer;

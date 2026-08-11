@@ -4718,7 +4718,7 @@ onStackMinimizedChange,
                         <Search size={16} className="text-[#6b7280]" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white w-[280px]">
+                      <div className="flex h-9 w-[280px] min-w-[180px] max-w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3">
                         <Search className="w-4 h-4 text-[#7B8FA5]" />
                         <input
                           type="text"
@@ -7169,7 +7169,7 @@ onStackMinimizedChange,
           />
           
           {/* Slide-in Panel */}
-          <div className="fixed right-0 top-0 h-screen w-[600px] bg-white shadow-2xl z-[110] flex flex-col">
+          <div className="fixed right-0 top-0 h-screen w-[600px] max-w-[95vw] bg-white shadow-2xl z-[110] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
               <h2 className="text-lg font-semibold text-[#364658]">Service Catalog</h2>
@@ -7327,7 +7327,7 @@ onStackMinimizedChange,
 
           {/* Item Details View */}
           {showCatalogItemDetails && selectedCatalogItem && (
-            <div className="fixed right-0 top-0 h-screen w-[600px] bg-white shadow-2xl z-[120] flex flex-col">
+            <div className="fixed right-0 top-0 h-screen w-[600px] max-w-[95vw] bg-white shadow-2xl z-[120] flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
                 <button

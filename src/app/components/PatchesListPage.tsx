@@ -34,6 +34,9 @@ export interface Patch {
   /** Present ONLY when the record is a DETECTED CVE opened via cveToPatchShape —
    *  carries the CVE facts so the CVE drawer's Overview (metrics/references) stays data-driven. */
   cve?: { severity: string; cweId: string; cvssScore: number; exploitStatus: string; patchAvailability: string; nvdStatus: string };
+  /** Present ONLY when the record is a KNOWLEDGE ARTICLE opened via knowledgeToPatchShape —
+   *  drives the Knowledge header KPIs (Created By · Created · Folder · Total Read). */
+  knowledge?: { author: string; created: string; folder: string; totalRead: number };
 }
 
 // Realistic Windows / third-party patch catalog (mock).

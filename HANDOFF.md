@@ -1,44 +1,88 @@
-# Handoff — 2026-07-31 01:30
+# Handoff — 2026-08-10 18:46
 
 ## Read first
-CLAUDE.md `## Key context` → the **Patch Deployment Overview (restructured)** + **Deployment tab = patch × endpoint MATRIX** bullets, the **Deployment Topology View** "Later additions" list (flow toggle now on-canvas, orientation-aware collapse badge), the **Endpoint detail page** (new System Overview card), the **Detected CVE detail page** (Patches+Endpoints donut row), the **"Request" terminology** bullet, and the **Tasks tab** per-request seeding note. The V2 rule still stands ("version 2" feature asks → `TicketDrawerV2.tsx` only) — the Ticket→Request rename touched V1 too, but only because it was an explicit product-wide terminology change, not a V2 feature.
+Focus on **Key context** in [CLAUDE.md](CLAUDE.md) — specifically the new bullets for the
+**Package Deployment** and **Registry Deployment** detail pages, **topology scenarios per module**,
+the **stored-items drill-down**, **canvas fullscreen**, the **4→3→2 property grids**, and the
+**right-panel field-search gotcha**. The **Structure** section now documents the Package module
+(Package Deployments + Registry Deployments list pages, tables and drawers).
 
 ## What we worked on this session
-Patch-family Overview & deployment polish: made the Patch Deployment "Deployment" tab a real patch × endpoint matrix with a tabbed Status|Patch filter, regrouped the Patch Deployment Overview (Patches/Endpoints on top, a bordered Deployment group with 4 status cards + two "Status by …" breakdowns), added an Endpoint "System Overview" card and a CVE Patches/Endpoints donut row, moved the topology flow toggle onto the canvas, renamed all visible "Ticket" → "Request" on the ticket page, and made individual tasks match the request subject.
+Built out the **Package module** end to end — the Registry Deployments listing + detail page, and
+a long series of divergences on both package and registry pages (tabs, grids, right-panel fields,
+Overview cards, topology scenarios). Also fixed three cross-cutting issues: dead field search on
+every patch-family page, property grids that jumped 4→2 columns, and the Hardware tab's section
+nav having no active state.
 
 ## Completed
-- **Patch Deployment tab = patch × endpoint matrix** (`buildDeploymentMatrix()`, 4×4=16 rows): list view gains Patch ID/Name/Severity/Result columns, cards get a patch strip, filter popup is **tabbed Status | Patch** (CMDB Filter-pill pattern, per-tab "All", blue active-dot), and the Patch filter also spotlights receiving offices in the Topology view. Endpoint tab shows only the 4 targeted endpoints.
-- **Patch Deployment Overview regrouped**: Patches + Endpoints donuts as a wider 2-up top row (`DonutKpiCard`, bigger gauge, min-width legend labels); a **bordered "Deployment" group** (border only, no bg) with **4 status stat cards** (Success/Failed/In Progress/Other) + **Status by Category** / **Status by Remote Office** dropdown breakdowns (`StatusBreakdownCard`), each defaulting to an **"All …"** aggregate.
-- **Endpoint Overview**: donuts go full-width in small view; new **"System Overview" card** (12 hardware/OS fields, Software-Details style).
-- **Detected CVE Overview**: **Patches + Endpoints donut row** under the Description (local `DonutKpiCard` copy).
-- **Patch / Endpoint / Vulnerability Overview** donuts stack full-width 1-up in the small view.
-- **Deployment Topology**: flow-direction toggle moved onto the canvas controls (merged into the reset card as a single "switch-to" toggle); collapse badge is orientation-aware (bottom-center when vertical).
-- **Ticket page → "Request"**: all visible "Ticket" labels renamed (V1 + V2) — properties/fields titles, Similar Requests, Find similar requests, Request Transition, tour, SLA history, AI texts + action keys, placeholders.
-- **Tasks tab**: individual (non-staged) tasks now themed to the request **subject** (`seedTasksFor(id, subject)` + `TASK_THEMES`); only INC-35 keeps the staged Service Catalog accordion.
-- **Hardware Overview**: antivirus product name (CrowdStrike Falcon) shown inline on the AV card.
-- **Affected Products panel**: one compact "N products affected · Supported Languages: all" line (Patch + Vulnerability).
-- **Vulnerability flyout → Endpoint** now opens the shared `'endpoints'` module (was a placeholder).
-- Two publishes this session: `e1690e7`, `32a23e0` (latest live bundle `index-DnrjBWxt.js`). `npm run build` clean throughout.
+- **Registry Deployments module** — listing (`RegistryDeploymentsListPage` + `RegistryDeploymentsTable`,
+  25 realistic hardening/policy runs, `CDR-###`) and detail page (`RegistryDeploymentDrawer`,
+  registered in `DrawerStack`, opened from the row/pill), plus the **Registry tab**
+  (`RegistryDeploymentRegistryTab`: Name / Description).
+- **Package Deployment page divergences** — Packages tab replacing Patches, competitor-informed
+  header KPIs (Status · Failed · Packages · Endpoints · Install After · Expiry), package × endpoint
+  matrix in the Deployment tab, Endpoint grid column set with Agent Credential Profile,
+  "Package Deployment Properties/Fields" panel with its own field list.
+- **Registry Deployment divergences** — registry template × endpoint matrix (one Name column, no
+  Download Status), labelled "Registry Template" strip on cards, Actions/View Configuration column,
+  its own panel field list.
+- **Overview cards** — new shared `CountPreviewKpiCard` (big count + the first 3 real records +
+  "+N more") replacing the invented category donuts on both package and registry Overviews;
+  "Patch Status by Category" removed from the package page; status tiles re-laid out 2×2 beside a
+  half-width Status by Remote Office.
+- **Topology per module** — package gets 2 scenarios (air-gapped Manual Upload, Shared Directory
+  with UNC path node + hover card + working two-way edge), registry gets 1 (manual script upload),
+  patch keeps 6. Same treatment applied to the individual View Configuration chain.
+- **Stored-items side popup** — clicking the Main FS / Shared Directory count opens a searchable,
+  paginated list of what is stored: 128 patches, 46 packages, 6 registry configurations.
+- **Fullscreen rework** — enter from the topology canvas control, exit from the overlay's top-right
+  corner, view toggles hidden while expanded, toolbar button removed.
+- **Cross-cutting fixes** — right-panel field search now works on all 7 patch-family pages;
+  79 property grids across 15 drawers step 4→3→2 columns; Hardware/CMDB section nav scroll-spy;
+  topology cards widened so "In Progress" never wraps.
+- Published to GitHub Pages twice (`49ace6d`, `99b5d48`) — both verified live with assets loading.
 
 ## In progress
-Nothing mid-flight.
+Nothing mid-flight — the last change (fullscreen exit control) is built, published and verified.
 
 ## Next steps
-- Await further screenshot-driven iteration (user works screen-by-screen).
-- Optional: wire the Patch Deployment Overview breakdown counts (`PATCH_STATUS_BY_CATEGORY` / `STATUS_BY_REMOTE_OFFICE`) to the real 16-row matrix instead of standalone demo figures (offered; user hasn't asked).
-- Optional: light up the Vulnerability sidebar icon when on the Endpoints page opened from its flyout (both flyouts share `'endpoints'`, so it currently highlights the Patch section).
-- Older leftovers: Endpoint page's Deployment gauge + Vulnerabilities tab + Audit Trail still run on patch-clone data; in-chat AI quick-pills row still generic.
+- Decide whether the **Registry Deployment** page needs further divergence: its Endpoint tab, Audit
+  Trail entries and the Deployment group's "Status by Remote Office" card are still package/patch
+  clone data.
+- The Registry page's Overview donut split and header chips were inferred, not specced — worth a
+  review pass with the real product screens.
+- `EndpointDrawer`'s Deployment gauge, Vulnerabilities tab and Audit Trail still run on patch-clone
+  data (carried over from earlier sessions, still pending a re-spec).
+- Consider whether the Package/Registry pages should keep the topology **scenario picker** at all,
+  now that they have 2 and 1 scenario respectively.
 
 ## Decisions made
-- The patch × endpoint matrix + patch columns + tabbed filter are **Patch-Deployment-page-only** — detected by rows carrying a `patchId` (`patchOptions`), so the plain Patch page keeps its original columns + flat status filter automatically.
-- The "Deployment" Overview group uses **border only, no background fill** (per user), grouping the overall status + both drill-downs so the deployment context reads as one block.
-- Breakdown dropdowns default to **"All"** (aggregate) so the card is informative before any selection.
-- Flow toggle lives **on the canvas** (not the scenario bar) so it survives when the live product removes the demo scenario row; shows the orientation to switch TO.
-- Ticket→Request is a **product-wide terminology** change (explicitly requested for V1 + V2), distinct from the "V2 features only" rule; internal keys/props kept as "ticket".
+- **Realistic data over screenshot-literal data.** Where your screenshots showed test values
+  (`db` policy, `Test` template names, empty "Select"), I substituted realistic equivalents and
+  said so, per the project's no-test-data rule.
+- **Invented breakdowns removed.** Packages and registry configurations have no category or status
+  taxonomy, so their Overview cards became count + real-record previews rather than donuts with
+  made-up splits. Same reasoning removed "Patch Status by Category" from the package page.
+- **One control per view.** Fullscreen enters from the topology canvas and exits from the overlay
+  corner; the ambiguous toolbar button that fullscreened whichever view happened to be active was
+  removed, and view toggles hide while expanded so nobody gets stranded.
+- **Opt-in props over new files** for shared-component divergence — `packageMode`, `registryMode`,
+  `slimColumns`, `packageDeployMode`, `registryDeployMode`, `storeFlavor`, `countLabel`,
+  `scenarios`, `onToggleFullscreen`. Defaults always preserve patch-page behavior.
 
 ## Gotchas & notes
-- `PatchInstallation` gained optional `patchId`/`patchName`/`patchSeverity`/`result`; `handleInstallPatch` fans out one row **per patch** so the matrix stays consistent when installing from the Endpoint tab.
-- `DonutKpiCard.onClick` is optional — omit it to render a donut card without a per-card "View more" (used where a section header owns navigation).
-- The CVE drawer has its OWN local `DonutKpiCard` copy (separate file, avoids coupling to `PatchDeploymentDrawer`).
-- Two IDE `hidden`/`flex` cssConflict warnings in `PatchDeploymentDrawer` (~lines 7599/7751) are the pre-existing `minimized ? 'hidden' : 'flex'` pattern — not from this session.
-- `gh` CLI not logged in; pushes work via Windows credential manager; publish verification = poll the live URL for the exact bundle hash.
+- **React Flow silently drops edges with unknown handle ids.** The Shared Directory node floated
+  unconnected because it was a new kind that did not render the `nd`/`nr` handles. If a connector
+  vanishes, check the handles before the edge definition.
+- **CRLF breaks scripted multi-line replacements.** Several `node -e` sweeps reported "applied N/M"
+  while silently missing multi-line blocks. Verify with a grep afterwards, or use the editor for
+  anything spanning lines — one header row shipped unchanged because I trusted the count.
+- **Apostrophes break `node -e` inside bash.** Write the script to a file in the scratchpad and run
+  it instead (that is how the CLAUDE.md update in this session was done).
+- **Gated cells must be gated for every mode.** A leftover Severity cell checked only `packageMode`,
+  which shifted every registry column one to the right. When adding a third mode, re-check all
+  existing gates, not just the headers.
+- **GitHub Pages source must stay on "GitHub Actions".** Earlier in the session the site served a
+  blank page because Source was set to "Deploy from a branch → main", publishing Vite's dev
+  `index.html`. Fixed via the API using the git credential already stored on this machine
+  (`git credential fill`) — `gh` is not logged in here and `gh auth login` is interactive.

@@ -16,6 +16,7 @@ import { PatchDrawer } from './PatchDrawer';
 import { PatchDeploymentDrawer } from './PatchDeploymentDrawer';
 import { PackageDeploymentDrawer } from './PackageDeploymentDrawer';
 import { RegistryDeploymentDrawer } from './RegistryDeploymentDrawer';
+import { KnowledgeDrawer } from './KnowledgeDrawer';
 import { EndpointDrawer } from './EndpointDrawer';
 import { VulnerabilityDrawer } from './VulnerabilityDrawer';
 import { DetectedCveDrawer } from './DetectedCveDrawer';
@@ -32,7 +33,7 @@ import { DrawerShortcuts } from './DrawerShortcuts';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -182,6 +183,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       case 'patch-deployments': drawer = <PatchDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'package-deployments': drawer = <PackageDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'registry-deployments': drawer = <RegistryDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      case 'knowledge': drawer = <KnowledgeDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Endpoint detail page — clone of the Patch detail page; the list adapts the endpoint record.
       case 'endpoints': drawer = <EndpointDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Vulnerability detail page — clone of the Patch detail page; the list adapts the record.

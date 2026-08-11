@@ -1,0 +1,206 @@
+import { useState, useRef } from 'react';
+import { Activity, AlertCircle, AlertTriangle, AlignCenter, AlignJustify, AlignLeft, AlignRight, AppWindow, Archive, Armchair, ArrowDown, ArrowLeft, ArrowRight, ArrowRightLeft, ArrowUp, ArrowUpDown, ArrowUpRight, BadgeCheck, Ban, Barcode, Baseline, BatteryFull, Bell, Blocks, Bold, BookOpen, Bookmark, Bot, Box, Boxes, Brain, Briefcase, Building2, Cable, Calendar, CalendarDays, Camera, Car, Check, CheckCheck, CheckCircle, CheckCircle2, CheckIcon, CheckSquare, ChevronDown, ChevronDownIcon, ChevronLeft, ChevronLeftIcon, ChevronRight, ChevronRightIcon, ChevronUp, ChevronUpIcon, ChevronsDownUp, ChevronsLeft, ChevronsRight, ChevronsUpDown, Circle, CircleDollarSign, CircleIcon, CircuitBoard, ClipboardCheck, ClipboardList, Clock, Code, Columns3, Copy, CornerUpLeft, CornerUpRight, Cpu, Database, Disc, DollarSign, Download, Droplet, Edit, Edit2, ExternalLink, Eye, EyeOff, FileCheck, FileCog, FileDown, FileOutput, FileText, Files, Filter, FlaskConical, Folder, FolderOpen, Forward, Gauge, Globe, GripVertical, GripVerticalIcon, HardDrive, Heading1, Heading2, Heading3, Headphones, Heart, Highlighter, History, Image, Info, Italic, KeyRound, Keyboard, Laptop, Layers, LayoutGrid, Library, Lightbulb, Link, Link2, List, ListOrdered, Loader2, Lock, LogIn, Mail, Map, MapPin, Maximize, Maximize2, MemoryStick, MessageSquare, Minimize2, Minus, MinusIcon, MinusSquare, Monitor, Moon, MoreHorizontal, MoreHorizontalIcon, MoreVertical, Mouse, MoveHorizontal, MoveVertical, Network, Orbit, Package, PackageCheck, PackagePlus, PaintBucket, PanelLeftIcon, Paperclip, Pause, Pencil, Pilcrow, Pin, PinOff, Play, Plug, Plus, PlusCircle, Power, Printer, QrCode, ReceiptText, Recycle, Redo, Redo2, RefreshCw, Repeat, Reply, Rocket, RotateCcw, Router, Save, ScanLine, ScanSearch, Search, SearchIcon, Send, SendHorizontal, Server, ServerCog, Settings, Settings2, Share2, Shield, ShieldAlert, ShieldCheck, ShieldX, ShoppingCart, Smartphone, Smile, SmilePlus, Sparkles, Square, SquareCheckBig, SquarePen, Star, Stethoscope, StickyNote, Strikethrough, Sunrise, Table, Tag, TextCursorInput, ThumbsDown, ThumbsUp, Ticket, Trash2, Truck, Type, Underline, Undo, Undo2, Unlink, Upload, Usb, User, UserCheck, Users, Video, Wand2, Workflow, Wrench, X, XCircle, XIcon, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  IconDashboard,
+  IconRequest,
+  IconProblem,
+  IconChange,
+  IconRelease,
+  IconAssets,
+  IconCMDB,
+  IconPatch,
+  IconPackage,
+  IconProject,
+  IconKnowledge,
+  IconReport,
+  IconMyApproval,
+  IconTask,
+  IconMyTeam,
+  IconVulnerability,
+} from './SidebarIcons';
+import { Sidebar } from './Sidebar';
+import { Header } from './Header';
+import { toast } from 'sonner';
+
+/* Icon Gallery — every icon used anywhere in this prototype, in one place, so the frontend team
+ * has a single reference. AUTO-COLLECTED from the codebase's lucide-react imports plus the custom
+ * sidebar SVGs. Click any tile to copy its full SVG markup at the selected size.
+ *
+ * To refresh after adding icons: re-run the collector, or just add the new name to the right
+ * group below — the page renders whatever it is given. */
+
+const ICON_GROUPS: { label: string; icons: [string, LucideIcon][] }[] = [
+  { label: "Navigation & layout", icons: [['ChevronDown', ChevronDown], ['ChevronUp', ChevronUp], ['ChevronLeft', ChevronLeft], ['ChevronRight', ChevronRight], ['ChevronsUpDown', ChevronsUpDown], ['ChevronsDownUp', ChevronsDownUp], ['ChevronsLeft', ChevronsLeft], ['ChevronsRight', ChevronsRight], ['ArrowUp', ArrowUp], ['ArrowDown', ArrowDown], ['ArrowLeft', ArrowLeft], ['ArrowRight', ArrowRight], ['ArrowUpDown', ArrowUpDown], ['ArrowUpRight', ArrowUpRight], ['ArrowRightLeft', ArrowRightLeft], ['CornerUpLeft', CornerUpLeft], ['CornerUpRight', CornerUpRight], ['LayoutGrid', LayoutGrid], ['List', List], ['Columns3', Columns3], ['Table', Table], ['Maximize', Maximize], ['Maximize2', Maximize2], ['Minimize2', Minimize2], ['MoveHorizontal', MoveHorizontal], ['MoveVertical', MoveVertical], ['GripVertical', GripVertical], ['MoreVertical', MoreVertical], ['MoreHorizontal', MoreHorizontal], ['ExternalLink', ExternalLink], ['Keyboard', Keyboard]] as [string, LucideIcon][] },
+  { label: "Actions", icons: [['Plus', Plus], ['PlusCircle', PlusCircle], ['Minus', Minus], ['MinusSquare', MinusSquare], ['X', X], ['XCircle', XCircle], ['Check', Check], ['CheckCheck', CheckCheck], ['CheckCircle', CheckCircle], ['CheckCircle2', CheckCircle2], ['CheckSquare', CheckSquare], ['SquareCheckBig', SquareCheckBig], ['Edit', Edit], ['Edit2', Edit2], ['SquarePen', SquarePen], ['Pencil', Pencil], ['Trash2', Trash2], ['Copy', Copy], ['Save', Save], ['Download', Download], ['Upload', Upload], ['Share2', Share2], ['Send', Send], ['SendHorizontal', SendHorizontal], ['Reply', Reply], ['Forward', Forward], ['RefreshCw', RefreshCw], ['RotateCcw', RotateCcw], ['Undo', Undo], ['Undo2', Undo2], ['Redo', Redo], ['Redo2', Redo2], ['Search', Search], ['ScanSearch', ScanSearch], ['Filter', Filter], ['Settings', Settings], ['Settings2', Settings2], ['Printer', Printer], ['Play', Play], ['Pause', Pause], ['Power', Power], ['Repeat', Repeat], ['Wand2', Wand2], ['Link', Link], ['Link2', Link2], ['Unlink', Unlink], ['Pin', Pin], ['PinOff', PinOff], ['Bookmark', Bookmark], ['Star', Star], ['Heart', Heart], ['ThumbsUp', ThumbsUp], ['ThumbsDown', ThumbsDown], ['Eye', Eye], ['EyeOff', EyeOff], ['Lock', Lock], ['LogIn', LogIn], ['Ban', Ban], ['Archive', Archive], ['Recycle', Recycle]] as [string, LucideIcon][] },
+  { label: "Status & feedback", icons: [['AlertCircle', AlertCircle], ['AlertTriangle', AlertTriangle], ['Info', Info], ['Loader2', Loader2], ['Clock', Clock], ['History', History], ['BadgeCheck', BadgeCheck], ['Shield', Shield], ['ShieldAlert', ShieldAlert], ['ShieldCheck', ShieldCheck], ['ShieldX', ShieldX], ['Sparkles', Sparkles], ['Zap', Zap], ['Activity', Activity], ['Gauge', Gauge], ['Bell', Bell], ['Circle', Circle], ['Square', Square]] as [string, LucideIcon][] },
+  { label: "Files & documents", icons: [['FileText', FileText], ['FileCheck', FileCheck], ['FileCog', FileCog], ['FileDown', FileDown], ['FileOutput', FileOutput], ['Files', Files], ['Folder', Folder], ['FolderOpen', FolderOpen], ['Paperclip', Paperclip], ['ClipboardCheck', ClipboardCheck], ['ClipboardList', ClipboardList], ['BookOpen', BookOpen], ['Library', Library], ['StickyNote', StickyNote], ['ReceiptText', ReceiptText], ['Barcode', Barcode], ['QrCode', QrCode], ['Image', Image], ['Camera', Camera], ['Video', Video]] as [string, LucideIcon][] },
+  { label: "People & communication", icons: [['User', User], ['UserCheck', UserCheck], ['Users', Users], ['Mail', Mail], ['MessageSquare', MessageSquare], ['Headphones', Headphones], ['Bot', Bot], ['Brain', Brain], ['Smile', Smile], ['SmilePlus', SmilePlus], ['Briefcase', Briefcase]] as [string, LucideIcon][] },
+  { label: "Assets, hardware & network", icons: [['Monitor', Monitor], ['Laptop', Laptop], ['Smartphone', Smartphone], ['Server', Server], ['Database', Database], ['HardDrive', HardDrive], ['Cpu', Cpu], ['MemoryStick', MemoryStick], ['CircuitBoard', CircuitBoard], ['Router', Router], ['Network', Network], ['Cable', Cable], ['Plug', Plug], ['Usb', Usb], ['Mouse', Mouse], ['BatteryFull', BatteryFull], ['Disc', Disc], ['Globe', Globe], ['Building2', Building2], ['MapPin', MapPin], ['Map', Map], ['Car', Car], ['Truck', Truck], ['Armchair', Armchair], ['Box', Box], ['Boxes', Boxes], ['Package', Package], ['PackageCheck', PackageCheck], ['PackagePlus', PackagePlus], ['AppWindow', AppWindow], ['Workflow', Workflow], ['Orbit', Orbit], ['Wrench', Wrench], ['Stethoscope', Stethoscope], ['FlaskConical', FlaskConical], ['ScanLine', ScanLine], ['Droplet', Droplet], ['Sunrise', Sunrise], ['Moon', Moon], ['KeyRound', KeyRound], ['Rocket', Rocket], ['Tag', Tag], ['Ticket', Ticket], ['ShoppingCart', ShoppingCart], ['CircleDollarSign', CircleDollarSign], ['DollarSign', DollarSign], ['Calendar', Calendar], ['CalendarDays', CalendarDays], ['Layers', Layers], ['Blocks', Blocks], ['Lightbulb', Lightbulb], ['Code', Code]] as [string, LucideIcon][] },
+  { label: "Text editor", icons: [['Bold', Bold], ['Italic', Italic], ['Underline', Underline], ['Strikethrough', Strikethrough], ['Highlighter', Highlighter], ['PaintBucket', PaintBucket], ['Type', Type], ['Baseline', Baseline], ['Pilcrow', Pilcrow], ['Heading1', Heading1], ['Heading2', Heading2], ['Heading3', Heading3], ['AlignLeft', AlignLeft], ['AlignCenter', AlignCenter], ['AlignRight', AlignRight], ['AlignJustify', AlignJustify], ['ListOrdered', ListOrdered], ['TextCursorInput', TextCursorInput]] as [string, LucideIcon][] },
+  { label: "General", icons: [['CheckIcon', CheckIcon], ['ChevronDownIcon', ChevronDownIcon], ['ChevronLeftIcon', ChevronLeftIcon], ['ChevronRightIcon', ChevronRightIcon], ['ChevronUpIcon', ChevronUpIcon], ['CircleIcon', CircleIcon], ['GripVerticalIcon', GripVerticalIcon], ['MinusIcon', MinusIcon], ['MoreHorizontalIcon', MoreHorizontalIcon], ['PanelLeftIcon', PanelLeftIcon], ['SearchIcon', SearchIcon], ['ServerCog', ServerCog], ['XIcon', XIcon]] as [string, LucideIcon][] },
+];
+
+const CUSTOM_ICONS: { name: string; use: string; Comp: (p: { size?: number; className?: string }) => JSX.Element }[] = [
+  { name: 'IconDashboard', use: "Dashboard", Comp: IconDashboard },
+  { name: 'IconRequest', use: "Requests / Tickets", Comp: IconRequest },
+  { name: 'IconProblem', use: "Problems", Comp: IconProblem },
+  { name: 'IconChange', use: "Changes", Comp: IconChange },
+  { name: 'IconRelease', use: "Releases", Comp: IconRelease },
+  { name: 'IconAssets', use: "Assets (flyout)", Comp: IconAssets },
+  { name: 'IconCMDB', use: "CMDB / Base CI", Comp: IconCMDB },
+  { name: 'IconPatch', use: "Patch Management (flyout)", Comp: IconPatch },
+  { name: 'IconPackage', use: "Package Management (flyout)", Comp: IconPackage },
+  { name: 'IconProject', use: "Projects", Comp: IconProject },
+  { name: 'IconKnowledge', use: "Knowledge", Comp: IconKnowledge },
+  { name: 'IconReport', use: "Reports", Comp: IconReport },
+  { name: 'IconMyApproval', use: "My Approvals", Comp: IconMyApproval },
+  { name: 'IconTask', use: "Tasks", Comp: IconTask },
+  { name: 'IconMyTeam', use: "My Team", Comp: IconMyTeam },
+  { name: 'IconVulnerability', use: "Vulnerability (flyout)", Comp: IconVulnerability },
+];
+
+const SIZES = [14, 16, 20, 24, 48];
+
+/* One gallery tile. Clicking it copies the icon's REAL SVG markup — read straight off the
+ * rendered DOM node — so what the developer pastes is exactly what the app draws, at whatever
+ * size the picker is on. Module-scope (not defined inside the page) so typing in the search box
+ * does not remount all 239 tiles. */
+function IconTile({ name, sub, size, children }: { name: string; sub?: string; size: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const copySvg = () => {
+    const svg = ref.current?.querySelector('svg');
+    if (!svg) { toast.error('Could not read this icon'); return; }
+    // outerHTML already carries the real attributes (width/height from the size picker,
+    // stroke="currentColor", the lucide class, every path) — no hand-built string to drift.
+    navigator.clipboard.writeText(svg.outerHTML).then(
+      () => toast.success(`Copied ${name} SVG (${size}px)`),
+      () => toast.error('Could not copy to clipboard'),
+    );
+  };
+  return (
+    <button
+      onClick={copySvg}
+      title="Click to copy SVG code"
+      className="group flex flex-col items-center justify-start gap-2 rounded-lg border border-[#E5E7EB] bg-white px-2 py-3.5 transition-all hover:border-[#3D8BD0] hover:shadow-sm"
+    >
+      <span ref={ref} className="flex items-center justify-center text-[#364658] transition-colors group-hover:text-[#3D8BD0]" style={{ height: Math.max(32, size) }}>{children}</span>
+      <span className="w-full truncate px-1 text-center text-[11px] text-[#64748B] transition-colors group-hover:text-[#3D8BD0]" title={name}>{name}</span>
+      {sub && <span className="w-full truncate px-1 text-center text-[10px] text-[#9CA3AF]">{sub}</span>}
+    </button>
+  );
+}
+
+export function IconGalleryPage({ onNavigate }: { onNavigate: (page: string) => void }) {
+  const [search, setSearch] = useState('');
+  const [size, setSize] = useState(20);
+  const q = search.trim().toLowerCase();
+
+  const customMatches = CUSTOM_ICONS.filter((c) => !q || c.name.toLowerCase().includes(q) || c.use.toLowerCase().includes(q));
+  const groupMatches = ICON_GROUPS
+    .map((g) => ({ ...g, icons: g.icons.filter(([n]) => !q || n.toLowerCase().includes(q) || g.label.toLowerCase().includes(q)) }))
+    .filter((g) => g.icons.length > 0);
+  const total = ICON_GROUPS.reduce((a, g) => a + g.icons.length, 0) + CUSTOM_ICONS.length;
+  const shown = groupMatches.reduce((a, g) => a + g.icons.length, 0) + customMatches.length;
+
+  return (
+    <div className="flex h-screen bg-[#f9fafb]">
+      <Sidebar activePage="icons" onNavigate={onNavigate} />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header selectedCount={0} />
+
+        {/* Toolbar */}
+        <div className="flex-shrink-0 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
+            <div className="min-w-0">
+              <h1 className="text-[16px] font-semibold text-[#364658]">Icon Library</h1>
+              <p className="mt-0.5 text-[12px] text-[#7B8FA5]">
+                Every icon used across the product · <span className="font-medium text-[#364658]">{total}</span> total
+                {q && <> · showing <span className="font-medium text-[#364658]">{shown}</span></>}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <div className="flex overflow-hidden rounded border border-[#DFE5ED]">
+                {SIZES.map((s, i) => (
+                  <button
+                    key={s}
+                    onClick={() => setSize(s)}
+                    className={`h-8 px-2.5 text-[12px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${size === s ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                  >{s}px</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pb-3">
+            <div className="relative">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search icons by name or category..."
+                className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+              />
+              {search ? (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658]"><X size={16} /></button>
+              ) : (
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" size={16} />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Gallery */}
+        <main className="min-h-0 flex-1 overflow-y-auto bg-white px-6 pb-10">
+          {/* How to use — the handoff note for the dev team */}
+          {!q && (
+            <div className="mb-5 rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3">
+              <div className="text-[13px] font-semibold text-[#364658]">How to use</div>
+              <p className="mt-1 text-[12px] leading-relaxed text-[#64748B]">
+                All icons below come from <span className="font-mono text-[#364658]">lucide-react</span>, except the
+                Product Navigation set, which are custom SVGs in <span className="font-mono text-[#364658]">SidebarIcons.tsx</span>.
+                Click any tile to copy its full SVG markup at the selected size. Standard sizes in this product: <strong>14px</strong> inside chips and table cells,
+                <strong> 15-16px</strong> for buttons and toolbars, <strong>20px</strong> for sidebar navigation.
+              </p>
+            </div>
+          )}
+
+          {/* Custom product icons */}
+          {customMatches.length > 0 && (
+            <section className="mb-8">
+              <h2 className="mb-1 text-[13px] font-semibold uppercase tracking-wide text-[#364658]">Product Navigation <span className="font-normal normal-case text-[#9CA3AF]">— custom SVG, SidebarIcons.tsx</span></h2>
+              <div className="mb-3 h-px bg-[#E5E7EB]" />
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(112, size + 68)}px, 1fr))` }}>
+                {customMatches.map(({ name, use, Comp }) => (
+                  <IconTile key={name} name={name} sub={use} size={size}>
+                    <Comp size={size} />
+                  </IconTile>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Lucide icons by purpose */}
+          {groupMatches.map((g) => (
+            <section key={g.label} className="mb-8">
+              <h2 className="mb-1 text-[13px] font-semibold uppercase tracking-wide text-[#364658]">
+                {g.label} <span className="font-normal normal-case text-[#9CA3AF]">— {g.icons.length}</span>
+              </h2>
+              <div className="mb-3 h-px bg-[#E5E7EB]" />
+              <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(112, size + 68)}px, 1fr))` }}>
+                {g.icons.map(([name, Comp]) => (
+                  <IconTile key={name} name={name} size={size}>
+                    <Comp size={size} />
+                  </IconTile>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {shown === 0 && (
+            <div className="py-20 text-center text-[13px] text-[#9CA3AF]">No icons match "{search}".</div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

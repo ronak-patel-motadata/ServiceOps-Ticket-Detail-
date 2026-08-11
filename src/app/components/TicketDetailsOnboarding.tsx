@@ -224,7 +224,7 @@ export function TicketDetailsOnboarding({ onComplete, onSkip, onStepChange }: Ti
 
       {/* Tooltip card - ONLY interactive element */}
       <div
-        className="absolute w-[400px] bg-[#1F2937] rounded-2xl shadow-2xl transition-all duration-300 pointer-events-auto"
+        className="pointer-events-auto absolute w-[400px] max-w-[92vw] rounded-2xl bg-[#1F2937] shadow-2xl transition-all duration-300"
         style={{
           top: tooltipPosition.top,
           left: tooltipPosition.left,

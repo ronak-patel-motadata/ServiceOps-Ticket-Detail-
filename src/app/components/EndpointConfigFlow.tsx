@@ -267,7 +267,7 @@ export function EndpointConfigFlow({ record, onClose, sharedDirSource = false, n
         </div>
 
         {/* Flow canvas */}
-        <div ref={wrapRef} className="relative h-[560px] rounded-b-xl" style={{ backgroundColor: '#FAFBFC' }}>
+        <div ref={wrapRef} className="relative h-[min(560px,70vh)] min-h-[320px] rounded-b-xl" style={{ backgroundColor: '#FAFBFC' }}>
           <ReactFlowProvider>
             <ReactFlow
               nodes={nodes}

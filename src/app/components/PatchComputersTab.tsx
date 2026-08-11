@@ -189,12 +189,15 @@ interface PatchComputersTabProps {
   /** Slim column set (Detected CVE page): ID · Host Name · IP Address · OS Name · OS Version ·
    *  Architecture · Remote Office — drops the fleet-management columns. Opt-in. */
   slimColumns?: boolean;
+  /** Hide row selection entirely (checkbox column + bulk "Take Action" bar) — pages where the
+   *  endpoint list is read-only context rather than something you act on. */
+  hideBulkSelect?: boolean;
   /** Package Deployment column set: Endpoint ID · Host Name · IP · Poller · OS Name · Agent
    *  Credential Profile · Version · Service Pack · Architecture · Used By · Remote Office. */
   packageColumns?: boolean;
 }
 
-export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false, hideActions = false, slimColumns = false, packageColumns = false }: PatchComputersTabProps) {
+export function PatchComputersTab({ computers, setComputers, onInstall, hideBuckets = false, hideActions = false, slimColumns = false, packageColumns = false, hideBulkSelect = false }: PatchComputersTabProps) {
   const [bucket, setBucket] = useState<Bucket>('Missing');
   const [search, setSearch] = useState('');
   // Card / List view toggle — card default (Deployment-tab parity).
@@ -357,7 +360,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
         )}
 
       {/* Search + (deployment mode) office filter + Add button */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="relative flex-1">
           <input
             type="text"
@@ -406,8 +409,8 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
 
       {/* Bulk-action bar — appears when rows are selected. Single "Take Action" menu holds every
           action (scales to any number), with a selected-count chip + "Unselect all". */}
-      {selected.size > 0 && (
-        <div className="animate-slide-up mb-3 flex flex-wrap items-center gap-3 rounded-md border border-[#E3E8EF] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_6px_rgba(16,24,40,0.06)]">
+      {!hideBulkSelect && selected.size > 0 && (
+        <div className="animate-slide-up relative z-30 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-[#E3E8EF] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_6px_rgba(16,24,40,0.06)]">
           {/* Take Action dropdown */}
           <div className="relative">
             <button
@@ -455,15 +458,17 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
         ) : (
         <div className="grid gap-4 grid-cols-1 @2xl:grid-cols-2 @4xl:grid-cols-3">
           {pageRows.map((c) => (
-            <div key={c.id} className={`rounded-xl border bg-white p-4 transition-all ${selected.has(c.id) ? 'border-[#3D8BD0] shadow-sm' : 'border-[#E5E7EB] hover:border-[#3D8BD0] hover:shadow-sm'}`}>
+            <div key={c.id} className={`rounded-xl border bg-white p-4 transition-all ${!hideBulkSelect && selected.has(c.id) ? 'border-[#3D8BD0] shadow-sm' : 'border-[#E5E7EB] hover:border-[#3D8BD0] hover:shadow-sm'}`}>
               {/* Header: checkbox · icon badge · (health dot + EP pill + host) · delete */}
               <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={selected.has(c.id)}
-                  onChange={(e) => toggleRow(c.id, e.target.checked)}
-                  className="mt-2.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-                />
+                {!hideBulkSelect && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(c.id)}
+                    onChange={(e) => toggleRow(c.id, e.target.checked)}
+                    className="mt-2.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                  />
+                )}
                 <OsBadge osName={c.osName} dotColor="#EAB308" size="lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -524,14 +529,16 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
         <table className={`w-full ${slimColumns ? 'min-w-[1000px]' : 'min-w-[1500px]'}`}>
           <thead className="border-b border-[#e5e7eb]">
             <tr>
-              <th className="w-[40px] px-4 py-2.5 text-left">
-                <input
-                  type="checkbox"
-                  checked={pageRows.length > 0 && pageRows.every((c) => selected.has(c.id))}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((c) => c.id)) : new Set())}
-                  className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-                />
-              </th>
+              {!hideBulkSelect && (
+                <th className="w-[40px] px-4 py-2.5 text-left">
+                  <input
+                    type="checkbox"
+                    checked={pageRows.length > 0 && pageRows.every((c) => selected.has(c.id))}
+                    onChange={(e) => setSelected(e.target.checked ? new Set(pageRows.map((c) => c.id)) : new Set())}
+                    className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                  />
+                </th>
+              )}
               {(slimColumns
                 ? ['ID', 'Host Name', 'IP Address', 'OS Name', 'OS Version', 'Architecture', 'Remote Office']
                 : packageColumns
@@ -544,17 +551,19 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
           </thead>
           <tbody className="divide-y divide-[#e5e7eb] bg-white">
             {pageRows.length === 0 ? (
-              <tr><td colSpan={slimColumns ? 8 : packageColumns ? 12 : hideActions ? 13 : 14} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} endpoints found.</td></tr>
+              <tr><td colSpan={(slimColumns ? 8 : packageColumns ? 12 : hideActions ? 13 : 14) - (hideBulkSelect ? 1 : 0)} className="px-4 py-12 text-center text-[13px] text-[#9CA3AF]">No {bucket.toLowerCase()} endpoints found.</td></tr>
             ) : pageRows.map((c) => (
               <tr key={c.id} className="hover:bg-[#f9fafb] transition-colors">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(c.id)}
-                    onChange={(e) => toggleRow(c.id, e.target.checked)}
-                    className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-                  />
-                </td>
+                {!hideBulkSelect && (
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.id)}
+                      onChange={(e) => toggleRow(c.id, e.target.checked)}
+                      className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                    />
+                  </td>
+                )}
                 {/* Agent ID with health dot */}
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="inline-flex items-center gap-2">

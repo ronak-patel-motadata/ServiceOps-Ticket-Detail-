@@ -138,11 +138,11 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
     <div className={`@container ${isFull ? 'fixed inset-0 z-[10000] overflow-y-auto bg-white px-6 py-4' : 'px-6 py-4'}`}>
       {/* Search + status filter + card/list/topology view toggle. In topology mode the same
           search/filter SPOTLIGHT the canvas (matching nodes stay lit, the rest fade). */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         {view === 'topology' ? (
           <>
             {/* Compact node search — same recipe as the Superseded map toolbar */}
-            <div className="relative w-[280px]">
+            <div className="relative w-full max-w-[280px] flex-1 sm:flex-none">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
               <input
                 ref={topoSearchRef}

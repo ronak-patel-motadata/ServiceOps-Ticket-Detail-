@@ -115,7 +115,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
       />
 
       {/* Side Panel */}
-      <div className="fixed right-0 top-0 h-full w-[600px] bg-white shadow-2xl z-[1001] flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-[600px] max-w-[95vw] bg-white shadow-2xl z-[1001] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#DFE5ED]">
           <h2 className="text-lg font-semibold text-[#364658]">
@@ -147,7 +147,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
             </div>
 
             {/* User Group and Assignee */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs text-[#7B8FA5] mb-1.5">User Group</label>
                 <div className="group relative" ref={userGroupRef}>
@@ -241,7 +241,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
             </div>
 
             {/* Start Date and End Date */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs text-[#7B8FA5] mb-1.5">
                   Start Date <span className="text-[#E74C3C]">*</span>
@@ -256,7 +256,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
             </div>
 
             {/* Status and Priority */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs text-[#7B8FA5] mb-1.5">Status</label>
                 <div className="group relative" ref={statusRef}>

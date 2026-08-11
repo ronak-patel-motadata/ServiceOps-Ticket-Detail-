@@ -529,7 +529,14 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
   const ext = sc.external ?? { kind: 'internet' as NodeKind, name: 'Internet', sub: 'External Patch Source (Vendor CDN)' };
   const internet: TopoNode = { id: 'internet', kind: ext.kind, name: ext.name, sub: ext.sub };
   byId.set('internet', internet);
-  const internetPos = horiz ? { x: COL_X[1] + 130, y: -180 } : { x: -340, y: ROW_Y[1] + 8 };
+  // When the Main File Server is the ONLY external link (no lane edges to leave room for), the
+  // source card is aligned dead-centre on it so the connector is a literal STRAIGHT line; with
+  // several links it stays offset into its own lane. Vertical alignment accounts for the two
+  // cards having different heights (mainfs 100 vs source 58).
+  const soloMainFs = sc.internetLinks.length === 1 && sc.internetLinks[0] === 'mainfs';
+  const internetPos = horiz
+    ? { x: soloMainFs ? COL_X[1] : COL_X[1] + 130, y: -180 }
+    : { x: -340, y: ROW_Y[1] + (soloMainFs ? (KIND_H.mainfs - KIND_H[ext.kind]) / 2 : 8) };
   nodes.push({
     id: 'internet', type: 'topo', position: internetPos,
     data: { ...internet, dim: isDim(internet) },
@@ -549,8 +556,8 @@ function buildFlow(sc: Scenario, collapsed: Set<string>, isDim: (n: TopoNode) =>
       id: `e-net-${t}`,
       source: 'internet', target: t,
       sourceHandle: netSource, targetHandle: netTarget,
-      type: laned ? 'lane' : 'smoothstep',
-      ...(laned ? {} : { pathOptions: { borderRadius: 14 } }),
+      type: laned ? 'lane' : soloMainFs ? 'straight' : 'smoothstep',
+      ...(laned || soloMainFs ? {} : { pathOptions: { borderRadius: 14 } }),
       animated: false,
       style: { stroke: color, strokeWidth: 1.6 },
       // Arrowheads on BOTH ends — the downloader requests upstream while the patch data flows
@@ -822,7 +829,7 @@ function StoreItemsPanel({ flavor, source, items, onClose }: { flavor: 'packages
       <div className="fixed inset-0 z-[10000] bg-black/40" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-[10001] flex w-[640px] max-w-[94vw] flex-col bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-          <h2 className="text-[16px] font-semibold text-[#364658]">
+          <h2 className="min-w-0 truncate text-[16px] font-semibold text-[#364658]">
             {isPatch ? 'Patches' : isPkg ? 'Packages' : 'Registry Configurations'} <span className="font-normal text-[#7B8FA5]">— {source} · {items.length} stored</span>
           </h2>
           <button onClick={onClose} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">
@@ -926,7 +933,7 @@ function GroupEndpointsPanel({ groups, initialGroup, onClose }: { groups: TopoNo
       <div className="fixed inset-y-0 right-0 z-[10001] flex w-[820px] max-w-[94vw] flex-col bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-          <h2 className="text-[16px] font-semibold text-[#364658]">
+          <h2 className="min-w-0 truncate text-[16px] font-semibold text-[#364658]">
             Endpoints <span className="font-normal text-[#7B8FA5]">— {initialGroup}</span>
           </h2>
           <button onClick={onClose} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">

@@ -165,7 +165,7 @@ export function EndpointDeploymentTab() {
       </div>
 
       {/* Search + card/list view toggle */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="relative flex-1">
           <input
             type="text"

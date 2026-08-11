@@ -95,7 +95,7 @@ export function EditItemPopup({
       />
       
       {/* Slide-in Panel */}
-      <div className="fixed right-0 top-0 h-screen w-[600px] bg-white shadow-2xl z-[110] flex flex-col">
+      <div className="fixed right-0 top-0 h-screen w-[600px] max-w-[95vw] bg-white shadow-2xl z-[110] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg font-semibold text-[#364658]">Edit Item</h2>
@@ -135,7 +135,7 @@ export function EditItemPopup({
             {/* Configuration Section */}
             <div>
               <h4 className="text-[15px] font-semibold text-[#364658] mb-3">Laptop Configuration</h4>
-              <div className="grid grid-cols-2 gap-4" ref={dropdownRef}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" ref={dropdownRef}>
                 {/* Processor Dropdown */}
                 <div className="relative">
                   <label className="text-[12px] text-[#7B8FA5] mb-1 block">Processor</label>

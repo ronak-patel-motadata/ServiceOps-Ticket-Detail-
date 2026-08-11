@@ -95,12 +95,12 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end">
-      <div className="bg-white shadow-xl w-[600px] h-full flex flex-col">
+      <div className="flex h-full w-[600px] max-w-[95vw] flex-col bg-white shadow-xl">
         {/* Header */}
         <div className="px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-          <div>
+          <div className="min-w-0">
             <h3 className="text-[18px] font-semibold text-[#364658]">Comments</h3>
-            <p className="text-[#7B8FA5] text-[14px]">{approvalSubject}</p>
+            <p className="truncate text-[14px] text-[#7B8FA5]" title={approvalSubject}>{approvalSubject}</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="text-[#7B8FA5] hover:text-[#364658]" onClick={onClose}>

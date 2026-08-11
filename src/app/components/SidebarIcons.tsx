@@ -1,4 +1,3 @@
-import { Lightbulb } from 'lucide-react';
 
 export function IconDashboard({ size = 20 }: { size?: number }) {
   return (
@@ -80,10 +79,19 @@ export function IconProject({ size = 20 }: { size?: number }) {
   );
 }
 
-// Uses the lucide Lightbulb so the sidebar "Knowledge" icon matches the
-// "Insert Knowledge" bulb in the editor toolbar (one bulb across the product).
+// Knowledge — a filled bulb drawn as ONE path so it themes with a single colour rule.
 export function IconKnowledge({ size = 20 }: { size?: number }) {
-  return <Lightbulb size={size} aria-hidden="true" />;
+  /* Single <path> + currentColor like every other icon here, so hover, dark mode and the theme
+     colour setting all recolour it with one CSS rule. (It previously delegated to lucide's
+     multi-element Lightbulb.) The bulb and its two base bars are sub-paths of the same `d`. */
+  return (
+    <svg width={size} height={size} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+      <path
+        fill="currentColor"
+        d="M24,4c-7.73,0-14,6.27-14,14,0,4.79,2.41,9.02,6.08,11.53v3.72c0,1.24,1.01,2.25,2.25,2.25h11.34c1.24,0,2.25-1.01,2.25-2.25v-3.72c3.67-2.51,6.08-6.74,6.08-11.53,0-7.73-6.27-14-14-14Zm3.17,22.68c-.85.5-1.37,1.41-1.37,2.39v2.68h-3.6v-2.68c0-.98-.52-1.89-1.37-2.39-3.15-1.85-5.08-5.19-5.08-8.68,0-5.66,4.59-10.25,10.25-10.25s10.25,4.59,10.25,10.25c0,3.49-1.93,6.83-5.08,8.68ZM29.63,39.5h-11.25c-1.04,0-1.88.84-1.88,1.88s.84,1.88,1.88,1.88h11.25c1.04,0,1.88-.84,1.88-1.88s-.84-1.88-1.88-1.88Z"
+      />
+    </svg>
+  );
 }
 
 export function IconReport({ size = 20 }: { size?: number }) {

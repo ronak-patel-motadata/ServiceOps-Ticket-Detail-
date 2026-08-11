@@ -222,7 +222,7 @@ export function EndpointPatchesTab({ patches, setPatches }: EndpointPatchesTabPr
       </div>
 
       {/* Search */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="relative flex-1">
           <input
             type="text"
@@ -242,7 +242,7 @@ export function EndpointPatchesTab({ patches, setPatches }: EndpointPatchesTabPr
       {/* Bulk-action bar — appears when rows are selected. Single "Take Action" menu holds every
           action (scales to any number), with a selected-count chip + "Unselect all". */}
       {selected.size > 0 && (
-        <div className="animate-slide-up mb-3 flex flex-wrap items-center gap-3 rounded-md border border-[#E3E8EF] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_6px_rgba(16,24,40,0.06)]">
+        <div className="animate-slide-up relative z-30 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-[#E3E8EF] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_2px_6px_rgba(16,24,40,0.06)]">
           <div className="relative">
             <button
               onClick={() => setShowMore((v) => !v)}

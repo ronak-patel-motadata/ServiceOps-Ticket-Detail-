@@ -123,7 +123,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-end">
-      <div className="bg-white h-full w-[900px] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="bg-white h-full w-[900px] max-w-[95vw] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
           <h2 className="text-[18px] font-semibold text-[#364658]">
@@ -140,7 +140,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
         {/* Content */}
         <div className="flex-1 overflow-hidden flex">
           {/* Left Sidebar - Stages */}
-          <div className="w-[180px] border-r border-[#E5E7EB] bg-[#F9FAFB] p-4">
+          <div className="w-[180px] flex-shrink-0 border-r border-[#E5E7EB] bg-[#F9FAFB] p-4">
             <div className="space-y-2">
               {stages.map((stage) => (
                 <div key={stage} className="group relative">

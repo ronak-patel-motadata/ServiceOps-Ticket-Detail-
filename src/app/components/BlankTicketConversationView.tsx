@@ -56,7 +56,7 @@ export function BlankTicketConversationView({
 }: BlankTicketConversationViewProps) {
   return (
     <div className="space-y-4">
-      <div className="sticky top-[48px] z-10 bg-white flex items-center justify-between mb-6 py-3 px-6 -mx-6">
+      <div className="sticky top-[48px] z-10 -mx-6 mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-white px-6 py-3">
         <div className="flex gap-2 flex-shrink-0 whitespace-nowrap">
           <button 
             className={`text-[14px] font-medium px-3 py-1.5 rounded ${activeConversationTab === 'all' ? 'bg-[#f1f5f9] text-[#334155]' : 'text-[#6b7280] hover:text-[#364658]'}`}
@@ -80,7 +80,7 @@ export function BlankTicketConversationView({
               <Search size={16} className="text-[#6b7280]" />
             </button>
           ) : (
-            <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white w-[280px]">
+            <div className="flex h-9 w-[280px] min-w-[180px] max-w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3">
               <Search className="w-4 h-4 text-[#7B8FA5]" />
               <input
                 type="text"

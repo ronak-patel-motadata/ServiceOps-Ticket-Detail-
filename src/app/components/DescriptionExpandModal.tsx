@@ -30,7 +30,7 @@ export function DescriptionExpandModal({ isOpen, onClose, value, onChange }: Des
   return (
     <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[720px] flex flex-col overflow-hidden">
+      <div className="relative flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB]">
           <h2 className="text-[16px] font-semibold text-[#364658]">Description</h2>
@@ -40,7 +40,7 @@ export function DescriptionExpandModal({ isOpen, onClose, value, onChange }: Des
         </div>
 
         {/* Textarea */}
-        <div className="px-4 pt-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

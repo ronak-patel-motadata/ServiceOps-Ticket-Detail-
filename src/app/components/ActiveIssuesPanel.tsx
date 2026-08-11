@@ -50,7 +50,7 @@ export function ActiveIssuesPanel({ assetName, onClose, onOpenIssue }: { assetNa
       <div className="fixed right-0 top-0 z-[10005] flex h-full w-[880px] max-w-[96vw] flex-col bg-white shadow-2xl">
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-          <h2 className="text-[17px] font-semibold text-[#111827]">Active Issues <span className="text-[13px] font-normal text-[#7B8FA5]">— {assetName}</span></h2>
+          <h2 className="min-w-0 truncate text-[17px] font-semibold text-[#111827]">Active Issues <span className="text-[13px] font-normal text-[#7B8FA5]">— {assetName}</span></h2>
           <button onClick={onClose} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"><X size={20} /></button>
         </div>
 

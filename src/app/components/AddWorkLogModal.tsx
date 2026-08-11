@@ -97,7 +97,7 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
         {/* Body */}
         <div className="flex-1 overflow-auto px-6 py-5 space-y-5">
           {/* Technician */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-[13px] text-[#4A5568] mb-1.5">
                 Technician <span className="text-[#EF4444]">*</span>
@@ -149,7 +149,7 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
           </div>
 
           {/* Start / End Date */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-[13px] text-[#4A5568] mb-1.5">
                 Start Date <span className="text-[#EF4444]">*</span>

@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -597,6 +597,12 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
+  // ServiceOps AI header controls. showChatHistory swaps the panel body for the history screen
+  // (New chat just clears the thread). Leaving the AI group resets it, so reopening the panel
+  // always lands on the chat rather than on history.
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  // Chats the user deleted from the history screen (ids removed from the seeded list).
+  const [removedChatIds, setRemovedChatIds] = useState<Set<string>>(new Set());
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   // Attachment that is open in the centered preview popup
   const [previewAttachment, setPreviewAttachment] = useState<any>(null);
@@ -1074,6 +1080,65 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // ServiceOps AI welcome screen — module-aware description + suggested actions (2–4 per page).
   // Ordered most-specific-first: the patch-family drawers also pass software/nonIt flags, so the
   // narrow modes must win before the broad asset ones.
+  /* Recent ServiceOps AI conversations for this record (mock), grouped by recency. Deliberately
+     EMPTY on the newer modules so the blank state is demoable; populated on the established ones.
+     Each entry restores its own question + answer, so the history reads as a real switcher. */
+  const CHAT_HISTORY: { id: string; title: string; group: string; when: string; q: string; a: string }[] = (() => {
+    if (endpointMode) return [
+      { id: 'e1', title: 'Why is this endpoint missing patches?', group: 'Today', when: '11:42 AM', q: 'Why is this endpoint missing patches?', a: 'This endpoint missed the last two deployment windows because it was offline during both. The agent reconnected recently, so the pending patches will install on its next check-in.' },
+      { id: 'e2', title: 'Summarise its scan history', group: 'Previous 7 days', when: 'Fri, Aug 07', q: 'Summarise its scan history', a: 'Scans have completed successfully on every run for the past month, with an average duration of just under four minutes.' },
+    ];
+    if (patchDeployMode) return [
+      { id: 'd1', title: 'Which endpoints failed and why?', group: 'Today', when: '09:18 AM', q: 'Which endpoints failed and why?', a: 'Two endpoints failed: one ran out of disk space during staging, the other was rebooted mid-install. Both are safe to retry.' },
+      { id: 'd2', title: 'Is the rollout on track?', group: 'Previous 7 days', when: 'Sat, Aug 08', q: 'Is the rollout on track?', a: 'Yes — the majority of targets have installed successfully and the remainder are queued inside the current window.' },
+      { id: 'd3', title: 'Explain the retry policy', group: 'Previous 30 days', when: 'Mon, Jul 27', q: 'Explain the retry policy', a: 'Failed installations retry automatically up to the configured retry count, spaced across subsequent agent check-ins.' },
+    ];
+    if (patchMode) return [
+      { id: 'p1', title: 'Assess the risk of this patch', group: 'Today', when: '10:05 AM', q: 'Assess the risk of this patch', a: 'This is a critical security update addressing remotely exploitable vulnerabilities. It supersedes an earlier update and requires a reboot.' },
+      { id: 'p2', title: 'Which endpoints still need it?', group: 'Previous 7 days', when: 'Thu, Aug 06', q: 'Which endpoints still need it?', a: 'A number of endpoints are still missing this patch, concentrated in two remote offices that were outside the last deployment window.' },
+    ];
+    if (assetMode || cmdbMode) return [
+      { id: 'a1', title: 'Is this asset still under warranty?', group: 'Today', when: '08:51 AM', q: 'Is this asset still under warranty?', a: 'Yes — the warranty is active, though it expires within the next quarter, so it is worth planning renewal or replacement now.' },
+      { id: 'a2', title: 'What is its total cost of ownership?', group: 'Previous 7 days', when: 'Wed, Aug 05', q: 'What is its total cost of ownership?', a: 'Total cost of ownership combines the purchase price with maintenance and support costs recorded against this asset to date.' },
+      { id: 'a3', title: 'Any open issues linked to it?', group: 'Previous 30 days', when: 'Tue, Jul 21', q: 'Any open issues linked to it?', a: 'There are a small number of open records linked to this asset. The Relations tab lists each one with its current status.' },
+    ];
+    // Newer modules (package / registry deployment, CVE, license, contract, purchase) start empty.
+    if (packageDeployMode || registryDeployMode || cveMode || licenseMode || contractMode || purchaseMode) return [];
+    // Ticket / Problem / Change / Release
+    return [
+      { id: 'c1', title: 'Summarise the current status', group: 'Today', when: '02:14 PM', q: 'Summarise the current status', a: 'Here is where things stand right now, along with the most recent activity and who is currently accountable.' },
+      { id: 'c2', title: 'What changed in the last 24 hours?', group: 'Today', when: '09:30 AM', q: 'What changed in the last 24 hours?', a: 'In the last 24 hours the status moved forward, ownership was reassigned once, and two new notes were added.' },
+      { id: 'c3', title: 'Any similar records I should look at?', group: 'Previous 7 days', when: 'Mon, Aug 03', q: 'Any similar records I should look at?', a: 'I found a few closely related records with the same signature — worth reviewing before you take the next action.' },
+      { id: 'c4', title: 'Draft an update for the requester', group: 'Previous 30 days', when: 'Fri, Jul 31', q: 'Draft an update for the requester', a: 'Here is a short, plain-language update you can send as-is or edit before sending.' },
+    ];
+  })();
+
+  // What the history screen actually renders — the seed minus anything the user deleted.
+  const chatHistory = CHAT_HISTORY.filter((c) => !removedChatIds.has(c.id));
+
+  const deleteChatHistory = (id: string, title: string) => {
+    setRemovedChatIds((prev) => new Set(prev).add(id));
+    toast.success(`Chat deleted — "${title}"`);
+  };
+
+  // "New chat" — clear the thread back to the welcome screen and focus the composer.
+  const startNewChat = () => {
+    setChatMessages([]);
+    setChatInput('');
+    setShowChatHistory(false);
+    setTimeout(() => chatInputRef.current?.focus(), 60);
+  };
+
+  // Restore a past conversation into the thread.
+  const openChatHistory = (c: { q: string; a: string }) => {
+    const now = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    setChatMessages([
+      { id: Date.now(), text: c.q, isUser: true, timestamp: now },
+      { id: Date.now() + 1, text: c.a, isUser: false, timestamp: now },
+    ]);
+    setShowChatHistory(false);
+  };
+
   const aiWelcome = (() => {
     const P = (label: string, prompt: string, icon: any, tip: string) => ({ label, prompt, icon, tip });
     if (endpointMode) return {
@@ -1252,6 +1317,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     if (activeGroup === 'chatbot' && chatInputRef.current) {
       chatInputRef.current.focus();
     }
+    // Leaving the AI panel drops the history screen, so reopening lands on the chat.
+    if (activeGroup !== 'chatbot') setShowChatHistory(false);
   }, [activeGroup]);
 
   // Debug: Log when showReopenTooltip changes
@@ -1391,7 +1458,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               )}
               {activeGroup === 'notifications' ? 'Notifications' : activeGroup === 'integration' ? 'Integration' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle()}
             </h2>
+            {/* ServiceOps AI header controls — New chat · Chat history · minimize */}
             {activeGroup === 'chatbot' && (
+              <div className="flex flex-shrink-0 items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button onClick={startNewChat} className="rounded p-1.5 transition-colors hover:bg-gray-100">
+                      <SquarePen size={16} className="text-[#7B8FA5]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>New chat</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setShowChatHistory((v) => !v)}
+                      className={`rounded p-1.5 transition-colors ${showChatHistory ? 'bg-[#EBF5FF]' : 'hover:bg-gray-100'}`}
+                    >
+                      <History size={16} className={showChatHistory ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Chat history</TooltipContent>
+                </Tooltip>
               <button
                 title="Close AI"
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
@@ -1420,6 +1508,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               >
                 <ChevronDown size={16} className="text-[#7B8FA5]" />
               </button>
+              </div>
             )}
             {activeGroup === 'users' && (
               <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
@@ -3059,7 +3148,101 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </div>
 
         {/* AI Chatbot Group Content - Chat Messages */}
-        {activeGroup === 'chatbot' && (
+        {/* Chat History screen — replaces the thread + composer while open. Back returns to chat. */}
+        {activeGroup === 'chatbot' && showChatHistory && (
+          <div className="flex min-h-0 flex-1 flex-col bg-white">
+            {/* Back row */}
+            <div className="flex-shrink-0 px-3 pt-1 pb-2">
+              <button
+                onClick={() => setShowChatHistory(false)}
+                className="inline-flex items-center gap-1.5 rounded px-2 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F3F4F6]"
+              >
+                <ChevronLeft size={16} className="text-[#7B8FA5]" />
+                All Chats
+              </button>
+            </div>
+
+            {chatHistory.length === 0 ? (
+              /* Blank state — same recipe as the Notifications / Integration empty states:
+                 round tinted icon badge, title, one-line explainer, single outline action. */
+              <div className="flex min-h-0 flex-1 items-center justify-center px-6 pb-16">
+                <div className="text-center">
+                  <div className="mb-4 inline-flex size-14 items-center justify-center rounded-full bg-[#F1F5F9]">
+                    <MessageSquare className="size-7 text-[#7B8FA5]" />
+                  </div>
+                  <h3 className="mb-1.5 text-[15px] font-semibold text-[#364658]">No Previous Conversation</h3>
+                  <p className="mx-auto mb-4 max-w-[260px] text-[13px] text-[#7B8FA5]">
+                    You have not asked ServiceOps AI about this record yet. Start a chat and it will show up here.
+                  </p>
+                  <button
+                    onClick={startNewChat}
+                    className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
+                  >
+                    <SquarePen size={15} />
+                    Start New Chat
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+                {/* Grouped by recency, newest first */}
+                {['Today', 'Previous 7 days', 'Previous 30 days'].map((group) => {
+                  const rows = chatHistory.filter((c) => c.group === group);
+                  if (!rows.length) return null;
+                  return (
+                    <div key={group} className="mb-3">
+                      <div className="px-2 pb-1.5 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8]">{group}</div>
+                      <div className="space-y-0.5">
+                        {rows.map((c) => (
+                          /* Row is a div (not a button) so the delete control can nest legally. */
+                          <div
+                            key={c.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openChatHistory(c)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChatHistory(c); } }}
+                            className="group/chat flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                          >
+                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] transition-colors group-hover/chat:bg-[#EBF5FF]">
+                              <MessageSquare size={14} className="text-[#7B8FA5] transition-colors group-hover/chat:text-[#3D8BD0]" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13px] font-medium text-[#364658]" title={c.title}>{c.title}</span>
+                              <span className="block text-[11px] text-[#94A3B8]">{c.when}</span>
+                            </span>
+                            {/* Delete — revealed on hover/focus, keeps a fixed slot so nothing shifts */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteChatHistory(c.id, c.title); }}
+                                  className="flex size-6 flex-shrink-0 items-center justify-center rounded text-[#9CA3AF] opacity-0 transition-all hover:bg-white hover:text-[#DC2626] focus:opacity-100 group-hover/chat:opacity-100"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete chat</TooltipContent>
+                            </Tooltip>
+                            <ChevronRight size={15} className="flex-shrink-0 text-[#CBD5E1] transition-colors group-hover/chat:text-[#3D8BD0]" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Footer action so a new chat is always one click away */}
+                <button
+                  onClick={startNewChat}
+                  className="mt-1 flex w-full items-center justify-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-3 py-2 text-[13px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
+                >
+                  <SquarePen size={15} />
+                  Start New Chat
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeGroup === 'chatbot' && !showChatHistory && (
             <div
               ref={chatScrollRef}
               className="flex-1 min-h-0 overflow-y-auto px-4 pb-4"
@@ -3461,7 +3644,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         )}
 
         {/* AI Chatbot Group Content - Input Footer */}
-        {activeGroup === 'chatbot' && (
+        {activeGroup === 'chatbot' && !showChatHistory && (
             <>
             {/* Fade effect for scrolling */}
             <div 
@@ -4266,7 +4449,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           />
 
           {/* Modal */}
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-white rounded-lg shadow-2xl z-[10001]">
+          <div className="fixed top-1/2 left-1/2 z-[10001] flex max-h-[85vh] w-[400px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
               <h3 className="text-[15px] font-semibold text-[#111827]">Customize Layout</h3>
@@ -4279,7 +4462,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
 
             {/* Content */}
-            <div className="px-6 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
               <p className="text-[12px] text-[#6B7280] mb-4">
                 Reorder sections to customize your layout. Pinned Fields will always stay at the top.
               </p>

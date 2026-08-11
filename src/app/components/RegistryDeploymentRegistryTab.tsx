@@ -73,7 +73,7 @@ export function RegistryDeploymentRegistryTab() {
   return (
     <div className="px-6 py-4">
       {/* Search — compact (the grid has only two columns) */}
-      <div className="relative mb-3 w-[280px]">
+      <div className="relative mb-3 w-full max-w-[280px]">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
         <input
           type="text"
