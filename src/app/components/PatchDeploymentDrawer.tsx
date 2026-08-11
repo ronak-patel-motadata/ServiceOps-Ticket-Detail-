@@ -55,7 +55,7 @@ import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES, buildDeploymentMatrix } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
+import { CountPreviewKpiCard, ColumnKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -3265,7 +3265,7 @@ onStackMinimizedChange,
                         onClick={() => setActiveMainTab('vulnerabilities')} wide={wide}
                       />
                       <ColumnKpiCard label={patchesKpi.label} icon={patchesKpi.icon} color={patchesKpi.color} total={patchesKpi.total} segments={patchesKpi.segments ?? []} onClick={patchesKpi.onClick} />
-                      <BarListKpiCard label={endpointsKpi.label} icon={endpointsKpi.icon} color={endpointsKpi.color} total={endpointsKpi.total} segments={endpointsKpi.segments ?? []} onClick={endpointsKpi.onClick} />
+                      <CountPreviewKpiCard label='Endpoints' icon={Monitor} color='#22A06B' total={patchComputers.length} unit='endpoints affected' items={patchComputers.map((c) => ({ title: c.hostName, sub: c.ipAddress }))} onClick={() => setActiveMainTab('computers')} />
                     </div>
 
                     {/* Deployment group — ONE bordered section holding the overall status (4 stat

@@ -39,6 +39,7 @@ import { renderCatalogIcon, getIconBackgroundColor } from './CatalogIconUtils';
 import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
+import { AffectedItemsRow, makeAffectedItems } from './AffectedItemsRow';
 import { RelationsTabContent } from './RelationsTabContent';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
@@ -1067,6 +1068,10 @@ onStackActiveGroupChange,
   
   // Track relations per ticket (used to determine if Relations tab should be shown for INC-32)
   const [ticketRelations, setTicketRelations] = useState<Record<string, any[]>>({});
+  // "Affected Items" impact row — records also seed the Relations tab so the pills drill into
+  // real rows rather than an empty list.
+  const [affectedTypeFilter, setAffectedTypeFilter] = useState<string | null>(null);
+  const affectedItems = makeAffectedItems(activeChange?.id, [{ type: 'Asset', prefix: 'AST', count: 4 }, { type: 'CI', prefix: 'CI', count: 3 }]);
   
   const drawerRef = useRef<HTMLDivElement>(null);
   const aiDropdownRef = useRef<HTMLDivElement>(null);
@@ -3527,6 +3532,12 @@ onStackActiveGroupChange,
               </div>
             </div>
 
+            <AffectedItemsRow
+              records={affectedItems}
+              onOpenType={(type) => { setAffectedTypeFilter(type); setActiveMainTab('relations'); }}
+              onOpenRelation={onOpenRelation}
+            />
+
             {/* AI Summary Accordion */}
             <div className="border border-[#DFE5ED] rounded-lg relative mx-[24px] mt-[0px] mb-[12px]" style={{ position: 'relative' }}>
               {/* Gradient Background Layer */}
@@ -5457,8 +5468,10 @@ onStackActiveGroupChange,
             {activeMainTab === 'relations' && (
               <RelationsTabContent 
                 ticketId={activeChange?.id} 
-                externalRelations={activeChange?.id ? (ticketRelations[activeChange.id]?.length ? ticketRelations[activeChange.id] : DEFAULT_REL) : undefined}
+                externalRelations={activeChange?.id ? (ticketRelations[activeChange.id]?.length ? ticketRelations[activeChange.id] : DEFAULT_REL) : undefined ?? affectedItems}
                 onOpenRelation={onOpenRelation}
+              initialTypeFilter={affectedTypeFilter}
+                onClearTypeFilter={() => setAffectedTypeFilter(null)}
               />
             )}
 

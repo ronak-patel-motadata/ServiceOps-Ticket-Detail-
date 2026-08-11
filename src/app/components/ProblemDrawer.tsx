@@ -2030,6 +2030,8 @@ onStackActiveGroupChange,
         mk('Request', 'INC-1060', '3rd floor WiFi unusable during peak hours', 'Open', 'High', 'Manasvi Shah'),
         mk('Asset', 'AST-3301', 'Cisco Aironet AP — 3rd Floor East', 'In Use', 'High', 'Network Team'),
         mk('Asset', 'AST-3302', 'Cisco WLC — Wireless Controller', 'In Use', 'High', 'Network Team'),
+        mk('CI', 'CI-201', 'Wireless LAN Service — 3rd Floor', 'Operational', 'High', 'Network Team'),
+        mk('CI', 'CI-204', 'Campus WiFi Controller Cluster', 'Operational', 'Medium', 'Network Team'),
       ],
       'PBM-626': [
         mk('Request', 'INC-2011', 'Not receiving external emails', 'Open', 'P1', 'Diksha Patel'),
@@ -2038,12 +2040,15 @@ onStackActiveGroupChange,
         mk('Request', 'INC-2023', 'Vendor says their emails fail to deliver', 'Open', 'High', 'Saahil Joshi'),
         mk('Asset', 'AST-5001', 'Exchange Mail Server — MX01', 'In Use', 'P1', 'Mail Admin'),
         mk('Asset', 'AST-5002', 'DNS Server — NS01', 'In Use', 'High', 'DNS Team'),
+        mk('CI', 'CI-310', 'Corporate Mail Service', 'Operational', 'P1', 'Mail Admin'),
+        mk('CI', 'CI-312', 'External DNS Zone — company.com', 'Operational', 'High', 'DNS Team'),
       ],
       'PBM-624': [
         mk('Request', 'INC-3101', 'Cannot log into the business application', 'Open', 'P1', 'Anita Verma'),
         mk('Request', 'INC-3105', 'Login times out for everyone in finance', 'Open', 'P1', 'Pavan Mehta'),
         mk('Request', 'INC-3108', 'SSO not working since this morning', 'In Progress', 'High', 'Hemal Joshi'),
         mk('Asset', 'AST-6001', 'Identity Provider — SSO01', 'In Use', 'P1', 'IAM Team'),
+        mk('CI', 'CI-405', 'Single Sign-On Service', 'Operational', 'P1', 'IAM Team'),
       ],
     };
     return map[id ?? ''] ?? [
@@ -2051,6 +2056,7 @@ onStackActiveGroupChange,
       mk('Request', 'INC-1002', 'Similar issue reported by another user', 'Open', 'Medium', 'Support Team'),
       mk('Request', 'INC-1003', 'Recurring complaint linked to this problem', 'In Progress', 'Low', 'Support Team'),
       mk('Asset', 'AST-2001', 'Affected infrastructure component', 'In Use', 'Medium', 'IT Operations'),
+      mk('CI', 'CI-101', 'Dependent business service', 'Operational', 'Medium', 'IT Operations'),
     ];
   };
 

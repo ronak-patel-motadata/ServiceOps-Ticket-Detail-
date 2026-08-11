@@ -60,7 +60,7 @@ import { RelationsTabContent } from './RelationsTabContent';
 import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { PatchDeploymentPatchesTab, DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PatchInstallationTab } from './PatchInstallationTab';
-import { BarListKpiCard } from './OverviewKpiCards';
+import { CountPreviewKpiCard } from './OverviewKpiCards';
 import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
 import { PatchSupersededTab } from './PatchSupersededTab';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
@@ -2945,14 +2945,12 @@ onStackMinimizedChange,
                       ]}
                       onClick={() => setActiveMainTab('patches-list')}
                     />
-                    {/* Different form than the Patches donut beside it — horizontal bar list */}
-                    <BarListKpiCard
-                      label="Endpoints" icon={Monitor} color="#3D8BD0" total={patchComputers.length}
-                      segments={[
-                        { label: 'Missing', value: epBucket('Missing'), color: '#F59E0B' },
-                        { label: 'Installed', value: epBucket('Installed'), color: '#22C55E' },
-                        { label: 'Ignored', value: epBucket('Ignored'), color: '#94A3B8' },
-                      ]}
+                    {/* No Missing/Installed/Ignored split exists for a CVE's endpoints — show the
+                        COUNT plus the actual machines (same card as the package pages). */}
+                    <CountPreviewKpiCard
+                      label="Endpoints" icon={Monitor} color="#22A06B" total={patchComputers.length}
+                      unit="endpoints affected"
+                      items={patchComputers.map((c) => ({ title: c.hostName, sub: c.ipAddress }))}
                       onClick={() => setActiveMainTab('computers')}
                     />
                   </div>

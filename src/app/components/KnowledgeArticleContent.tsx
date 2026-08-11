@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 /* Knowledge detail page body — the article itself. The Knowledge page has NO tabs: the full
@@ -7,11 +7,136 @@ import { toast } from 'sonner';
 
 interface Block {
   /** p = paragraph · h = section heading · steps = ordered list · bullets = unordered list ·
-   *  note = tinted callout · code = command block · table = simple two-column reference */
-  kind: 'p' | 'h' | 'steps' | 'bullets' | 'note' | 'warn' | 'code' | 'table';
+   *  note = tinted callout · code = command block · table = two-column reference ·
+   *  image = captioned screenshot (click to zoom) · video = captioned player */
+  kind: 'p' | 'h' | 'steps' | 'bullets' | 'note' | 'warn' | 'code' | 'table' | 'image' | 'video';
   text?: string;
   items?: string[];
   rows?: [string, string][];
+  /** image/video: caption under the figure */
+  caption?: string;
+  /** video: runtime badge, e.g. "2:14" */
+  duration?: string;
+  /** image/video: which inline mock to draw (no real assets in this prototype) */
+  art?: 'client' | 'portal';
+  /** video: real YouTube id. Swap this for the product's own video — everything else follows. */
+  youtubeId?: string;
+}
+
+/* Stand-in video until the product's own is available — Blender's 'Big Buck Bunny', the
+ * industry-standard sample clip. Replace this id (or set youtubeId on a block) to use a real one. */
+const SAMPLE_VIDEO_ID = 'aqz-KE-bpKQ';
+
+/* YouTube embed with a FACADE: the poster is just the thumbnail image until the reader clicks,
+ * then the real iframe mounts with autoplay. Nothing from YouTube loads on page view, so an
+ * article with several videos stays fast and no third-party player runs unasked. */
+function YouTubeFigure({ id, duration, caption }: { id: string; duration?: string; caption?: string }) {
+  const [playing, setPlaying] = useState(false);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  return (
+    <figure className="mb-5 mt-1">
+      <div className="relative overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#0F172A]">
+        {playing ? (
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`}
+            title={caption ?? 'Article video'}
+            className="block aspect-video w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        ) : (
+          <button
+            onClick={() => setPlaying(true)}
+            className="group relative block w-full"
+            aria-label="Play video"
+          >
+            {thumbFailed ? (
+              /* Offline / blocked thumbnail — fall back to the drawn poster so the layout holds */
+              <ScreenshotArt variant="portal" dim />
+            ) : (
+              <img
+                src={`https://img.youtube.com/vi/${id}/maxresdefault.jpg`}
+                alt=""
+                loading="lazy"
+                onError={() => setThumbFailed(true)}
+                className="block aspect-video w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+              />
+            )}
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="flex h-11 w-16 items-center justify-center rounded-lg bg-[#0F172A]/70 backdrop-blur-sm transition-all group-hover:bg-[#FF0000]">
+                <Play size={20} className="ml-0.5 fill-white text-white" />
+              </span>
+            </span>
+            {duration && (
+              <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded bg-[#0F172A]/80 px-2 py-1 text-[11px] font-medium tabular-nums text-white backdrop-blur-sm">
+                <Clock size={11} /> {duration}
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+      {caption && <figcaption className="mt-2 text-[12px] leading-relaxed text-[#7B8FA5]">{caption}</figcaption>}
+    </figure>
+  );
+}
+
+/* Inline SVG stand-ins for real media. The prototype ships no binary assets, so screenshots and
+ * video posters are drawn — they scale crisply at any width and keep the repo light. */
+function ScreenshotArt({ variant = 'client', dim = false }: { variant?: 'client' | 'portal'; dim?: boolean }) {
+  return (
+    <svg viewBox="0 0 800 450" className="block h-auto w-full" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Application screenshot">
+      <rect width="800" height="450" fill="#F1F5F9" />
+      {/* App window */}
+      <rect x="70" y="52" width="660" height="346" rx="10" fill="#FFFFFF" stroke="#DFE5ED" strokeWidth="1.5" />
+      {/* Title bar */}
+      <path d="M70 62a10 10 0 0 1 10-10h640a10 10 0 0 1 10 10v28H70z" fill="#F8FAFC" />
+      <line x1="70" y1="90" x2="730" y2="90" stroke="#E5E7EB" strokeWidth="1.5" />
+      <circle cx="94" cy="71" r="5" fill="#F04438" /><circle cx="112" cy="71" r="5" fill="#F79009" /><circle cx="130" cy="71" r="5" fill="#12B76A" />
+      <rect x="152" y="65" width="150" height="12" rx="6" fill="#E2E8F0" />
+      {variant === 'client' ? (
+        <>
+          {/* Connection form */}
+          <rect x="110" y="126" width="120" height="10" rx="5" fill="#CBD5E1" />
+          <rect x="110" y="146" width="580" height="38" rx="6" fill="#F8FAFC" stroke="#DFE5ED" strokeWidth="1.5" />
+          <rect x="126" y="159" width="180" height="12" rx="6" fill="#94A3B8" />
+          <rect x="110" y="204" width="90" height="10" rx="5" fill="#CBD5E1" />
+          <rect x="110" y="224" width="580" height="38" rx="6" fill="#F8FAFC" stroke="#DFE5ED" strokeWidth="1.5" />
+          <rect x="126" y="237" width="230" height="12" rx="6" fill="#94A3B8" />
+          {/* Connected status */}
+          <rect x="110" y="290" width="216" height="34" rx="17" fill="#ECFDF3" />
+          <circle cx="132" cy="307" r="6" fill="#12B76A" />
+          <rect x="148" y="301" width="160" height="12" rx="6" fill="#12B76A" opacity="0.55" />
+          {/* Primary button */}
+          <rect x="560" y="288" width="130" height="38" rx="6" fill="#3D8BD0" />
+          <rect x="592" y="302" width="66" height="10" rx="5" fill="#FFFFFF" opacity="0.9" />
+        </>
+      ) : (
+        <>
+          {/* Portal: left nav + list rows */}
+          <rect x="70" y="90" width="150" height="308" fill="#F8FAFC" />
+          <line x1="220" y1="90" x2="220" y2="398" stroke="#E5E7EB" strokeWidth="1.5" />
+          {[120, 152, 184, 216, 248].map((y, i) => (
+            <g key={y}>
+              <rect x="90" y={y} width="16" height="12" rx="3" fill={i === 1 ? '#3D8BD0' : '#CBD5E1'} />
+              <rect x="114" y={y + 1} width={i === 1 ? 86 : 74} height="10" rx="5" fill={i === 1 ? '#3D8BD0' : '#CBD5E1'} opacity={i === 1 ? 0.85 : 1} />
+            </g>
+          ))}
+          <rect x="244" y="118" width="462" height="30" rx="6" fill="#F8FAFC" stroke="#DFE5ED" strokeWidth="1.5" />
+          {[172, 216, 260, 304, 348].map((y) => (
+            <g key={y}>
+              <rect x="244" y={y} width="60" height="18" rx="4" fill="#E8F4FD" />
+              <rect x="318" y={y + 4} width="210" height="10" rx="5" fill="#CBD5E1" />
+              <circle cx="566" cy={y + 9} r="5" fill="#12B76A" />
+              <rect x="580" y={y + 4} width="60" height="10" rx="5" fill="#E2E8F0" />
+              <line x1="244" y1={y + 32} x2="706" y2={y + 32} stroke="#F0F2F5" strokeWidth="1.5" />
+            </g>
+          ))}
+        </>
+      )}
+      {dim && <rect width="800" height="450" fill="#0F172A" opacity="0.35" />}
+    </svg>
+  );
 }
 
 /** A full-length article. Keyed loosely on the id so different articles read differently;
@@ -19,6 +144,7 @@ interface Block {
 const ARTICLES: Record<string, Block[]> = {
   'KB-1': [
     { kind: 'p', text: 'This article explains how to connect to the company VPN from a remote location so you can reach internal resources — file shares, line-of-business applications and the intranet — exactly as you would from the office. It covers first-time setup, day-to-day connection, and the issues our service desk sees most often.' },
+    { kind: 'video', duration: '10:34', caption: 'Watch the full setup — installing the client, signing in, and approving the authentication prompt.' },
     { kind: 'h', text: 'Before you begin' },
     { kind: 'bullets', items: [
       'A company-managed laptop with the corporate device certificate installed.',
@@ -41,6 +167,7 @@ const ARTICLES: Record<string, Block[]> = {
       'Approve the multi-factor authentication prompt on your phone.',
       'Wait for the status to change to Connected. The tray icon turns green.',
     ] },
+    { kind: 'image', art: 'client', caption: 'Figure 1 — the VPN client after a successful connection. The status pill turns green and the tray icon follows.' },
     { kind: 'note', text: 'Once connected you have secure access to internal resources including file shares, internal applications and the intranet. Your internet browsing continues to use your local connection, so streaming and video calls are not slowed down by the tunnel.' },
     { kind: 'h', text: 'Reconnecting day to day' },
     { kind: 'p', text: 'After the first successful sign-in the client remembers the server address and your username. On subsequent days you only need to launch the client, click Connect, and approve the authentication prompt. Sessions expire after twelve hours or when the laptop sleeps for an extended period, so reconnecting each morning is normal and expected.' },
@@ -79,6 +206,7 @@ const GENERIC = (title: string): Block[] => [
     'Your company account credentials and multi-factor authentication enrolled.',
     'The relevant application installed from the Software Portal.',
   ] },
+  { kind: 'image', art: 'portal', caption: 'Figure 1 — the service portal. The left-hand menu is where each section lives.' },
   { kind: 'h', text: 'Steps to follow' },
   { kind: 'steps', items: [
     'Open the service portal and sign in with your company account.',
@@ -88,6 +216,7 @@ const GENERIC = (title: string): Block[] => [
     'Keep the reference number from the confirmation — the service desk will ask for it if you need to follow up.',
   ] },
   { kind: 'note', text: 'Requests raised outside business hours are picked up on the next working day unless they are marked as urgent. If the issue is stopping you from working, call the service desk directly rather than waiting on the ticket.' },
+  { kind: 'video', duration: '10:34', caption: 'A short walkthrough of the same steps, if you would rather watch than read.' },
   { kind: 'h', text: 'If something goes wrong' },
   { kind: 'p', text: 'Start by refreshing the page and retrying — transient errors usually clear on a second attempt. If the problem persists, sign out completely and sign back in, which resolves most session-related failures. Clearing your browser cache is worth trying before escalating.' },
   { kind: 'steps', items: [
@@ -103,6 +232,8 @@ const GENERIC = (title: string): Block[] => [
 
 export function KnowledgeArticleContent({ articleId, title }: { articleId: string; title: string }) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
+  // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
+  const [lightbox, setLightbox] = useState<{ caption?: string; art?: 'client' | 'portal' } | null>(null);
   const blocks = ARTICLES[articleId] ?? GENERIC(title);
 
   const castVote = (v: 'up' | 'down') => {
@@ -155,6 +286,25 @@ export function KnowledgeArticleContent({ articleId, title }: { articleId: strin
               return (
                 <pre key={i} className="mb-4 overflow-x-auto rounded bg-[#1E293B] px-3.5 py-3 font-mono text-[12px] leading-relaxed text-[#E2E8F0]">{b.text}</pre>
               );
+            case 'image':
+              return (
+                <figure key={i} className="mb-5 mt-1">
+                  <button
+                    onClick={() => setLightbox({ caption: b.caption, art: b.art })}
+                    className="group relative block w-full overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] transition-colors hover:border-[#3D8BD0]"
+                    aria-label="Open image"
+                  >
+                    <ScreenshotArt variant={b.art ?? 'client'} />
+                    {/* Zoom affordance — appears on hover so the still stays clean at rest */}
+                    <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 rounded bg-[#0F172A]/75 px-2 py-1 text-[11px] font-medium text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                      <Maximize2 size={12} /> Click to enlarge
+                    </span>
+                  </button>
+                  {b.caption && <figcaption className="mt-2 text-[12px] leading-relaxed text-[#7B8FA5]">{b.caption}</figcaption>}
+                </figure>
+              );
+            case 'video':
+              return <YouTubeFigure key={i} id={b.youtubeId ?? SAMPLE_VIDEO_ID} duration={b.duration} caption={b.caption} />;
             case 'table':
               return (
                 <div key={i} className="mb-4 overflow-x-auto">
@@ -211,6 +361,29 @@ export function KnowledgeArticleContent({ articleId, title }: { articleId: strin
           </div>
         </div>
       </article>
+
+      {/* Lightbox — click the backdrop or ✕ to close; Esc-free by design (prototype). */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/70 p-6"
+          onClick={() => setLightbox(null)}
+        >
+          <div className="relative w-full max-w-[980px]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute -top-11 right-0 flex size-8 items-center justify-center rounded text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+            {/* Images only — video plays inline in its own figure, not here. */}
+            <div className="overflow-hidden rounded-lg bg-white shadow-2xl">
+              <ScreenshotArt variant={lightbox.art ?? 'client'} />
+            </div>
+            {lightbox.caption && <div className="mt-3 text-center text-[12px] text-white/80">{lightbox.caption}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

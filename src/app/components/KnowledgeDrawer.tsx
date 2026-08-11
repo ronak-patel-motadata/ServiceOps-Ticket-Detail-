@@ -121,7 +121,14 @@ import {
   getFilteredAdditionalFields,
   makeCrossModuleRelations,
 } from './TicketDrawerUtils';
-const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'},{type:'Purchase',prefix:'PO'}]);
+/* Relations a KNOWLEDGE article can carry. RelationsTabContent derives its pills FROM THIS DATA,
+ * so only the types seeded here get a pill — Problem, Release, Project and CI are intentionally
+ * absent to demonstrate that rule. Seed a type to make its pill appear. */
+const DEFAULT_REL = makeCrossModuleRelations([
+  { type: 'Request', prefix: 'REQ', count: 4 },
+  { type: 'Change', prefix: 'CHG', count: 2 },
+  { type: 'Asset', prefix: 'AST', count: 3 },
+]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
@@ -1131,6 +1138,16 @@ onStackMinimizedChange,
   
   // Track relations per ticket (used to determine if Relations tab should be shown for INC-32)
   const [ticketRelations, setTicketRelations] = useState<Record<string, any[]>>({});
+  // Rows behind the Relations tab — its pills derive from this, so an empty type shows no pill.
+  const knowledgeRelations = activeTicket?.id && ticketRelations[activeTicket.id]?.length ? ticketRelations[activeTicket.id] : DEFAULT_REL;
+
+  /* Approvals are about THIS article — a knowledge article goes through review and publishing
+     approval, so both subjects are built from its own title rather than inheriting the cloned
+     "Apple MacBook Pro" purchase approval. */
+  const knowledgeApprovalSubjects: [string, string] = [
+    `Review Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
+    `Publish Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
+  ];
   
   const drawerRef = useRef<HTMLDivElement>(null);
   const aiDropdownRef = useRef<HTMLDivElement>(null);
@@ -1679,7 +1696,7 @@ onStackMinimizedChange,
 
   // Asset detail page opens on the Overview tab by default.
   useEffect(() => {
-    if (activeAsset) setActiveMainTab('properties');
+    if (activeAsset) setActiveMainTab('knowledge-article');
   }, [activeAssetId]);
 
   // Update ticket fields when active ticket changes
@@ -2832,8 +2849,42 @@ onStackMinimizedChange,
               </div>
             </div>
 
-            {/* No tab strip — the Knowledge page IS the article. */}
-            <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} />
+            {/* Knowledge tabs — Article · Relations · Approvals. A plain three-tab strip: this
+                page can never overflow, so it skips the measured More-dropdown machinery the
+                other drawers need. */}
+            <div className="sticky top-0 z-99 border-b border-[#e5e7eb] bg-white">
+              <div className="flex items-center gap-2.5 px-6">
+                {([
+                  { id: 'knowledge-article', label: 'Article' },
+                  { id: 'relations', label: 'Relations', count: knowledgeRelations.length },
+                  { id: 'approvals', label: 'Approvals', count: 2 },
+                ] as const).map((t) => {
+                  const active = activeMainTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveMainTab(t.id)}
+                      className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-2 py-3 text-[14px] transition-colors ${
+                        active
+                          ? 'border-[#3D8BD0] font-medium text-[#3D8BD0]'
+                          : 'border-transparent text-[#64748B] hover:border-[#CBD5E1] hover:bg-[#F9FAFB]'
+                      }`}
+                    >
+                      {t.label}
+                      {'count' in t && !!t.count && (
+                        <span className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-semibold ${
+                          active ? 'bg-[#3D8BD0] text-white' : 'bg-[#EEF2F6] text-[#64748B]'
+                        }`}>{t.count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {activeMainTab === 'knowledge-article' && (
+              <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} />
+            )}
 
             {/* Tab Content */}
             {false && activeMainTab === 'overview' && (
@@ -6655,8 +6706,9 @@ onStackMinimizedChange,
 
             {/* Approvals Tab Content */}
             {activeMainTab === 'approvals' && (
-              <ApprovalsTabContent 
+              <ApprovalsTabContent
                 ticketId={activeTicket?.id}
+                approvalSubjects={knowledgeApprovalSubjects}
                 showCreateApprovalPopup={showCreateApprovalPopup}
                 onCloseApprovalPopup={() => setShowCreateApprovalPopup(false)}
                 onOpenApprovalPopup={() => setShowCreateApprovalPopup(true)}
