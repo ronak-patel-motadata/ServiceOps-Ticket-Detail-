@@ -1,4 +1,4 @@
-import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown } from 'lucide-react';
+import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown , Trash2 , Pencil } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
@@ -13,9 +13,14 @@ interface ApprovalCommentPopupProps {
   approvalSubject: string;
   comments: ApprovalComment[];
   onAddComment: (comment: ApprovalComment) => void;
+  /** Optional — enables the hover edit / delete actions on each comment. */
+  onUpdateComment?: (id: number, content: string) => void;
+  onDeleteComment?: (id: number) => void;
 }
 
-export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject, comments, onAddComment }: ApprovalCommentPopupProps) {
+export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject, comments, onAddComment, onUpdateComment, onDeleteComment }: ApprovalCommentPopupProps) {
+  // Which comment the composer is currently editing (null = writing a new one).
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [commentContent, setCommentContent] = useState('');
   const [commentSearch, setCommentSearch] = useState('');
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
@@ -71,6 +76,14 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
   const handleSend = () => {
     const text = commentContent.replace(/<[^>]*>/g, '').trim();
     if (!text) return; // don't add empty comments
+    // Editing an existing comment updates it in place instead of appending a new one.
+    if (editingCommentId !== null && onUpdateComment) {
+      onUpdateComment(editingCommentId, commentContent);
+      setEditingCommentId(null);
+      setCommentContent('');
+      if (commentContentRef.current) commentContentRef.current.innerHTML = '';
+      return;
+    }
     const now = new Date();
     onAddComment({
       id: now.getTime(),
@@ -151,7 +164,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
           ) : (
             <div className="space-y-5">
               {visibleComments.map((c) => (
-                <div key={c.id} className="flex gap-3">
+                <div key={c.id} className="group/cmt flex gap-3">
                   <div className="size-[26px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: c.color }}>
                     {c.initials}
                   </div>
@@ -170,6 +183,42 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                           Not Visible to Requester
                         </TooltipContent>
                       </Tooltip>
+                      {(onUpdateComment || onDeleteComment) && (
+                        <span className="ml-auto flex flex-shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover/cmt:opacity-100">
+                          {onUpdateComment && (
+                            <button
+                              className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                              title="Edit"
+                              onClick={() => {
+                                setEditingCommentId(c.id);
+                                if (commentContentRef.current) commentContentRef.current.innerHTML = c.content;
+                                setCommentContent(c.content);
+                                commentContentRef.current?.focus();
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
+                              </svg>
+                            </button>
+                          )}
+                          {onDeleteComment && (
+                            <button
+                              className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                              title="Delete"
+                              onClick={() => {
+                                onDeleteComment(c.id);
+                                if (editingCommentId === c.id) {
+                                  setEditingCommentId(null);
+                                  if (commentContentRef.current) commentContentRef.current.innerHTML = '';
+                                  setCommentContent('');
+                                }
+                              }}
+                            >
+                              <Trash2 className="size-4 text-[#EF4444]" />
+                            </button>
+                          )}
+                        </span>
+                      )}
                     </div>
                     <div
                       className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-1 text-sm text-[#364658] leading-relaxed break-words"
@@ -184,6 +233,21 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
 
         {/* Comment Input Form - Fixed at Bottom */}
         <div className="p-4 border-t border-[#DFE5ED]">
+          {/* Editing indicator — makes the mode obvious and gives a way back out */}
+          {editingCommentId !== null && (
+            <div className="mb-2 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
+              <Pencil size={12} />
+              Editing comment
+              <button
+                onClick={() => {
+                  setEditingCommentId(null);
+                  setCommentContent('');
+                  if (commentContentRef.current) commentContentRef.current.innerHTML = '';
+                }}
+                className="text-[#3D8BD0] hover:underline"
+              >Cancel</button>
+            </div>
+          )}
           <div className="border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={commentFormRef}>
             {/* Comment Form */}
             <div className="p-4">

@@ -230,7 +230,7 @@ const GENERIC = (title: string): Block[] => [
   { kind: 'p', text: 'If the steps above do not resolve the issue, raise a ticket with the service desk. Include the exact error message, what you were trying to do, and the time it happened. Screenshots are always helpful and usually remove a round trip of questions.' },
 ];
 
-export function KnowledgeArticleContent({ articleId, title }: { articleId: string; title: string }) {
+export function KnowledgeArticleContent({ articleId, title, centered = false }: { articleId: string; title: string; /** Requester preview: portal-style centred reading column. */ centered?: boolean }) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
   // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
   const [lightbox, setLightbox] = useState<{ caption?: string; art?: 'client' | 'portal' } | null>(null);
@@ -242,8 +242,8 @@ export function KnowledgeArticleContent({ articleId, title }: { articleId: strin
   };
 
   return (
-    <div className="px-6 py-6">
-      <article className="max-w-[860px]">
+    <div className={centered ? 'px-10 py-8' : 'px-6 py-6'}>
+      <article className={centered ? 'mx-auto max-w-[760px]' : 'max-w-[860px]'}>
         {blocks.map((b, i) => {
           switch (b.kind) {
             case 'h':

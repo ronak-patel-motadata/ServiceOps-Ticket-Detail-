@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, SquareCheckBig } from 'lucide-react';
 import { NotificationsPanel } from './NotificationsPanel';
 import { toast } from 'sonner';
+import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
@@ -51,6 +52,13 @@ interface TicketPropertiesPanelProps {
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields in the CVE Fields accordion
   cveMode?: boolean;
+  /** Knowledge page: the right panel is a plain field list — no panel title, no field search. */
+  knowledgeMode?: boolean;
+  knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
+  /** Knowledge page: article performance shown in the Analytics accordion. */
+  knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number };
+  /** Knowledge page requester preview: internal (technician) reviews are hidden. */
+  knowledgeRequesterView?: boolean;
   // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
   // always visible, no View more / System Fields (those move to the Incident Details tab)
   compactTicketFields?: boolean;
@@ -364,6 +372,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     registryDeployMode = false,
     endpointMode = false,
     cveMode = false,
+    knowledgeMode = false,
+    knowledgeInfo,
+    knowledgeAnalytics,
+    knowledgeRequesterView = false,
     compactTicketFields = false,
     hideAdditionalFields = false,
     assetState,
@@ -601,6 +613,38 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // (New chat just clears the thread). Leaving the AI group resets it, so reopening the panel
   // always lands on the chat rather than on history.
   const [showChatHistory, setShowChatHistory] = useState(false);
+  // Knowledge "Review" block — peer reviews left on the article.
+  const [showReviewsPanel, setShowReviewsPanel] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState('');
+  // Rich review composer — uncontrolled contentEditable (same recipe as the approval comments
+  // popup: never re-write its HTML while typing or the caret jumps to the start).
+  const reviewContentRef = useRef<HTMLDivElement>(null);
+  const [reviewFormattingOpen, setReviewFormattingOpen] = useState(false);
+  /* Selecting text in the review editor auto-opens the formatting row; deselecting hides it
+     again — but ONLY when it was auto-opened, so a manual T toggle sticks. */
+  const reviewAutoOpenedRef = useRef(false);
+  const reviewFormattingRef = useRef(reviewFormattingOpen);
+  reviewFormattingRef.current = reviewFormattingOpen;
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = document.getSelection();
+      const el = reviewContentRef.current;
+      const insideSelection = !!(sel && !sel.isCollapsed && el && sel.anchorNode && el.contains(sel.anchorNode));
+      if (insideSelection) {
+        if (!reviewFormattingRef.current) {
+          reviewAutoOpenedRef.current = true;
+          setReviewFormattingOpen(true);
+        }
+      } else if (reviewAutoOpenedRef.current && reviewFormattingRef.current) {
+        reviewAutoOpenedRef.current = false;
+        setReviewFormattingOpen(false);
+      }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => document.removeEventListener('selectionchange', onSelectionChange);
+  }, []);
+  const [addedReviews, setAddedReviews] = useState<{ id: string; author: string; initials: string; color: string; when: string; text: string; role: 'technician' | 'requester' }[]>([]);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   // Chats the user deleted from the history screen (ids removed from the seeded list).
   const [removedChatIds, setRemovedChatIds] = useState<Set<string>>(new Set());
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
@@ -778,7 +822,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           ? 'changePropertiesSectionOrderV2'
           : 'ticketPropertiesSectionOrder';
   const defaultSectionOrder = patchMode
-    ? (endpointMode ? ['Ticket Fields', 'Scan Info'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
+    ? (endpointMode ? ['Ticket Fields', 'Scan Info'] : knowledgeMode ? ['Analytics', 'Ticket Fields'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
     : hideAdditionalFields
       ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
       : showChangeCalendar
@@ -804,6 +848,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           // Scan Info is an Endpoint-page-only section.
           if (patchMode && endpointMode && !cleaned.includes('Scan Info')) { const si = cleaned.indexOf('Ticket Fields'); cleaned.splice(si >= 0 ? si + 1 : cleaned.length, 0, 'Scan Info'); }
           if (!endpointMode) cleaned = cleaned.filter((s) => s !== 'Scan Info');
+          if (patchMode && knowledgeMode) { cleaned = ['Analytics', ...cleaned.filter((x) => x !== 'Analytics')]; }
+          if (!knowledgeMode) cleaned = cleaned.filter((s) => s !== 'Analytics');
           // Agent Information is pinned at the top on the asset page — not a reorderable section.
           return assetMode ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
         } catch (e) {
@@ -1139,6 +1185,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     setShowChatHistory(false);
   };
 
+  /* Requesters never see internal (technician) reviews — the portal shows only requester feedback. */
+  const knowledgeReviews = knowledgeRequesterView ? addedReviews.filter((r) => r.role === 'requester') : addedReviews;
+
   const aiWelcome = (() => {
     const P = (label: string, prompt: string, icon: any, tip: string) => ({ label, prompt, icon, tip });
     if (endpointMode) return {
@@ -1321,6 +1370,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     if (activeGroup !== 'chatbot') setShowChatHistory(false);
   }, [activeGroup]);
 
+  // Reviews belong to ONE article — clear anything added when a different record opens.
+  /* Seed reviews per article. Articles with an EVEN id number start empty so the "no reviews
+     yet" state stays demoable; the rest carry a short thread. Seeding into state (rather than
+     merging a constant at render) is what lets rows be edited and deleted. */
+  useEffect(() => {
+    const n = Number((ticketId ?? '').replace(/\D/g, '')) || 0;
+    setAddedReviews(!knowledgeMode || n % 2 === 0 ? [] : [
+      { id: 'seed-1', author: 'Karan Malhotra', initials: 'KM', color: '#3D8BD0', when: '2 days ago', role: 'technician', text: 'Steps are accurate against the current client build. I would add a line about the twelve-hour session expiry so people are not surprised when they have to sign in again each morning.' },
+      { id: 'seed-2', author: 'Priya Nair', initials: 'PN', color: '#8B5CF6', when: 'Fri, Aug 07', role: 'requester', text: 'Checked this end to end on a fresh laptop and it works exactly as written. The troubleshooting table saved me a ticket last week.' },
+    ]);
+    setReviewDraft('');
+    setEditingReviewId(null);
+    setShowReviewsPanel(false);
+    if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
+  }, [ticketId, knowledgeMode]);
+
   // Debug: Log when showReopenTooltip changes
   useEffect(() => {
     console.log('showReopenTooltip state changed to:', showReopenTooltip);
@@ -1441,8 +1506,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             overflow: 'hidden'
           } : { background: 'white' }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-1.5">
+          {/* Header — hidden on the Knowledge page's properties group (no title, no search). */}
+          <div className={`flex items-center justify-between mb-1.5 ${knowledgeMode && activeGroup === 'properties' ? 'hidden' : ''}`}>
             <h2 className="text-[15px] font-semibold text-[#364658] flex items-center gap-2">
               {(activeGroup === 'suggestions' || activeGroup === 'chatbot') && (
                 <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -1536,7 +1601,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               V2 ticket page (compactTicketFields): the panel holds only 7 fixed fields, so the
               properties field-search + filter are dropped — search lives in the Incident
               Details tab instead. Activity/Suggestions searches are unaffected. */}
-          {((activeGroup === 'properties' && !compactTicketFields && !cveMode) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
+          {((activeGroup === 'properties' && !compactTicketFields && !cveMode && !knowledgeMode) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded px-2 py-1.5">
                 <Search size={16} className="text-[#7B8FA5]" />
@@ -1676,6 +1741,42 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
           );
         })()}
+
+        {/* Review — pinned above Knowledge Properties (mirrors the asset page's Agent block).
+            Two states: nothing reviewed yet → an "Add Review" affordance; otherwise the count,
+            which opens the reviews side popup. */}
+        {knowledgeMode && (
+          knowledgeReviews.length === 0 ? (
+            <button
+              onClick={() => setShowReviewsPanel(true)}
+              className="flex w-full items-center gap-3 rounded-lg border border-dashed border-[#DFE5ED] bg-[#F9FAFB] p-3 text-left transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F9FD]"
+            >
+              <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><MessageSquare size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-[#364658]">Review</span>
+                <span className="mt-0.5 block text-[11px] text-[#7B8FA5]">No reviews yet — add the first one</span>
+              </span>
+              <Plus size={16} className="flex-shrink-0 text-[#3D8BD0]" />
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowReviewsPanel(true)}
+              className="flex w-full items-center gap-3 rounded-lg bg-[#F9FAFB] p-3 text-left transition-colors hover:bg-[#F1F5F9]"
+            >
+              <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><MessageSquare size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#364658]">
+                  Review
+                  <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#3D8BD0] px-1 text-[11px] font-semibold text-white">{knowledgeReviews.length}</span>
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] text-[#7B8FA5]">
+                  Last by {knowledgeReviews[0].author} · {knowledgeReviews[0].when}
+                </span>
+              </span>
+              <ChevronRight size={16} className="flex-shrink-0 text-[#9CA3AF]" />
+            </button>
+          )
+        )}
 
         {/* Agent Information — pinned to the top of the asset properties panel */}
         {assetMode && (agentInfo?.id || agentInfo?.lastSyncDate) && (
@@ -1942,6 +2043,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           registryDeployMode={registryDeployMode}
           endpointMode={endpointMode}
           cveMode={cveMode}
+          knowledgeMode={knowledgeMode}
+          knowledgeInfo={knowledgeInfo}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}
@@ -2235,6 +2338,65 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </div>
             );
           }
+
+          /* Analytics (Knowledge page) — how the article is performing. Same accordion shell as
+             the fields card; the numbers echo the listing's Feedback column and the Total Read
+             KPI in the header, so panel and header always agree. */
+          if (section === 'Analytics' && knowledgeMode && (!propertiesSearchQuery || 'analytics helpful not helpful total read views'.includes(propertiesSearchQuery.toLowerCase()))) {
+            const helpful = knowledgeAnalytics?.helpful ?? 0;
+            const notHelpful = knowledgeAnalytics?.notHelpful ?? 0;
+            const totalRead = knowledgeAnalytics?.totalRead ?? 0;
+            const votes = helpful + notHelpful;
+            const helpfulPct = votes > 0 ? Math.round((helpful / votes) * 100) : 0;
+            return (
+              /* Not collapsible — static header, no chevron, always showing (matches the
+                 Knowledge Properties card above it). */
+              <div key="analytics" className="rounded-lg border border-[#DFE5ED] bg-white">
+                <div className="flex w-full items-center gap-2 rounded-lg p-4">
+                  <Activity size={16} className="text-[#4A5568]" />
+                  <span className="text-[13px] font-semibold text-[#364658]">Analytics</span>
+                </div>
+                <div className="space-y-3 px-4 pb-4">
+                  {/* Row 1 — readership: a single hero tile */}
+                  <div className="flex items-center gap-3 rounded-lg bg-[#F5F9FD] px-3.5 py-3">
+                    <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#3D8BD0] shadow-sm"><BookOpen size={17} /></span>
+                    <div className="min-w-0">
+                      <div className="text-[18px] font-bold leading-none tabular-nums text-[#364658]">{totalRead.toLocaleString()}</div>
+                      <div className="mt-1 text-[11px] text-[#7B8FA5]">Total Read</div>
+                    </div>
+                  </div>
+
+                  {/* Row 2 — feedback: Helpful vs Not Helpful with a ratio bar */}
+                  <div className="rounded-lg bg-[#F8FAFC] px-3.5 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#067647]">
+                        <ThumbsUp size={13} />
+                        <span className="tabular-nums text-[14px] font-bold">{helpful.toLocaleString()}</span>
+                        Helpful
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#B42318]">
+                        Not Helpful
+                        <span className="tabular-nums text-[14px] font-bold">{notHelpful.toLocaleString()}</span>
+                        <ThumbsDown size={13} />
+                      </span>
+                    </div>
+                    {votes > 0 ? (
+                      <>
+                        {/* Ratio bar — green share vs red share, hairline gap between segments */}
+                        <div className="mt-2.5 flex h-2 w-full gap-px overflow-hidden rounded-full bg-[#EEF2F6]">
+                          {helpful > 0 && <div className="h-full rounded-full bg-[#12B76A]" style={{ width: helpfulPct + '%' }} />}
+                          {notHelpful > 0 && <div className="h-full rounded-full bg-[#F04438]" style={{ width: (100 - helpfulPct) + '%' }} />}
+                        </div>
+                        <div className="mt-1.5 text-[11px] text-[#7B8FA5]">{helpfulPct}% of readers found this helpful</div>
+                      </>
+                    ) : (
+                      <div className="mt-2 text-[11px] text-[#9CA3AF]">No feedback yet</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
           return null;
         })}
 
@@ -2257,9 +2419,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="border-t border-[#E5E7EB]"></div>
         </div>
 
-        {/* Info Section - Features Available. Hidden in V2 compact mode AND on the CVE page —
-            both drop the pin/search/filter affordances, so the hints would describe nothing. */}
-        {!compactTicketFields && !cveMode && (
+        {/* Info Section - Features Available. Hidden in V2 compact mode and on the CVE and
+            Knowledge pages — all three drop the pin/search/filter affordances, so the hints
+            would describe controls that are not there. */}
+        {!compactTicketFields && !cveMode && !knowledgeMode && (
         <div className="mt-4 px-0">
           <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
             {/* Pin hint hidden on the Patch / Patch Deployment pages — their fields are
@@ -4607,6 +4770,172 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </div>
         ) : null;
       })()}
+
+      {/* Reviews side popup — conversation-style blocks (the Note treatment from the ticket page) */}
+      {showReviewsPanel && (
+        <>
+          <div className="fixed inset-0 z-[10000] bg-black/40" onClick={() => setShowReviewsPanel(false)} />
+          <div className="fixed inset-y-0 right-0 z-[10001] flex w-[680px] max-w-[94vw] flex-col bg-white shadow-2xl">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+              <h2 className="text-[16px] font-semibold text-[#364658]">
+                Reviews <span className="font-normal text-[#7B8FA5]">— {knowledgeReviews.length}</span>
+              </h2>
+              <button onClick={() => setShowReviewsPanel(false)} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">
+                <X size={16} className="text-[#64748B]" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+              {knowledgeReviews.length === 0 ? (
+                <div className="flex min-h-[280px] items-center justify-center">
+                  <div className="text-center">
+                    <div className="mb-4 inline-flex size-14 items-center justify-center rounded-full bg-[#F1F5F9]">
+                      <MessageSquare className="size-7 text-[#7B8FA5]" />
+                    </div>
+                    <h3 className="mb-1.5 text-[15px] font-semibold text-[#364658]">No Reviews Yet</h3>
+                    <p className="mx-auto max-w-[260px] text-[13px] text-[#7B8FA5]">
+                      Be the first to review this article — your feedback helps the author keep it accurate.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {knowledgeReviews.map((r, i) => (
+                    <div key={r.id ?? i} className="group/review">
+                      {/* Header row — author, time, type pill, hover actions (note-block pattern) */}
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="flex size-6 flex-shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white" style={{ backgroundColor: r.color }}>{r.initials}</span>
+                        <span className="text-[13px] font-semibold text-[#364658]">{r.author}</span>
+                        <span className="text-[12px] text-[#9CA3AF]">{r.when}</span>
+                        {r.role !== 'requester' && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="flex cursor-help items-center gap-1 rounded bg-[#F5F7FA] px-2 py-0.5 text-xs font-medium text-[#7B8FA5]">
+                                <Lock className="size-3" />
+                                Internal
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Not Visible to Requester</TooltipContent>
+                          </Tooltip>
+                        )}
+                        <span className="ml-auto flex flex-shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover/review:opacity-100">
+                          <button
+                            className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                            title="Edit"
+                            onClick={() => {
+                              setEditingReviewId(r.id);
+                              if (reviewContentRef.current) reviewContentRef.current.innerHTML = r.text;
+                              setReviewDraft(r.text);
+                              reviewContentRef.current?.focus();
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                              <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                            title="Delete"
+                            onClick={() => {
+                              setAddedReviews((prev) => prev.filter((x) => x.id !== r.id));
+                              if (editingReviewId === r.id) {
+                                setEditingReviewId(null);
+                                if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
+                              }
+                              toast.success('Review deleted');
+                            }}
+                          >
+                            <Trash2 className="size-4 text-[#EF4444]" />
+                          </button>
+                        </span>
+                      </div>
+                      {/* Body — orange note block, matching internal notes on the conversation tab */}
+                      {/* Technician reviews take the internal-note treatment (orange, left rule);
+                          requester reviews take the public-reply treatment (plain gray) — the same
+                          split the Conversation tab uses. */}
+                      <div
+                        className={r.role === 'requester'
+                          ? 'rounded-lg bg-[rgba(223,229,237,0.20)] px-3.5 py-3 text-[13px] leading-relaxed text-[#364658]'
+                          : 'rounded border-l-2 border-[#F58518] bg-[rgba(245,133,24,0.10)] px-3.5 py-3 text-[13px] leading-relaxed text-[#364658]'}
+                        dangerouslySetInnerHTML={{ __html: r.text }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Composer — the SAME rich editor as the approval-comments popup */}
+            <div className="flex-shrink-0 border-t border-[#DFE5ED] p-4">
+              {editingReviewId && (
+                <div className="mb-2 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
+                  <Pencil size={12} />
+                  Editing review
+                  <button
+                    onClick={() => {
+                      setEditingReviewId(null);
+                      if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
+                      setReviewDraft('');
+                    }}
+                    className="text-[#3D8BD0] hover:underline"
+                  >Cancel</button>
+                </div>
+              )}
+              <div className="rounded-lg border-2 border-[#3D8BD0] bg-white shadow-sm">
+                <div className="p-4">
+                  <div className="mb-4">
+                    <div
+                      ref={reviewContentRef}
+                      contentEditable
+                      suppressContentEditableWarning
+                      dir="ltr"
+                      onInput={(e) => setReviewDraft(e.currentTarget.innerHTML)}
+                      className={'w-full min-h-[100px] bg-transparent text-left text-sm text-[#364658] focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-[#9CA3AF] ' + (reviewFormattingOpen ? 'pb-14' : '')}
+                      data-placeholder="Write a review..."
+                      style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+                    />
+                  </div>
+
+                  {/* Formatting row floats above the toolbar so the editor height never jumps */}
+                  <div className="relative">
+                    {reviewFormattingOpen && <EditorFormattingRow />}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <EditorAiAssist />
+                        <EditorQuickActions
+                          formattingOpen={reviewFormattingOpen}
+                          onToggleFormatting={() => {
+                            reviewAutoOpenedRef.current = false; // manual toggle sticks
+                            setReviewFormattingOpen(!reviewFormattingOpen);
+                          }}
+                        />
+                      </div>
+                      <EditorSendActions
+                        showSaveDraft={false}
+                        onSend={() => {
+                          const html = reviewContentRef.current?.innerHTML ?? '';
+                          const text = (reviewContentRef.current?.innerText ?? '').trim();
+                          if (!text) return;
+                          if (editingReviewId) {
+                            setAddedReviews((prev) => prev.map((x) => (x.id === editingReviewId ? { ...x, text: html, when: 'Edited just now' } : x)));
+                            setEditingReviewId(null);
+                            toast.success('Review updated');
+                          } else {
+                            setAddedReviews((prev) => [{ id: 'r-' + Date.now(), author: 'Sarah Johnson', initials: 'SJ', color: '#22A06B', when: 'Just now', role: knowledgeRequesterView ? 'requester' : 'technician', text: html }, ...prev]);
+                            toast.success('Review added');
+                          }
+                          if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
+                          setReviewDraft('');
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

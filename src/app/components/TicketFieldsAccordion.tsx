@@ -26,6 +26,8 @@ interface TicketFieldsAccordionProps {
   registryDeployMode?: boolean;
   endpointMode?: boolean;
   cveMode?: boolean;
+  knowledgeMode?: boolean;
+  knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -225,6 +227,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     registryDeployMode = false,
     endpointMode = false,
     cveMode = false,
+    knowledgeMode = false,
+    knowledgeInfo,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -467,6 +471,14 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
 
   return (
     <div className="border border-[#DFE5ED] rounded-lg" ref={ticketFieldsRef}>
+      {/* Knowledge page: the card is NOT collapsible — a static header, no chevron, no click
+          target, so the properties are always visible. Every other page keeps the toggle. */}
+      {knowledgeMode ? (
+        <div className="flex w-full items-center gap-2 rounded-lg p-4">
+          <FileText size={16} className="text-[#364658]" />
+          <h3 className="text-[13px] font-semibold text-[#364658]">{fieldsTitle}</h3>
+        </div>
+      ) : (
       <button
         onClick={() => setTicketFieldsExpanded(!ticketFieldsExpanded)}
         className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
@@ -481,10 +493,11 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           <ChevronRight size={16} className="text-[#7B8FA5]" />
         )}
       </button>
+      )}
 
       {/* Asset Fields — Hardware Asset detail page. System Fields ride inside AssetFields'
           "View more" (passed as `footer`) so one toggle reveals extra + system fields. */}
-      {assetMode && assetState && (ticketFieldsExpanded || propertiesSearchQuery) && (
+      {assetMode && assetState && (knowledgeMode || ticketFieldsExpanded || propertiesSearchQuery) && (
         <AssetFields
           state={assetState}
           pinnedFields={pinnedFields}
@@ -500,13 +513,14 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           patchDeployMode={patchDeployMode}
           packageDeployMode={packageDeployMode}
           registryDeployMode={registryDeployMode}
+          knowledgeInfo={knowledgeInfo}
           endpointMode={endpointMode}
           cveMode={cveMode}
           footer={systemFieldsSection}
         />
       )}
 
-      {!assetMode && (ticketFieldsExpanded || propertiesSearchQuery) && (
+      {!assetMode && (knowledgeMode || ticketFieldsExpanded || propertiesSearchQuery) && (
         <div className="px-4 pb-4 space-y-2">
           {/* Current Stage (shown above Status when a stage is provided) */}
           {getFilteredTicketFields().includes('Status') && statusGroupLabel && (

@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 interface AuditTrailsTabContentProps {
   ticketId?: string;
+  /** Override the trail with module-specific entries (Knowledge passes its own). */
+  entries?: AuditEntry[];
 }
 
 interface AuditEntry {
@@ -19,11 +21,11 @@ interface AuditEntry {
   descriptionChange?: { old: string; new: string };
 }
 
-export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps = {}) {
+export function AuditTrailsTabContent({ ticketId, entries }: AuditTrailsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
 
-  const auditTrails: AuditEntry[] = isBlankTicket ? [] : [
+  const auditTrails: AuditEntry[] = entries ?? (isBlankTicket ? [] : [
     {
       id: '0',
       timestamp: '2024-03-10 15:10:00',
@@ -126,7 +128,7 @@ export function AuditTrailsTabContent({ ticketId }: AuditTrailsTabContentProps =
       details: 'Ticket was created by Alex Johnson',
       changes: []
     }
-  ];
+  ]);
 
   // The before/after description change shown in the centered "View Changes" popup.
   const [diff, setDiff] = useState<{ old: string; new: string } | null>(null);

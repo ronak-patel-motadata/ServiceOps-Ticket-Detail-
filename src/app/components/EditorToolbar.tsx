@@ -3,8 +3,10 @@ import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, Check, ChevronDown, Highlighter, Lightbulb,
   Image as ImageIcon, Italic, Link2, List, ListOrdered, Minus, Paperclip, Pencil, Redo2,
   Save, SendHorizontal, Smile, Table as TableIcon, Type, Underline, Undo2,
+  ChevronRight, RefreshCw, TextCursorInput, Minimize2, Wand2,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { AiSparkle } from './AiSparkle';
 
 /* Shared reply-editor toolbar pieces (Gmail/Outlook-style, decluttered):
  * - EditorQuickActions: the always-visible icon strip — Insert from Template · Insert Knowledge ·
@@ -458,6 +460,83 @@ export function EditorFormattingRow({ className }: { className?: string } = {}) 
       <Divider />
       <IconBtn label="Separator" onClick={() => run('insertHorizontalRule')}><Minus size={15} /></IconBtn>
       <IconBtn label="Table" onClick={() => run('insertHTML', TABLE_HTML)}><TableIcon size={15} /></IconBtn>
+    </div>
+  );
+}
+
+
+/* AI Assist — the gradient button + Refine menu used by the approval-comments composer, shared so
+ * any rich editor can drop it in. Actions are visual in this prototype (the real product calls the
+ * assistant); Change tone opens a submenu. */
+export function EditorAiAssist() {
+  const [open, setOpen] = useState(false);
+  const [toneOpen, setToneOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setToneOpen(false); }
+    };
+    if (open) {
+      document.addEventListener('mousedown', onDown);
+      return () => document.removeEventListener('mousedown', onDown);
+    }
+  }, [open]);
+
+  const Item = ({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) => (
+    <button
+      onClick={() => { onClick?.(); if (!onClick) { setOpen(false); setToneOpen(false); } }}
+      className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F9FAFB]"
+    >
+      {icon}
+      <span className="text-xs text-[#364658]">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium text-[#364658] hover:bg-[#F0F8FF]"
+        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+      >
+        <AiSparkle size={14} />
+        <span>AI Assist</span>
+        <ChevronDown size={12} className="text-[#7B8FA5]" />
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 mb-2 w-[220px] rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+          <div className="py-2">
+            <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">Refine</div>
+            <Item icon={<RefreshCw size={14} className="text-[#364658]" />} label="Rephrase" />
+            <Item icon={<TextCursorInput size={14} className="text-[#364658]" />} label="Make longer" />
+            <Item icon={<Minimize2 size={14} className="text-[#364658]" />} label="Make shorter" />
+
+            <div className="relative">
+              <button
+                onClick={() => setToneOpen(!toneOpen)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F9FAFB]"
+              >
+                <Wand2 size={14} className="text-[#364658]" />
+                <span className="flex-1 text-xs text-[#364658]">Change tone</span>
+                <ChevronRight size={12} className="text-[#7B8FA5]" />
+              </button>
+              {toneOpen && (
+                <div className="absolute bottom-0 left-full ml-1 w-[160px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                  {['Professional', 'Empathetic', 'Concise', 'Formal', 'Friendly'].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => { setToneOpen(false); setOpen(false); }}
+                      className="w-full px-3 py-2 text-left text-xs text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                    >{t}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

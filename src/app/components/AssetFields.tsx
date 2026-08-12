@@ -369,6 +369,8 @@ interface AssetFieldsProps {
   patchDeployMode?: boolean;
   packageDeployMode?: boolean;
   registryDeployMode?: boolean;
+  /** Knowledge page: the article's own properties. Presence of this switches the field set. */
+  knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
   // ENDPOINT page: endpoint-inventory fields (host/OS/agent/scan info) instead of the patch catalog's.
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields.
@@ -380,7 +382,7 @@ interface AssetFieldsProps {
   footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -650,6 +652,24 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Created By', value: 'Meeral Pithwa (Archived)', kind: 'user' },
       { label: 'Last Updated By', value: 'System' },
     ];
+    /* KNOWLEDGE page variant — the article's own properties, five fields only. Values come from
+       the record via knowledgeInfo, so each article shows its own. */
+    const KNOWLEDGE_FIELDS: PatchField[] = knowledgeInfo ? [
+      /* An EMPTY status means "don't show the row" — the requester preview passes '' because a
+         requester only ever sees published articles, so the status is implicit. */
+      ...(knowledgeInfo.status ? [{
+        label: 'Status',
+        value: knowledgeInfo.status,
+        dot: knowledgeInfo.status === 'Published' ? '#22A06B'
+          : knowledgeInfo.status === 'Draft' ? '#94A3B8'
+            : knowledgeInfo.status === 'Expired' ? '#EF4444' : '#F59E0B',
+      }] : []),
+      { label: 'Created on', value: knowledgeInfo.createdOn },
+      // Person on the first line, when underneath — keeps the row short and scannable.
+      { label: 'Last Modified by', value: knowledgeInfo.lastModifiedBy, kind: 'user', sub: knowledgeInfo.lastModifiedOn },
+      { label: 'Folder', value: knowledgeInfo.folder },
+      { label: 'Author', value: knowledgeInfo.author, kind: 'user' },
+    ] : [];
     // ENDPOINT page variant — the computer's inventory, not a patch's catalog entry.
     // Order: summary fields → Tags (inserted after OS Version) → agent/identity fields → Scan Info.
     const ENDPOINT_FIELDS: PatchField[] = [
@@ -687,7 +707,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Last Updated Date', value: 'Mon, Jul 27, 2026 11:26 AM' },
     ];
 
-    const fields = registryDeployMode ? REGISTRY_DEPLOYMENT_FIELDS : packageDeployMode ? PACKAGE_DEPLOYMENT_FIELDS : patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
+    const fields = knowledgeInfo ? KNOWLEDGE_FIELDS : registryDeployMode ? REGISTRY_DEPLOYMENT_FIELDS : packageDeployMode ? PACKAGE_DEPLOYMENT_FIELDS : patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
 
     const roRow = (f: PatchField) => {
       const empty = !f.value || f.value === '---';
@@ -714,7 +734,21 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       } else if (f.kind === 'link') {
         valueNode = <span className="text-[13px] text-[#3D8BD0] cursor-pointer hover:underline break-words">{f.value}</span>;
       } else {
-        valueNode = <span className={`text-[13px] break-words ${f.kind === 'user' ? 'text-[#3D8BD0]' : empty ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{f.value}</span>;
+        valueNode = f.kind === 'user' && !empty ? (
+          /* Person values carry the same square initials avatar the ticket page uses for the
+             technician, so people read as people across the product. */
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <span
+              className="flex size-5 flex-shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white"
+              style={{ backgroundColor: '#3D8BD0' }}
+            >
+              {f.value.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()}
+            </span>
+            <span className="min-w-0 break-words text-[13px] text-[#3D8BD0]">{f.value}</span>
+          </span>
+        ) : (
+          <span className={`text-[13px] break-words ${f.kind === 'user' ? 'text-[#3D8BD0]' : empty ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{f.value}</span>
+        );
       }
       // Scan-status pill (endpoint Scan Info rows) — stacked on its own line UNDER the date.
       const pillNode = f.pill && (
@@ -752,7 +786,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
             </div>
             <div className="flex-1 min-w-0 px-3 py-2">
               {valueNode}
-              {f.sub && <span className="text-[12px] text-[#9CA3AF] block">{f.sub}</span>}
+              {f.sub && <span className="mt-0.5 block text-[12px] text-[#9CA3AF]">{f.sub}</span>}
               {pillNode}
             </div>
           </div>

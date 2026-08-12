@@ -549,6 +549,14 @@ export function ApprovalsTabContent({
           approvalSubject={approvals.find(a => a.id === selectedApprovalId)?.subject || ''}
           comments={approvalComments[selectedApprovalId] || []}
           onAddComment={(comment) => setApprovalComments((prev) => ({ ...prev, [selectedApprovalId]: [...(prev[selectedApprovalId] || []), comment] }))}
+          onUpdateComment={(id, content) => setApprovalComments((prev) => ({
+            ...prev,
+            [selectedApprovalId]: (prev[selectedApprovalId] || []).map((c) => (c.id === id ? { ...c, content } : c)),
+          }))}
+          onDeleteComment={(id) => setApprovalComments((prev) => ({
+            ...prev,
+            [selectedApprovalId]: (prev[selectedApprovalId] || []).filter((c) => c.id !== id),
+          }))}
         />
       )}
     </div>

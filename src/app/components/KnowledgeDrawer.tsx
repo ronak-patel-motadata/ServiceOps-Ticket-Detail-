@@ -15,7 +15,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files , BookOpen } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files , BookOpen , CalendarDays } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
@@ -124,10 +124,23 @@ import {
 /* Relations a KNOWLEDGE article can carry. RelationsTabContent derives its pills FROM THIS DATA,
  * so only the types seeded here get a pill — Problem, Release, Project and CI are intentionally
  * absent to demonstrate that rule. Seed a type to make its pill appear. */
+/* Helpful / Not Helpful per article — the same numbers the listing's Feedback column shows. */
+const KB_FEEDBACK: Record<string, [number, number]> = {
+  'KB-1': [24, 1], 'KB-2': [18, 0], 'KB-3': [31, 2], 'KB-4': [47, 3], 'KB-5': [12, 0],
+  'KB-6': [39, 1], 'KB-7': [22, 4], 'KB-8': [15, 2], 'KB-9': [8, 0], 'KB-10': [26, 1],
+  'KB-11': [19, 0], 'KB-12': [3, 0], 'KB-13': [33, 2], 'KB-14': [0, 0], 'KB-15': [41, 1],
+  'KB-16': [17, 0], 'KB-17': [14, 1], 'KB-18': [29, 0], 'KB-19': [11, 2], 'KB-20': [5, 6],
+};
+
+/* Publication status per article — mirrors the listing so the panel and the list agree. */
+const KB_STATUS: Record<string, string> = {
+  'KB-12': 'In Review', 'KB-14': 'Draft', 'KB-20': 'Expired',
+};
+
 const DEFAULT_REL = makeCrossModuleRelations([
-  { type: 'Request', prefix: 'REQ', count: 4 },
-  { type: 'Change', prefix: 'CHG', count: 2 },
-  { type: 'Asset', prefix: 'AST', count: 3 },
+  { type: 'Request', prefix: 'REQ', count: 2 },
+  { type: 'Change', prefix: 'CHG', count: 1 },
+  { type: 'Asset', prefix: 'AST', count: 1 },
 ]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
@@ -543,6 +556,63 @@ const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: s
   ],
 };
 
+/* People picker for the Review Schedule form — the ticket page's Assignee dropdown, simplified
+ * to avatar + name only (no search, no status dots). */
+function SchedulePersonSelect({ value, options, placeholder = 'Select', onChange }: {
+  value: string; options: string[]; placeholder?: string; onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    if (open) {
+      document.addEventListener('mousedown', onDown);
+      return () => document.removeEventListener('mousedown', onDown);
+    }
+  }, [open]);
+  const COLORS = ['#3D8BD0', '#8B5CF6', '#F59E0B', '#22A06B', '#EC4899', '#0EA5E9'];
+  const colorFor = (name: string) => { let n = 0; for (let i = 0; i < name.length; i++) n = (n * 31 + name.charCodeAt(i)) | 0; return COLORS[Math.abs(n) % COLORS.length]; };
+  const initials = (name: string) => name.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase();
+  const Avatar = ({ name }: { name: string }) => (
+    <span className="flex size-5 flex-shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white" style={{ backgroundColor: colorFor(name) }}>{initials(name)}</span>
+  );
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3 py-2 text-left text-[13px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+      >
+        {value ? (
+          <>
+            <Avatar name={value} />
+            <span className="min-w-0 flex-1 truncate text-[#364658]">{value}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-[#9CA3AF]">{placeholder}</span>
+        )}
+        <ChevronDown size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[220px] overflow-y-auto rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+          {options.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => { onChange(name); setOpen(false); }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[#F5F7FA]"
+            >
+              <Avatar name={name} />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{name}</span>
+              {value === name && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function KnowledgeDrawer({
   openAssets,
   activeAssetId,
@@ -765,6 +835,22 @@ onStackMinimizedChange,
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
   const [showQrMenu, setShowQrMenu] = useState(false);
+  const [showReviewSchedule, setShowReviewSchedule] = useState(false);
+  // Dev toggle: preview the page as the REQUESTER sees it (article-only, no internal chrome).
+  const [viewAsRequester, setViewAsRequester] = useState(false);
+  const [reviewerEmails, setReviewerEmails] = useState<string[]>([]);
+  const [reviewerEmailInput, setReviewerEmailInput] = useState('');
+  const [reviewSchedule, setReviewSchedule] = useState({
+    type: '', gracePeriod: '1',
+    folderOwner: false, author: true,
+    technicians: '', technicianGroup: '', requesters: '', requesterGroup: '',
+  });
+  /* Saved review schedule PER ARTICLE. Present → the drawer opens on a read-only summary with
+     edit/delete; absent → the create form. Editing reuses the same form, prefilled. */
+  const [savedSchedules, setSavedSchedules] = useState<Record<string, typeof reviewSchedule & { emails: string[] }>>({});
+  const [scheduleEditing, setScheduleEditing] = useState(false);
+  const savedSchedule = savedSchedules[activeTicket?.id ?? ''] ?? null;
+  useEffect(() => { setShowReviewSchedule(false); setScheduleEditing(false); }, [activeTicket?.id]);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
   // Patch approval decision, per patch id: 'none' (just created → both buttons),
@@ -1144,6 +1230,34 @@ onStackMinimizedChange,
   /* Approvals are about THIS article — a knowledge article goes through review and publishing
      approval, so both subjects are built from its own title rather than inheriting the cloned
      "Apple MacBook Pro" purchase approval. */
+  /* Audit trail for a KNOWLEDGE article — authoring and publishing events, not the deployment
+     events the clone came with. Newest first; the shared component groups them by day. */
+  const knowledgeAudit = (() => {
+    const kbId = activeTicket?.id ?? 'KB-1';
+    const author = activePatchRecord?.knowledge?.author ?? 'Rosy Fernandes';
+    const initials = (n: string) => n.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase();
+    return [
+      { id: 'a0', timestamp: '2026-08-11 16:58:00', user: 'System', userInitials: 'SY', userColor: '#64748B', action: 'Approval Status Changed', details: 'Approval completed for this article', changes: [{ field: 'Approval Status', oldValue: 'Pending', newValue: 'Approved' }] },
+      { id: 'a1', timestamp: '2026-08-11 16:58:00', user: 'Juli Mathew', userInitials: 'JM', userColor: '#F59E0B', action: 'Comment Added', details: 'Added a comment on the approval', changes: [] },
+      { id: 'a2', timestamp: '2026-08-11 16:57:00', user: 'Juli Mathew', userInitials: 'JM', userColor: '#F59E0B', action: 'Approval Status Changed', details: 'Approved as reviewer', changes: [{ field: 'Approval Status', oldValue: 'Pending', newValue: 'Approved' }] },
+      { id: 'a3', timestamp: '2026-08-11 16:55:00', user: 'System', userInitials: 'SY', userColor: '#64748B', action: 'Approval Status Changed', details: 'Approval request sent to the reviewers', changes: [{ field: 'Approval Status', oldValue: 'Not Requested', newValue: 'Pending' }] },
+      { id: 'a4', timestamp: '2026-08-11 16:54:00', user: 'Juli Mathew', userInitials: 'JM', userColor: '#F59E0B', action: 'Approval Requested', details: `Requested approval — "Review Approval: ${activeTicket?.subject ?? kbId}"`, changes: [] },
+      { id: 'a5', timestamp: '2026-07-30 11:50:00', user: author, userInitials: initials(author), userColor: '#3D8BD0', action: 'Status Changed', details: 'Republished the article after edits', changes: [{ field: 'Status', oldValue: 'Draft', newValue: 'Published' }] },
+      {
+        id: 'a6', timestamp: '2026-07-30 11:48:00', user: author, userInitials: initials(author), userColor: '#3D8BD0',
+        action: 'Content Updated', details: 'Updated the article content', changes: [],
+        descriptionChange: {
+          old: 'Follow these steps to connect to the company VPN from a remote location. Download the client from the Software Portal, sign in with your company email address, and approve the authentication prompt.',
+          new: 'Follow these steps to connect to the company VPN from a remote location. Download the client from the Software Portal, sign in with your company email address, and approve the authentication prompt.\n\nAdded a troubleshooting section covering the six checks the service desk works through most often, a table of common error messages, and a note explaining that internet browsing continues to use the local connection so streaming and video calls are unaffected.',
+        },
+      },
+      { id: 'a7', timestamp: '2026-07-30 11:45:00', user: author, userInitials: initials(author), userColor: '#3D8BD0', action: 'Status Changed', details: 'Unpublished the article to make edits', changes: [{ field: 'Status', oldValue: 'Published', newValue: 'Draft' }] },
+      { id: 'a8', timestamp: '2026-07-30 11:34:00', user: author, userInitials: initials(author), userColor: '#3D8BD0', action: 'Status Changed', details: 'Published the article', changes: [{ field: 'Status', oldValue: 'Draft', newValue: 'Published' }] },
+      { id: 'a9', timestamp: '2026-07-30 11:30:00', user: author, userInitials: initials(author), userColor: '#3D8BD0', action: 'Folder Assigned', details: 'Filed the article in a folder', changes: [{ field: 'Folder', oldValue: '---', newValue: activePatchRecord?.knowledge?.folder ?? 'Guideline Documents' }] },
+      { id: 'a10', timestamp: '2026-07-30 11:28:00', user: author, userInitials: initials(author), userColor: '#3D8BD0', action: 'Knowledge Created', details: `Created knowledge article ${kbId}`, changes: [] },
+    ];
+  })();
+
   const knowledgeApprovalSubjects: [string, string] = [
     `Review Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
     `Publish Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
@@ -2530,27 +2644,69 @@ onStackMinimizedChange,
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Dev-facing view switch: the page is designed for the TECHNICIAN; the requester
+                preview strips internal chrome (tabs, schedule, approvals) and centres the article. */}
+            <div className="mr-1 flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+              {(['Technician', 'Requester'] as const).map((v, i) => {
+                const active = (v === 'Requester') === viewAsRequester;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => {
+                      setViewAsRequester(v === 'Requester');
+                      // The requester has only the article — land there when switching.
+                      if (v === 'Requester') setActiveMainTab('knowledge-article');
+                    }}
+                    className={`h-8 px-3 text-[12px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${active ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                  >
+                    {v}
+                  </button>
+                );
+              })}
+            </div>
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
-            {/* Refresh — deployments aren't approved/declined here (that happens on the Patch
-                page); the useful header action is refreshing the rollout status. */}
-            <button
-              title="Refresh"
-              onClick={() => toast.success('Deployment status refreshed')}
-              className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-            >
-              <RefreshCw size={16} className="text-[#6b7280]" />
-            </button>
+            {viewAsRequester ? (
+              /* Requester: Print replaces the schedule icon; no 3-dot menu at all. */
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => window.print()}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F5F7FA]"
+                  >
+                    <Printer size={16} className="text-[#6b7280]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Print</TooltipContent>
+              </Tooltip>
+            ) : (
+              <>
+            {/* Review Schedule — when this article should next be reviewed, and by whom. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowReviewSchedule(true)}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${showReviewSchedule ? 'border-[#3D8BD0] bg-[#EBF5FF]' : 'border-[#DFE5ED] bg-white hover:bg-[#F5F7FA]'}`}
+                >
+                  <CalendarDays size={16} className={showReviewSchedule ? 'text-[#3D8BD0]' : 'text-[#6b7280]'} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Review Schedule</TooltipContent>
+            </Tooltip>
+            {/* No Refresh here — an article has no live status to poll (that control belongs on
+                the deployment pages this file was cloned from). */}
             <HardwareAssetActionsMenu
-              patchDeploy
+              knowledge
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
               }}
               onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
             />
+              </>
+            )}
           </div>
         </div>
 
@@ -2851,13 +3007,15 @@ onStackMinimizedChange,
 
             {/* Knowledge tabs — Article · Relations · Approvals. A plain three-tab strip: this
                 page can never overflow, so it skips the measured More-dropdown machinery the
-                other drawers need. */}
+                other drawers need. Hidden entirely in the requester preview. */}
+            {!viewAsRequester && (
             <div className="sticky top-0 z-99 border-b border-[#e5e7eb] bg-white">
               <div className="flex items-center gap-2.5 px-6">
                 {([
                   { id: 'knowledge-article', label: 'Article' },
                   { id: 'relations', label: 'Relations', count: knowledgeRelations.length },
                   { id: 'approvals', label: 'Approvals', count: 2 },
+                  { id: 'knowledge-audit', label: 'Audit Trail' },
                 ] as const).map((t) => {
                   const active = activeMainTab === t.id;
                   return (
@@ -2881,9 +3039,14 @@ onStackMinimizedChange,
                 })}
               </div>
             </div>
+            )}
 
             {activeMainTab === 'knowledge-article' && (
-              <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} />
+              <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} centered={viewAsRequester} />
+            )}
+
+            {activeMainTab === 'knowledge-audit' && (
+              <AuditTrailsTabContent ticketId={activeTicket?.id} entries={knowledgeAudit} />
             )}
 
             {/* Tab Content */}
@@ -6750,6 +6913,7 @@ onStackMinimizedChange,
                 onOpenRelation={onOpenRelation}
                 initialTypeFilter={relationsInitialFilter}
                 onClearTypeFilter={() => setRelationsInitialFilter(null)}
+                hideAddRelation
               />
             )}
 
@@ -7981,13 +8145,28 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Knowledge Fields"
+            fieldsTitle="Knowledge Properties"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
             patchDeployMode={true}
             packageDeployMode={true}
+            knowledgeMode={true}
+            knowledgeRequesterView={viewAsRequester}
+            knowledgeAnalytics={{
+              helpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[0] ?? 0,
+              notHelpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[1] ?? 0,
+              totalRead: activePatchRecord?.knowledge?.totalRead ?? 0,
+            }}
+            knowledgeInfo={{
+              status: viewAsRequester ? '' : (activeTicket?.id ? (KB_STATUS[activeTicket.id] ?? 'Published') : 'Published'),
+              createdOn: (activePatchRecord?.knowledge?.created ?? '---').replace(/^[A-Za-z]{3},\s*/, ''),
+              lastModifiedBy: activePatchRecord?.knowledge?.author ?? 'Unassigned',
+              lastModifiedOn: 'on Jul 30, 2026 11:50 AM',
+              folder: activePatchRecord?.knowledge?.folder ?? 'Uncategorised',
+              author: activePatchRecord?.knowledge?.author ?? 'Unassigned',
+            }}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -9125,6 +9304,261 @@ onStackMinimizedChange,
         isOpen={showSLAHistory}
         onClose={() => setShowSLAHistory(false)}
       />
+
+      {/* Review Schedule — side drawer (same shell as Add Cost / Configure Depreciation) */}
+      {showReviewSchedule && (
+        <>
+          <div className="fixed inset-0 z-[10000] bg-black/30" onClick={() => setShowReviewSchedule(false)} />
+          <div className="fixed right-0 top-0 z-[10001] flex h-full w-[560px] max-w-[94vw] flex-col bg-white shadow-2xl">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+              <div className="min-w-0">
+                <h2 className="truncate text-[18px] font-semibold text-[#111827]">Review Schedule</h2>
+                <p className="mt-0.5 truncate text-[12px] text-[#7B8FA5]">{activeTicket?.id} · {activeTicket?.subject}</p>
+              </div>
+              <button onClick={() => setShowReviewSchedule(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827]"><X size={20} /></button>
+            </div>
+
+            {savedSchedule && !scheduleEditing ? (
+              /* READ-ONLY summary — the schedule exists; edit/delete live on the card header. */
+              <div className="flex-1 overflow-auto px-6 py-5">
+                <div className="rounded-lg border border-[#DFE5ED]">
+                  <div className="flex items-center justify-between border-b border-[#F0F2F5] px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><CalendarDays size={17} /></span>
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-semibold text-[#364658]">{savedSchedule.type} review schedule</div>
+                        <div className="mt-0.5 truncate text-[11px] text-[#7B8FA5]">Active — reviewers are notified when the review is due</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <button
+                        className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                        title="Edit"
+                        onClick={() => {
+                          const { emails, ...rest } = savedSchedule;
+                          setReviewSchedule(rest);
+                          setReviewerEmails(emails);
+                          setScheduleEditing(true);
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M10.8619 1.52925C11.1223 1.2689 11.5444 1.2689 11.8047 1.52925L14.4714 4.19591C14.7318 4.45626 14.7318 4.87837 14.4714 5.13872L5.80474 13.8054C5.67971 13.9304 5.51014 14.0007 5.33333 14.0007H2.66667C2.29848 14.0007 2 13.7022 2 13.334V10.6673C2 10.4905 2.07024 10.3209 2.19526 10.1959L8.86179 3.52939L10.8619 1.52925ZM9.33333 4.94346L3.33333 10.9435V12.6673H5.05719L11.0572 6.66732L9.33333 4.94346ZM12 5.72451L13.0572 4.66732L11.3333 2.94346L10.2761 4.00065L12 5.72451Z" fill="#7B8FA5"/>
+                        </svg>
+                      </button>
+                      <button
+                        className="rounded p-1.5 hover:bg-[#F3F4F6]"
+                        title="Delete"
+                        onClick={() => {
+                          setSavedSchedules((prev) => { const next = { ...prev }; delete next[activeTicket?.id ?? '']; return next; });
+                          setReviewSchedule({ type: '', gracePeriod: '1', folderOwner: false, author: true, technicians: '', technicianGroup: '', requesters: '', requesterGroup: '' });
+                          setReviewerEmails([]);
+                          setReviewerEmailInput('');
+                          toast.success('Review schedule deleted');
+                        }}
+                      >
+                        <Trash2 className="size-4 text-[#EF4444]" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Values — the panel's standard label/value rows */}
+                  <div className="space-y-2 px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="w-[120px] flex-shrink-0 text-[12px] text-[#4A5568]">Schedule Type</div>
+                      <div className="min-w-0 flex-1 px-3 py-1"><span className="text-[13px] font-medium text-[#364658]">{savedSchedule.type}</span></div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="w-[120px] flex-shrink-0 text-[12px] text-[#4A5568]">Grace Period</div>
+                      <div className="min-w-0 flex-1 px-3 py-1"><span className="text-[13px] font-medium text-[#364658]">{savedSchedule.gracePeriod} {Number(savedSchedule.gracePeriod) === 1 ? 'Day' : 'Days'}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Reviewer */}
+                  <div className="border-t border-[#F0F2F5] px-4 py-4">
+                    <div className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Reviewer</div>
+                    {savedSchedule.emails.length > 0 && (
+                      <div className="mb-3">
+                        <div className="mb-1.5 text-[12px] text-[#4A5568]">Email Address</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {savedSchedule.emails.map((em) => (
+                            <span key={em} className="rounded bg-[#EFF3F8] px-2 py-1 text-[12px] text-[#364658]">{em}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(savedSchedule.folderOwner || savedSchedule.author) && (
+                      <div className="mb-3">
+                        <div className="mb-1.5 text-[12px] text-[#4A5568]">Roles</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {savedSchedule.folderOwner && <span className="inline-flex items-center gap-1 rounded bg-[#EEF2F6] px-2 py-1 text-[12px] text-[#364658]"><Check size={12} className="text-[#12B76A]" />KB Folder Owner</span>}
+                          {savedSchedule.author && <span className="inline-flex items-center gap-1 rounded bg-[#EEF2F6] px-2 py-1 text-[12px] text-[#364658]"><Check size={12} className="text-[#12B76A]" />Author</span>}
+                        </div>
+                      </div>
+                    )}
+                    {([['Technicians', savedSchedule.technicians], ['Technician Group', savedSchedule.technicianGroup], ['Requesters', savedSchedule.requesters], ['Requester Group', savedSchedule.requesterGroup]] as [string, string][]).filter(([, v]) => v).map(([l, v]) => (
+                      <div key={l} className="flex items-center justify-between gap-3 py-1">
+                        <div className="w-[120px] flex-shrink-0 text-[12px] text-[#4A5568]">{l}</div>
+                        <div className="min-w-0 flex-1 px-3"><span className="text-[13px] font-medium text-[#364658]">{v}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+            <>
+            <div className="flex-1 space-y-5 overflow-auto px-6 py-5">
+              <div>
+                <label className="mb-1.5 block text-[13px] text-[#364658]">Schedule Type <span className="text-[#DC2626]">*</span></label>
+                <select
+                  value={reviewSchedule.type}
+                  onChange={(e) => setReviewSchedule((r) => ({ ...r, type: e.target.value }))}
+                  className={`app-select w-full rounded border border-[#DFE5ED] bg-white px-3 py-2 text-[13px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] ${reviewSchedule.type ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                >
+                  <option value="">Select</option>
+                  {['Once', 'Monthly'].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[13px] text-[#364658]">Grace Period <span className="text-[#DC2626]">*</span></label>
+                {/* Number + unit, joined like the Amount/Currency pair on the cost form */}
+                <div className="flex">
+                  <input
+                    type="number"
+                    min={1}
+                    value={reviewSchedule.gracePeriod}
+                    onChange={(e) => setReviewSchedule((r) => ({ ...r, gracePeriod: e.target.value }))}
+                    className="w-full rounded-l-md border border-[#DFE5ED] px-3 py-2 text-[13px] text-[#364658] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                  />
+                  <span className="inline-flex flex-shrink-0 items-center rounded-r-md border border-l-0 border-[#DFE5ED] bg-[#F8FAFC] px-3 text-[13px] text-[#64748B]">Days</span>
+                </div>
+                <p className="mt-1.5 text-[12px] text-[#7B8FA5]">How long after the due date the reviewer has before the article is flagged as overdue.</p>
+              </div>
+
+              {/* Reviewer */}
+              <div className="border-t border-[#E5E7EB] pt-5">
+                <h3 className="mb-3 text-[13px] font-semibold text-[#364658]">Reviewer</h3>
+
+                {/* Email chip input — type an address and press Enter or comma to add
+                    (same recipient pattern as the Send Email popup). */}
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-[13px] text-[#364658]">Email Address</label>
+                  <div className="flex flex-wrap items-center gap-1.5 rounded border border-[#DFE5ED] px-2 py-1.5 transition-colors focus-within:border-[#3D8BD0]">
+                    {reviewerEmails.map((em, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded bg-[#EFF3F8] py-1 pl-2 pr-1 text-[12px] text-[#364658]">
+                        {em}
+                        <button
+                          onClick={() => setReviewerEmails((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-[#7B8FA5] hover:text-[#DC2626]"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="email"
+                      value={reviewerEmailInput}
+                      onChange={(e) => setReviewerEmailInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ',') && reviewerEmailInput.trim()) {
+                          e.preventDefault();
+                          setReviewerEmails((prev) => [...prev, reviewerEmailInput.trim()]);
+                          setReviewerEmailInput('');
+                        } else if (e.key === 'Backspace' && !reviewerEmailInput && reviewerEmails.length) {
+                          setReviewerEmails((prev) => prev.slice(0, -1));
+                        }
+                      }}
+                      onBlur={() => { if (reviewerEmailInput.trim()) { setReviewerEmails((prev) => [...prev, reviewerEmailInput.trim()]); setReviewerEmailInput(''); } }}
+                      placeholder={reviewerEmails.length ? '' : 'name@company.com'}
+                      className="min-w-[160px] flex-1 bg-transparent py-1 text-[13px] text-[#364658] outline-none placeholder:text-[#9ca3af]"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4 space-y-2.5">
+                  {([
+                    ['folderOwner', 'KB Folder Owner'],
+                    ['author', 'Author'],
+                  ] as const).map(([key, label]) => (
+                    <label key={key} className="flex cursor-pointer items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={reviewSchedule[key]}
+                        onChange={(e) => setReviewSchedule((r) => ({ ...r, [key]: e.target.checked }))}
+                        className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                      />
+                      <span className="text-[13px] text-[#364658]">{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* People fields use the avatar picker; group fields stay plain selects. */}
+                  <div>
+                    <label className="mb-1.5 block text-[13px] text-[#364658]">Technicians</label>
+                    <SchedulePersonSelect
+                      value={reviewSchedule.technicians}
+                      options={['Rakesh Rathod', 'Priya Nair', 'Karan Malhotra', 'Rahul Verma']}
+                      onChange={(v) => setReviewSchedule((r) => ({ ...r, technicians: v }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[13px] text-[#364658]">Technician Group</label>
+                    <select
+                      value={reviewSchedule.technicianGroup}
+                      onChange={(e) => setReviewSchedule((r) => ({ ...r, technicianGroup: e.target.value }))}
+                      className={`app-select w-full rounded border border-[#DFE5ED] bg-white px-3 py-2 text-[13px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] ${reviewSchedule.technicianGroup ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    >
+                      <option value="">Select</option>
+                      {['IT Support Team', 'Network Team', 'Security Team'].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[13px] text-[#364658]">Requesters</label>
+                    <SchedulePersonSelect
+                      value={reviewSchedule.requesters}
+                      options={['Ananya Iyer', 'Rohan Mehta', 'Diya Kapoor']}
+                      onChange={(v) => setReviewSchedule((r) => ({ ...r, requesters: v }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[13px] text-[#364658]">Requester Group</label>
+                    <select
+                      value={reviewSchedule.requesterGroup}
+                      onChange={(e) => setReviewSchedule((r) => ({ ...r, requesterGroup: e.target.value }))}
+                      className={`app-select w-full rounded border border-[#DFE5ED] bg-white px-3 py-2 text-[13px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] ${reviewSchedule.requesterGroup ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}
+                    >
+                      <option value="">Select</option>
+                      {['Finance', 'Human Resources', 'Operations'].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer — Save disabled until the two required fields are set */}
+            <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-[#E5E7EB] px-6 py-4">
+              <button
+                onClick={() => (scheduleEditing ? setScheduleEditing(false) : setShowReviewSchedule(false))}
+                className="rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+              >Cancel</button>
+              <button
+                disabled={!reviewSchedule.type || !reviewSchedule.gracePeriod}
+                onClick={() => {
+                  setSavedSchedules((prev) => ({ ...prev, [activeTicket?.id ?? '']: { ...reviewSchedule, emails: reviewerEmails } }));
+                  const wasEditing = scheduleEditing;
+                  setScheduleEditing(false);
+                  // Stays open on the read-only summary, confirming exactly what was saved.
+                  toast.success(wasEditing ? 'Review schedule updated' : `Review schedule saved — ${reviewSchedule.type}`);
+                }}
+                className="rounded bg-[#3D8BD0] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#2d6ca0] disabled:cursor-not-allowed disabled:opacity-50"
+              >{scheduleEditing ? 'Update' : 'Save'}</button>
+            </div>
+            </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

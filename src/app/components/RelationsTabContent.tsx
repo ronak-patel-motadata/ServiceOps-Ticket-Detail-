@@ -29,9 +29,11 @@ interface RelationsTabContentProps {
   onClearTypeFilter?: () => void;
   /** Open a related item as a new tab in the same drawer. */
   onOpenRelation?: (rel: Relation) => void;
+  /** Hide the "Create And Relate" / "Add Relation" controls (read-only relations). */
+  hideAddRelation?: boolean;
 }
 
-export function RelationsTabContent({ ticketId, externalRelations = [], initialTypeFilter = null, onClearTypeFilter, onOpenRelation }: RelationsTabContentProps = {}) {
+export function RelationsTabContent({ ticketId, externalRelations = [], initialTypeFilter = null, onClearTypeFilter, onOpenRelation, hideAddRelation = false }: RelationsTabContentProps = {}) {
   // Empty state for blank ticket (INC-32)
   const isBlankTicket = ticketId === 'INC-32';
   
@@ -337,6 +339,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 </button>
               ))}
             </div>
+            {!hideAddRelation && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {/* TODO: Implement create and relate functionality */}}
@@ -355,6 +358,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 Add Relation
               </button>
             </div>
+            )}
           </div>
 
           {showAddRelationDropdown && (
@@ -465,6 +469,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
               Link this ticket to related requests, problems, changes, or other items
             </p>
             {/* Add Relation Buttons - Show in empty state */}
+            {!hideAddRelation && (
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={() => {/* TODO: Implement create and relate functionality */}}
@@ -502,6 +507,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       ) : (
