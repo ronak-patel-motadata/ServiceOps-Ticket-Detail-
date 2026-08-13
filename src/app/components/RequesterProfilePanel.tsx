@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, Laptop, Server, AppWindow, Database, Monitor } from 'lucide-react';
 import { deriveRequester } from './TicketPropertiesPanel';
+import { VipPill, isVipRequester } from './VipPill';
 
 /* Requester profile side popup — opened from the requester name in the description header and from
  * "View more details" in the Requester Information accordion (Ticket / Problem / Change / Release).
@@ -159,7 +160,10 @@ export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = '
             {p.initials}
           </div>
           <div className="min-w-0 pt-1">
-            <div className="text-[18px] font-semibold text-[#364658]">{p.name}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-[18px] font-semibold text-[#364658]">{p.name}</span>
+              {isVipRequester(p.name) && <VipPill />}
+            </div>
             <div className="mt-0.5 text-[13px]">
               <a href={`mailto:${p.email}`} className="text-[#3D8BD0] hover:underline">{p.email}</a>
               <span className="ml-1.5 text-[#7B8FA5]">( {role} )</span>

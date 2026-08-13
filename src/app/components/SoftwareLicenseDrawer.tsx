@@ -196,6 +196,11 @@ const MANAGED_SOFTWARES: { id: string; name: string }[] = [
   { id: 'SWAST-26939', name: 'FortiClient VPN' },
 ];
 
+/* Who raised the licence record — picked per licence id so the header's Created By chip differs
+   between licences instead of naming one person everywhere. Same asset/procurement people who
+   appear elsewhere on the page. */
+const LICENSE_CREATORS = ['Tabrez Khan', 'Priya Nair', 'Karan Malhotra', 'Vikram Sethi', 'Neha Raje'];
+
 // License attachments shown in the Attachment tab grid.
 type LicenseAttachment = { name: string; type: 'License File' | 'Invoice' | 'Purchase Order'; date: string; uploadedBy: string; uploadedOn: string };
 const LICENSE_ATTACHMENTS: LicenseAttachment[] = [
@@ -2055,16 +2060,26 @@ onStackMinimizedChange,
                 return { show: false };
               })();
               const items: HeaderKpiItem[] = [];
+              /* Created By leads the strip: who owns this record answers the first question a
+                 reader has. Person + date share ONE chip (the Knowledge detail pattern) — avatar
+                 and name carry the identity, the date follows after a hairline in a lighter tone. */
+              const createdOn = '26 Feb 2025, 3:02 PM';
+              const creator = LICENSE_CREATORS[(Number((activeLicense?.id ?? '').replace(/\D/g, '')) || 0) % LICENSE_CREATORS.length];
+              items.push({ key: 'created-by', tip: `Created by ${creator} — ${createdOn}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Created By</span>
+                  <span className="flex size-[18px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                    {creator.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-[12px] font-medium text-[#364658]">{creator}</span>
+                  <span className="mx-0.5 h-3 w-px bg-[#E5E7EB]" />
+                  <span className="text-[12px] text-[#364658]">{createdOn}</span>
+                </span>
+              ) });
               if (activeLicense?.product) items.push({ key: 'product', tip: `Product: ${activeLicense.product}`, node: (
                 <span className="inline-flex items-center gap-1.5 min-w-0">
                   <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Product</span>
                   <span className="text-[12px] font-medium text-[#364658] truncate max-w-[180px]">{activeLicense.product}</span>
-                </span>
-              ) });
-              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
                 </span>
               ) });
               if (activeLicense?.licenseType) items.push({ key: 'lictype', tip: `License Type: ${activeLicense.licenseType}`, node: (

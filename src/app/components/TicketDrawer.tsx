@@ -11,6 +11,8 @@ import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
+import { VipPill, isVipRequester } from './VipPill';
+import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
@@ -2176,24 +2178,14 @@ onStackActiveGroupChange,
                   </span>
                 ) },
               ];
-              if (activeTicket?.id === 'INC-35') {
-                items.push({ key: 'approval', tip: 'Approval: Pending', node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Approval</span>
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
-                    <span className="text-[12px] font-medium text-[#364658]">Pending</span>
-                  </span>
-                ) });
-              } else {
-                const slaLabel = activeTicket?.id === 'INC-32' ? 'Due in 4d 5h' : 'Overdue 1w 4d';
-                items.push({ key: 'sla', tip: `SLA: ${slaLabel}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">SLA</span>
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeTicket?.id === 'INC-32' ? '#22A06B' : '#E74C3C' }} />
-                    <span className="text-[12px] font-medium" style={{ color: activeTicket?.id === 'INC-32' ? '#364658' : '#E74C3C' }}>{slaLabel}</span>
-                  </span>
-                ) });
-              }
+              /* SLA / approval state reads as tinted alert pills, not label:value KPIs. */
+              items.push(...alertKpiItems(getHeaderAlerts({
+                id: activeTicket?.id,
+                status: selectedStatus,
+                /* Only the service request is genuinely waiting on a decision — matches the
+                   "Approval Pending" chip this row used to carry. */
+                approvalsPending: activeTicket?.id === 'INC-35' ? 1 : 0,
+              })));
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
@@ -2662,6 +2654,7 @@ onStackActiveGroupChange,
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket.requester}</button>
+                    {isVipRequester(activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket.requester) && <VipPill />}
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {

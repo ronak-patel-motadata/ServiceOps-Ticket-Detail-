@@ -7,6 +7,8 @@ export interface HeaderKpiItem {
   node: React.ReactNode;
   /** Plain-text "Label: Value" shown in the overflow "+N" hover popover. */
   tip: string;
+  /** Drop the hairline separator before this chip — used to chain alert pills flush together. */
+  noSep?: boolean;
 }
 
 /**
@@ -56,7 +58,7 @@ export function HeaderKpiRow({ items }: { items: HeaderKpiItem[] }) {
       <div ref={measRef} aria-hidden className="pointer-events-none absolute -top-[9999px] left-0 flex items-center gap-x-2.5 whitespace-nowrap opacity-0">
         {items.map((it, i) => (
           <React.Fragment key={it.key}>
-            {i > 0 && sep}
+            {i > 0 && !it.noSep && sep}
             <span data-kpi className="inline-flex flex-shrink-0">{it.node}</span>
           </React.Fragment>
         ))}
@@ -66,7 +68,7 @@ export function HeaderKpiRow({ items }: { items: HeaderKpiItem[] }) {
       <div className="flex flex-nowrap items-center gap-x-2.5 whitespace-nowrap">
         {visible.map((it, i) => (
           <React.Fragment key={it.key}>
-            {i > 0 && sep}
+            {i > 0 && !it.noSep && sep}
             <span className="inline-flex min-w-0 flex-shrink-0">{it.node}</span>
           </React.Fragment>
         ))}

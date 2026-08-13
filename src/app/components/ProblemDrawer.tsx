@@ -11,6 +11,8 @@ import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
+import { VipPill, isVipRequester } from './VipPill';
+import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { toast } from 'sonner';
@@ -2513,21 +2515,13 @@ onStackActiveGroupChange,
                     <span className="text-[12px] font-medium text-[#364658]">Available</span>
                   </span>
                 ) },
-                { key: 'sla', tip: 'SLA: Overdue 1w 4d', node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">SLA</span>
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#E74C3C]" />
-                    <span className="text-[12px] font-medium text-[#E74C3C]">Overdue 1w 4d</span>
-                  </span>
-                ) },
               ];
-              if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
-                  <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
-                </span>
-              ) });
+              /* SLA / approval state reads as tinted alert pills, not label:value KPIs. */
+              items.push(...alertKpiItems(getHeaderAlerts({
+                id: activeProblem?.id,
+                status: selectedStatus,
+                approvalsPending: approvalsCount,
+              })));
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
@@ -2944,6 +2938,7 @@ onStackActiveGroupChange,
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeProblem?.id === 'PBM-608' ? 'Arnav Desai' : activeProblem.requester}</button>
+                    {isVipRequester(activeProblem?.id === 'PBM-608' ? 'Arnav Desai' : activeProblem.requester) && <VipPill />}
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {

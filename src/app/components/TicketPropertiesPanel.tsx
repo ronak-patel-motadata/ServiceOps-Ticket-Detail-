@@ -1,5 +1,7 @@
 import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { VipPill, isVipRequester } from './VipPill';
+import { isFirstResponseBreached } from './HeaderAlertPills';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
 import { KnowledgeBaseModal } from './KnowledgeBaseModal';
@@ -606,6 +608,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // A closed ticket has finished its lifecycle, so each SLA target reads as an outcome
   // (Met / Breached with the time taken) instead of a running "due in" countdown.
   const slaClosed = /closed|resolved|completed/i.test(selectedStatus || '');
+  // Shared with the header's "First Response Overdue" alert pill so card and header never disagree.
+  const firstResponseBreached = isFirstResponseBreached(ticketId);
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
@@ -1867,7 +1871,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 min-w-0 group/sla">
                   <div className="text-[12px] font-medium text-[#364658] truncate">First response</div>
-                  <span className="text-[12px] font-medium text-[#364658] flex-shrink-0">Met</span>
+                  <span className="text-[12px] font-medium text-[#364658] flex-shrink-0">{firstResponseBreached ? 'Breached' : 'Met'}</span>
                   <div className="relative">
                     <button onClick={(e) => { setSlaAnchorRect(e.currentTarget.getBoundingClientRect()); setEditingSlaRow(editingSlaRow === 'first' ? null : 'first'); }} title="Edit SLA date" className="opacity-0 group-hover/sla:opacity-100 transition-opacity p-0.5 hover:bg-[#F3F4F6] rounded flex-shrink-0"><Edit size={12} className="text-[#7B8FA5]" /></button>
                     {editingSlaRow === 'first' && <DateTimePickerPopup value={slaDates.first} anchorRect={slaAnchorRect} align="right" onApply={(d) => setSlaDates((p) => ({ ...p, first: d }))} onClose={() => setEditingSlaRow(null)} />}
@@ -1875,10 +1879,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded px-2 py-0.5 flex-shrink-0 cursor-default">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none">
+                    <div className={`flex items-center gap-1.5 rounded px-2 py-0.5 flex-shrink-0 cursor-default ${firstResponseBreached ? 'bg-[#FFEBEE]' : 'bg-[#E8F5E9]'}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="13" viewBox="0 0 12 16" fill="none" style={firstResponseBreached ? { transform: 'scaleY(-1)' } : undefined}>
                         <g clipPath="url(#clip0_1057_504)">
-                          <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill="#27AE60"/>
+                          <path d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z" fill={firstResponseBreached ? '#E74C3C' : '#27AE60'}/>
                         </g>
                         <defs>
                           <clipPath id="clip0_1057_504">
@@ -1886,12 +1890,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           </clipPath>
                         </defs>
                       </svg>
-                      <span className="text-[12px] font-semibold text-[#27AE60]">{slaClosed ? '2h' : '3d 5h'}</span>
+                      <span className={`text-[12px] font-semibold ${firstResponseBreached ? 'text-[#E74C3C]' : 'text-[#27AE60]'}`}>
+                        {firstResponseBreached ? (slaClosed ? '1d 4h' : '2d 6h') : (slaClosed ? '2h' : '3d 5h')}
+                      </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <div className="text-left divide-y divide-white/15 min-w-[180px]">
-                      <div className="pb-1.5">{slaClosed ? 'Responded Thursday, February 20, 2026 at 12:30 AM' : 'Due by Thursday, February 20, 2026 at 12:30 AM'}</div>
+                      <div className="pb-1.5">{firstResponseBreached ? 'Overdue since Thursday, February 20, 2026 at 12:30 AM' : (slaClosed ? 'Responded Thursday, February 20, 2026 at 12:30 AM' : 'Due by Thursday, February 20, 2026 at 12:30 AM')}</div>
                       <div className="py-1.5"><span className="opacity-60">Total time:</span> {slaClosed ? '5 hours' : '4 days'}</div>
                       <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> P1 Critical – Response SLA</div>
                     </div>
@@ -2184,6 +2190,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   >
                     {deriveRequester(requesterName).name}
                   </button>
+                  {isVipRequester(deriveRequester(requesterName).name) && <VipPill size="sm" />}
                 </div>
 
                 {/* Requester Details */}
