@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock, Folder, Printer, BookOpen, MessageSquare, ChevronRight, Plus } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock, Folder, Printer, BookOpen, MessageSquare, ChevronRight, ClipboardCheck, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
@@ -176,9 +176,21 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
    *  technician view renders its own above this component, with the operational key points the
    *  requester has no tabs for. */
   showAiSummary?: boolean;
-  /** Requester preview: the Reviews entry point, migrated out of the right panel. The drawer owns
-   *  the thread and opens the panel, so this only needs the summary and a handler. */
-  review?: { count: number; lastBy?: string; lastWhen?: string; onOpen: () => void };
+  /** Requester preview: the review ASSIGNMENT. A review is requested of named people through the
+   *  Review Schedule — it is a task, not open feedback — so this renders as a call to action at
+   *  the top of the article rather than a card at the foot of it. The drawer owns the thread and
+   *  opens the panel; this only needs what to say and a handler. */
+  review?: {
+    /** Whether this reader was named as a reviewer on the article's review schedule. */
+    assigned: boolean;
+    /** Reviews this reader can see — non-zero means they have already written one. */
+    count: number;
+    /** e.g. "Quarterly" — from the schedule. */
+    scheduleType?: string;
+    /** Days after the due date before the article is flagged overdue. */
+    gracePeriod?: string;
+    onOpen: () => void;
+  };
 }) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
   // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
@@ -316,6 +328,53 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
           );
         })()}
 
+        {/* Review assignment — the article's owner named this reader as a reviewer on its review
+            schedule, so this is a task waiting on them. It sits directly under the masthead: at
+            the foot of the article it needed a scroll to discover, which is no way to surface
+            something somebody is being asked to do. */}
+        {review?.assigned && (
+          review.count === 0 ? (
+            <div className="mb-8 flex flex-wrap items-center gap-3 rounded-lg border border-[#F0DDB4] bg-[#FFFBF2] px-4 py-3">
+              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#FCEFD5] text-[#B4690E]">
+                <ClipboardCheck size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold text-[#7C4A03]">You have been asked to review this article</div>
+                <div className="mt-0.5 text-[12px] text-[#A97917]">
+                  {[
+                    review.scheduleType ? `${review.scheduleType} review` : 'Scheduled review',
+                    review.gracePeriod ? `${review.gracePeriod} ${Number(review.gracePeriod) === 1 ? 'day' : 'days'} grace after the due date` : null,
+                  ].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <button
+                onClick={review.onOpen}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded bg-[#3D8BD0] px-3.5 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[#3179B8]"
+              >
+                <MessageSquare size={14} />
+                Write a review
+              </button>
+            </div>
+          ) : (
+            /* Done — confirm it and get out of the way, but keep a route back to the thread. */
+            <button
+              onClick={review.onOpen}
+              className="mb-8 flex w-full flex-wrap items-center gap-3 rounded-lg border border-[#BFE3D1] bg-[#F2FBF6] px-4 py-3 text-left transition-colors hover:border-[#12B76A]"
+            >
+              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#DCF5E7] text-[#067647]">
+                <CheckCircle size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-[#065F46]">Thanks — you have reviewed this article</span>
+                <span className="mt-0.5 block text-[12px] text-[#4C8A6C]">
+                  {review.count} {review.count === 1 ? 'review' : 'reviews'} on this article
+                </span>
+              </span>
+              <ChevronRight size={16} className="flex-shrink-0 text-[#4C8A6C]" />
+            </button>
+          )
+        )}
+
         {/* Requester summary — the article's own content only. There are no relations, approvals
             or review schedule in this view, so none of the operational key points the technician
             summary carries would mean anything here. */}
@@ -442,40 +501,6 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
             {vote && <span className="text-[12px] text-[#7B8FA5]">Thanks for your feedback.</span>}
           </div>
 
-          {/* Reviews — a written review is the long-form version of the vote directly above, so
-              it belongs in the same feedback zone rather than floating at the top of a rail. */}
-          {review && (
-            <button
-              onClick={review.onOpen}
-              className={`mt-3 flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
-                review.count === 0
-                  ? 'border border-dashed border-[#DFE5ED] bg-[#F9FAFB] hover:border-[#3D8BD0] hover:bg-[#F5F9FD]'
-                  : 'bg-[#F9FAFB] hover:bg-[#F1F5F9]'
-              }`}
-            >
-              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
-                <MessageSquare size={17} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#364658]">
-                  {review.count === 0 ? 'Review this article' : 'Reviews'}
-                  {review.count > 0 && (
-                    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#3D8BD0] px-1 text-[11px] font-semibold text-white">
-                      {review.count}
-                    </span>
-                  )}
-                </span>
-                <span className="mt-0.5 block truncate text-[11px] text-[#7B8FA5]">
-                  {review.count === 0
-                    ? 'No reviews yet — tell the author what could be clearer'
-                    : `Last by ${review.lastBy} · ${review.lastWhen}`}
-                </span>
-              </span>
-              {review.count === 0
-                ? <Plus size={16} className="flex-shrink-0 text-[#3D8BD0]" />
-                : <ChevronRight size={16} className="flex-shrink-0 text-[#9CA3AF]" />}
-            </button>
-          )}
         </div>
 
         {/* Reader thread. Sits after the helpful vote, so the page ends: read it, rate it, discuss

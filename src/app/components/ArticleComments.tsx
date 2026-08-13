@@ -104,14 +104,9 @@ function CommentItem({ c, onDelete }: { c: ArticleComment; onDelete?: (id: strin
   );
 }
 
-function Composer({ onPost, autoFocus = false, placeholder = 'Add a comment…', action = 'Comment' }: {
-  onPost: (text: string) => void;
-  autoFocus?: boolean;
-  placeholder?: string;
-  action?: string;
-}) {
+function Composer({ onPost }: { onPost: (text: string) => void }) {
   const [draft, setDraft] = useState('');
-  const [open, setOpen] = useState(autoFocus);
+  const [open, setOpen] = useState(false);
   const canPost = draft.trim().length > 0;
 
   return (
@@ -123,7 +118,7 @@ function Composer({ onPost, autoFocus = false, placeholder = 'Add a comment…',
           onChange={(e) => setDraft(e.target.value)}
           onFocus={() => setOpen(true)}
           rows={open ? 3 : 1}
-          placeholder={placeholder}
+          placeholder="Add a comment…"
           className="w-full resize-none rounded border border-[#DFE5ED] bg-white px-3 py-2 text-[13px] leading-relaxed text-[#364658] transition-all placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]/30"
         />
         {/* Actions appear once the field is engaged — at rest this is a single quiet line. */}
@@ -140,70 +135,12 @@ function Composer({ onPost, autoFocus = false, placeholder = 'Add a comment…',
               onClick={() => { onPost(draft.trim()); setDraft(''); setOpen(false); }}
               className={`rounded px-3 py-1.5 text-[12px] font-medium text-white transition-colors ${canPost ? 'bg-[#3D8BD0] hover:bg-[#3179B8]' : 'cursor-not-allowed bg-[#C7D5E3]'}`}
             >
-              {action}
+              Comment
             </button>
           </div>
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * Reviews side panel for the REQUESTER view. The technician keeps the rich-editor panel inside the
- * properties rail, but the requester has no rail — and no need for tables and font menus to say an
- * article was clear. Same thread underneath: both write to the drawer's review state.
- */
-export function ArticleReviewsPanel({
-  open,
-  onClose,
-  reviews,
-  onAdd,
-  onDelete,
-}: {
-  open: boolean;
-  onClose: () => void;
-  reviews: ArticleComment[];
-  onAdd: (text: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  if (!open) return null;
-  return (
-    <>
-      <div className="fixed inset-0 z-[10000] bg-black/40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-[10001] flex w-[680px] max-w-[94vw] flex-col bg-white shadow-2xl">
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-          <h2 className="text-[16px] font-semibold text-[#364658]">
-            Reviews <span className="font-normal text-[#7B8FA5]">— {reviews.length}</span>
-          </h2>
-          <button onClick={onClose} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">
-            <X size={16} className="text-[#64748B]" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {reviews.length === 0 ? (
-            <div className="flex min-h-[280px] items-center justify-center">
-              <div className="text-center">
-                <div className="mb-4 inline-flex size-14 items-center justify-center rounded-full bg-[#F1F5F9]">
-                  <MessageSquare className="size-7 text-[#7B8FA5]" />
-                </div>
-                <h3 className="mb-1.5 text-[15px] font-semibold text-[#364658]">No reviews yet</h3>
-                <p className="mx-auto max-w-[280px] text-[13px] text-[#7B8FA5]">
-                  Be the first — tell the author what was clear and what could be better.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {reviews.map((r) => <CommentItem key={r.id} c={r} onDelete={onDelete} />)}
-            </div>
-          )}
-        </div>
-        <div className="flex-shrink-0 border-t border-[#DFE5ED] p-4">
-          <Composer onPost={onAdd} placeholder="Write a review…" action="Post review" />
-        </div>
-      </div>
-    </>
   );
 }
 

@@ -57,7 +57,7 @@ import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
 import { KnowledgeArticleContent, summarizeArticle } from './KnowledgeArticleContent';
 import { KnowledgeAiSummary } from './KnowledgeAiSummary';
-import { ArticleReviewsPanel } from './ArticleComments';
+import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
@@ -3117,12 +3117,17 @@ onStackMinimizedChange,
                 centered={viewAsRequester}
                 showAiSummary={viewAsRequester}
                 review={viewAsRequester ? (() => {
+                  /* A review is REQUESTED, not volunteered: the banner shows only when this
+                     article's review schedule names requesters. No schedule, or a technician-only
+                     one, and the requester is simply reading. */
+                  const assigned = !!savedSchedule && !!(savedSchedule.requesters || savedSchedule.requesterGroup);
                   // The requester only ever sees requester-authored reviews — same filter the panel applies.
                   const visible = kbReviews.filter((r) => r.role === 'requester');
                   return {
+                    assigned,
                     count: visible.length,
-                    lastBy: visible[0]?.author,
-                    lastWhen: visible[0]?.when,
+                    scheduleType: savedSchedule?.type,
+                    gracePeriod: savedSchedule?.gracePeriod,
                     onOpen: () => setKbReviewsOpen(true),
                   };
                 })() : undefined}
@@ -8505,21 +8510,15 @@ onStackMinimizedChange,
         </div>
       </div>
 
-      {/* The technician's reviews panel lives inside the properties rail, which the requester does
-          not get — so the requester view renders its own, over the same thread. */}
+      {/* The technician opens this panel from the properties rail; the requester has no rail, so
+          the article's review banner opens the SAME component over the same thread. */}
       {viewAsRequester && (
-        <ArticleReviewsPanel
+        <KnowledgeReviewsPanel
           open={kbReviewsOpen}
           onClose={() => setKbReviewsOpen(false)}
-          reviews={kbReviews.filter((r) => r.role === 'requester').map((r) => ({ ...r, own: r.author === 'Sarah Johnson' }))}
-          onAdd={(text) => {
-            setKbReviews((prev) => [{ id: 'r-' + Date.now(), author: 'Sarah Johnson', initials: 'SJ', color: '#22A06B', when: 'Just now', role: 'requester', text }, ...prev]);
-            toast.success('Review added');
-          }}
-          onDelete={(id) => {
-            setKbReviews((prev) => prev.filter((r) => r.id !== id));
-            toast.success('Review deleted');
-          }}
+          reviews={kbReviews.filter((r) => r.role === 'requester')}
+          onChange={setKbReviews}
+          requesterView
         />
       )}
 
