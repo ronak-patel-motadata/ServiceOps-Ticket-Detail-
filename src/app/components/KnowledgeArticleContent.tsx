@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock, Folder, Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import { HeaderCopyButton } from './HeaderCopyButton';
+import { HeaderIdPill } from './HeaderIdPill';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* Knowledge detail page body — the article itself. The Knowledge page has NO tabs: the full
  * article is the content, ending with the Helpful / Not Helpful feedback controls. */
@@ -230,7 +233,35 @@ const GENERIC = (title: string): Block[] => [
   { kind: 'p', text: 'If the steps above do not resolve the issue, raise a ticket with the service desk. Include the exact error message, what you were trying to do, and the time it happened. Screenshots are always helpful and usually remove a round trip of questions.' },
 ];
 
-export function KnowledgeArticleContent({ articleId, title, centered = false }: { articleId: string; title: string; /** Requester preview: portal-style centred reading column. */ centered?: boolean }) {
+/** Article metadata for the requester masthead — the byline the reader sees instead of a
+ *  product header bar. */
+export interface ArticleMasthead {
+  author: string;
+  /** Already formatted, e.g. "Jul 01, 2026 03:26 PM" — the time of day is stripped for display. */
+  created: string | null;
+  /** Relative recency, e.g. "1 month ago". */
+  ago?: string | null;
+  folder?: string | null;
+}
+
+/** Rough reading time, the way every reading app does it: words ÷ 200 wpm, floored at 1 min. */
+function readingMinutes(blocks: Block[]) {
+  const words = blocks.reduce((n, b) => {
+    const text = [b.text ?? '', ...(b.items ?? []), ...(b.rows ?? []).flat(), b.caption ?? ''].join(' ');
+    return n + text.trim().split(/\s+/).filter(Boolean).length;
+  }, 0);
+  return Math.max(1, Math.round(words / 200));
+}
+
+export function KnowledgeArticleContent({ articleId, title, centered = false, masthead }: {
+  articleId: string;
+  title: string;
+  /** Requester preview: portal-style centred reading column. */
+  centered?: boolean;
+  /** Requester preview: render the title + byline at the top of the column. The technician view
+   *  keeps its product header instead, so this is only passed there. */
+  masthead?: ArticleMasthead;
+}) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
   // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
   const [lightbox, setLightbox] = useState<{ caption?: string; art?: 'client' | 'portal' } | null>(null);
@@ -241,19 +272,103 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
     toast.success(v === 'up' ? 'Thanks — glad this was helpful' : 'Thanks — we will review this article');
   };
 
+  /* Reading-column typography. The technician sees the article inside a working record, so it
+     keeps the product's 13px UI scale. The requester is here to READ, so the same blocks step up
+     to a comfortable body size and looser leading — the single biggest thing that makes a page
+     feel like an article rather than a form. */
+  const body = centered ? 'text-[15px] leading-[1.75]' : 'text-[13px] leading-relaxed';
+  const heading = centered ? 'mb-3 mt-10 text-[20px]' : 'mb-2.5 mt-7 text-[15px]';
+  const caption = centered ? 'text-[13px]' : 'text-[12px]';
+
   return (
-    <div className={centered ? 'px-10 py-8' : 'px-6 py-6'}>
+    <div className={centered ? 'px-10 py-10' : 'px-6 py-6'}>
       <article className={centered ? 'mx-auto max-w-[760px]' : 'max-w-[860px]'}>
+        {/* Requester masthead — the article owns its own title and byline, so the reading column
+            opens like a published article rather than a record behind a product chrome bar. */}
+        {masthead && (() => {
+          const initials = masthead.author.split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase();
+          /* A byline dates an article to the day — the minute it was saved is record-keeping, not
+             something a reader needs. Read counts stay in the Analytics card rather than repeating
+             here; the masthead answers "who wrote this, when, how long, where it's filed". */
+          const date = masthead.created?.replace(/\s+\d{1,2}:\d{2}\s*[AP]M$/i, '') ?? null;
+          const meta: ReactNode[] = [];
+          if (date) {
+            meta.push(
+              <>
+                {date}
+                {masthead.ago && <span className="ml-1 text-[#94A3B8]">({masthead.ago})</span>}
+              </>,
+            );
+          }
+          meta.push(`${readingMinutes(blocks)} min read`);
+          if (masthead.folder) {
+            meta.push(
+              <span className="inline-flex items-center gap-1">
+                <Folder size={12} className="text-[#94A3B8]" />
+                {masthead.folder}
+              </span>,
+            );
+          }
+          return (
+            <header className="mb-9">
+              {/* The record id leads, the way an article leads with its section — it is the one
+                  identifier a requester quotes back to the service desk, so it stays copyable. */}
+              <div className="mb-3">
+                <HeaderIdPill id={articleId} />
+              </div>
+              <h1 className="text-[30px] font-bold leading-[1.22] tracking-[-0.015em] text-[#1E293B]">{title}</h1>
+              {/* At 24px the avatar reads as part of the author's NAME line rather than as a
+                  block sitting beside two lines, so it pairs with the name and the meta line
+                  indents to align under it. */}
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[10px] font-semibold text-white">
+                      {initials}
+                    </span>
+                    <span className="truncate text-[13px] font-semibold text-[#1E293B]">{masthead.author}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 pl-8 text-[12px] text-[#7B8FA5]">
+                    {meta.map((m, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5">
+                        {i > 0 && <span className="text-[#CBD5E1]">·</span>}
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {/* Reader actions sit with the byline, where sharing and printing belong on an
+                    article — not in a header bar the requester no longer has. */}
+                <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+                  <HeaderCopyButton variant="link" value={articleId} label="Copy article link" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => window.print()}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white transition-colors hover:bg-[#F5F7FA]"
+                      >
+                        <Printer size={16} className="text-[#6b7280]" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Print</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+              <div className="mt-6 border-t border-[#E5E7EB]" />
+            </header>
+          );
+        })()}
+
         {blocks.map((b, i) => {
           switch (b.kind) {
             case 'h':
-              return <h2 key={i} className="mb-2.5 mt-7 text-[15px] font-semibold text-[#1E293B] first:mt-0">{b.text}</h2>;
+              return <h2 key={i} className={`${heading} font-semibold text-[#1E293B] first:mt-0`}>{b.text}</h2>;
             case 'steps':
               return (
-                <ol key={i} className="mb-4 space-y-2">
+                <ol key={i} className={centered ? 'mb-5 space-y-3' : 'mb-4 space-y-2'}>
                   {b.items!.map((it, j) => (
-                    <li key={j} className="flex gap-2.5 text-[13px] leading-relaxed text-[#364658]">
-                      <span className="mt-[1px] flex size-[18px] flex-shrink-0 items-center justify-center rounded-full bg-[#EBF5FF] text-[11px] font-semibold text-[#3D8BD0]">{j + 1}</span>
+                    <li key={j} className={`flex gap-2.5 ${body} text-[#364658]`}>
+                      <span className={`flex flex-shrink-0 items-center justify-center rounded-full bg-[#EBF5FF] font-semibold text-[#3D8BD0] ${centered ? 'mt-[3px] size-[21px] text-[12px]' : 'mt-[1px] size-[18px] text-[11px]'}`}>{j + 1}</span>
                       <span className="min-w-0">{it}</span>
                     </li>
                   ))}
@@ -261,10 +376,10 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
               );
             case 'bullets':
               return (
-                <ul key={i} className="mb-4 space-y-1.5">
+                <ul key={i} className={centered ? 'mb-5 space-y-2.5' : 'mb-4 space-y-1.5'}>
                   {b.items!.map((it, j) => (
-                    <li key={j} className="flex gap-2.5 text-[13px] leading-relaxed text-[#364658]">
-                      <span className="mt-[7px] size-1.5 flex-shrink-0 rounded-full bg-[#CBD5E1]" />
+                    <li key={j} className={`flex gap-2.5 ${body} text-[#364658]`}>
+                      <span className={`size-1.5 flex-shrink-0 rounded-full bg-[#CBD5E1] ${centered ? 'mt-[10px]' : 'mt-[7px]'}`} />
                       <span className="min-w-0">{it}</span>
                     </li>
                   ))}
@@ -272,13 +387,13 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
               );
             case 'note':
               return (
-                <div key={i} className="mb-4 rounded border-l-2 border-[#3D8BD0] bg-[#F5F9FD] px-3.5 py-3 text-[13px] leading-relaxed text-[#364658]">
+                <div key={i} className={`rounded border-l-2 border-[#3D8BD0] bg-[#F5F9FD] text-[#364658] ${body} ${centered ? 'mb-5 px-4 py-3.5' : 'mb-4 px-3.5 py-3'}`}>
                   {b.text}
                 </div>
               );
             case 'warn':
               return (
-                <div key={i} className="mb-4 rounded border-l-2 border-[#F59E0B] bg-[#FFFBEB] px-3.5 py-3 text-[13px] leading-relaxed text-[#7C4A03]">
+                <div key={i} className={`rounded border-l-2 border-[#F59E0B] bg-[#FFFBEB] text-[#7C4A03] ${body} ${centered ? 'mb-5 px-4 py-3.5' : 'mb-4 px-3.5 py-3'}`}>
                   {b.text}
                 </div>
               );
@@ -300,7 +415,7 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
                       <Maximize2 size={12} /> Click to enlarge
                     </span>
                   </button>
-                  {b.caption && <figcaption className="mt-2 text-[12px] leading-relaxed text-[#7B8FA5]">{b.caption}</figcaption>}
+                  {b.caption && <figcaption className={`mt-2 leading-relaxed text-[#7B8FA5] ${caption}`}>{b.caption}</figcaption>}
                 </figure>
               );
             case 'video':
@@ -318,8 +433,8 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
                     <tbody className="divide-y divide-[#e5e7eb]">
                       {b.rows!.map(([k, v]) => (
                         <tr key={k}>
-                          <td className="px-3 py-2.5 align-top text-[13px] font-medium text-[#364658]">{k}</td>
-                          <td className="px-3 py-2.5 align-top text-[13px] leading-relaxed text-[#364658]">{v}</td>
+                          <td className={`px-3 py-2.5 align-top font-medium text-[#364658] ${centered ? 'text-[14px]' : 'text-[13px]'}`}>{k}</td>
+                          <td className={`px-3 py-2.5 align-top leading-relaxed text-[#364658] ${centered ? 'text-[14px]' : 'text-[13px]'}`}>{v}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -327,7 +442,7 @@ export function KnowledgeArticleContent({ articleId, title, centered = false }: 
                 </div>
               );
             default:
-              return <p key={i} className="mb-4 text-[13px] leading-relaxed text-[#364658]">{b.text}</p>;
+              return <p key={i} className={`text-[#364658] ${body} ${centered ? 'mb-5' : 'mb-4'}`}>{b.text}</p>;
           }
         })}
 

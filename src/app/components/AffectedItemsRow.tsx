@@ -17,11 +17,6 @@ export interface AffectedRecord {
   assignedTo: { name: string };
 }
 
-const TYPE_COLOR: Record<string, string> = {
-  Request: '#3D8BD0', Problem: '#E5484D', Change: '#F97316',
-  Release: '#22A06B', Asset: '#8B5CF6', CI: '#14B8A6',
-};
-
 const iconFor = (type: string) =>
   type === 'Request' ? IconRequest
     : type === 'Problem' ? IconProblem
@@ -90,7 +85,7 @@ export function AffectedItemsRow({
   // One pill per type present — a type with no records simply never appears.
   const byType = Object.entries(
     records.reduce<Record<string, number>>((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {}),
-  ).map(([type, count]) => ({ type, count, label: `${count} ${type}${count > 1 ? 's' : ''}`, color: TYPE_COLOR[type] ?? '#7B8FA5' }));
+  ).map(([type, count]) => ({ type, count, label: `${count} ${type}${count > 1 ? 's' : ''}` }));
 
   return (
     <div className="mx-[24px] mb-[12px] flex flex-wrap items-center gap-2">
@@ -105,7 +100,9 @@ export function AffectedItemsRow({
                 onClick={() => onOpenType(t.type)}
                 className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2.5 py-1 text-[12px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F9FBFD]"
               >
-                <span className="flex flex-shrink-0 items-center" style={{ color: t.color }}>
+                {/* One muted grey for every type — the pills are a set, so per-type colour made
+                    the row read as six unrelated badges. The icon carries the type, not the hue. */}
+                <span className="flex flex-shrink-0 items-center text-[#7B8FA5]">
                   <Icon size={14} />
                 </span>
                 {t.label}

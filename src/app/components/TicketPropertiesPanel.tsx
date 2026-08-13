@@ -61,6 +61,9 @@ interface TicketPropertiesPanelProps {
   knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number };
   /** Knowledge page requester preview: internal (technician) reviews are hidden. */
   knowledgeRequesterView?: boolean;
+  /** Knowledge page: setter for the Technician/Requester preview switch rendered under
+   *  Knowledge Properties. Omit it and the switch is not rendered at all. */
+  onKnowledgeRequesterViewChange?: (requester: boolean) => void;
   // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
   // always visible, no View more / System Fields (those move to the Incident Details tab)
   compactTicketFields?: boolean;
@@ -378,6 +381,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     knowledgeInfo,
     knowledgeAnalytics,
     knowledgeRequesterView = false,
+    onKnowledgeRequesterViewChange,
     compactTicketFields = false,
     hideAdditionalFields = false,
     assetState,
@@ -2406,6 +2410,33 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           }
           return null;
         })}
+
+        {/* Dev-facing view switch (Knowledge page) — the article is designed for the TECHNICIAN;
+            the requester preview strips internal chrome and centres the article. It sits under
+            Knowledge Properties rather than in the header because it previews the page, it is not
+            an action on the article. */}
+        {knowledgeMode && onKnowledgeRequesterViewChange && (
+          <div className="rounded-lg border border-[#DFE5ED] bg-white p-4">
+            <div className="mb-2.5 flex items-center gap-2">
+              <Eye size={16} className="text-[#4A5568]" />
+              <span className="text-[13px] font-semibold text-[#364658]">View As</span>
+            </div>
+            <div className="flex overflow-hidden rounded border border-[#DFE5ED]">
+              {(['Technician', 'Requester'] as const).map((v, i) => {
+                const active = (v === 'Requester') === knowledgeRequesterView;
+                return (
+                  <button
+                    key={v}
+                    onClick={() => onKnowledgeRequesterViewChange(v === 'Requester')}
+                    className={`h-8 flex-1 text-[12px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${active ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+                  >
+                    {v}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder)
             and in V2 compact mode (the slim panel isn't meant to be reconfigured) */}

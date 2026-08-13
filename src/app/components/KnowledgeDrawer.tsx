@@ -15,7 +15,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files , BookOpen , CalendarDays } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files , BookOpen , CalendarDays } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
@@ -135,6 +135,23 @@ const KB_FEEDBACK: Record<string, [number, number]> = {
 /* Publication status per article — mirrors the listing so the panel and the list agree. */
 const KB_STATUS: Record<string, string> = {
   'KB-12': 'In Review', 'KB-14': 'Draft', 'KB-20': 'Expired',
+};
+
+/* Article date helpers — shared by the technician header strip and the requester masthead so the
+   two views can never disagree about when an article was written. */
+const shortDT = (v: string) => v.replace(/^[A-Za-z]{3},\s*/, '');
+
+const relativeAge = (created: string | null | undefined) => {
+  if (!created) return null;
+  const d = new Date(shortDT(created));
+  if (isNaN(d.getTime())) return null;
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days < 0) return null;
+  if (days === 0) return 'today';
+  if (days === 1) return '1 day ago';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? '1 month ago' : `${months} months ago`;
 };
 
 const DEFAULT_REL = makeCrossModuleRelations([
@@ -2566,7 +2583,10 @@ onStackMinimizedChange,
 
       {/* Drawer Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Header Actions */}
+        {/* Header Actions — TECHNICIAN only. The requester reads a published article: its title,
+            byline and reader actions are the masthead at the top of the reading column, so a
+            product header bar above it would only repeat them behind a border. */}
+        {!viewAsRequester && (
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
             <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
@@ -2580,20 +2600,8 @@ onStackMinimizedChange,
               const items: HeaderKpiItem[] = [];
               const kb = activePatchRecord?.knowledge;
 
-              const shortDT = (v: string) => v.replace(/^[A-Za-z]{3},\s*/, '');
               const created = kb?.created ?? null;
-              const ago = (() => {
-                if (!created) return null;
-                const d = new Date(created.replace(/^[A-Za-z]{3},\s*/, ''));
-                if (isNaN(d.getTime())) return null;
-                const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-                if (days < 0) return null;
-                if (days === 0) return 'today';
-                if (days === 1) return '1 day ago';
-                if (days < 30) return `${days} days ago`;
-                const months = Math.floor(days / 30);
-                return months === 1 ? '1 month ago' : `${months} months ago`;
-              })();
+              const ago = relativeAge(created);
 
               /* Author + date share ONE chip: they answer the same question ("who wrote this,
                  when"), and merging them keeps the strip to three chips so each value has room.
@@ -2643,46 +2651,13 @@ onStackMinimizedChange,
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
+          {/* The Technician/Requester view switch lives in the right panel, under Knowledge
+              Properties — it previews the page rather than acting on the article. */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Dev-facing view switch: the page is designed for the TECHNICIAN; the requester
-                preview strips internal chrome (tabs, schedule, approvals) and centres the article. */}
-            <div className="mr-1 flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
-              {(['Technician', 'Requester'] as const).map((v, i) => {
-                const active = (v === 'Requester') === viewAsRequester;
-                return (
-                  <button
-                    key={v}
-                    onClick={() => {
-                      setViewAsRequester(v === 'Requester');
-                      // The requester has only the article — land there when switching.
-                      if (v === 'Requester') setActiveMainTab('knowledge-article');
-                    }}
-                    className={`h-8 px-3 text-[12px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${active ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
-                  >
-                    {v}
-                  </button>
-                );
-              })}
-            </div>
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
-            {viewAsRequester ? (
-              /* Requester: Print replaces the schedule icon; no 3-dot menu at all. */
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => window.print()}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F5F7FA]"
-                  >
-                    <Printer size={16} className="text-[#6b7280]" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Print</TooltipContent>
-              </Tooltip>
-            ) : (
-              <>
             {/* Review Schedule — when this article should next be reviewed, and by whom. */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -2705,10 +2680,9 @@ onStackMinimizedChange,
               }}
               onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
             />
-              </>
-            )}
           </div>
         </div>
+        )}
 
         {/* Main Content Area - Two Column Layout */}
         <div className="flex flex-1 overflow-hidden" data-onboarding-container>
@@ -3042,7 +3016,17 @@ onStackMinimizedChange,
             )}
 
             {activeMainTab === 'knowledge-article' && (
-              <KnowledgeArticleContent articleId={activeTicket.id} title={activeTicket.subject} centered={viewAsRequester} />
+              <KnowledgeArticleContent
+                articleId={activeTicket.id}
+                title={activeTicket.subject}
+                centered={viewAsRequester}
+                masthead={viewAsRequester ? {
+                  author: activePatchRecord?.knowledge?.author ?? 'Unassigned',
+                  created: activePatchRecord?.knowledge?.created ? shortDT(activePatchRecord.knowledge.created) : null,
+                  ago: relativeAge(activePatchRecord?.knowledge?.created),
+                  folder: activePatchRecord?.knowledge?.folder ?? null,
+                } : undefined}
+              />
             )}
 
             {activeMainTab === 'knowledge-audit' && (
@@ -8154,6 +8138,11 @@ onStackMinimizedChange,
             packageDeployMode={true}
             knowledgeMode={true}
             knowledgeRequesterView={viewAsRequester}
+            onKnowledgeRequesterViewChange={(requester) => {
+              setViewAsRequester(requester);
+              // The requester has only the article — land there when switching.
+              if (requester) setActiveMainTab('knowledge-article');
+            }}
             knowledgeAnalytics={{
               helpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[0] ?? 0,
               notHelpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[1] ?? 0,
