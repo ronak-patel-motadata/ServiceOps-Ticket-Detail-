@@ -419,7 +419,7 @@ onStackMinimizedChange,
   const relSearchRef = useRef<HTMLInputElement>(null);
   // Relationship download popup (same as the audit-trail download).
   const [showRelDownload, setShowRelDownload] = useState(false);
-  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV' | 'PNG'>('PDF');
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'PNG'>('PDF');
   const [relDlPwProtected, setRelDlPwProtected] = useState(false);
   const [relDlShowPw, setRelDlShowPw] = useState(false);
   const [relDlPassword, setRelDlPassword] = useState('');
@@ -2454,7 +2454,7 @@ onStackMinimizedChange,
                           <div className="mb-4">
                             <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
                             <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
-                              {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
+                              {(['PDF', 'PNG'] as const).map((f) => (
                                 <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
                               ))}
                             </div>

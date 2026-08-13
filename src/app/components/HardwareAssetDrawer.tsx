@@ -449,7 +449,7 @@ onStackMinimizedChange,
   const [relPan, setRelPan] = useState({ x: 0, y: 0 });
   // Relationship download popup (same as the audit-trail download).
   const [showRelDownload, setShowRelDownload] = useState(false);
-  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV' | 'PNG'>('PDF');
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'PNG'>('PDF');
   const [relDlPwProtected, setRelDlPwProtected] = useState(false);
   const [relDlShowPw, setRelDlShowPw] = useState(false);
   const [relDlPassword, setRelDlPassword] = useState('');
@@ -2266,7 +2266,7 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Main asset KPIs — Asset Type · Created · Status · Used By · Impact · Managed By · CI · Approvals */}
+            {/* Main asset KPIs — Asset Type · Created · Status · Used By · Impact · Managed By Group · Managed By */}
             {(() => {
               const items: HeaderKpiItem[] = [];
               if (activeAsset?.assetType) items.push({ key: 'type', tip: `Asset Type: ${activeAsset.assetType}`, node: (
@@ -2351,26 +2351,19 @@ onStackMinimizedChange,
                   <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
                 </span>
               ) });
+              if (assetGroup) items.push({ key: 'managedbygroup', tip: `Managed By Group: ${assetGroup}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By Group</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[180px]">{assetGroup}</span>
+                </span>
+              ) });
               items.push({ key: 'managedby', tip: `Managed By: ${activeAsset?.managedBy.name || '—'}`, node: (
                 <span className="inline-flex items-center gap-1.5 min-w-0">
-                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
                   <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset?.managedBy.color || '#6366F1' }}>
                     {activeAsset?.managedBy.initials || (activeAsset?.managedBy.name || '').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                   </span>
                   <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeAsset?.managedBy.name || '—'}</span>
-                </span>
-              ) });
-              if (assetState.ci) items.push({ key: 'ci', tip: `CI: ${assetState.ci}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">CI</span>
-                  <span className="text-[12px] font-medium text-[#3D8BD0] truncate max-w-[180px]">{assetState.ci}</span>
-                </span>
-              ) });
-              if (approvalsCount > 0) items.push({ key: 'approvals', tip: `Approvals: ${approvalsCount} Pending`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 rounded-full flex-shrink-0 bg-[#D97706]" />
-                  <span className="text-[11px] text-[#7B8FA5]">Approvals</span>
-                  <span className="text-[12px] font-medium text-[#D97706]">{approvalsCount} Pending</span>
                 </span>
               ) });
               return <div className="pl-[18px]"><HeaderKpiRow items={items} /></div>;
@@ -4253,12 +4246,6 @@ onStackMinimizedChange,
                               <div className="text-[11px] text-[#9CA3AF]">Installed Location</div>
                               <div className="text-[12px] text-[#364658] truncate" title={s.installedLocation}>{s.installedLocation || '---'}</div>
                             </div>
-                            {s.description && (
-                              <div className="col-span-2 min-w-0">
-                                <div className="text-[11px] text-[#9CA3AF]">Description</div>
-                                <div className="text-[12px] text-[#364658] truncate" title={s.description}>{s.description}</div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -4630,7 +4617,7 @@ onStackMinimizedChange,
                           <div className="mb-4">
                             <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
                             <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
-                              {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
+                              {(['PDF', 'PNG'] as const).map((f) => (
                                 <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
                               ))}
                             </div>

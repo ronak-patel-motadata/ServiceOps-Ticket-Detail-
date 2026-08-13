@@ -141,7 +141,7 @@ function TimeDistribution({ segments, selected, onSelect }: { segments: Seg[]; s
 }
 
 /** A distribution bar + a timeline for one dimension; clicking a bar segment filters the timeline. */
-function TransitionSection({ title, timelineLabel, segments, rows }: { title?: string; timelineLabel: string; segments: Seg[]; rows: Row[] }) {
+function TransitionSection({ title, timelineLabel, segments, rows, durationPrefix }: { title?: string; timelineLabel: string; segments: Seg[]; rows: Row[]; /** Reads "<prefix> <state>" — "Time in Open" for statuses, "Time with George" for people. */ durationPrefix?: string }) {
   const [filter, setFilter] = useState<string | null>(null);
   const filtered = filter ? rows.filter((r) => r.from === filter || r.to === filter) : rows;
   return (
@@ -160,14 +160,20 @@ function TransitionSection({ title, timelineLabel, segments, rows }: { title?: s
       {filtered.length === 0 ? (
         <div className="text-[13px] text-[#7B8FA5] py-4">No transitions for this filter.</div>
       ) : (
-        <Timeline rows={filtered} segments={segments} />
+        <Timeline rows={filtered} segments={segments} durationPrefix={durationPrefix} />
       )}
     </div>
   );
 }
 
-/** Vertical transition timeline — each node is a state change (from → to) with who/when + how long it lasted. */
-function Timeline({ rows, segments }: { rows: Row[]; segments: Seg[] }) {
+/**
+ * Vertical transition timeline. Each node is a state change (from → to), and the duration is the
+ * time spent in the state the record moved INTO — so it is deliberately NOT rendered beside the
+ * arrow, where it reads as belonging to the transition or to the state being left. It gets its own
+ * footer row, named and colour-dotted, borrowing the distribution legend's `● Label … duration`
+ * grammar from directly above so the same pattern means the same thing twice on one screen.
+ */
+function Timeline({ rows, segments, durationPrefix = 'Time in' }: { rows: Row[]; segments: Seg[]; durationPrefix?: string }) {
   const colorFor = (label: string) => segments.find((s) => s.label === label)?.color || '#9CA3AF';
   return (
     <div className="relative pl-0.5">
@@ -177,25 +183,39 @@ function Timeline({ rows, segments }: { rows: Row[]; segments: Seg[] }) {
         return (
           <div key={i} className="relative flex gap-3.5 pb-5 last:pb-0">
             {!last && <div className="absolute left-[13px] top-7 bottom-0 w-px bg-[#E8EDF3]" />}
-            <div className="relative z-10 mt-0.5 size-[26px] rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c}22` }}>
+            <div className="relative z-10 size-[26px] rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${c}22` }}>
               <span className="size-2.5 rounded-full" style={{ backgroundColor: c }} />
             </div>
-            <div className="flex-1 min-w-0 rounded-lg border border-[#EEF1F5] bg-white px-3.5 py-2.5 hover:border-[#DDE3EC] transition-colors">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-1.5 text-[13px] min-w-0">
-                  <span className="text-[#9CA3AF] truncate">{r.from}</span>
-                  <ArrowRight size={13} className="text-[#CBD5E1] flex-shrink-0" />
-                  <span className="font-semibold truncate" style={{ color: c }}>{r.to}</span>
-                </div>
-                <span className="inline-flex items-center gap-1 rounded-md bg-[#F5F7FA] px-2 py-0.5 text-[11px] font-medium text-[#5A6B7B] flex-shrink-0">
-                  <Clock size={11} className="text-[#9CA3AF]" /> {r.duration}
-                </span>
-              </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-[12px] text-[#7B8FA5]">
-                <span className="size-4 rounded-[4px] text-white text-[8px] font-semibold flex items-center justify-center flex-shrink-0" style={{ backgroundColor: userColor(r.user) }}>{initials(r.user)}</span>
-                <span className="text-[#364658] font-medium">{r.user}</span>
+            <div className="flex-1 min-w-0">
+              {/* Who made the change, and when — the event header, sitting above the card the way
+                  an activity feed heads each entry. Its 26px height matches the timeline dot, so
+                  the two line up without nudging either. */}
+              <div className="flex h-[26px] min-w-0 items-center gap-1.5 text-[12px] text-[#7B8FA5]">
+                <span className="flex size-4 flex-shrink-0 items-center justify-center rounded-[4px] text-[8px] font-semibold text-white" style={{ backgroundColor: userColor(r.user) }}>{initials(r.user)}</span>
+                <span className="flex-shrink-0 font-medium text-[#364658]">{r.user}</span>
                 <span className="text-[#CBD5E1]">·</span>
                 <span className="truncate">{r.date}</span>
+                {/* What changed, at the far end of the same line — the header now reads as one
+                    sentence: who, when, and what they did. */}
+                <span className="ml-auto flex flex-shrink-0 items-center gap-1.5 pl-3 text-[13px]">
+                  <span className="text-[#9CA3AF]">{r.from}</span>
+                  <ArrowRight size={13} className="flex-shrink-0 text-[#CBD5E1]" />
+                  <span className="font-semibold" style={{ color: c }}>{r.to}</span>
+                </span>
+              </div>
+              {/* How long the record then sat in that state. The duration follows its label
+                  directly — the pair reads as one phrase, so keeping them adjacent matters more
+                  than lining the durations up in a column. */}
+              <div className="mt-1 flex min-w-0 items-center gap-2 rounded-lg border border-[#EEF1F5] bg-[#FAFBFC] px-3.5 py-2 text-[12px] transition-colors hover:border-[#DDE3EC]">
+                <span className="inline-flex items-center gap-2 text-[#7B8FA5]">
+                  <span className="size-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: c }} />
+                  <span className="truncate">{durationPrefix} <span className="font-medium text-[#364658]">{r.to}</span></span>
+                </span>
+                <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
+                <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-[#364658]">
+                  <Clock size={11} className="flex-shrink-0 text-[#9CA3AF]" />
+                  <span className="truncate">{r.duration}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -356,9 +376,9 @@ export function TicketTransitionModal({ isOpen, onClose, ticketId, penaltyAmount
 
           {tab === 'assignment' && (
             <div className="space-y-8">
-              <TransitionSection title="Technician" timelineLabel="Assignment timeline" segments={TECH_SEGS} rows={TECH_ROWS} />
+              <TransitionSection title="Technician" timelineLabel="Assignment timeline" segments={TECH_SEGS} rows={TECH_ROWS} durationPrefix="Time with" />
               <div className="pt-5 border-t border-[#F0F1F3]">
-                <TransitionSection title="Technician Group" timelineLabel="Group timeline" segments={GROUP_SEGS} rows={GROUP_ROWS} />
+                <TransitionSection title="Technician Group" timelineLabel="Group timeline" segments={GROUP_SEGS} rows={GROUP_ROWS} durationPrefix="Time with" />
               </div>
             </div>
           )}

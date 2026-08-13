@@ -184,6 +184,92 @@ const LICENSE_INSTALLATIONS: LicenseAssetRow[] = [
   { id: 'LAP-3390', name: 'CAD Workstation', assetType: 'Windows Laptop', status: 'In Use', host: 'DESKTOP-CAD3', ip: '192.168.1.88', usedBy: 'Neha Raje', group: 'Engineering', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jun 04, 2026 10:05 AM' },
 ];
 
+/* Card view for the Allocation / Installation grids — the Patch-deployment Endpoint-tab recipe:
+   icon badge, id pill above the name, then the same fields the table shows in a 2-up grid. Both
+   tabs render the same row shape, so one card serves both. */
+function LicenseAssetCards({ rows, onRemove }: { rows: LicenseAssetRow[]; onRemove?: (id: string) => void }) {
+  if (!rows.length) return <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No records found.</div>;
+  const Dash = () => <span className="text-[#9ca3af]">---</span>;
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @4xl:grid-cols-3">
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-xl border border-[#E5E7EB] bg-white p-4 transition-all hover:border-[#3D8BD0] hover:shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
+                <Laptop size={17} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                <button className="mt-1 block max-w-full truncate text-left text-[13px] font-semibold text-[#3D8BD0] hover:underline" title={r.name}>{r.name}</button>
+              </div>
+              {onRemove && (
+                <button
+                  title="Remove allocation"
+                  onClick={() => onRemove(r.id)}
+                  className="flex-shrink-0 p-1 text-[#9CA3AF] transition-colors hover:text-[#DC2626]"
+                >
+                  <Unlink size={15} />
+                </button>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[#F0F2F5] pt-3">
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Asset Type</div><div className="truncate text-[12px] text-[#364658]">{r.assetType}</div></div>
+              <div className="min-w-0">
+                <div className="text-[11px] text-[#9CA3AF]">Status</div>
+                <div className="inline-flex items-center gap-1.5 text-[12px] text-[#364658]">
+                  <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: r.status === 'In Use' ? '#22C55E' : '#3D8BD0' }} />
+                  {r.status}
+                </div>
+              </div>
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Host Name</div><div className="truncate text-[12px] text-[#364658]">{r.host === '---' ? <Dash /> : r.host}</div></div>
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">IP Address</div><div className="truncate text-[12px] text-[#364658]">{r.ip === '---' ? <Dash /> : r.ip}</div></div>
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Used By</div><div className="truncate text-[12px] text-[#364658]">{r.usedBy === '---' ? <Dash /> : r.usedBy}</div></div>
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Managed By Group</div><div className="truncate text-[12px] text-[#364658]" title={r.group}>{r.group}</div></div>
+              <div className="min-w-0">
+                <div className="text-[11px] text-[#9CA3AF]">Managed By</div>
+                <div className="mt-0.5 inline-flex min-w-0 items-center gap-1.5">
+                  {r.managedBy.initials ? (
+                    <span className="flex size-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-medium text-white" style={{ backgroundColor: r.managedBy.color || '#9CA3AF' }}>{r.managedBy.initials}</span>
+                  ) : (
+                    <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={11} /></span>
+                  )}
+                  <span className="truncate text-[12px] text-[#364658]">{r.managedBy.name}</span>
+                </div>
+              </div>
+              <div className="min-w-0"><div className="text-[11px] text-[#9CA3AF]">Created Date</div><div className="truncate text-[12px] text-[#364658]" title={r.created}>{r.created}</div></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Card · List toggle shared by both tabs. */
+function LicenseViewToggle({ view, onChange }: { view: 'card' | 'list'; onChange: (v: 'card' | 'list') => void }) {
+  return (
+    <div className="flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED]">
+      {([
+        { key: 'card' as const, icon: <LayoutGrid size={15} />, tip: 'Card view' },
+        { key: 'list' as const, icon: <ListIcon size={15} />, tip: 'List view' },
+      ]).map((v, i) => (
+        <Tooltip key={v.key}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => onChange(v.key)}
+              className={`flex h-8 w-9 items-center justify-center transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${view === v.key ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
+            >
+              {v.icon}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{v.tip}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+
 // Software assets managed under this license (id + name from the Software Assets list).
 const MANAGED_SOFTWARES: { id: string; name: string }[] = [
   { id: 'SWAST-26945', name: 'Microsoft Edge WebView2 Runtime' },
@@ -316,6 +402,9 @@ onStackMinimizedChange,
   const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'allocation' | 'attachment'>('properties');
   // Software License "Allocation" tab: machine licenses toggle Allocation/Installation; user licenses show only User Allocation.
   const [licenseAllocView, setLicenseAllocView] = useState<'allocation' | 'installation'>('allocation');
+  // Allocation / Installation grids open as cards, like the Patch-deployment Endpoint tab.
+  const [allocView, setAllocView] = useState<'card' | 'list'>('card');
+  const [installView, setInstallView] = useState<'card' | 'list'>('card');
   // Attachment tab: add-attachment side drawer.
   const [showAttachmentDrawer, setShowAttachmentDrawer] = useState(false);
   const [attachmentType, setAttachmentType] = useState<'License File' | 'Invoice' | 'Purchase Order'>('License File');
@@ -5936,11 +6025,17 @@ onStackMinimizedChange,
                   <>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Allocation</h3>
-                      <button className="px-4 py-1.5 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate</button>
+                      <div className="flex items-center gap-2">
+                        <LicenseViewToggle view={allocView} onChange={setAllocView} />
+                        <button className="px-4 py-1.5 rounded bg-[#3D8BD0] text-white text-[13px] font-medium hover:bg-[#2F7AB8]">Allocate</button>
+                      </div>
                     </div>
                     <div className="relative mb-4">
                       <input placeholder="Select field or enter a keyword to search..." className="h-[38px] w-full rounded border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
                     </div>
+                    {allocView === 'card' ? (
+                      <LicenseAssetCards rows={LICENSE_ALLOCATIONS} onRemove={() => {}} />
+                    ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[1100px]">
                         <thead className="border-b border-[#E5E7EB]">
@@ -5984,6 +6079,7 @@ onStackMinimizedChange,
                         </tbody>
                       </table>
                     </div>
+                    )}
                   </>
                 ) : (
                   <>
@@ -6028,11 +6124,17 @@ onStackMinimizedChange,
               <div className="px-6 py-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-[15px] font-semibold text-[#3D8BD0]">Installation</h3>
-                  <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">All <Filter size={14} className="text-[#7B8FA5]" /></button>
+                  <div className="flex items-center gap-2">
+                    <LicenseViewToggle view={installView} onChange={setInstallView} />
+                    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[#DFE5ED] text-[#364658] text-[13px] font-medium hover:bg-[#F3F4F6] transition-colors">All <Filter size={14} className="text-[#7B8FA5]" /></button>
+                  </div>
                 </div>
                 <div className="relative mb-4">
                   <input placeholder="Select field or enter a keyword to search..." className="h-[38px] w-full rounded border border-[#DFE5ED] bg-white px-3 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none" />
                 </div>
+                {installView === 'card' ? (
+                  <LicenseAssetCards rows={LICENSE_INSTALLATIONS} />
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1100px]">
                     <thead className="border-b border-[#E5E7EB]">
@@ -6073,6 +6175,7 @@ onStackMinimizedChange,
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
             )}
 

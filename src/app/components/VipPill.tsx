@@ -20,7 +20,7 @@ export function VipPill({ size = 'md', className = '' }: { size?: 'sm' | 'md'; c
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className={`inline-flex flex-shrink-0 cursor-default items-center gap-1 rounded-sm border border-[#F5D9A0] bg-[#FEF6E7] font-semibold uppercase tracking-[0.04em] text-[#B4690E] ${
+          className={`inline-flex flex-shrink-0 cursor-default items-center gap-1 rounded border border-[#F5D9A0] bg-[#FEF6E7] font-semibold uppercase tracking-[0.04em] text-[#B4690E] ${
             size === 'sm' ? 'px-1 py-px text-[9px]' : 'px-1.5 py-0.5 text-[10px]'
           } ${className}`}
         >

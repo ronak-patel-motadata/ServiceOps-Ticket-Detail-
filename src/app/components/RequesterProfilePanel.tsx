@@ -62,9 +62,11 @@ interface RequesterProfilePanelProps {
   requesterName?: string;
   /** Shown next to the email, e.g. "Requester" / "Technician". */
   role?: string;
+  /** VIP is a Request-page concept — Problem/Change/Release do not surface it. */
+  showVip?: boolean;
 }
 
-export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = 'Requester' }: RequesterProfilePanelProps) {
+export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = 'Requester', showVip = false }: RequesterProfilePanelProps) {
   const [tab, setTab] = useState<ProfileTab>('overview');
 
   // Always land on Overview when the popup is (re)opened.
@@ -162,7 +164,7 @@ export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = '
           <div className="min-w-0 pt-1">
             <div className="flex items-center gap-2">
               <span className="text-[18px] font-semibold text-[#364658]">{p.name}</span>
-              {isVipRequester(p.name) && <VipPill />}
+              {showVip && isVipRequester(p.name) && <VipPill />}
             </div>
             <div className="mt-0.5 text-[13px]">
               <a href={`mailto:${p.email}`} className="text-[#3D8BD0] hover:underline">{p.email}</a>

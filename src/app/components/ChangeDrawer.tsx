@@ -12,7 +12,6 @@ import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './Edi
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
-import { VipPill, isVipRequester } from './VipPill';
 import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
@@ -3362,7 +3361,6 @@ onStackActiveGroupChange,
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange.requester}</button>
-                    {isVipRequester(activeChange?.id === 'CHG-976' ? 'Arnav Desai' : activeChange.requester) && <VipPill />}
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {

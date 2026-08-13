@@ -41,7 +41,7 @@ import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { SystemFieldsRenderer } from './SystemFieldsRenderer';
-import { TicketPropertiesPanel } from './TicketPropertiesPanel';
+import { TicketPropertiesPanel, type KnowledgeReview } from './TicketPropertiesPanel';
 import { HeaderKpiRow, type HeaderKpiItem } from './HeaderKpiRow';
 import { DiagnosisCard } from './DiagnosisCard';
 import { SolutionCard } from './SolutionCard';
@@ -55,7 +55,9 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
-import { KnowledgeArticleContent } from './KnowledgeArticleContent';
+import { KnowledgeArticleContent, summarizeArticle } from './KnowledgeArticleContent';
+import { KnowledgeAiSummary } from './KnowledgeAiSummary';
+import { ArticleReviewsPanel } from './ArticleComments';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
 import { DEPLOYED_PATCHES } from './PatchDeploymentPatchesTab';
 import { PackageDeploymentPackagesTab, DEPLOYED_PACKAGES, buildPackageDeploymentMatrix } from './PackageDeploymentPackagesTab';
@@ -852,6 +854,10 @@ onStackMinimizedChange,
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
   const [showQrMenu, setShowQrMenu] = useState(false);
+  /* Reviews live HERE rather than inside the properties panel, because the article body shows the
+     same thread and opens the same panel — two surfaces, one source. */
+  const [kbReviews, setKbReviews] = useState<KnowledgeReview[]>([]);
+  const [kbReviewsOpen, setKbReviewsOpen] = useState(false);
   const [showReviewSchedule, setShowReviewSchedule] = useState(false);
   // Dev toggle: preview the page as the REQUESTER sees it (article-only, no internal chrome).
   const [viewAsRequester, setViewAsRequester] = useState(false);
@@ -1279,6 +1285,63 @@ onStackMinimizedChange,
     `Review Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
     `Publish Approval: ${activeTicket?.subject ?? 'Knowledge Article'}`,
   ];
+
+  /* AI summary for the technician view — composed from the article's OWN state (status, folder,
+     readership, feedback, relations, approvals, review schedule) so it can never contradict the
+     tabs and right rail it is summarising. Every number here is the same one those surfaces show. */
+  const knowledgeAi = (() => {
+    const kb = activePatchRecord?.knowledge;
+    const title = (activeTicket?.subject ?? 'this topic').replace(/\.$/, '');
+    const status = activeTicket?.id ? (KB_STATUS[activeTicket.id] ?? 'Published') : 'Published';
+    const folder = kb?.folder ?? null;
+    const reads = kb?.totalRead ?? 0;
+    const [helpful, notHelpful] = KB_FEEDBACK[activeTicket?.id ?? ''] ?? [0, 0];
+    const votes = helpful + notHelpful;
+    const pct = votes ? Math.round((helpful / votes) * 100) : null;
+    const author = kb?.author ?? 'the author';
+
+    // Relations broken down by module, so the point names what the article actually affects.
+    const byType = knowledgeRelations.reduce<Record<string, number>>((acc, r: any) => {
+      const t = r?.type ?? 'Record';
+      acc[t] = (acc[t] || 0) + 1;
+      return acc;
+    }, {});
+    const relBreakdown = Object.entries(byType)
+      .map(([t, n]) => `${n} ${t}${n > 1 ? 's' : ''}`)
+      .join(', ');
+
+    /* First paragraph = what the article actually says, read off its own blocks. Second = how it
+       is doing, so "what it covers" and "can I trust it" stay separate thoughts. */
+    const summary = summarizeArticle(activeTicket?.id ?? '', title);
+
+    const context =
+      `Currently ${status.toLowerCase()}${folder ? ` in ${folder}` : ''}` +
+      `${reads ? `, opened ${reads.toLocaleString()} times` : ''}` +
+      `${pct !== null ? ` with ${pct}% of ${votes} readers finding it helpful` : ''}.`;
+
+    const points: string[] = [];
+
+    // Feedback first — it is the strongest signal that the content itself needs work.
+    if (notHelpful > 0) {
+      points.push(`${notHelpful} of ${votes} readers marked this unhelpful, which usually points at the troubleshooting section rather than the steps.`);
+    } else if (votes > 0) {
+      points.push(`No unhelpful votes so far — all ${votes} readers rated this useful.`);
+    }
+
+    points.push('Review and publish approvals are both complete, so the current text is the approved version.');
+
+    if (knowledgeRelations.length) {
+      points.push(`Linked to ${knowledgeRelations.length} records (${relBreakdown}) — edits here change what those tickets point technicians at.`);
+    }
+
+    points.push(
+      savedSchedule
+        ? `A ${savedSchedule.type.toLowerCase()} review schedule is active with a ${savedSchedule.gracePeriod}-day grace period, so the content gets re-verified on a cadence.`
+        : `No review schedule is set, so nothing prompts anyone to re-verify this content — last updated by ${author} on 30 Jul 2026.`,
+    );
+
+    return { summary, context, points };
+  })();
   
   const drawerRef = useRef<HTMLDivElement>(null);
   const aiDropdownRef = useRef<HTMLDivElement>(null);
@@ -2554,6 +2617,25 @@ onStackMinimizedChange,
           onClose={onCloseTab}
           maxVisible={drawerWidth > 1080 ? 8 : 3}
         />
+        {/* View As lives in the drawer chrome, not the right panel: the requester view has no
+            right panel, so a switch inside it would be a one-way door out of technician view. */}
+        <div className="mr-2 flex flex-shrink-0 overflow-hidden rounded border border-[#DFE5ED] bg-white">
+          {(['Technician', 'Requester'] as const).map((v, i) => {
+            const active = (v === 'Requester') === viewAsRequester;
+            return (
+              <button
+                key={v}
+                onClick={() => {
+                  setViewAsRequester(v === 'Requester');
+                  if (v === 'Requester') setActiveMainTab('knowledge-article');
+                }}
+                className={`h-6 px-2.5 text-[11px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${active ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#64748B] hover:bg-[#F3F4F6]'}`}
+              >
+                {v}
+              </button>
+            );
+          })}
+        </div>
         <button onClick={() => setMinimized(true)} title="Minimize panel" className="flex-shrink-0 p-2 hover:bg-[#e5e7eb] border-l border-[#e5e7eb]"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6b7280" strokeWidth="2" strokeLinecap="round"/></svg></button>
         <button
           onClick={toggleDrawerView}
@@ -3015,16 +3097,46 @@ onStackMinimizedChange,
             </div>
             )}
 
+            {/* Technician-only: the requester gets the article, not an assessment of it. */}
+            {/* Wrapper matches the article body's 860px cap + 24px gutters, so the summary and the
+                article share a left and right edge. */}
+            {activeMainTab === 'knowledge-article' && !viewAsRequester && (
+              <div className="max-w-[908px] px-6 pt-6">
+                <KnowledgeAiSummary
+                  summary={knowledgeAi.summary}
+                  context={knowledgeAi.context}
+                  points={knowledgeAi.points}
+                />
+              </div>
+            )}
+
             {activeMainTab === 'knowledge-article' && (
               <KnowledgeArticleContent
                 articleId={activeTicket.id}
                 title={activeTicket.subject}
                 centered={viewAsRequester}
+                showAiSummary={viewAsRequester}
+                review={viewAsRequester ? (() => {
+                  // The requester only ever sees requester-authored reviews — same filter the panel applies.
+                  const visible = kbReviews.filter((r) => r.role === 'requester');
+                  return {
+                    count: visible.length,
+                    lastBy: visible[0]?.author,
+                    lastWhen: visible[0]?.when,
+                    onOpen: () => setKbReviewsOpen(true),
+                  };
+                })() : undefined}
                 masthead={viewAsRequester ? {
                   author: activePatchRecord?.knowledge?.author ?? 'Unassigned',
                   created: activePatchRecord?.knowledge?.created ? shortDT(activePatchRecord.knowledge.created) : null,
                   ago: relativeAge(activePatchRecord?.knowledge?.created),
                   folder: activePatchRecord?.knowledge?.folder ?? null,
+                  updated: 'Jul 30, 2026',
+                  /* Same source the right panel's Analytics card used before it was retired from
+                     this view, so the numbers stay the ones the technician sees. */
+                  totalRead: activePatchRecord?.knowledge?.totalRead ?? 0,
+                  helpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[0] ?? 0,
+                  notHelpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[1] ?? 0,
                 } : undefined}
               />
             )}
@@ -8125,7 +8237,10 @@ onStackMinimizedChange,
             )}
           </div>
 
-          {/* Right Sidebar - Properties */}
+          {/* Right Sidebar — TECHNICIAN only. Everything the requester needed from it now lives in
+              the article: readership in the masthead strip, Reviews in the feedback zone, author /
+              date / folder in the byline. What is left is authoring chrome. */}
+          {!viewAsRequester && (
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
@@ -8138,11 +8253,10 @@ onStackMinimizedChange,
             packageDeployMode={true}
             knowledgeMode={true}
             knowledgeRequesterView={viewAsRequester}
-            onKnowledgeRequesterViewChange={(requester) => {
-              setViewAsRequester(requester);
-              // The requester has only the article — land there when switching.
-              if (requester) setActiveMainTab('knowledge-article');
-            }}
+            knowledgeReviewItems={kbReviews}
+            onKnowledgeReviewsChange={setKbReviews}
+            knowledgeReviewsOpen={kbReviewsOpen}
+            onKnowledgeReviewsOpenChange={setKbReviewsOpen}
             knowledgeAnalytics={{
               helpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[0] ?? 0,
               notHelpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[1] ?? 0,
@@ -8387,9 +8501,28 @@ onStackMinimizedChange,
             }}
             onboardingStep={showOnboarding ? onboardingStep : undefined}
           />
+          )}
         </div>
       </div>
-      
+
+      {/* The technician's reviews panel lives inside the properties rail, which the requester does
+          not get — so the requester view renders its own, over the same thread. */}
+      {viewAsRequester && (
+        <ArticleReviewsPanel
+          open={kbReviewsOpen}
+          onClose={() => setKbReviewsOpen(false)}
+          reviews={kbReviews.filter((r) => r.role === 'requester').map((r) => ({ ...r, own: r.author === 'Sarah Johnson' }))}
+          onAdd={(text) => {
+            setKbReviews((prev) => [{ id: 'r-' + Date.now(), author: 'Sarah Johnson', initials: 'SJ', color: '#22A06B', when: 'Just now', role: 'requester', text }, ...prev]);
+            toast.success('Review added');
+          }}
+          onDelete={(id) => {
+            setKbReviews((prev) => prev.filter((r) => r.id !== id));
+            toast.success('Review deleted');
+          }}
+        />
+      )}
+
       {/* Service Catalog Popup */}
       {showServiceCatalog && (
         <>

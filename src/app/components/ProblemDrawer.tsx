@@ -11,7 +11,6 @@ import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
-import { VipPill, isVipRequester } from './VipPill';
 import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
@@ -2449,12 +2448,6 @@ onStackActiveGroupChange,
             </h1>
             {/* Main properties — quick-glance KPIs below the subject */}
             {(() => {
-              const affected = [
-                { label: 'Incident', count: 12 },
-                { label: 'Asset', count: 4 },
-                { label: 'Change', count: 2 },
-              ];
-              const affectedTotal = affected.reduce((a, b) => a + b.count, 0);
               const items: HeaderKpiItem[] = [
                 { key: 'status', tip: `Status: ${selectedStatus}`, node: (
                   <span className="inline-flex items-center gap-1.5">
@@ -2479,49 +2472,15 @@ onStackActiveGroupChange,
                     <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
                   </span>
                 ) },
-                { key: 'rootcause', tip: 'Root Cause: Identified', node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Root Cause</span>
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#22A06B]" />
-                    <span className="text-[12px] font-medium text-[#364658]">Identified</span>
-                  </span>
-                ) },
-                { key: 'affected', tip: `Affected: ${affectedTotal}`, node: (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-1.5 cursor-default">
-                        <span className="text-[11px] text-[#7B8FA5]">Affected</span>
-                        <span className="size-2 rounded-full flex-shrink-0 bg-[#3D8BD0]" />
-                        <span className="text-[12px] font-medium text-[#364658]">{affectedTotal}</span>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="flex flex-col gap-1">
-                        <div className="text-[11px] text-[#9CA3AF] mb-0.5">Affected records</div>
-                        {affected.map((a) => (
-                          <div key={a.label} className="flex items-center justify-between gap-6 text-[12px]">
-                            <span>{a.label}</span>
-                            <span className="font-semibold">{a.count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                ) },
-                { key: 'workaround', tip: 'Workaround: Available', node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Workaround</span>
-                    <span className="size-2 rounded-full flex-shrink-0 bg-[#22A06B]" />
-                    <span className="text-[12px] font-medium text-[#364658]">Available</span>
-                  </span>
-                ) },
               ];
-              /* SLA / approval state reads as tinted alert pills, not label:value KPIs. */
+              /* SLA / approval state reads as tinted alert pills, not label:value KPIs.
+                 "Awaiting Requester" is dropped here — a problem record is worked by engineering
+                 against a root cause, not held open waiting on a requester to reply. */
               items.push(...alertKpiItems(getHeaderAlerts({
                 id: activeProblem?.id,
                 status: selectedStatus,
                 approvalsPending: approvalsCount,
-              })));
+              }).filter((a) => a.key !== 'awaiting')));
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
@@ -2938,7 +2897,6 @@ onStackActiveGroupChange,
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <button onClick={() => setShowRequesterProfile(true)} className="text-[14px] font-semibold text-[#364658] hover:text-[#3D8BD0] hover:underline transition-colors">{activeProblem?.id === 'PBM-608' ? 'Arnav Desai' : activeProblem.requester}</button>
-                    {isVipRequester(activeProblem?.id === 'PBM-608' ? 'Arnav Desai' : activeProblem.requester) && <VipPill />}
                     <span className="text-[12px] text-[#6b7280]">Created at 26/02/2025 15:02 (6 days ago)</span>
                     <div
                       onClick={() => {

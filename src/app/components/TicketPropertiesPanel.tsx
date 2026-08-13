@@ -19,6 +19,18 @@ import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAss
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
+/** One written review of a knowledge article. Technician reviews are internal; requester reviews
+ *  are public, and the requester preview filters to those. */
+export interface KnowledgeReview {
+  id: string;
+  author: string;
+  initials: string;
+  color: string;
+  when: string;
+  text: string;
+  role: 'technician' | 'requester';
+}
+
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
   fieldsTitle?: string;
@@ -61,9 +73,12 @@ interface TicketPropertiesPanelProps {
   knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number };
   /** Knowledge page requester preview: internal (technician) reviews are hidden. */
   knowledgeRequesterView?: boolean;
-  /** Knowledge page: setter for the Technician/Requester preview switch rendered under
-   *  Knowledge Properties. Omit it and the switch is not rendered at all. */
-  onKnowledgeRequesterViewChange?: (requester: boolean) => void;
+  /* Reviews lifted to the host drawer so the article body and this panel share one thread.
+     Omit them and the panel keeps its own state, as every other module does. */
+  knowledgeReviewItems?: KnowledgeReview[];
+  onKnowledgeReviewsChange?: React.Dispatch<React.SetStateAction<KnowledgeReview[]>>;
+  knowledgeReviewsOpen?: boolean;
+  onKnowledgeReviewsOpenChange?: (open: boolean) => void;
   // V2 ticket page (TicketDrawerV2): compact 7-field Ticket Fields accordion — extra fields
   // always visible, no View more / System Fields (those move to the Incident Details tab)
   compactTicketFields?: boolean;
@@ -342,6 +357,8 @@ interface TicketPropertiesPanelProps {
   onOpenRequesterProfile?: () => void;
   // Requester whose details populate the Requester Information accordion
   requesterName?: string;
+  /** VIP is a Request-page concept — Problem/Change/Release do not surface it. */
+  showVip?: boolean;
 }
 
 const REQUESTER_COLORS = ['#3D8BD0', '#E67E22', '#8B5CF6', '#10B981', '#EC4899', '#F59E0B', '#6366F1', '#14B8A6'];
@@ -381,7 +398,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     knowledgeInfo,
     knowledgeAnalytics,
     knowledgeRequesterView = false,
-    onKnowledgeRequesterViewChange,
+    knowledgeReviewItems,
+    onKnowledgeReviewsChange,
+    knowledgeReviewsOpen,
+    onKnowledgeReviewsOpenChange,
     compactTicketFields = false,
     hideAdditionalFields = false,
     assetState,
@@ -392,6 +412,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     changeCalendarEvents,
     changeCalendarTitle = 'Change Calendar',
     requesterName,
+    showVip = false,
     activeGroup,
     setActiveGroup,
     showPropertiesSearch,
@@ -622,7 +643,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // always lands on the chat rather than on history.
   const [showChatHistory, setShowChatHistory] = useState(false);
   // Knowledge "Review" block — peer reviews left on the article.
-  const [showReviewsPanel, setShowReviewsPanel] = useState(false);
+  const [showReviewsPanelLocal, setShowReviewsPanelLocal] = useState(false);
+  const showReviewsPanel = knowledgeReviewsOpen ?? showReviewsPanelLocal;
+  const setShowReviewsPanel = onKnowledgeReviewsOpenChange ?? setShowReviewsPanelLocal;
   const [reviewDraft, setReviewDraft] = useState('');
   // Rich review composer — uncontrolled contentEditable (same recipe as the approval comments
   // popup: never re-write its HTML while typing or the caret jumps to the start).
@@ -651,7 +674,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     document.addEventListener('selectionchange', onSelectionChange);
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
-  const [addedReviews, setAddedReviews] = useState<{ id: string; author: string; initials: string; color: string; when: string; text: string; role: 'technician' | 'requester' }[]>([]);
+  /* Reviews can be LIFTED to the host drawer (the Knowledge page does this, so its article body
+     can show the same thread and open the same panel). Uncontrolled everywhere else. */
+  const [addedReviewsLocal, setAddedReviewsLocal] = useState<KnowledgeReview[]>([]);
+  const addedReviews = knowledgeReviewItems ?? addedReviewsLocal;
+  const setAddedReviews = onKnowledgeReviewsChange ?? setAddedReviewsLocal;
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   // Chats the user deleted from the history screen (ids removed from the seeded list).
   const [removedChatIds, setRemovedChatIds] = useState<Set<string>>(new Set());
@@ -2194,7 +2221,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   >
                     {deriveRequester(requesterName).name}
                   </button>
-                  {isVipRequester(deriveRequester(requesterName).name) && <VipPill size="sm" />}
+                  {showVip && isVipRequester(deriveRequester(requesterName).name) && <VipPill size="sm" />}
                 </div>
 
                 {/* Requester Details */}
@@ -2410,33 +2437,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           }
           return null;
         })}
-
-        {/* Dev-facing view switch (Knowledge page) — the article is designed for the TECHNICIAN;
-            the requester preview strips internal chrome and centres the article. It sits under
-            Knowledge Properties rather than in the header because it previews the page, it is not
-            an action on the article. */}
-        {knowledgeMode && onKnowledgeRequesterViewChange && (
-          <div className="rounded-lg border border-[#DFE5ED] bg-white p-4">
-            <div className="mb-2.5 flex items-center gap-2">
-              <Eye size={16} className="text-[#4A5568]" />
-              <span className="text-[13px] font-semibold text-[#364658]">View As</span>
-            </div>
-            <div className="flex overflow-hidden rounded border border-[#DFE5ED]">
-              {(['Technician', 'Requester'] as const).map((v, i) => {
-                const active = (v === 'Requester') === knowledgeRequesterView;
-                return (
-                  <button
-                    key={v}
-                    onClick={() => onKnowledgeRequesterViewChange(v === 'Requester')}
-                    className={`h-8 flex-1 text-[12px] font-medium transition-colors ${i > 0 ? 'border-l border-[#DFE5ED]' : ''} ${active ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'bg-white text-[#364658] hover:bg-[#F3F4F6]'}`}
-                  >
-                    {v}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder)
             and in V2 compact mode (the slim panel isn't meant to be reconfigured) */}

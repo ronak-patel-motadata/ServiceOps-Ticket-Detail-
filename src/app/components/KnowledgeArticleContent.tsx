@@ -1,30 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock, Folder, Printer } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Play, Maximize2, X, Clock, Folder, Printer, BookOpen, MessageSquare, ChevronRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { KB_ARTICLES, fallbackArticle, type Block } from './knowledgeArticleData';
+import { KnowledgeAiSummary } from './KnowledgeAiSummary';
+import { ArticleComments } from './ArticleComments';
+import { ArticleToc } from './ArticleToc';
 
 /* Knowledge detail page body — the article itself. The Knowledge page has NO tabs: the full
  * article is the content, ending with the Helpful / Not Helpful feedback controls. */
 
-interface Block {
-  /** p = paragraph · h = section heading · steps = ordered list · bullets = unordered list ·
-   *  note = tinted callout · code = command block · table = two-column reference ·
-   *  image = captioned screenshot (click to zoom) · video = captioned player */
-  kind: 'p' | 'h' | 'steps' | 'bullets' | 'note' | 'warn' | 'code' | 'table' | 'image' | 'video';
-  text?: string;
-  items?: string[];
-  rows?: [string, string][];
-  /** image/video: caption under the figure */
-  caption?: string;
-  /** video: runtime badge, e.g. "2:14" */
-  duration?: string;
-  /** image/video: which inline mock to draw (no real assets in this prototype) */
-  art?: 'client' | 'portal';
-  /** video: real YouTube id. Swap this for the product's own video — everything else follows. */
-  youtubeId?: string;
-}
+/* Article content and the per-article AI summaries live in knowledgeArticleData.ts — this file
+ * is the renderer for them. */
+
 
 /* Stand-in video until the product's own is available — Blender's 'Big Buck Bunny', the
  * industry-standard sample clip. Replace this id (or set youtubeId on a block) to use a real one. */
@@ -142,96 +132,10 @@ function ScreenshotArt({ variant = 'client', dim = false }: { variant?: 'client'
   );
 }
 
-/** A full-length article. Keyed loosely on the id so different articles read differently;
- *  everything falls back to the generic VPN-style walkthrough. */
-const ARTICLES: Record<string, Block[]> = {
-  'KB-1': [
-    { kind: 'p', text: 'This article explains how to connect to the company VPN from a remote location so you can reach internal resources — file shares, line-of-business applications and the intranet — exactly as you would from the office. It covers first-time setup, day-to-day connection, and the issues our service desk sees most often.' },
-    { kind: 'video', duration: '10:34', caption: 'Watch the full setup — installing the client, signing in, and approving the authentication prompt.' },
-    { kind: 'h', text: 'Before you begin' },
-    { kind: 'bullets', items: [
-      'A company-managed laptop with the corporate device certificate installed.',
-      'Your company email address and password.',
-      'Multi-factor authentication enrolled on your phone (see "Setting Up Multi-Factor Authentication").',
-      'A stable internet connection — a hotel or café network is fine, but avoid captive portals that block VPN traffic.',
-    ] },
-    { kind: 'h', text: 'Installing the VPN client' },
-    { kind: 'steps', items: [
-      'Open the Software Portal from your desktop shortcut, or browse to the Package Management section of the service portal.',
-      'Search for "VPN Client" and click Install. The package is approved for all employees, so no additional approval is required.',
-      'Wait for the installation to finish — it usually takes under two minutes. The client appears in your Start menu as "Company VPN".',
-      'Restart your machine if prompted. The virtual network adapter is only registered after a restart.',
-    ] },
-    { kind: 'h', text: 'Connecting for the first time' },
-    { kind: 'steps', items: [
-      'Launch the Company VPN client from the Start menu.',
-      'Enter the server address: vpn.company.com',
-      'Sign in with your company email address and password.',
-      'Approve the multi-factor authentication prompt on your phone.',
-      'Wait for the status to change to Connected. The tray icon turns green.',
-    ] },
-    { kind: 'image', art: 'client', caption: 'Figure 1 — the VPN client after a successful connection. The status pill turns green and the tray icon follows.' },
-    { kind: 'note', text: 'Once connected you have secure access to internal resources including file shares, internal applications and the intranet. Your internet browsing continues to use your local connection, so streaming and video calls are not slowed down by the tunnel.' },
-    { kind: 'h', text: 'Reconnecting day to day' },
-    { kind: 'p', text: 'After the first successful sign-in the client remembers the server address and your username. On subsequent days you only need to launch the client, click Connect, and approve the authentication prompt. Sessions expire after twelve hours or when the laptop sleeps for an extended period, so reconnecting each morning is normal and expected.' },
-    { kind: 'h', text: 'Troubleshooting' },
-    { kind: 'p', text: 'If the connection fails, work through these checks in order before raising a ticket. The majority of VPN issues are resolved by one of the first three.' },
-    { kind: 'steps', items: [
-      'Verify your internet connection is stable — open any public website in a browser.',
-      'Confirm the VPN client is updated to the latest version from the Software Portal.',
-      'Restart the client completely. Right-click the tray icon and choose Exit, then relaunch it.',
-      'If you are on a hotel or public network, open a browser first and accept the network terms page, then retry.',
-      'Check that your device clock is correct. A clock more than five minutes out will cause certificate validation to fail.',
-      'Restart your machine. This clears a stale virtual adapter, which is the most common cause of a connection that hangs at "Connecting…".',
-    ] },
-    { kind: 'warn', text: 'If you see "Certificate validation failed", do not attempt to bypass the warning. Raise a ticket with the service desk — your device certificate may have expired and needs to be reissued.' },
-    { kind: 'h', text: 'Common error messages' },
-    { kind: 'table', rows: [
-      ['Authentication failed', 'Your password has expired or was recently changed. Sign in to the portal to reset it, then retry.'],
-      ['Server unreachable', 'The client cannot resolve vpn.company.com. Check your internet connection or switch networks.'],
-      ['Certificate validation failed', 'The device certificate has expired. Raise a ticket — this cannot be fixed locally.'],
-      ['Session timed out', 'Your twelve-hour session expired. Simply reconnect.'],
-      ['Already connected', 'A previous session did not close cleanly. Exit the client from the tray and relaunch.'],
-    ] },
-    { kind: 'h', text: 'Checking your connection' },
-    { kind: 'p', text: 'To confirm you are routed through the tunnel, open a command prompt and run the following. The address returned should be inside the corporate range.' },
-    { kind: 'code', text: 'ipconfig /all | findstr "Company VPN"' },
-    { kind: 'h', text: 'Getting further help' },
-    { kind: 'p', text: 'If none of the steps above resolve the issue, raise a ticket with the service desk and include the exact error message, the network you are connecting from, and the time the failure occurred. Attaching a screenshot of the client window speeds up diagnosis considerably.' },
-  ],
-};
-
-const GENERIC = (title: string): Block[] => [
-  { kind: 'p', text: `This article covers ${title.toLowerCase()}. It walks through what you need before you start, the steps to follow, and what to do if something does not work as expected. Follow the steps in order — most issues are caused by skipping one of the prerequisites.` },
-  { kind: 'h', text: 'Before you begin' },
-  { kind: 'bullets', items: [
-    'A company-managed device with the latest updates applied.',
-    'Your company account credentials and multi-factor authentication enrolled.',
-    'The relevant application installed from the Software Portal.',
-  ] },
-  { kind: 'image', art: 'portal', caption: 'Figure 1 — the service portal. The left-hand menu is where each section lives.' },
-  { kind: 'h', text: 'Steps to follow' },
-  { kind: 'steps', items: [
-    'Open the service portal and sign in with your company account.',
-    'Navigate to the relevant section from the left-hand menu.',
-    'Complete the required fields, taking care to select the correct option for your department.',
-    'Review your entries, then submit. You will receive a confirmation by email within a few minutes.',
-    'Keep the reference number from the confirmation — the service desk will ask for it if you need to follow up.',
-  ] },
-  { kind: 'note', text: 'Requests raised outside business hours are picked up on the next working day unless they are marked as urgent. If the issue is stopping you from working, call the service desk directly rather than waiting on the ticket.' },
-  { kind: 'video', duration: '10:34', caption: 'A short walkthrough of the same steps, if you would rather watch than read.' },
-  { kind: 'h', text: 'If something goes wrong' },
-  { kind: 'p', text: 'Start by refreshing the page and retrying — transient errors usually clear on a second attempt. If the problem persists, sign out completely and sign back in, which resolves most session-related failures. Clearing your browser cache is worth trying before escalating.' },
-  { kind: 'steps', items: [
-    'Refresh the page and retry the action.',
-    'Sign out completely, close the browser, then sign back in.',
-    'Clear your browser cache and cookies for the portal.',
-    'Try a different browser to rule out an extension conflict.',
-  ] },
-  { kind: 'warn', text: 'Never share your credentials with a colleague to work around an access problem. Raise an access request instead — sharing accounts breaches the Acceptable Use Policy and makes issues far harder to trace.' },
-  { kind: 'h', text: 'Getting further help' },
-  { kind: 'p', text: 'If the steps above do not resolve the issue, raise a ticket with the service desk. Include the exact error message, what you were trying to do, and the time it happened. Screenshots are always helpful and usually remove a round trip of questions.' },
-];
+/** The authored summary for an article, or a generic one derived from its title. */
+export function summarizeArticle(articleId: string, title: string): string[] {
+  return (KB_ARTICLES[articleId] ?? fallbackArticle(title)).summary;
+}
 
 /** Article metadata for the requester masthead — the byline the reader sees instead of a
  *  product header bar. */
@@ -242,6 +146,13 @@ export interface ArticleMasthead {
   /** Relative recency, e.g. "1 month ago". */
   ago?: string | null;
   folder?: string | null;
+  /** Last edit, e.g. "Jul 30, 2026" — the freshness signal that used to live in Knowledge Properties. */
+  updated?: string | null;
+  /* Readership, shown as a stat group in the header. These live in the right panel's Analytics
+     card today; the requester view is migrating them into the article so the panel can go. */
+  totalRead?: number;
+  helpful?: number;
+  notHelpful?: number;
 }
 
 /** Rough reading time, the way every reading app does it: words ÷ 200 wpm, floored at 1 min. */
@@ -253,7 +164,7 @@ function readingMinutes(blocks: Block[]) {
   return Math.max(1, Math.round(words / 200));
 }
 
-export function KnowledgeArticleContent({ articleId, title, centered = false, masthead }: {
+export function KnowledgeArticleContent({ articleId, title, centered = false, masthead, showAiSummary = false, review }: {
   articleId: string;
   title: string;
   /** Requester preview: portal-style centred reading column. */
@@ -261,11 +172,18 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
   /** Requester preview: render the title + byline at the top of the column. The technician view
    *  keeps its product header instead, so this is only passed there. */
   masthead?: ArticleMasthead;
+  /** Requester preview: the AI summary sits inside the reading column, under the masthead. The
+   *  technician view renders its own above this component, with the operational key points the
+   *  requester has no tabs for. */
+  showAiSummary?: boolean;
+  /** Requester preview: the Reviews entry point, migrated out of the right panel. The drawer owns
+   *  the thread and opens the panel, so this only needs the summary and a handler. */
+  review?: { count: number; lastBy?: string; lastWhen?: string; onOpen: () => void };
 }) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
   // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
   const [lightbox, setLightbox] = useState<{ caption?: string; art?: 'client' | 'portal' } | null>(null);
-  const blocks = ARTICLES[articleId] ?? GENERIC(title);
+  const blocks: Block[] = (KB_ARTICLES[articleId] ?? fallbackArticle(title)).blocks;
 
   const castVote = (v: 'up' | 'down') => {
     setVote(v);
@@ -280,8 +198,20 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
   const heading = centered ? 'mb-3 mt-10 text-[20px]' : 'mb-2.5 mt-7 text-[15px]';
   const caption = centered ? 'text-[13px]' : 'text-[12px]';
 
+  // Section rail entries — the article's own headings, in document order.
+  const tocSections = blocks
+    .map((b, i) => (b.kind === 'h' && b.text ? { id: `art-sec-${i}`, text: b.text } : null))
+    .filter(Boolean) as { id: string; text: string }[];
+
   return (
-    <div className={centered ? 'px-10 py-10' : 'px-6 py-6'}>
+    <div className={`relative ${centered ? 'px-10 py-10' : 'px-6 py-6'}`}>
+      {/* The rail rides a zero-width column spanning the article's full height, so its sticky
+          child can park mid-viewport for the whole scroll without reserving any layout width. */}
+      <div className="pointer-events-none absolute inset-y-0 right-4 z-20 w-0">
+        <div className="pointer-events-auto sticky top-1/2 -translate-y-1/2">
+          <ArticleToc sections={tocSections} />
+        </div>
+      </div>
       <article className={centered ? 'mx-auto max-w-[760px]' : 'max-w-[860px]'}>
         {/* Requester masthead — the article owns its own title and byline, so the reading column
             opens like a published article rather than a record behind a product chrome bar. */}
@@ -300,6 +230,8 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
               </>,
             );
           }
+          // "Is this still current?" is the question a reader asks before trusting a KB article.
+          if (masthead.updated) meta.push(`Updated ${masthead.updated}`);
           meta.push(`${readingMinutes(blocks)} min read`);
           if (masthead.folder) {
             meta.push(
@@ -320,26 +252,52 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
               {/* At 24px the avatar reads as part of the author's NAME line rather than as a
                   block sitting beside two lines, so it pairs with the name and the meta line
                   indents to align under it. */}
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[10px] font-semibold text-white">
-                      {initials}
-                    </span>
-                    <span className="truncate text-[13px] font-semibold text-[#1E293B]">{masthead.author}</span>
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 pl-8 text-[12px] text-[#7B8FA5]">
+              {/* Byline does ONE job: who wrote this, and when. Readership and reader actions
+                  used to crowd onto this row too, which made three unrelated things compete for
+                  the same line. */}
+              <div className="mt-4 flex min-w-0 items-center gap-2">
+                <span className="flex size-6 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[10px] font-semibold text-white">
+                  {initials}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-semibold leading-tight text-[#1E293B]">{masthead.author}</span>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] leading-tight text-[#7B8FA5]">
                     {meta.map((m, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5">
                         {i > 0 && <span className="text-[#CBD5E1]">·</span>}
                         {m}
                       </span>
                     ))}
-                  </div>
+                  </span>
+                </span>
+              </div>
+
+              {/* Readership on the left, reader actions on the right, in a rule-bounded strip
+                  under the byline — the bar every reading site puts there, and the reason the
+                  header reads as three calm rows instead of one crowded one. */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-y border-[#E5E7EB] py-2.5">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+                  {(() => {
+                    const { totalRead, helpful, notHelpful } = masthead;
+                    const stats: { key: string; icon: typeof BookOpen; value: number; label: string; color: string; tip: string }[] = [];
+                    if (totalRead != null) stats.push({ key: 'read', icon: BookOpen, value: totalRead, label: 'reads', color: '#64748B', tip: `Opened ${totalRead.toLocaleString()} times` });
+                    if (helpful != null) stats.push({ key: 'up', icon: ThumbsUp, value: helpful, label: 'helpful', color: '#067647', tip: `${helpful} readers found this helpful` });
+                    if (notHelpful != null) stats.push({ key: 'down', icon: ThumbsDown, value: notHelpful, label: 'not helpful', color: '#B42318', tip: `${notHelpful} readers did not find this helpful` });
+                    return stats.map((s) => (
+                      <Tooltip key={s.key}>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex cursor-default items-center gap-1.5">
+                            <s.icon size={14} style={{ color: s.color }} className="flex-shrink-0" />
+                            <span className="text-[13px] font-semibold tabular-nums" style={{ color: s.color }}>{s.value.toLocaleString()}</span>
+                            <span className="text-[12px] text-[#7B8FA5]">{s.label}</span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{s.tip}</TooltipContent>
+                      </Tooltip>
+                    ));
+                  })()}
                 </div>
-                {/* Reader actions sit with the byline, where sharing and printing belong on an
-                    article — not in a header bar the requester no longer has. */}
-                <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+                <div className="flex flex-shrink-0 items-center gap-2">
                   <HeaderCopyButton variant="link" value={articleId} label="Copy article link" />
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -354,15 +312,24 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
                   </Tooltip>
                 </div>
               </div>
-              <div className="mt-6 border-t border-[#E5E7EB]" />
             </header>
           );
         })()}
 
+        {/* Requester summary — the article's own content only. There are no relations, approvals
+            or review schedule in this view, so none of the operational key points the technician
+            summary carries would mean anything here. */}
+        {showAiSummary && (
+          <div className="mb-8">
+            <KnowledgeAiSummary summary={summarizeArticle(articleId, title)} />
+          </div>
+        )}
+
         {blocks.map((b, i) => {
           switch (b.kind) {
             case 'h':
-              return <h2 key={i} className={`${heading} font-semibold text-[#1E293B] first:mt-0`}>{b.text}</h2>;
+              // scroll-mt keeps a jumped-to heading off the very top edge of the scroll container.
+              return <h2 key={i} id={`art-sec-${i}`} className={`${heading} scroll-mt-6 font-semibold text-[#1E293B] first:mt-0`}>{b.text}</h2>;
             case 'steps':
               return (
                 <ol key={i} className={centered ? 'mb-5 space-y-3' : 'mb-4 space-y-2'}>
@@ -474,7 +441,46 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
             </button>
             {vote && <span className="text-[12px] text-[#7B8FA5]">Thanks for your feedback.</span>}
           </div>
+
+          {/* Reviews — a written review is the long-form version of the vote directly above, so
+              it belongs in the same feedback zone rather than floating at the top of a rail. */}
+          {review && (
+            <button
+              onClick={review.onOpen}
+              className={`mt-3 flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
+                review.count === 0
+                  ? 'border border-dashed border-[#DFE5ED] bg-[#F9FAFB] hover:border-[#3D8BD0] hover:bg-[#F5F9FD]'
+                  : 'bg-[#F9FAFB] hover:bg-[#F1F5F9]'
+              }`}
+            >
+              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
+                <MessageSquare size={17} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-[#364658]">
+                  {review.count === 0 ? 'Review this article' : 'Reviews'}
+                  {review.count > 0 && (
+                    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#3D8BD0] px-1 text-[11px] font-semibold text-white">
+                      {review.count}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] text-[#7B8FA5]">
+                  {review.count === 0
+                    ? 'No reviews yet — tell the author what could be clearer'
+                    : `Last by ${review.lastBy} · ${review.lastWhen}`}
+                </span>
+              </span>
+              {review.count === 0
+                ? <Plus size={16} className="flex-shrink-0 text-[#3D8BD0]" />
+                : <ChevronRight size={16} className="flex-shrink-0 text-[#9CA3AF]" />}
+            </button>
+          )}
         </div>
+
+        {/* Reader thread. Sits after the helpful vote, so the page ends: read it, rate it, discuss
+            it — each step asking a little more of the reader than the last. */}
+        <ArticleComments articleId={articleId} />
       </article>
 
       {/* Lightbox — click the backdrop or ✕ to close; Esc-free by design (prototype). */}

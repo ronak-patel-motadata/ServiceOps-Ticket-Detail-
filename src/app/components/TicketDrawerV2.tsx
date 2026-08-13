@@ -16,6 +16,8 @@ import { IncidentDetailsTabV2 } from './IncidentDetailsTabV2';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
+import { DescriptionAttachments, type AttachmentFile } from './DescriptionAttachments';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
@@ -133,6 +135,32 @@ interface TicketDrawerProps {
   stackActiveGroup?: string;
   onStackActiveGroupChange?: (g: string) => void;
 }
+
+/* Files attached to the request description — V2 keeps its own copy so V1's list can change
+   independently. INC-32 is the connectivity outage and carries only the diagnostic exports its
+   description refers to; other requests get the fuller onboarding/hardware set. */
+const OUTAGE_ATTACHMENTS_V2: AttachmentFile[] = [
+  { name: 'network-diagnosis.pdf', size: '2 MB' },
+  { name: 'task-changes.doc', size: '674 KB' },
+];
+
+const REQUEST_ATTACHMENTS_V2: AttachmentFile[] = [
+  { name: 'task-changes.doc', size: '674 KB' },
+  { name: 'network-diagnosis.pdf', size: '2 MB' },
+  { name: 'asset-allocation-form.pdf', size: '486 KB' },
+  { name: 'onboarding-checklist.xlsx', size: '128 KB' },
+  { name: 'workstation-photo.png', size: '3.4 MB' },
+  { name: 'software-request-approval.msg', size: '96 KB' },
+  { name: 'hardware-quotation-dell.pdf', size: '1.2 MB' },
+  { name: 'id-verification.jpg', size: '2.8 MB' },
+  { name: 'desk-setup-diagram.png', size: '1.6 MB' },
+  { name: 'it-policy-acknowledgement.pdf', size: '342 KB' },
+  { name: 'previous-ticket-export.csv', size: '54 KB' },
+  { name: 'vpn-config-backup.zip', size: '8.1 MB' },
+];
+
+const descriptionAttachmentsForV2 = (id?: string) =>
+  id === 'INC-32' ? OUTAGE_ATTACHMENTS_V2 : REQUEST_ATTACHMENTS_V2;
 
 // Demo tasks organised into workflow stages so the Tasks tab shows its stage stepper.
 const DEMO_STAGED_TASKS: any[] = [
@@ -339,6 +367,8 @@ onStackActiveGroupChange,
   const [showToneSubmenuNote, setShowToneSubmenuNote] = useState(false);
   const [showRequesterDetails, setShowRequesterDetails] = useState(true);
   const [highlightAttachments, setHighlightAttachments] = useState(false);
+  // Clicking a description attachment opens the shared centered preview.
+  const [previewAttachment, setPreviewAttachment] = useState<{ name: string; size?: string } | null>(null);
   const [showCreateApprovalPopup, setShowCreateApprovalPopup] = useState(false);
   const [showKbArticles, setShowKbArticles] = useState(false);
   
@@ -2689,7 +2719,7 @@ onStackActiveGroupChange,
                       style={{ display: activeTicket?.id === 'INC-35' ? 'none' : 'flex' }}
                     >
                       <Paperclip size={12} />
-                      <span>2</span>
+                      <span>{descriptionAttachmentsForV2(activeTicket?.id).length}</span>
                     </div>
                   </div>
                   <p className="text-[14px] text-[#364658] leading-relaxed">
@@ -2779,60 +2809,27 @@ onStackActiveGroupChange,
                       )
                     )}
                   </p>
+                  {/* Attachments */}
+                  {isDescriptionExpanded && activeTicket?.id !== 'INC-35' && (
+                  <div id="attachments-section" className="scroll-mt-4">
+                    <DescriptionAttachments
+                      files={descriptionAttachmentsForV2(activeTicket?.id)}
+                      highlight={highlightAttachments}
+                      onPreview={setPreviewAttachment}
+                    />
+                  </div>
+                  )}
+
+                  {/* Collapse control closes the expanded block, so it sits after everything the
+                      expansion revealed — the description AND its attachments. */}
                   {isDescriptionExpanded && (
-                    <button 
+                    <button
                       onClick={() => setIsDescriptionExpanded(false)}
                       className="mt-3 inline-flex items-center gap-1 px-2.5 py-1 rounded border border-[#DFE5ED] bg-[#F5F9FD] text-[13px] font-semibold text-[#3D8BD0] hover:bg-[#EBF3FB] hover:border-[#3D8BD0] transition-colors"
                     >
                       View less
                       <ChevronUp size={14} />
                     </button>
-                  )}
-                  
-                  {/* Attachments */}
-                  {isDescriptionExpanded && activeTicket?.id !== 'INC-35' && (
-                  <div id="attachments-section" className="mt-3 flex items-center gap-2 scroll-mt-4">
-                    <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                      highlightAttachments 
-                        ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
-                        : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                    }`}>
-                      <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#364658] font-medium">task-changes.doc</span>
-                        <span className="text-[10px] text-[#7B8FA5]">674 KB</span>
-                      </div>
-                      {/* Hover Actions */}
-                      <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                        <button className="p-1 hover:bg-white rounded" title="Download">
-                          <Download className="size-3.5 text-[#7B8FA5]" />
-                        </button>
-                        <button className="p-1 hover:bg-white rounded" title="Delete">
-                          <Trash2 className="size-3.5 text-[#EF4444]" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className={`group/file relative flex items-center gap-2 px-3 py-1 pr-16 rounded transition-all ${
-                      highlightAttachments 
-                        ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
-                        : 'bg-[#F5F7FA] border border-[#DFE5ED] hover:bg-[#EEF2F7]'
-                    }`}>
-                      <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#364658] font-medium">network-diagnosis.pdf</span>
-                        <span className="text-[10px] text-[#7B8FA5]">2 MB</span>
-                      </div>
-                      {/* Hover Actions */}
-                      <div className="absolute top-1/2 -translate-y-1/2 right-2 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center gap-1">
-                        <button className="p-1 hover:bg-white rounded" title="Download">
-                          <Download className="size-3.5 text-[#7B8FA5]" />
-                        </button>
-                        <button className="p-1 hover:bg-white rounded" title="Delete">
-                          <Trash2 className="size-3.5 text-[#EF4444]" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                   )}
                 </div>
               </div>
@@ -5881,6 +5878,8 @@ onStackActiveGroupChange,
             compactTicketFields
             hideAdditionalFields
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
+            requesterName={activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket?.requester}
+            showVip
             ticketId={activeTicket?.id}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
@@ -7005,7 +7004,9 @@ onStackActiveGroupChange,
         isOpen={showRequesterProfile}
         onClose={() => setShowRequesterProfile(false)}
         requesterName={activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket?.requester}
+        showVip
       />
+      <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
     </div>
   );
 }
