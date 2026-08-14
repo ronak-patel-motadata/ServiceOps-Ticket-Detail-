@@ -347,6 +347,39 @@ onStackMinimizedChange,
   // intermediate sections don't flicker through the highlight).
   const [hardwareActiveSection, setHardwareActiveSection] = useState('computer-system');
   const hwSpyPauseRef = useRef(0);
+
+  /* Hardware sections load ON DEMAND. Rendering all of them upfront meant the page fired one
+     query per section before anything was readable; as accordions, only the section a technician
+     actually opens is fetched, and only once. The first section opens by default so the tab is
+     never blank. Swap the timeout for the real request and the rest of this still holds. */
+  const [expandedHwSections, setExpandedHwSections] = useState<Set<string>>(new Set(['computer-system']));
+  const [loadedHwSections, setLoadedHwSections] = useState<Set<string>>(new Set(['computer-system']));
+  const [loadingHwSections, setLoadingHwSections] = useState<Set<string>>(new Set());
+  const loadHwSection = (id: string) => {
+    setLoadedHwSections((loaded) => {
+      if (loaded.has(id)) return loaded;
+      setLoadingHwSections((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+      setTimeout(() => {
+        setLoadedHwSections((prev) => new Set(prev).add(id));
+        setLoadingHwSections((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }, 500);
+      return loaded;
+    });
+  };
+  /** Open a section (loading it if this is the first time); collapsing never unloads it. */
+  const openHwSection = (id: string) => {
+    setExpandedHwSections((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    loadHwSection(id);
+  };
+  const toggleHwSection = (id: string) => {
+    setExpandedHwSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    if (!expandedHwSections.has(id)) loadHwSection(id);
+  };
   useEffect(() => {
     let raf = 0;
     const onScroll = (e: Event) => {
@@ -2986,6 +3019,8 @@ onStackMinimizedChange,
                     <button
                       onClick={() => {
                         setActiveMainTab('hardware');
+                        setHardwareActiveSection('os');
+                        openHwSection('os'); // arrive with the section open, not collapsed
                         setTimeout(() => {
                           document.getElementById('hw-section-os')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }, 120);
@@ -3882,6 +3917,9 @@ onStackMinimizedChange,
                     if (!isWide) setHardwareNavOpen(false);
                     setHardwareActiveSection(c.id);
                     hwSpyPauseRef.current = Date.now() + 900;
+                    // Jumping to a section opens it too — landing on a collapsed header would
+                    // make the nav look broken.
+                    openHwSection(c.id);
                     if (typeof document !== 'undefined') {
                       document.getElementById(`hw-section-${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -3953,27 +3991,63 @@ onStackMinimizedChange,
                       {q && sectionsToRender.length === 0 ? (
                         <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No properties match your search.</div>
                       ) : (
-                      <div className="space-y-8">
+                      <div className="space-y-3">
                     {sectionsToRender.map(({ section, nonRemoved, matched }) => {
                       const showEmptyState = !q && nonRemoved.length === 0;
                       const itemsToShow = matched;
+                      // A search opens every matching section; otherwise the reader is in control.
+                      const open = !!q || expandedHwSections.has(section.id);
+                      const loading = loadingHwSections.has(section.id);
+                      const ready = loadedHwSections.has(section.id) || !!q;
                       return (
-                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px]">
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <div className="flex items-center gap-2">
+                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px] rounded-lg border border-[#E5E7EB] bg-white">
+                          <div className="flex items-center justify-between gap-2 px-4 py-3">
+                            <button
+                              onClick={() => toggleHwSection(section.id)}
+                              disabled={!!q}
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                            >
                               {iconFor[section.id]}
                               <h3 className="text-[14px] font-semibold text-[#364658]">{section.label}</h3>
-                            </div>
-                            {section.addable && (
-                              <button
-                                title={`Add ${section.label}`}
-                                className="size-8 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
-                              >
-                                <Plus size={16} />
+                              {/* Count comes from the section list itself, so the header is
+                                  meaningful before the section's data is fetched. */}
+                              {nonRemoved.length > 1 && (
+                                <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EEF2F6] px-1 text-[11px] font-semibold text-[#64748B]">
+                                  {nonRemoved.length}
+                                </span>
+                              )}
+                              {loading && <span className="text-[11px] text-[#9CA3AF]">Loading…</span>}
+                            </button>
+                            <div className="flex flex-shrink-0 items-center gap-2">
+                              {section.addable && (
+                                <button
+                                  title={`Add ${section.label}`}
+                                  className="size-8 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                                >
+                                  <Plus size={16} />
+                                </button>
+                              )}
+                              <button onClick={() => toggleHwSection(section.id)} disabled={!!q} className="flex size-8 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6] disabled:opacity-40">
+                                {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
-                            )}
+                            </div>
                           </div>
 
+                          {open && (
+                          <div className="px-4 pb-4">
+                          {!ready || loading ? (
+                            /* Skeleton while the section's data is in flight — the shape of what
+                               is coming, so the card does not collapse and re-expand on arrival. */
+                            <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5 rounded-lg bg-[#F9FAFB] p-5`}>
+                              {Array.from({ length: 8 }).map((_, i) => (
+                                <div key={i} className="min-w-0">
+                                  <div className="mb-2 h-2.5 w-16 animate-pulse rounded bg-[#E5E9EF]" />
+                                  <div className="h-3 w-28 animate-pulse rounded bg-[#EEF1F5]" />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                          <>
                           {!q && section.summary && (
                             <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-4`}>
                               {section.summary.map(([label, value]) => (
@@ -4033,6 +4107,10 @@ onStackMinimizedChange,
                                 </div>
                               ))}
                             </div>
+                          )}
+                          </>
+                          )}
+                          </div>
                           )}
                         </div>
                       );
