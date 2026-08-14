@@ -275,6 +275,14 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
   }, {} as Record<string, number>);
   const presentTypes = relationTypes.filter((t) => (typeCounts[t] || 0) > 0);
 
+  /* With the "All" pill gone the pills read as sub-tabs, so one is always selected: fall back to
+     the first type that has data. Runs whenever the current selection stops being valid — a new
+     record, or relations that no longer include the selected type. */
+  useEffect(() => {
+    if (!presentTypes.length) return;
+    if (!typeFilter || !presentTypes.includes(typeFilter)) setTypeFilter(presentTypes[0]);
+  }, [presentTypes.join('|'), typeFilter]);
+
   return (
     <div className="px-6 pb-6 pt-3">
       {/* Add Relation Button - Show at top only when there are relations */}
@@ -318,18 +326,14 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 </div>
               )}
             </div>
-            {/* Wide view: filter pills (All is always first, then one per type with data) */}
+            {/* Wide view: one pill per type with data. No "All" pill — with nothing selected the
+                list already shows everything, and an active pill clears on a second click. */}
             <div className="hidden @2xl:flex items-center gap-2 flex-wrap min-w-0">
-              <button
-                onClick={() => { setTypeFilter(null); onClearTypeFilter?.(); }}
-                className={`inline-flex items-center px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${!typeFilter ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
-              >
-                All
-              </button>
               {presentTypes.map((type) => (
                 <button
                   key={type}
-                  onClick={() => setTypeFilter(typeFilter === type ? null : type)}
+                  // Sub-tab behaviour: selecting switches, it never deselects to an empty state.
+                  onClick={() => setTypeFilter(type)}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-[13px] font-medium transition-colors ${typeFilter === type ? 'bg-[#EBF5FF] border-[#3D8BD0] text-[#3D8BD0]' : 'bg-white border-[#DFE5ED] text-[#364658] hover:bg-[#F5F7FA] hover:border-[#3D8BD0]'}`}
                 >
                   {type}

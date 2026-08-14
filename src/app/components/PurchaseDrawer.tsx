@@ -6921,7 +6921,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Purchase Fields"
             assetMode={true}
             purchaseMode={true}
             assetState={assetState}
@@ -7034,6 +7033,7 @@ onStackMinimizedChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Purchase Properties"
+            additionalTitle="Purchase Information"
             showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}

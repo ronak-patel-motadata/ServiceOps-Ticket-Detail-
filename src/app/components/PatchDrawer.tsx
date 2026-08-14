@@ -7778,7 +7778,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Patch Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}

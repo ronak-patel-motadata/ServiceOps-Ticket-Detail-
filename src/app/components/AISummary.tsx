@@ -1,7 +1,8 @@
-import { Sparkles, RefreshCw, MoreVertical, StickyNote, Users, Reply, Forward, Edit, Trash2, ChevronDown, ChevronUp, Check, X, Plus, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Type } from 'lucide-react';
+import { Sparkles, MoreVertical, StickyNote, Users, Reply, Forward, Edit, Trash2, ChevronDown, ChevronUp, Check, X, Plus, Bold, Italic, Underline, List, ListOrdered, Link2, Image, Type } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+
 import { RichTextEditor } from './RichTextEditor';
+import { SummaryStaleNotice } from './SummaryStaleNotice';
 
 interface AISummaryProps {
   onRegenerate?: () => void;
@@ -27,6 +28,8 @@ export function AISummary({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [showMenu, setShowMenu] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  // Conversations have landed since the summary was written; cleared by regenerating.
+  const [hasNewConversations, setHasNewConversations] = useState(true);
   const [currentSummaryIndex, setCurrentSummaryIndex] = useState(0);
   const [generatedAt, setGeneratedAt] = useState(new Date());
   const [generatedBy, setGeneratedBy] = useState('Rakesh Rathod');
@@ -86,6 +89,7 @@ export function AISummary({
       setCurrentSummaryIndex((prev) => (prev + 1) % summaryVariations.length);
       setIsRegenerating(false);
       setGeneratedAt(new Date());
+      setHasNewConversations(false); // summary now covers the new conversations
     }, 2000);
   };
 
@@ -192,30 +196,14 @@ export function AISummary({
           </h3>
         </div>
         <div className="flex items-center gap-1">
-          <p className="text-[#7B8FA5] mr-2 text-[11px]">New conversations have been added</p>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!isExpanded) {
-                    setIsExpanded(true);
-                  }
-                  handleRegenerate();
-                }}
-                disabled={isRegenerating}
-                className="p-1.5 hover:bg-white rounded transition-colors disabled:opacity-50 group"
-              >
-                <RefreshCw 
-                  size={14} 
-                  className={`text-[#7B8FA5] group-hover:text-[#3D8BD0] transition-colors ${isRegenerating ? 'animate-spin' : ''}`} 
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Regenerate summary
-            </TooltipContent>
-          </Tooltip>
+          <SummaryStaleNotice
+            stale={hasNewConversations}
+            regenerating={isRegenerating}
+            onRegenerate={() => {
+              if (!isExpanded) setIsExpanded(true);
+              handleRegenerate();
+            }}
+          />
           <div className="relative" ref={menuRef}>
             <button
               onClick={(e) => {

@@ -213,7 +213,7 @@ export function IncidentDetailsTabV2({
           Sticky under the ~48px main tab strip while the field form scrolls (same treatment as
           the Conversation sub-tab row). */}
       <div className="sticky top-[48px] z-30 -mx-6 flex flex-wrap items-center gap-2 bg-white px-6 py-3">
-        {([['ticket', 'Request Fields'], ['additional', 'Additional Fields']] as const).map(([id, label]) => (
+        {([['ticket', 'Key Information'], ['additional', 'Additional Fields']] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => scrollToSection(id)}
@@ -273,7 +273,7 @@ export function IncidentDetailsTabV2({
       {!anyTicketMatch && !anyAdditionalMatch && noMatches}
       {anyTicketMatch && (
       <div ref={ticketSecRef} className="scroll-mt-[112px] rounded-lg border border-[#E5E7EB] bg-white p-5">
-        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Request Fields</h3>
+        <h3 className="mb-4 text-[16px] font-semibold text-[#364658]">Key Information</h3>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4">
           {controlledSelect('Status', selectedStatus, setSelectedStatus, statusOptions)}
           {controlledSelect('Priority', selectedPriority, setSelectedPriority, priorityOptions)}

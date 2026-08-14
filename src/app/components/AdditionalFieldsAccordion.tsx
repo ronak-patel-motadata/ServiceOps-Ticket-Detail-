@@ -1,11 +1,25 @@
-import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Tag, Pin as PinIcon, Maximize2, X, Search } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Fragment, useEffect, useState } from 'react';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
 import { DescriptionExpandModal } from './DescriptionExpandModal';
 import { toast } from 'sonner';
 
+/** One Key Info field as the expand popup renders it. `options` present -> a select. */
+export interface ExpandKeyField {
+  label: string;
+  value: string;
+  options?: { label: string; color?: string }[];
+  color?: string;
+}
+
 interface AdditionalFieldsAccordionProps {
+  /** Module-specific heading, e.g. "Request Information" / "Problem Information". */
+  title?: string;
+  /** Key Info fields, shown FIRST in the expand popup so it holds the whole record, not half.
+   *  Supplied by the panel, which owns their state. */
+  keyInfoFields?: ExpandKeyField[];
+  onKeyInfoChange?: (label: string, value: string) => void;
   additionalFieldsExpanded: boolean;
   setAdditionalFieldsExpanded: (expanded: boolean) => void;
   additionalFieldsTab: 'form' | 'system';
@@ -70,6 +84,9 @@ interface AdditionalFieldsAccordionProps {
 
 export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps) {
   const {
+    title = 'Additional Fields',
+    keyInfoFields = [],
+    onKeyInfoChange,
     additionalFieldsExpanded,
     setAdditionalFieldsExpanded,
     additionalFieldsTab,
@@ -123,6 +140,8 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
   const [showDescriptionExpand, setShowDescriptionExpand] = useState(false);
   // Centered popup showing ALL form fields two-per-row
   const [showExpandFields, setShowExpandFields] = useState(false);
+  // Field search inside the expand popup — matches on label.
+  const [expandQuery, setExpandQuery] = useState('');
   // User-created custom fields are editable — edited values live here,
   // falling back to the mock defaults (shared by the accordion + popup).
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
@@ -143,9 +162,17 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
       'Description': descriptionValue,
     };
     for (const f of DEMO_CUSTOM_FORM_FIELDS) d[f.label] = customVal(f.label, f.value);
+    for (const f of keyInfoFields) d[f.label] = f.value;
     setDraftFields(d);
+    setExpandQuery('');
     setShowExpandFields(true);
   };
+  /* Popup search — one predicate over every section so a query hides whole groups cleanly. */
+  const expandMatch = (label: string) => !expandQuery.trim() || label.toLowerCase().includes(expandQuery.trim().toLowerCase());
+  const shownKeyFields = keyInfoFields.filter((f) => expandMatch(f.label));
+  const BASE_EXPAND_FIELDS = ['Project Name', 'Cost Center', 'Business Unit', 'Building', 'Request Channel', 'Description'];
+  const baseFieldsShown = BASE_EXPAND_FIELDS.some(expandMatch);
+
   const applyExpandFields = () => {
     setSelectedProjectName(draftFields['Project Name']);
     setSelectedCostCenter(draftFields['Cost Center']);
@@ -158,8 +185,13 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
       for (const f of DEMO_CUSTOM_FORM_FIELDS) next[f.label] = draftFields[f.label] ?? f.value;
       return next;
     });
+    // Key Info lives in the panel's state, so it commits through the callback.
+    for (const f of keyInfoFields) {
+      const next = draftFields[f.label];
+      if (next !== undefined && next !== f.value) onKeyInfoChange?.(f.label, next);
+    }
     setShowExpandFields(false);
-    toast.success('Form fields updated');
+    toast.success('Fields updated');
   };
 
   useEffect(() => {
@@ -209,14 +241,14 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
     <div className="border border-[#DFE5ED] rounded-lg" ref={additionalFieldsRef}>
       {/* Header pins just under the panel's sticky search header (86px tall)
           while the long field list scrolls beneath it in the common panel scroll. */}
-      <div className="sticky top-[85px] z-40 rounded-t-lg bg-white">
+      <div className="sticky z-40 rounded-t-lg bg-white" style={{ top: 'var(--panel-header-h, 86px)' }}>
         <div
           onClick={() => setAdditionalFieldsExpanded(!additionalFieldsExpanded)}
           className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Tag size={16} className="text-[#364658]" />
-            <h3 className="text-[13px] font-semibold text-[#364658]">Additional Fields</h3>
+            <h3 className="text-[13px] font-semibold text-[#364658]">{title}</h3>
           </div>
           <div className="flex items-center gap-1.5">
             <Tooltip>
@@ -620,19 +652,85 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
       {showExpandFields && (
         <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowExpandFields(false)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[720px] max-h-[82vh] flex flex-col overflow-hidden">
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[840px] max-h-[86vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
-              <h2 className="text-[16px] font-semibold text-[#364658]">Form Fields</h2>
+              {/* Same heading as the card it expands from, so the modal is clearly that card. */}
+              <h2 className="text-[16px] font-semibold text-[#364658]">{title}</h2>
               <button onClick={() => setShowExpandFields(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={18} />
               </button>
             </div>
 
+            {/* Search — the popup now holds every field on the record, so finding one by name
+                matters more than scrolling to it. Matches on label across all three sections. */}
+            <div className="flex-shrink-0 border-b border-[#E5E7EB] px-5 py-3">
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  value={expandQuery}
+                  onChange={(e) => setExpandQuery(e.target.value)}
+                  placeholder="Search fields..."
+                  className="h-9 w-full rounded border border-[#DFE5ED] bg-white pl-9 pr-9 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:outline-none"
+                />
+                {expandQuery && (
+                  <button
+                    onClick={() => setExpandQuery('')}
+                    className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded hover:bg-[#F3F4F6]"
+                  >
+                    <X size={14} className="text-[#9CA3AF]" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Body */}
             <div className="overflow-y-auto px-5 py-4">
+              {/* Key Info first — the fields a technician changes most, ahead of the form fields. */}
+              {shownKeyFields.length > 0 && (
+                <div className="mb-5">
+                  <div className="mb-3 text-[14px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">Key Information</div>
+                  <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                    {shownKeyFields.map((f) => {
+                      const value = draftFields[f.label] ?? f.value;
+                      const dot = f.options?.find((o) => o.label === value)?.color ?? f.color;
+                      return (
+                        <div key={f.label}>
+                          <label className="mb-1.5 block text-[13px] text-[#364658]">{f.label}</label>
+                          <div className="relative">
+                            {dot && <span className="pointer-events-none absolute left-3 top-1/2 z-10 size-2 -translate-y-1/2 rounded-full" style={{ backgroundColor: dot }} />}
+                            {f.options ? (
+                              <select
+                                value={value}
+                                onChange={(e) => setDraft(f.label, e.target.value)}
+                                className={`app-select w-full ${dot ? 'pl-7' : 'pl-3'} rounded border border-[#DFE5ED] bg-white py-2 pr-3 text-[13px] text-[#364658] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]`}
+                              >
+                                {f.options.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => setDraft(f.label, e.target.value)}
+                                className={`w-full ${dot ? 'pl-7' : 'pl-3'} rounded border border-[#DFE5ED] bg-white py-2 pr-3 text-[13px] text-[#364658] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]`}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* No heading here — the popup is already titled for this group, so a repeat of it
+                  would only label the fields twice. A hairline still separates them from Key
+                  Information, matching how the custom-field groups below are divided. */}
+              {baseFieldsShown && shownKeyFields.length > 0 && (
+                <div className="mb-4 border-t border-[#EEF1F4]" />
+              )}
               <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-                <div>
+                <div className={expandMatch('Project Name') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Project Name</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: projectNameOptions.find((o) => o.label === draftFields['Project Name'])?.color || getCurrentProjectNameColor() }} />
@@ -647,7 +745,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     </select>
                   </div>
                 </div>
-                <div>
+                <div className={expandMatch('Cost Center') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Cost Center</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: costCenterOptions.find((o) => o.label === draftFields['Cost Center'])?.color || getCurrentCostCenterColor() }} />
@@ -662,7 +760,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     </select>
                   </div>
                 </div>
-                <div>
+                <div className={expandMatch('Business Unit') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Business Unit</label>
                   <input
                     type="text"
@@ -671,7 +769,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     className="w-full px-3 py-2 text-[13px] text-[#364658] border border-[#DFE5ED] rounded bg-white focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                   />
                 </div>
-                <div>
+                <div className={expandMatch('Building') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Building</label>
                   <select
                     value={draftFields['Building'] ?? selectedBuilding}
@@ -683,7 +781,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className={expandMatch('Request Channel') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Request Channel</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full pointer-events-none z-10" style={{ backgroundColor: requestChannelOptions.find((o) => o.label === draftFields['Request Channel'])?.color || getCurrentRequestChannelColor() }} />
@@ -699,7 +797,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   </div>
                 </div>
                 {demoCustomFields && (
-                  <div className="col-span-2">
+                  <div className={`col-span-2 ${expandMatch('Description') ? '' : 'hidden'}`}>
                     <label className="block text-[13px] text-[#364658] mb-1.5">Description</label>
                     <textarea
                       value={draftFields['Description'] ?? descriptionValue}
@@ -719,7 +817,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   if (!last || last.title !== (f.group || '')) groups.push({ title: f.group || '', fields: [f] });
                   else last.fields.push(f);
                 }
-                return groups.map((g) => (
+                return groups.map((g) => ({ ...g, fields: g.fields.filter((f) => expandMatch(f.label)) })).filter((g) => g.fields.length).map((g) => (
                   <div key={g.title} className="mt-5 border-t border-[#EEF1F4] pt-4">
                     <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#1E293B] mb-3">{g.title}</div>
                     <div className="grid grid-cols-2 gap-x-5 gap-y-4">

@@ -7749,7 +7749,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="CVE Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}

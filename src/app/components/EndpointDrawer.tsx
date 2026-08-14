@@ -7764,7 +7764,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Endpoint Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}

@@ -7361,7 +7361,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Contract Fields"
             assetMode={true}
             softwareMode={true}
             contractMode={true}
@@ -7475,6 +7474,7 @@ onStackMinimizedChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Contract Properties"
+            additionalTitle="Contract Information"
             showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}

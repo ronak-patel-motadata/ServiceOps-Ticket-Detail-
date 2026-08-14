@@ -7742,7 +7742,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Asset Fields"
             assetMode={true}
             cmdbMode={true}
             assetState={assetState}
@@ -7856,6 +7855,7 @@ onStackMinimizedChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Asset Properties"
+            additionalTitle="Asset Information"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

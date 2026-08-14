@@ -7474,7 +7474,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="License Fields"
             assetMode={true}
             softwareMode={true}
             licenseMode={true}
@@ -7588,6 +7587,7 @@ onStackMinimizedChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="License Properties"
+            additionalTitle="License Information"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

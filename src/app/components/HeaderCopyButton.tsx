@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Check, Link as LinkIcon } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /**
@@ -47,7 +47,7 @@ export function HeaderCopyButton({
           ) : variant === 'id' ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#6b7280]"><path d="M4 8V4H8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 4H20V8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 16V20H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 20H4V16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor" fontFamily="system-ui, sans-serif">ID</text></svg>
           ) : (
-            <LinkIcon size={16} strokeWidth={2} className="text-[#6b7280]" />
+            <Copy size={16} strokeWidth={2} className="text-[#6b7280]" />
           )}
         </button>
       </TooltipTrigger>

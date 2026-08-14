@@ -8012,7 +8012,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Patch Deployment Fields"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}

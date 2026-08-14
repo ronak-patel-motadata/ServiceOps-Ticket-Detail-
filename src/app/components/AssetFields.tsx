@@ -379,10 +379,9 @@ interface AssetFieldsProps {
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
   // "View more" expansion — so ONE "View more" reveals both the extra fields AND system fields.
-  footer?: React.ReactNode;
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, cmdbMode = false, footer }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, cmdbMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -1026,7 +1025,6 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         )}
 
         {/* System Fields (moved here) — revealed by the SAME "View more" */}
-        {(showMore || q) && footer}
 
         {/* View more / View less toggle (hidden while searching) */}
         {!q && (
@@ -1210,7 +1208,6 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
         {(showMore || q) && (!q || 'total payment amount'.includes(q)) && textRow('Total Payment Amount')}
 
         {/* System Fields (moved here) — revealed by the SAME "View more" */}
-        {(showMore || q) && footer}
 
         {/* View more / View less toggle (hidden while searching) */}
         {!q && (
@@ -1455,7 +1452,6 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       {(showMore || q) && (cmdbMode ? CMDB_MORE_FIELDS : nonItMode ? NONIT_MORE_FIELDS : softwareMode ? SOFTWARE_MORE_FIELDS : ASSET_MORE_FIELDS).map(renderMoreField)}
 
       {/* System Fields (moved here) — revealed by the SAME "View more" */}
-      {(showMore || q) && footer}
 
       {/* View more / View less toggle (hidden while searching) */}
       {!q && (

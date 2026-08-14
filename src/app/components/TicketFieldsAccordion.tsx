@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft } from 'lucide-react';
 import { AssetFields } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
-import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { useEffect, useState, useRef } from 'react';
 
@@ -42,8 +41,6 @@ interface TicketFieldsAccordionProps {
   // System Fields (moved here from the Additional Fields "System Fields" tab) —
   // rendered as a subsection at the bottom of this accordion.
   getFilteredAdditionalFields?: () => string[];
-  showMoreSystemFields?: boolean;
-  setShowMoreSystemFields?: (show: boolean) => void;
   
   // Refs
   ticketFieldsRef: React.RefObject<HTMLDivElement>;
@@ -210,7 +207,7 @@ function ProblemFieldRow({
 
 export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
   const {
-    fieldsTitle = 'Request Fields',
+    fieldsTitle = 'Key Information',
     showProblemFields = false,
     statusGroupLabel,
     assetMode = false,
@@ -236,8 +233,6 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     setShowMoreFields,
     propertiesSearchQuery,
     getFilteredAdditionalFields,
-    showMoreSystemFields,
-    setShowMoreSystemFields,
     ticketFieldsRef,
     statusDropdownRef,
     priorityDropdownRef,
@@ -448,31 +443,15 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     setAssigneeSearchQuery
   ]);
 
-  // System Fields subsection (moved here from the old Additional Fields "System Fields" tab).
-  // Rendered WITHOUT its own show-more toggle (hideShowMore) so the accordion's single
-  // "View more" is the only expander — for tickets it lives inside that expansion.
-  const systemFieldsSection = getFilteredAdditionalFields ? (
-    <div className="mt-3 pt-4 border-t border-[#EEF1F4]">
-      <div className="mb-3">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">System Fields</span>
-      </div>
-      <SystemFieldsRenderer
-        fields={getFilteredAdditionalFields()}
-        showMore
-        hideShowMore
-        onToggleShowMore={() => setShowMoreSystemFields?.(!showMoreSystemFields)}
-        pinnedFields={pinnedFields}
-        onTogglePin={togglePinField}
-        assetMode={assetMode}
-        purchaseMode={purchaseMode}
-      />
-    </div>
-  ) : null;
+  /* System fields moved OUT of this card into their own "System Information" accordion at the bottom of
+     the panel — see SystemInfoAccordion. This card is now only the fields a technician edits. */
 
   return (
     <div className="border border-[#DFE5ED] rounded-lg" ref={ticketFieldsRef}>
-      {/* Knowledge page: the card is NOT collapsible — a static header, no chevron, no click
-          target, so the properties are always visible. Every other page keeps the toggle. */}
+      {/* Header pins just under the panel's sticky search header (86px tall) so the title stays
+          readable while its own long field list scrolls past. Knowledge page: the card is NOT
+          collapsible — a static header, no chevron, no click target. */}
+      <div className="sticky z-40 rounded-t-lg bg-white" style={{ top: 'var(--panel-header-h, 86px)' }}>
       {knowledgeMode ? (
         <div className="flex w-full items-center gap-2 rounded-lg p-4">
           <FileText size={16} className="text-[#364658]" />
@@ -494,6 +473,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
         )}
       </button>
       )}
+      </div>
 
       {/* Asset Fields — Hardware Asset detail page. System Fields ride inside AssetFields'
           "View more" (passed as `footer`) so one toggle reveals extra + system fields. */}
@@ -516,7 +496,6 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           knowledgeInfo={knowledgeInfo}
           endpointMode={endpointMode}
           cveMode={cveMode}
-          footer={systemFieldsSection}
         />
       )}
 
@@ -1389,10 +1368,6 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   />
                 </>
               )}
-
-              {/* System Fields — revealed by the SAME "View more" as the extra ticket fields.
-                  V2 compact mode: System Fields live in the Incident Details tab instead. */}
-              {!compactTicketFields && systemFieldsSection}
 
               {/* View Less Button */}
               {!compactTicketFields && !propertiesSearchQuery && (

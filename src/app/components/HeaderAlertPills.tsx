@@ -99,7 +99,9 @@ export function getHeaderAlerts(opts: {
 
   /* --- danger --- */
   if (!closed && breached) {
-    alerts.push({ key: 'sla', label: 'SLA Overdue 1w 4d', tone: 'danger', icon: 'breach', tip: 'Resolution SLA: Overdue by 1w 4d' });
+    /* The pills state the CONDITION only — how long it has been overdue is detail, and it belongs
+       in the hover tooltip and the SLA Status card, not in a header chip. */
+    alerts.push({ key: 'sla', label: 'SLA Overdue', tone: 'danger', icon: 'breach', tip: 'Resolution SLA: Overdue by 1w 4d' });
   }
   if (!closed && isFirstResponseBreached(id)) {
     alerts.push({ key: 'first-response', label: 'First Response Overdue', tone: 'danger', icon: 'breach', tip: 'First response SLA: Overdue' });
@@ -124,7 +126,7 @@ export function getHeaderAlerts(opts: {
 
   /* --- info / success --- */
   if (!closed && !breached) {
-    alerts.push({ key: 'sla-due', label: 'SLA Due in 4d 5h', tone: 'info', icon: 'clock', tip: 'Resolution SLA: Due in 4d 5h' });
+    alerts.push({ key: 'sla-due', label: 'SLA Due', tone: 'info', icon: 'clock', tip: 'Resolution SLA: Due in 4d 5h' });
   }
   if (closed && !breached) {
     alerts.push({ key: 'sla-met', label: 'SLA Met', tone: 'success', icon: 'check', tip: 'Resolution SLA: Met' });

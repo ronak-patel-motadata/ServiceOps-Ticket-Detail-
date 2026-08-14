@@ -17,6 +17,7 @@ import { NotificationsPanel } from './NotificationsPanel';
 import { toast } from 'sonner';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
 import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
+import { SystemInfoAccordion } from './SystemInfoAccordion';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
@@ -35,6 +36,8 @@ export interface KnowledgeReview {
 interface TicketPropertiesPanelProps {
   // Display label for the fields accordion (defaults to "Ticket Fields")
   fieldsTitle?: string;
+  /** Module-specific heading for the Additional Fields card, e.g. "Request Information". */
+  additionalTitle?: string;
   // Render the Problem-specific fields (Business Service, Nature of Problem, Known Error)
   showProblemFields?: boolean;
   // Optional header shown above the Status dropdown options (e.g. the current lifecycle stage)
@@ -377,7 +380,8 @@ export function deriveRequester(name?: string) {
 
 export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const {
-    fieldsTitle = 'Request Fields',
+    fieldsTitle = 'Key Information',
+    additionalTitle = 'Additional Fields',
     showProblemFields = false,
     statusGroupLabel,
     showSla = true,
@@ -846,6 +850,21 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [isChatbotClosing, setIsChatbotClosing] = useState(false); // Track closing animation
   const [isChatbotOpening, setIsChatbotOpening] = useState(false); // Track opening animation
   const [showCustomizeModal, setShowCustomizeModal] = useState(false); // Track customize layout modal
+  /* Measured height of the sticky group header, published to the accordions as a CSS variable so
+     each one pins flush beneath it — no overlap that clips their top border, no gap that lets
+     scrolling rows show through. Re-measured on resize and whenever the header's content changes
+     (switching groups, showing/hiding the search row). */
+  const groupHeaderRef = useRef<HTMLDivElement>(null);
+  const [groupHeaderH, setGroupHeaderH] = useState(86);
+  useEffect(() => {
+    const el = groupHeaderRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setGroupHeaderH(Math.round(el.getBoundingClientRect().height));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeGroup, knowledgeMode]);
   // Each module gets its own stored order so layouts don't leak across modules.
   // Only the Change detail page includes the Change Calendar section.
   const sectionStorageKey = patchMode
@@ -854,18 +873,22 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
       ? 'ticketV2PropertiesSectionOrder' // V2 ticket page — separate key so V1's saved layout is never clobbered
       : assetMode
         ? 'assetPropertiesSectionOrderV3'
+        // Keys bumped when the info card moved above Requester Information — a previously saved
+        // order would otherwise pin the old arrangement for anyone who has opened the page before.
         : showChangeCalendar
-          ? 'changePropertiesSectionOrderV2'
-          : 'ticketPropertiesSectionOrder';
+          ? 'changePropertiesSectionOrderV4'
+          : 'ticketPropertiesSectionOrderV3';
   const defaultSectionOrder = patchMode
     ? (endpointMode ? ['Ticket Fields', 'Scan Info'] : knowledgeMode ? ['Analytics', 'Ticket Fields'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
     : hideAdditionalFields
       ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
+      /* The module info card sits directly under Key Info — both describe the record, so they
+         belong together, with the requester's own details after them. */
       : showChangeCalendar
-        ? ['Ticket Fields', 'Change Calendar', 'Requester Information', 'Additional Fields']
+        ? ['Ticket Fields', 'Change Calendar', 'Additional Fields', 'Requester Information']
         : assetMode
           ? ['Ticket Fields', 'Additional Fields']
-          : ['Ticket Fields', 'Requester Information', 'Additional Fields'];
+          : ['Ticket Fields', 'Additional Fields', 'Requester Information'];
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
@@ -1528,10 +1551,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         isAccordionCollapsed ? 'hidden' : ''
       }`} style={{ width: isAccordionCollapsed ? '0px' : `${accordionWidth}px` }} data-onboarding={activeGroup === 'chatbot' ? 'serviceops-ai' : undefined}>
         
-        {/* Scrollable Content Area */}
-        <div className={`${activeGroup === 'chatbot' ? '' : 'flex-1 overflow-y-auto p-4 pt-0 pb-8'}`}>
+        {/* Scrollable Content Area. `--panel-header-h` is the MEASURED height of the sticky group
+            header below; the accordions inside pin to it. It has to be measured rather than
+            hardcoded because the header's height changes with the group (the Knowledge page hides
+            its title row) — a fixed offset either overlaps the header or leaves a gap that
+            scrolling content shows through. */}
+        <div
+          className={`${activeGroup === 'chatbot' ? '' : 'flex-1 overflow-y-auto p-4 pt-0 pb-8'}`}
+          style={{ ['--panel-header-h' as string]: `${groupHeaderH}px` } as React.CSSProperties}
+        >
         {/* Group Header with Search/Filter */}
         <div
+          ref={groupHeaderRef}
           className={`sticky top-0 z-[50] ${activeGroup === 'chatbot' ? 'py-3 px-4' : 'pt-3 pb-3'}`}
           style={activeGroup === 'chatbot' ? {
             background: 'linear-gradient(270deg, rgba(249, 250, 251, 0.00) 90.76%, var(--Color-Variable-Custom-ToolTip-BG, #F9FAFB) 98.45%)',
@@ -2193,20 +2224,23 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           } else if (section === 'Requester Information' && hasRequesterInfoMatch()) {
             return (
         <div key="requester-info" className="border border-[#DFE5ED] rounded-lg" ref={requesterInfoRef}>
-          <button
-            onClick={() => setRequesterInfoExpanded(!requesterInfoExpanded)}
-            className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
-          >
-            <div className="flex items-center gap-2">
-              <User size={16} className="text-[#364658]" />
-              <h3 className="text-[13px] font-semibold text-[#364658]">Requester Information</h3>
-            </div>
-            {requesterInfoExpanded ? (
-              <ChevronDown size={16} className="text-[#7B8FA5]" />
-            ) : (
-              <ChevronRight size={16} className="text-[#7B8FA5]" />
-            )}
-          </button>
+          {/* Pins under the panel's sticky search header, like the other accordions. */}
+          <div className="sticky z-40 rounded-t-lg bg-white" style={{ top: 'var(--panel-header-h, 86px)' }}>
+            <button
+              onClick={() => setRequesterInfoExpanded(!requesterInfoExpanded)}
+              className="w-full p-4 flex items-center justify-between hover:bg-[#F8F9FB] transition-colors rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                <User size={16} className="text-[#364658]" />
+                <h3 className="text-[13px] font-semibold text-[#364658]">Requester Information</h3>
+              </div>
+              {requesterInfoExpanded ? (
+                <ChevronDown size={16} className="text-[#7B8FA5]" />
+              ) : (
+                <ChevronRight size={16} className="text-[#7B8FA5]" />
+              )}
+            </button>
+          </div>
 
           {(requesterInfoExpanded || propertiesSearchQuery) && (
             <div className="px-4 pb-4">
@@ -2286,6 +2320,40 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           } else if (section === 'Additional Fields' && !patchMode && !hideAdditionalFields && hasAdditionalFieldsMatch()) {
             return (
         <AdditionalFieldsAccordion
+          title={additionalTitle}
+          /* The expand popup shows the WHOLE record, so it needs Key Info too — the panel owns
+             that state, so it hands the fields down and takes the committed values back. */
+          keyInfoFields={[
+            { label: 'Status', value: selectedStatus, options: statusOptions },
+            { label: 'Priority', value: selectedPriority, options: priorityOptions },
+            { label: 'Assignee', value: selectedAssignee, options: assigneeOptions },
+            { label: 'Technician Group', value: selectedTechGroup, options: techGroupOptions },
+            { label: 'Urgency', value: selectedUrgency, options: urgencyOptions },
+            { label: 'Impact', value: selectedImpact, options: impactOptions },
+            { label: 'Category', value: selectedCategory, options: categoryOptions },
+            { label: 'Department', value: selectedDepartment, options: departmentOptions },
+            { label: 'Source', value: selectedSource, options: sourceOptions },
+            { label: 'Location', value: selectedLocation, options: locationOptions },
+            { label: 'Vendor', value: selectedVendor, options: vendorOptions },
+            { label: 'Support Level', value: selectedSupportLevel, options: supportLevelOptions },
+          ]}
+          onKeyInfoChange={(label, value) => {
+            const setters: Record<string, (v: string) => void> = {
+              'Status': setSelectedStatus,
+              'Priority': setSelectedPriority,
+              'Assignee': setSelectedAssignee,
+              'Technician Group': setSelectedTechGroup,
+              'Urgency': setSelectedUrgency,
+              'Impact': setSelectedImpact,
+              'Category': setSelectedCategory,
+              'Department': setSelectedDepartment,
+              'Source': setSelectedSource,
+              'Location': setSelectedLocation,
+              'Vendor': setSelectedVendor,
+              'Support Level': setSelectedSupportLevel,
+            };
+            setters[label]?.(value);
+          }}
           key="additional-fields"
           additionalFieldsExpanded={additionalFieldsExpanded}
           setAdditionalFieldsExpanded={setAdditionalFieldsExpanded}
@@ -2438,6 +2506,20 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           }
           return null;
         })}
+
+        {/* System Info — always LAST, and deliberately outside the reorderable list: these fields
+            are written by the platform, not chosen by the technician, so they sit below everything
+            actionable and there is nothing to gain from moving them. */}
+        {!compactTicketFields && !cveMode && getFilteredAdditionalFields && (
+          <SystemInfoAccordion
+            fields={getFilteredAdditionalFields()}
+            pinnedFields={pinnedFields}
+            onTogglePin={togglePinField}
+            assetMode={assetMode}
+            purchaseMode={purchaseMode}
+            searchQuery={propertiesSearchQuery}
+          />
+        )}
 
         {/* Customize Button — hidden on the Patch page (single accordion, nothing to reorder)
             and in V2 compact mode (the slim panel isn't meant to be reconfigured) */}
@@ -3899,7 +3981,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Show AI Summary')}
                         >
-                          <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                           <span>AI Summary</span>
                         </button>
                       </TooltipTrigger>
@@ -3916,7 +3997,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Find Similar Requests')}
                         >
-                          <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                           <span>{assetMode ? 'Find Similar Assets' : 'Find Similar Requests'}</span>
                         </button>
                       </TooltipTrigger>
@@ -3933,7 +4013,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Suggest KB')}
                         >
-                          <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                           <span>Suggest KB</span>
                         </button>
                       </TooltipTrigger>
@@ -3967,7 +4046,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Root Cause')}
                         >
-                          <Brain size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                           <span>Root Cause</span>
                         </button>
                       </TooltipTrigger>
@@ -3984,7 +4062,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                           onClick={() => handleQuickAction('Draft Reply')}
                         >
-                          <MessageSquare size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                           <span>Draft Reply</span>
                         </button>
                       </TooltipTrigger>
@@ -4012,24 +4089,27 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       const followUpActions = lastFollowUpMessage?.followUpActions || [];
 
                       return followUpActions.map((action, idx) => {
-                        // Determine icon and tooltip based on action text
-                        const getActionIcon = (actionText: string) => {
-                          if (actionText.toLowerCase().includes('unlock') || actionText.toLowerCase().includes('account')) return { icon: <User size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Unlock user account and restore access' };
-                          if (actionText.toLowerCase().includes('reset') || actionText.toLowerCase().includes('password')) return { icon: <RefreshCw size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Send password reset link to user' };
-                          if (actionText.toLowerCase().includes('2fa') || actionText.toLowerCase().includes('security')) return { icon: <Check size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Enable two-factor authentication' };
-                          if (actionText.toLowerCase().includes('view') || actionText.toLowerCase().includes('ticket') || actionText.toLowerCase().includes('details')) return { icon: <TicketIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'View detailed request information' };
-                          if (actionText.toLowerCase().includes('apply') || actionText.toLowerCase().includes('solution')) return { icon: <Check size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Apply recommended solution' };
-                          if (actionText.toLowerCase().includes('kb') || actionText.toLowerCase().includes('article') || actionText.toLowerCase().includes('open')) return { icon: <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Open knowledge base article' };
-                          if (actionText.toLowerCase().includes('send') || actionText.toLowerCase().includes('reply')) return { icon: <Send size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Send reply to requester' };
-                          if (actionText.toLowerCase().includes('edit') || actionText.toLowerCase().includes('draft')) return { icon: <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Edit draft response' };
-                          if (actionText.toLowerCase().includes('add') || actionText.toLowerCase().includes('note') || actionText.toLowerCase().includes('template')) return { icon: <StickyNote size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Add to notes or templates' };
-                          if (actionText.toLowerCase().includes('compare') || actionText.toLowerCase().includes('resolution')) return { icon: <SearchIcon size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Compare resolution approaches' };
-                          if (actionText.toLowerCase().includes('start') || actionText.toLowerCase().includes('implement')) return { icon: <Play size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'Start implementing solution' };
-                          if (actionText.toLowerCase().includes('tips') || actionText.toLowerCase().includes('policy')) return { icon: <Lightbulb size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: 'View recommendations and tips' };
-                          return { icon: <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />, tooltip: action };
+                        /* The pills are text-only — everything here is AI-suggested, so an icon
+                           per action added decoration rather than meaning. The hover tooltip still
+                           explains what each one will do. */
+                        const getActionTooltip = (actionText: string) => {
+                          const t = actionText.toLowerCase();
+                          if (t.includes('unlock') || t.includes('account')) return 'Unlock user account and restore access';
+                          if (t.includes('reset') || t.includes('password')) return 'Send password reset link to user';
+                          if (t.includes('2fa') || t.includes('security')) return 'Enable two-factor authentication';
+                          if (t.includes('view') || t.includes('ticket') || t.includes('details')) return 'View detailed request information';
+                          if (t.includes('apply') || t.includes('solution')) return 'Apply recommended solution';
+                          if (t.includes('kb') || t.includes('article') || t.includes('open')) return 'Open knowledge base article';
+                          if (t.includes('send') || t.includes('reply')) return 'Send reply to requester';
+                          if (t.includes('edit') || t.includes('draft')) return 'Edit draft response';
+                          if (t.includes('add') || t.includes('note') || t.includes('template')) return 'Add to notes or templates';
+                          if (t.includes('compare') || t.includes('resolution')) return 'Compare resolution approaches';
+                          if (t.includes('start') || t.includes('implement')) return 'Start implementing solution';
+                          if (t.includes('tips') || t.includes('policy')) return 'View recommendations and tips';
+                          return actionText;
                         };
 
-                        const { icon, tooltip } = getActionIcon(action);
+                        const tooltip = getActionTooltip(action);
 
                         return (
                           <Tooltip key={idx}>
@@ -4062,7 +4142,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                                   }, 500);
                                 }}
                               >
-                                {icon}
                                 <span>{action}</span>
                               </button>
                             </TooltipTrigger>
@@ -4715,7 +4794,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       ) : (
                         <Tag size={16} className="text-[#364658]" />
                       )}
-                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section === 'Change Calendar' ? changeCalendarTitle : (assetMode && section === 'Requester Information') ? 'Agent Information' : section}</span>
+                      <span className="text-[13px] text-[#364658]">{section === 'Ticket Fields' ? fieldsTitle : section === 'Additional Fields' ? additionalTitle : section === 'Change Calendar' ? changeCalendarTitle : (assetMode && section === 'Requester Information') ? 'Agent Information' : section}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button

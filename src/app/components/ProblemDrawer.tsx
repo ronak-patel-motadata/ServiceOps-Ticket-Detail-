@@ -6,11 +6,12 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Server, AlertTriangle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Server, AlertTriangle } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
+import { SummaryStaleNotice } from './SummaryStaleNotice';
 import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
@@ -214,7 +215,7 @@ onStackActiveGroupChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
+  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'analysis' | 'resolution' | 'service-request'>('conversation');
   const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
   // Type filter applied to the Relations tab when opened from an "Affected Items" pill
   const [relationsTypeFilter, setRelationsTypeFilter] = useState<string | null>(null);
@@ -344,6 +345,8 @@ onStackActiveGroupChange,
   const [suggestedKnowledgeExpanded, setSuggestedKnowledgeExpanded] = useState(true);
   const [aiSummaryExpanded, setAiSummaryExpanded] = useState(true);
   const [isRefreshingAiSummary, setIsRefreshingAiSummary] = useState(false);
+  // Conversations have landed since the summary was written; cleared by regenerating.
+  const [aiSummaryStale, setAiSummaryStale] = useState(true);
   const [showAiSummaryMenu, setShowAiSummaryMenu] = useState(false);
   const aiSummaryMenuRef = useRef<HTMLDivElement>(null);
   const quickActionHandlerRef = useRef<((actionType: string) => void) | null>(null);
@@ -897,8 +900,9 @@ onStackActiveGroupChange,
       if (!tabContainerRef.current) return;
 
       // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['resolution', 'conversation', 'tasks', 'audit'];
-      const baseTabsForINC35 = ['service-request', 'resolution', 'conversation', 'tasks', 'audit'];
+      // Analysis leads; Resolution closes the row, after Audit Trails.
+      const baseTabsForOthers = ['analysis', 'conversation', 'tasks', 'audit', 'resolution'];
+      const baseTabsForINC35 = ['service-request', 'analysis', 'conversation', 'tasks', 'audit', 'resolution'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -939,12 +943,13 @@ onStackActiveGroupChange,
       // Approximate widths for each tab (in pixels)
       const tabWidths: Record<string, number> = {
         'service-request': 130,
+        'analysis': 85,
         'conversation': 105,
         'tasks': 60,
         'approvals': 85,
         'relations': 80,
         'audit': 100,
-        'resolution': 160
+        'resolution': 95
       };
 
       // SELECTED overflow tab's name, so it must reserve the WIDEST possible label + chevron,
@@ -1163,7 +1168,8 @@ onStackActiveGroupChange,
         timestamp: new Date(2022, 3, 18, 15, 45).toISOString()
       });
     } else if (activeProblem) {
-      setActiveMainTab('resolution');
+      // Analysis is the first tab now, and where work on a problem starts.
+      setActiveMainTab('analysis');
     }
   }, [activeProblem?.id]);
 
@@ -2064,10 +2070,9 @@ onStackActiveGroupChange,
   const problemImpact = getProblemImpact(activeProblem?.id);
   const totalImpact = problemImpact.length;
   // Dynamic breakdown by type (scales to any number of affected module types)
-  const impactTypeColors: Record<string, string> = { Request: '#3D8BD0', Asset: '#8B5CF6', Change: '#F97316', Release: '#22A06B', CI: '#14B8A6', Problem: '#E5484D' };
   const impactByType = Object.entries(
     problemImpact.reduce<Record<string, number>>((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {})
-  ).map(([type, count]) => ({ type, count, label: `${count} ${type}${count > 1 ? 's' : ''}`, color: impactTypeColors[type] || '#7B8FA5' }));
+  ).map(([type, count]) => ({ type, count, label: `${count} ${type}${count > 1 ? 's' : ''}` }));
 
   // Seed the Relations tab with the affected tickets/assets so they're visible to the technician
   useEffect(() => {
@@ -3082,7 +3087,9 @@ onStackActiveGroupChange,
                         onClick={() => { setRelationsTypeFilter(t.type); setActiveMainTab('relations'); }}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#DFE5ED] bg-white hover:border-[#3D8BD0] hover:bg-[#F9FBFD] transition-colors text-[12px] font-medium text-[#364658]"
                       >
-                        <span className="flex items-center flex-shrink-0" style={{ color: t.color }}>
+                        {/* One muted grey for every type, matching the Request page — the pills are
+                            a set, so per-type colour made the row read as unrelated badges. */}
+                        <span className="flex items-center flex-shrink-0 text-[#7B8FA5]">
                           <Icon size={14} />
                         </span>
                         {t.label}
@@ -3146,21 +3153,17 @@ onStackActiveGroupChange,
                   <span className="text-[14px] font-semibold text-[#364658]">{isRefreshingAiSummary ? 'Generating Summary...' : 'AI Summary'}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-[#9CA3AF]">New conversations have been added</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <SummaryStaleNotice
+                    stale={aiSummaryStale}
+                    regenerating={isRefreshingAiSummary}
+                    onRegenerate={() => {
                       setIsRefreshingAiSummary(true);
                       setTimeout(() => {
                         setIsRefreshingAiSummary(false);
+                        setAiSummaryStale(false); // summary now covers the new conversations
                       }, 2000);
                     }}
-                    className="p-1 hover:bg-[#E5E7EB] rounded transition-colors"
-                    title="Refresh AI Summary"
-                    disabled={isRefreshingAiSummary}
-                  >
-                    <RefreshCw size={14} className={`text-[#7B8FA5] transition-transform ${isRefreshingAiSummary ? 'animate-spin' : ''}`} />
-                  </button>
+                  />
                   <div className="relative z-20" ref={aiSummaryMenuRef}>
                     <button
                       onClick={(e) => {
@@ -3342,7 +3345,6 @@ onStackActiveGroupChange,
                       }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Investigate with AI</span>
                     </button>
                     <button
@@ -3354,7 +3356,6 @@ onStackActiveGroupChange,
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <Search size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Find similar tickets</span>
                     </button>
                     <button
@@ -3366,7 +3367,6 @@ onStackActiveGroupChange,
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Suggest KB</span>
                     </button>
                   </div>
@@ -3382,12 +3382,13 @@ onStackActiveGroupChange,
                 {(() => {
                   const tabConfig = [
                     { id: 'service-request', label: 'Service Request', condition: activeProblem?.id === 'PBM-608' },
+                    { id: 'analysis', label: 'Analysis' },
                     { id: 'conversation', label: 'Conversation' },
                     { id: 'tasks', label: 'Tasks' },
                     { id: 'approvals', label: 'Approvals', condition: activeProblem?.id !== 'PBM-627' },
                     { id: 'relations', label: 'Relations', condition: true },
                     { id: 'audit', label: 'Audit Trails' },
-                    { id: 'resolution', label: 'Analysis & Resolution' },
+                    { id: 'resolution', label: 'Resolution' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -3396,12 +3397,13 @@ onStackActiveGroupChange,
 
                   const tabLabels: Record<string, string> = {
                     'service-request': 'Service Request',
+                    'analysis': 'Analysis',
                     'conversation': 'Conversation',
                     'tasks': 'Tasks',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'Audit Trails',
-                    'resolution': 'Analysis & Resolution'
+                    'resolution': 'Resolution'
                   };
 
                   const renderTab = (tabId: string) => (
@@ -5058,10 +5060,10 @@ onStackActiveGroupChange,
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && <AuditTrailsTabContent ticketId={activeProblem?.id} />}
 
-            {/* Resolution Tab Content */}
-            {activeMainTab === 'resolution' && (
-              <div className="px-6 py-6 space-y-6">
-                {/* Analysis Section */}
+            {/* Analysis — the four root-cause fields. Its own tab now; the Solution moved to a
+                Resolution tab after Audit Trails, matching the Request detail page. */}
+            {activeMainTab === 'analysis' && (
+              <div className="px-6 py-6">
                 <div className="w-full min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Stethoscope className="size-4 text-[#3D8BD0]" />
@@ -5095,16 +5097,38 @@ onStackActiveGroupChange,
                     />
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* Solution Section */}
+            {/* Resolution — Solution only. A problem records a permanent fix; the diagnosis half
+                of the Request page's Resolution tab is the Analysis tab here. */}
+            {activeMainTab === 'resolution' && (
+              <div className="px-6 py-6">
                 <div className="w-full min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Lightbulb className="size-4 text-[#3D8BD0]" />
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Solution</h3>
-                  </div>
-                  <p className="text-[12px] text-[#7B8FA5] mb-3">Record the permanent fix applied to resolve this problem.</p>
-
-                  {solutionData ? (
+                  {/* Empty state matches the Request page's Resolution tab — centred icon, heading
+                      and action. Only Solution here: a problem's diagnosis is the Analysis tab. */}
+                  {!hasSolution && !solutionData ? (
+                    <div className="flex items-center justify-center min-h-[400px]">
+                      <div className="text-center max-w-lg">
+                        <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
+                          <Lightbulb className="size-8 text-[#7B8FA5]" />
+                        </div>
+                        <h3 className="font-semibold text-[#364658] mb-2 text-[14px]">No Solution Added</h3>
+                        <p className="text-[#7B8FA5] mb-6 text-[13px] max-w-[300px] mx-auto">
+                          Record the permanent fix applied to resolve this problem.
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => setHasSolution(true)}
+                            className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
+                          >
+                            <Lightbulb className="size-4" />
+                            Add Solution
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : solutionData ? (
                     <SolutionCard
                       content={solutionData.content}
                       timestamp={solutionData.timestamp}
@@ -5204,15 +5228,7 @@ onStackActiveGroupChange,
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setHasSolution(true)}
-                      className="px-4 py-2.5 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors flex items-center gap-2"
-                    >
-                      <Lightbulb className="size-4" />
-                      Add Solution
-                    </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
@@ -5489,7 +5505,6 @@ onStackActiveGroupChange,
           <TicketPropertiesPanel
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeProblem?.id}
-            fieldsTitle="Problem Fields"
             showProblemFields={true}
             requesterName={activeProblem?.requester}
             activeGroup={activeGroup}
@@ -5601,6 +5616,7 @@ onStackActiveGroupChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Properties"
+            additionalTitle="Problem Information"
             showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}

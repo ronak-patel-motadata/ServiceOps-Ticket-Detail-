@@ -6,12 +6,13 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, Calendar, ClipboardList, Settings2, PlusCircle } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
+import { SummaryStaleNotice } from './SummaryStaleNotice';
 import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
@@ -807,6 +808,8 @@ onStackActiveGroupChange,
   const [suggestedKnowledgeExpanded, setSuggestedKnowledgeExpanded] = useState(true);
   const [aiSummaryExpanded, setAiSummaryExpanded] = useState(true);
   const [isRefreshingAiSummary, setIsRefreshingAiSummary] = useState(false);
+  // Conversations have landed since the summary was written; cleared by regenerating.
+  const [aiSummaryStale, setAiSummaryStale] = useState(true);
   const [showAiSummaryMenu, setShowAiSummaryMenu] = useState(false);
   const aiSummaryMenuRef = useRef<HTMLDivElement>(null);
   const quickActionHandlerRef = useRef<((actionType: string) => void) | null>(null);
@@ -3570,21 +3573,17 @@ onStackActiveGroupChange,
                   <span className="text-[14px] font-semibold text-[#364658]">{isRefreshingAiSummary ? 'Generating Summary...' : 'AI Summary'}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-[#9CA3AF]">New conversations have been added</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  <SummaryStaleNotice
+                    stale={aiSummaryStale}
+                    regenerating={isRefreshingAiSummary}
+                    onRegenerate={() => {
                       setIsRefreshingAiSummary(true);
                       setTimeout(() => {
                         setIsRefreshingAiSummary(false);
+                        setAiSummaryStale(false); // summary now covers the new conversations
                       }, 2000);
                     }}
-                    className="p-1 hover:bg-[#E5E7EB] rounded transition-colors"
-                    title="Refresh AI Summary"
-                    disabled={isRefreshingAiSummary}
-                  >
-                    <RefreshCw size={14} className={`text-[#7B8FA5] transition-transform ${isRefreshingAiSummary ? 'animate-spin' : ''}`} />
-                  </button>
+                  />
                   <div className="relative z-20" ref={aiSummaryMenuRef}>
                     <button
                       onClick={(e) => {
@@ -3766,7 +3765,6 @@ onStackActiveGroupChange,
                       }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <Sparkles size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Investigate with AI</span>
                     </button>
                     <button
@@ -3778,7 +3776,6 @@ onStackActiveGroupChange,
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <Search size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Find similar tickets</span>
                     </button>
                     <button
@@ -3790,7 +3787,6 @@ onStackActiveGroupChange,
                       style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), var(--Core-White, #FFF)' }}
                       className="group flex items-center gap-1.5 px-3 py-2 rounded text-[#364658] text-xs font-medium whitespace-nowrap hover:text-[#3D8BD0] hover:shadow-sm transition-all duration-200"
                     >
-                      <FileText size={13} className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
                       <span>Suggest KB</span>
                     </button>
                   </div>
@@ -5839,7 +5835,6 @@ onStackActiveGroupChange,
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
-            fieldsTitle="Release Fields"
             showChangeCalendar={true}
             changeCalendarTitle="Release Calendar"
             changeCalendarEvents={[
@@ -5960,6 +5955,7 @@ onStackActiveGroupChange,
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Properties"
+            additionalTitle="Release Information"
             showNotifications={true}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}

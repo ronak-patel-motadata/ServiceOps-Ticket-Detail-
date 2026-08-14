@@ -8249,7 +8249,6 @@ onStackMinimizedChange,
           <TicketPropertiesPanel
             ticketId={activeTicket?.id}
             showSla={false}
-            fieldsTitle="Knowledge Properties"
             assetMode={true}
             softwareMode={true}
             nonItMode={true}
