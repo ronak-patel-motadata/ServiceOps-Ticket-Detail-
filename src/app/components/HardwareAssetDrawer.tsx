@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, Orbit, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, X, ChevronLeft, ChevronRight, History, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, Orbit, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
@@ -4320,6 +4320,20 @@ onStackMinimizedChange,
                               ))}
                             </TooltipContent>
                           </Tooltip>
+                          {/* The baseline's own history lives in the History tab; rather than make
+                              the reader find it there, jump straight to it with the right category
+                              already chosen. */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => { setHistoryCategory('baseline-history'); setActiveMainTab('audit'); }}
+                                className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"
+                              >
+                                <History size={16} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>View baseline history</TooltipContent>
+                          </Tooltip>
                           <button title="Change Baseline" onClick={() => { setSelectedBaselineId(b.id); setBaselineSearch(''); setShowAddBaseline(true); }} className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><ArrowRightLeft size={16} /></button>
                           <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#FEF2F2] hover:text-[#EF4444] transition-colors"><Trash2 size={16} /></button>
                         </div>
@@ -4331,7 +4345,19 @@ onStackMinimizedChange,
 
                 {/* Variance */}
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#3D8BD0] mb-3">Variance</h3>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-[14px] font-semibold text-[#3D8BD0]">Variance</h3>
+                    {/* This table shows only OPEN variances; everything ever detected is in the
+                        History tab, so the link goes there with that category pre-selected. */}
+                    <button
+                      onClick={() => { setHistoryCategory('variance-history'); setActiveMainTab('audit'); }}
+                      className="inline-flex items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2.5 py-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F9FD]"
+                    >
+                      <History size={13} />
+                      View variance history
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-[12px]">
                       <thead className="border-b border-[#e5e7eb]">
