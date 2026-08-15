@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
 import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
 import { SystemInfoAccordion } from './SystemInfoAccordion';
+import { FileTypeBadge } from './DescriptionAttachments';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
@@ -2826,13 +2827,15 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
+                      {/* Type badge instead of the identical grey page icon every row used to
+                          show — same marker as the description attachments. */}
                       <div className="flex items-center gap-2 mb-1">
-                        <FileText size={16} className="text-[#7B8FA5] flex-shrink-0" />
+                        <FileTypeBadge name={attachment.name} size="sm" />
                         <span className="text-[13px] font-medium text-[#364658] truncate">
                           {attachment.name}
                         </span>
                       </div>
-                      <div className="text-[11px] text-[#7B8FA5] ml-6">
+                      <div className="text-[11px] text-[#7B8FA5] ml-[34px]">
                         {attachment.size} • Uploaded by {attachment.uploadedBy}
                       </div>
                     </div>

@@ -20,6 +20,7 @@
  */
 import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
+import { FileTypeBadge } from './DescriptionAttachments';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
@@ -5300,7 +5301,7 @@ onStackMinimizedChange,
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
+                          <FileTypeBadge name="task-changes.doc" size="sm" />
                           <div className="flex flex-col">
                             <span className="text-xs text-[#364658] font-medium">task-changes.doc</span>
                             <span className="text-[10px] text-[#7B8FA5]">674 KB</span>
@@ -5316,7 +5317,7 @@ onStackMinimizedChange,
                           </div>
                         </div>
                         <div className="group/file relative flex items-center gap-2 px-3 py-1 pr-16 bg-[#F5F7FA] border border-[#DFE5ED] rounded hover:bg-[#EEF2F7] transition-colors">
-                          <FileText className="size-3.5 text-[#3D8BD0] flex-shrink-0" />
+                          <FileTypeBadge name="network-diagnosis.pdf" size="sm" />
                           <div className="flex flex-col">
                             <span className="text-xs text-[#364658] font-medium">network-diagnosis.pdf</span>
                             <span className="text-[10px] text-[#7B8FA5]">2 MB</span>

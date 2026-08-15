@@ -30,6 +30,25 @@ const DEFAULT_TONE = { bg: '#F1F5F9', text: '#475467' };
 const extOf = (name: string) => (name.split('.').pop() ?? '').toLowerCase();
 const toneFor = (name: string) => TYPE_TONES.find((t) => t.match.includes(extOf(name))) ?? DEFAULT_TONE;
 
+/**
+ * The file-type badge — the extension in its own tint, in place of the identical grey page icon
+ * every attachment used to show. Exported so the conversation chips and the right-panel
+ * Attachments list read the same as these, rather than each inventing its own file marker.
+ */
+export function FileTypeBadge({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const tone = toneFor(name);
+  return (
+    <span
+      className={`flex flex-shrink-0 items-center justify-center rounded-sm font-bold uppercase leading-none ${
+        size === 'sm' ? 'h-[18px] w-[26px] text-[8px]' : 'h-[22px] w-[30px] text-[9px]'
+      }`}
+      style={{ backgroundColor: tone.bg, color: tone.text }}
+    >
+      {extOf(name).slice(0, 4) || 'FILE'}
+    </span>
+  );
+}
+
 /* Sizes arrive as display strings, so the header total parses them back rather than asking every
    caller to carry byte counts it does not otherwise need. */
 const toBytes = (s: string) => {
@@ -88,7 +107,6 @@ export function DescriptionAttachments({
           reads as one row in a narrow drawer and three or four across a full-screen one. */}
       <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))' }}>
         {live.map((f) => {
-          const tone = toneFor(f.name);
           return (
             <div
               key={f.name}
@@ -102,12 +120,7 @@ export function DescriptionAttachments({
                 onClick={() => onPreview?.(f)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <span
-                  className="flex h-[22px] w-[30px] flex-shrink-0 items-center justify-center rounded-sm text-[9px] font-bold uppercase leading-none"
-                  style={{ backgroundColor: tone.bg, color: tone.text }}
-                >
-                  {extOf(f.name).slice(0, 4) || 'FILE'}
-                </span>
+                <FileTypeBadge name={f.name} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-xs font-medium text-[#364658]" title={f.name}>{f.name}</span>
                   <span className="text-[10px] leading-tight text-[#7B8FA5]">{f.size}</span>
