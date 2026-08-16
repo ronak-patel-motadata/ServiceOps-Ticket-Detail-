@@ -529,7 +529,9 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                     onClick={() => onOpenRelation?.(relation)}
                     title={onOpenRelation ? `Open ${relation.ticketId} in this drawer` : undefined}
                   >
-                    <span className="text-[14px] font-semibold text-[#3D8BD0] hover:underline">
+                    {/* Same id pill as the drawer headers and every other record reference:
+                        tinted background, primary blue text. */}
+                    <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-2 py-0.5 text-[13px] font-semibold text-[#3D8BD0]">
                       {relation.ticketId}
                     </span>
                     <span className="font-semibold text-[#364658] truncate text-[14px] group-hover:text-[#3D8BD0] transition-colors">
