@@ -301,18 +301,41 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
                   {(() => {
                     const { totalRead, helpful, notHelpful } = masthead;
-                    const stats: { key: string; icon: typeof BookOpen; value: number; label: string; color: string; tip: string }[] = [];
+                    const stats: { key: string; icon: typeof BookOpen; value: number; label: string; color: string; tip: string; onClick?: () => void }[] = [];
                     if (totalRead != null) stats.push({ key: 'read', icon: BookOpen, value: totalRead, label: 'reads', color: '#64748B', tip: `Opened ${totalRead.toLocaleString()} times` });
+                    /* Comments sit with readership rather than with the actions: how much discussion
+                       an article has drawn is a reading statistic. Unlike the rest it is a way IN to
+                       the thread, so it is a button. */
+                    if (comments) stats.push({
+                      key: 'comments',
+                      icon: MessageSquare,
+                      value: comments.length,
+                      label: comments.length === 1 ? 'comment' : 'comments',
+                      color: '#64748B',
+                      tip: comments.length ? 'Read the discussion' : 'No comments yet — be the first',
+                      onClick: () => onCommentsOpenChange?.(true),
+                    });
                     if (helpful != null) stats.push({ key: 'up', icon: ThumbsUp, value: helpful, label: 'helpful', color: '#067647', tip: `${helpful} readers found this helpful` });
                     if (notHelpful != null) stats.push({ key: 'down', icon: ThumbsDown, value: notHelpful, label: 'not helpful', color: '#B42318', tip: `${notHelpful} readers did not find this helpful` });
                     return stats.map((s) => (
                       <Tooltip key={s.key}>
                         <TooltipTrigger asChild>
-                          <span className="inline-flex cursor-default items-center gap-1.5">
-                            <s.icon size={14} style={{ color: s.color }} className="flex-shrink-0" />
-                            <span className="text-[13px] font-semibold tabular-nums" style={{ color: s.color }}>{s.value.toLocaleString()}</span>
-                            <span className="text-[12px] text-[#7B8FA5]">{s.label}</span>
-                          </span>
+                          {s.onClick ? (
+                            <button
+                              onClick={s.onClick}
+                              className="group/stat inline-flex items-center gap-1.5 rounded transition-colors hover:text-[#3D8BD0]"
+                            >
+                              <s.icon size={14} className="flex-shrink-0 text-[#64748B] transition-colors group-hover/stat:text-[#3D8BD0]" />
+                              <span className="text-[13px] font-semibold tabular-nums text-[#64748B] transition-colors group-hover/stat:text-[#3D8BD0]">{s.value.toLocaleString()}</span>
+                              <span className="text-[12px] text-[#7B8FA5] underline-offset-4 transition-colors group-hover/stat:text-[#3D8BD0] group-hover/stat:underline">{s.label}</span>
+                            </button>
+                          ) : (
+                            <span className="inline-flex cursor-default items-center gap-1.5">
+                              <s.icon size={14} style={{ color: s.color }} className="flex-shrink-0" />
+                              <span className="text-[13px] font-semibold tabular-nums" style={{ color: s.color }}>{s.value.toLocaleString()}</span>
+                              <span className="text-[12px] text-[#7B8FA5]">{s.label}</span>
+                            </span>
+                          )}
                         </TooltipTrigger>
                         <TooltipContent>{s.tip}</TooltipContent>
                       </Tooltip>
