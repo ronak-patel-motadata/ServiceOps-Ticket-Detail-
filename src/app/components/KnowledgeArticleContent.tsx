@@ -7,7 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { KB_ARTICLES, fallbackArticle, type Block } from './knowledgeArticleData';
 import { KnowledgeAiSummary } from './KnowledgeAiSummary';
 import { ArticleComments, type ArticleComment } from './ArticleComments';
-import { ArticleToc } from './ArticleToc';
+import { ArticleToc, type TocSection } from './ArticleToc';
 
 /* Knowledge detail page body — the article itself. The Knowledge page has NO tabs: the full
  * article is the content, ending with the Helpful / Not Helpful feedback controls. */
@@ -191,6 +191,12 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
     gracePeriod?: string;
     onOpen: () => void;
   };
+  /* The comment thread is owned by the page when the Analytics card has to show its count and
+     open the same panel; left out, the comments section manages its own. */
+  comments?: ArticleComment[];
+  onCommentsChange?: (next: ArticleComment[]) => void;
+  commentsOpen?: boolean;
+  onCommentsOpenChange?: (open: boolean) => void;
 }) {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
   // Lightbox — images zoom, videos "play" full-bleed. One piece of state serves both.
@@ -210,10 +216,14 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
   const heading = centered ? 'mb-3 mt-10 text-[20px]' : 'mb-2.5 mt-7 text-[15px]';
   const caption = centered ? 'text-[13px]' : 'text-[12px]';
 
-  // Section rail entries — the article's own headings, in document order.
-  const tocSections = blocks
-    .map((b, i) => (b.kind === 'h' && b.text ? { id: `art-sec-${i}`, text: b.text } : null))
-    .filter(Boolean) as { id: string; text: string }[];
+  // Section rail entries — the article's own headings, in document order, with the discussion
+  // pinned at the end so a reader can drop straight into it from anywhere in the article.
+  const tocSections: TocSection[] = [
+    ...(blocks
+      .map((b, i) => (b.kind === 'h' && b.text ? { id: `art-sec-${i}`, text: b.text } : null))
+      .filter(Boolean) as TocSection[]),
+    { id: 'art-comments', text: 'Comments', kind: 'comments', count: comments?.length },
+  ];
 
   return (
     <div className={`relative ${centered ? 'px-10 py-10' : 'px-6 py-6'}`}>

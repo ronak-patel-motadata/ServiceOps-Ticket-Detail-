@@ -182,7 +182,7 @@ export function ArticleComments({ articleId, comments: controlled, onCommentsCha
     : comments;
 
   return (
-    <section className="mt-10 border-t border-[#E5E7EB] pt-6">
+    <section id="art-comments" className="mt-10 scroll-mt-6 border-t border-[#E5E7EB] pt-6">
       <div className="mb-4 flex items-center gap-2">
         <MessageSquare size={16} className="text-[#4A5568]" />
         <h2 className="text-[15px] font-semibold text-[#1E293B]">Comments</h2>

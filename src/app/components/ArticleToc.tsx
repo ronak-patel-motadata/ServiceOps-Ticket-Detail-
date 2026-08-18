@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MessageSquare } from 'lucide-react';
 
 /* Section rail — the tick marks down the right edge of a long article.
  *
@@ -10,6 +11,10 @@ import { useEffect, useRef, useState } from 'react';
 export interface TocSection {
   id: string;
   text: string;
+  /** 'comments' marks the discussion at the foot of the article — not a section of the article
+   *  itself, so it gets its own marker rather than another identical tick. */
+  kind?: 'comments';
+  count?: number;
 }
 
 /** Nearest scrollable ancestor — the article scrolls inside the drawer, not the window. */
@@ -61,8 +66,9 @@ export function ArticleToc({ sections }: { sections: TocSection[] }) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Under three sections the rail says less than the article's own headings already do.
-  if (sections.length < 3) return null;
+  // Under three sections the rail says less than the article's own headings already do. The
+  // comments entry is a destination, not a section, so it does not earn the rail on its own.
+  if (sections.filter((s) => s.kind !== 'comments').length < 3) return null;
 
   return (
     <div
@@ -71,22 +77,45 @@ export function ArticleToc({ sections }: { sections: TocSection[] }) {
       onMouseLeave={() => setOpen(false)}
       className="relative flex flex-col items-end gap-2 py-2"
     >
-      {sections.map((s, i) => (
-        <button
-          key={s.id}
-          onClick={() => goTo(i)}
-          aria-label={s.text}
-          className="group/tick flex h-3 items-center justify-end"
-        >
-          <span
-            className={`block h-[2px] rounded-full transition-all duration-200 ${
-              i === active
-                ? 'w-6 bg-[#3D8BD0]'
-                : 'w-4 bg-[#CBD5E1] group-hover/tick:w-6 group-hover/tick:bg-[#94A3B8]'
-            }`}
-          />
-        </button>
-      ))}
+      {sections.map((s, i) => {
+        /* The discussion is a different KIND of destination, so it reads as one: a hairline ends
+           the article's ticks, and the marker becomes a speech bubble instead of another rule. */
+        if (s.kind === 'comments') {
+          return (
+            <div key={s.id} className="mt-1 flex flex-col items-end gap-2">
+              <span className="block h-px w-3 bg-[#E2E8F0]" />
+              <button
+                onClick={() => goTo(i)}
+                aria-label={s.count ? `${s.text} (${s.count})` : s.text}
+                className="group/tick flex h-4 items-center justify-end"
+              >
+                <MessageSquare
+                  size={13}
+                  className={`transition-colors duration-200 ${
+                    i === active ? 'text-[#3D8BD0]' : 'text-[#CBD5E1] group-hover/tick:text-[#94A3B8]'
+                  }`}
+                />
+              </button>
+            </div>
+          );
+        }
+        return (
+          <button
+            key={s.id}
+            onClick={() => goTo(i)}
+            aria-label={s.text}
+            className="group/tick flex h-3 items-center justify-end"
+          >
+            <span
+              className={`block h-[2px] rounded-full transition-all duration-200 ${
+                i === active
+                  ? 'w-6 bg-[#3D8BD0]'
+                  : 'w-4 bg-[#CBD5E1] group-hover/tick:w-6 group-hover/tick:bg-[#94A3B8]'
+              }`}
+            />
+          </button>
+        );
+      })}
 
       {/* The full list, opened by hovering anywhere on the rail. */}
       <div
@@ -95,16 +124,36 @@ export function ArticleToc({ sections }: { sections: TocSection[] }) {
         }`}
       >
         {sections.map((s, i) => (
-          <button
-            key={s.id}
-            onClick={() => goTo(i)}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] leading-snug transition-colors hover:bg-[#F5F9FD] ${
-              i === active ? 'font-medium text-[#3D8BD0]' : 'text-[#64748B]'
-            }`}
-          >
-            <span className={`size-1.5 flex-shrink-0 rounded-full ${i === active ? 'bg-[#3D8BD0]' : 'bg-transparent'}`} />
-            <span className="truncate">{s.text}</span>
-          </button>
+          s.kind === 'comments' ? (
+            <div key={s.id}>
+              <div className="my-1.5 border-t border-[#EEF1F4]" />
+              <button
+                onClick={() => goTo(i)}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] leading-snug transition-colors hover:bg-[#F5F9FD] ${
+                  i === active ? 'font-medium text-[#3D8BD0]' : 'text-[#64748B]'
+                }`}
+              >
+                <MessageSquare size={13} className="flex-shrink-0" />
+                <span className="truncate">{s.text}</span>
+                {s.count !== undefined && (
+                  <span className="ml-auto inline-flex h-[18px] min-w-[18px] flex-shrink-0 items-center justify-center rounded-full bg-[#EEF2F6] px-1.5 text-[11px] font-semibold text-[#64748B]">
+                    {s.count}
+                  </span>
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              key={s.id}
+              onClick={() => goTo(i)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] leading-snug transition-colors hover:bg-[#F5F9FD] ${
+                i === active ? 'font-medium text-[#3D8BD0]' : 'text-[#64748B]'
+              }`}
+            >
+              <span className={`size-1.5 flex-shrink-0 rounded-full ${i === active ? 'bg-[#3D8BD0]' : 'bg-transparent'}`} />
+              <span className="truncate">{s.text}</span>
+            </button>
+          )
         ))}
       </div>
     </div>

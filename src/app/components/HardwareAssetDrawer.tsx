@@ -4184,8 +4184,8 @@ onStackMinimizedChange,
                       const loading = loadingHwSections.has(section.id);
                       const ready = loadedHwSections.has(section.id);
                       return (
-                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px] rounded-lg border border-[#E5E7EB] bg-white">
-                          <div className="flex items-center justify-between gap-2 px-4 py-3">
+                        <div key={section.id} id={`hw-section-${section.id}`} className={`scroll-mt-[132px] rounded-lg ${hwTabbed ? '' : 'border border-[#E5E7EB] bg-white'}`}>
+                          <div className={`flex items-center justify-between gap-2 ${hwTabbed ? 'px-0 pb-3 pt-0' : 'px-4 py-3'}`}>
                             <button
                               onClick={() => { if (!hwTabbed) toggleHwSection(section.id); }}
                               className={`flex min-w-0 flex-1 items-center gap-2 text-left ${hwTabbed ? 'cursor-default' : ''}`}
@@ -4227,7 +4227,7 @@ onStackMinimizedChange,
                           </div>
 
                           {open && (
-                          <div className="px-4 pb-4">
+                          <div className={hwTabbed ? 'px-0 pb-0' : 'px-4 pb-4'}>
                           {!ready || loading ? (
                             /* Skeleton while the section's data is in flight — the shape of what
                                is coming, so the card does not collapse and re-expand on arrival. */
@@ -4552,7 +4552,30 @@ onStackMinimizedChange,
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{b.id}</span>
-                            <span className="text-[15px] font-semibold text-[#364658]">{b.name}</span>
+                            {/* The baseline IS its attributes, so the name carries them — no icon to
+                                discover first. Zero delay: the underline promises something on hover,
+                                and a pause after that just reads as lag. */}
+                            <Tooltip delayDuration={0}>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help text-[15px] font-semibold text-[#364658] underline-offset-4 hover:underline hover:decoration-[#3D8BD0] hover:decoration-dotted">{b.name}</span>
+                              </TooltipTrigger>
+                              <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
+                                <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold text-[#364658]">Attributes</div>
+                                {[
+                                  { name: 'OS Architecture', group: 'OS', value: '64 BIT' },
+                                  { name: 'OS Name', group: 'OS', value: 'Microsoft Windows 11 Pro' },
+                                  { name: 'Total Physical Memory', group: 'RAM', value: '16 GB' },
+                                ].map((a, ai) => (
+                                  <div key={a.name} className={`px-3 py-1.5 flex items-start justify-between gap-3 ${ai > 0 ? 'border-t border-[#F0F2F5]' : ''}`}>
+                                    <div className="min-w-0">
+                                      <div className="text-[12px] text-[#364658]">{a.name}</div>
+                                      <div className="text-[11px] text-[#9CA3AF]">{a.group}</div>
+                                    </div>
+                                    <div className="text-[12px] text-[#3D8BD0] text-right">{a.value}</div>
+                                  </div>
+                                ))}
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                           <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
                             <div className="flex items-center gap-1.5">
@@ -4566,30 +4589,6 @@ onStackMinimizedChange,
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button title="View attributes" className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><Eye size={16} /></button>
-                            </TooltipTrigger>
-                            <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
-                              <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold text-[#364658]">Attributes</div>
-                              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-[#7B8FA5]">
-                                <span>Attribute Name</span><span>Value</span>
-                              </div>
-                              {[
-                                { name: 'OS Architecture', group: 'OS', value: '64 BIT' },
-                                { name: 'OS Name', group: 'OS', value: 'Microsoft Windows 11 Pro' },
-                                { name: 'Total Physical Memory', group: 'RAM', value: '16 GB' },
-                              ].map((a) => (
-                                <div key={a.name} className="px-3 py-1.5 flex items-start justify-between gap-3 border-t border-[#F0F2F5]">
-                                  <div className="min-w-0">
-                                    <div className="text-[12px] text-[#364658]">{a.name}</div>
-                                    <div className="text-[11px] text-[#9CA3AF]">{a.group}</div>
-                                  </div>
-                                  <div className="text-[12px] text-[#3D8BD0] text-right">{a.value}</div>
-                                </div>
-                              ))}
-                            </TooltipContent>
-                          </Tooltip>
                           {/* The baseline's own history lives in the History tab; rather than make
                               the reader find it there, jump straight to it with the right category
                               already chosen. */}
@@ -4621,7 +4620,7 @@ onStackMinimizedChange,
                         History tab, so the link goes there with that category pre-selected. */}
                     <button
                       onClick={() => { setHistoryCategory('variance-history'); setActiveMainTab('audit'); }}
-                      className="inline-flex items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2.5 py-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F9FD]"
+                      className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#F5F9FD]"
                     >
                       <History size={13} />
                       View variance history
