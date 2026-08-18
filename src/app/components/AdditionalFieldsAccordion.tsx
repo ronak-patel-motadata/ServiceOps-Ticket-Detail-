@@ -16,6 +16,10 @@ export interface ExpandKeyField {
 interface AdditionalFieldsAccordionProps {
   /** Module-specific heading, e.g. "Request Information" / "Problem Information". */
   title?: string;
+  /** Overrides the demo custom-field list — the Task page ships its own, shorter set. */
+  customFields?: typeof DEMO_CUSTOM_FORM_FIELDS;
+  /** Drops the request-only base fields (Project Name … Description) — a task has none of them. */
+  hideBaseFields?: boolean;
   /** Key Info fields, shown FIRST in the expand popup so it holds the whole record, not half.
    *  Supplied by the panel, which owns their state. */
   keyInfoFields?: ExpandKeyField[];
@@ -85,6 +89,8 @@ interface AdditionalFieldsAccordionProps {
 export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps) {
   const {
     title = 'Additional Fields',
+    customFields,
+    hideBaseFields = false,
     keyInfoFields = [],
     onKeyInfoChange,
     additionalFieldsExpanded,
@@ -133,6 +139,9 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
     demoCustomFields = false,
   } = props;
 
+  // Whichever custom-field set this page carries — the accordion and its popup both read this.
+  const customList = customFields ?? DEMO_CUSTOM_FORM_FIELDS;
+
   // Collapse the long custom-field list until the user clicks "View more"
   const [showAllFormFields, setShowAllFormFields] = useState(false);
   // Description custom field (single-line + expandable rich editor)
@@ -161,7 +170,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
       'Request Channel': selectedRequestChannel,
       'Description': descriptionValue,
     };
-    for (const f of DEMO_CUSTOM_FORM_FIELDS) d[f.label] = customVal(f.label, f.value);
+    for (const f of customList) d[f.label] = customVal(f.label, f.value);
     for (const f of keyInfoFields) d[f.label] = f.value;
     setDraftFields(d);
     setExpandQuery('');
@@ -171,7 +180,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
   const expandMatch = (label: string) => !expandQuery.trim() || label.toLowerCase().includes(expandQuery.trim().toLowerCase());
   const shownKeyFields = keyInfoFields.filter((f) => expandMatch(f.label));
   const BASE_EXPAND_FIELDS = ['Project Name', 'Cost Center', 'Business Unit', 'Building', 'Request Channel', 'Description'];
-  const baseFieldsShown = BASE_EXPAND_FIELDS.some(expandMatch);
+  const baseFieldsShown = !hideBaseFields && BASE_EXPAND_FIELDS.some(expandMatch);
 
   const applyExpandFields = () => {
     setSelectedProjectName(draftFields['Project Name']);
@@ -182,7 +191,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
     setDescriptionValue(draftFields['Description']);
     setCustomFieldValues((prev) => {
       const next = { ...prev };
-      for (const f of DEMO_CUSTOM_FORM_FIELDS) next[f.label] = draftFields[f.label] ?? f.value;
+      for (const f of customList) next[f.label] = draftFields[f.label] ?? f.value;
       return next;
     });
     // Key Info lives in the panel's state, so it commits through the callback.
@@ -276,7 +285,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
         <div className="px-4 pb-4 pt-3">
           {/* Form Fields (System Fields were moved under the main Fields accordion) */}
           <div className="space-y-3">
-              {getFilteredAdditionalFormFields().includes('Project Name') && (
+              {!hideBaseFields && getFilteredAdditionalFormFields().includes('Project Name') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Project Name</span>
@@ -334,7 +343,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               </div>
               )}
 
-              {getFilteredAdditionalFormFields().includes('Cost Center') && (
+              {!hideBaseFields && getFilteredAdditionalFormFields().includes('Cost Center') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Cost Center</span>
@@ -392,7 +401,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               </div>
               )}
 
-              {getFilteredAdditionalFormFields().includes('Business Unit') && (
+              {!hideBaseFields && getFilteredAdditionalFormFields().includes('Business Unit') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Business Unit</span>
@@ -422,7 +431,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               </div>
               )}
 
-              {getFilteredAdditionalFormFields().includes('Building') && (
+              {!hideBaseFields && getFilteredAdditionalFormFields().includes('Building') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Building</span>
@@ -472,7 +481,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               </div>
               )}
 
-              {getFilteredAdditionalFormFields().includes('Request Channel') && (
+              {!hideBaseFields && getFilteredAdditionalFormFields().includes('Request Channel') && (
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] group/label flex items-center gap-1">
                   <span>Request Channel</span>
@@ -530,7 +539,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               </div>
               )}
 
-              {demoCustomFields && (!propertiesSearchQuery || 'description'.includes(propertiesSearchQuery.toLowerCase())) && (
+              {demoCustomFields && !hideBaseFields && (!propertiesSearchQuery || 'description'.includes(propertiesSearchQuery.toLowerCase())) && (
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px]">Description</div>
                   <Tooltip>
@@ -559,22 +568,26 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               {demoCustomFields && (() => {
                 // Pinned custom fields move to the top "Pinned Fields" section,
                 // so drop them here; also honour the top search box.
-                const matches = DEMO_CUSTOM_FORM_FIELDS.filter(
+                const matches = customList.filter(
                   (f) =>
                     !pinnedFields.includes(f.label) &&
                     (!propertiesSearchQuery || f.label.toLowerCase().includes(propertiesSearchQuery.toLowerCase()))
                 );
-                // Collapsed view shows the first custom field (5 built-in + 1 = 6
-                // fields) and a "View more"; search or expand shows the full list.
+                // Collapsed view stops at ~7 fields before "View more". Where the built-in fields
+                // render they already fill six of those slots, so only one custom field joins them;
+                // pages without them (Task) carry the whole budget themselves.
+                const collapsedCount = hideBaseFields ? 7 : 1;
                 const expanded = !!propertiesSearchQuery || showAllFormFields;
-                const visible = expanded ? matches : matches.slice(0, 1);
+                const visible = expanded ? matches : matches.slice(0, collapsedCount);
                 return (
                   <>
                     {visible.map((f, i) => (
                       <Fragment key={f.label}>
                       {/* Group header — the form-builder separator the admin placed between sections */}
                       {f.group && (i === 0 || visible[i - 1].group !== f.group) && (
-                        <div className="mt-3 border-t border-[#EEF1F4] pt-5 pb-0.5">
+                        /* The rule separates this group from the fields above it — with no built-in
+                           fields (Task), the first group has nothing above, so it starts clean. */
+                        <div className={i === 0 && hideBaseFields ? 'pb-0.5' : 'mt-3 border-t border-[#EEF1F4] pt-5 pb-0.5'}>
                           <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">{f.group}</span>
                         </div>
                       )}
@@ -612,7 +625,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                       </div>
                       </Fragment>
                     ))}
-                    {!propertiesSearchQuery && !showAllFormFields && matches.length > 1 && (
+                    {!propertiesSearchQuery && !showAllFormFields && matches.length > collapsedCount && (
                       <div>
                         <button
                           onClick={() => setShowAllFormFields(true)}
@@ -729,7 +742,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               {baseFieldsShown && shownKeyFields.length > 0 && (
                 <div className="mb-4 border-t border-[#EEF1F4]" />
               )}
-              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+              <div className={`grid grid-cols-2 gap-x-5 gap-y-4 ${hideBaseFields ? 'hidden' : ''}`}>
                 <div className={expandMatch('Project Name') ? '' : 'hidden'}>
                   <label className="block text-[13px] text-[#364658] mb-1.5">Project Name</label>
                   <div className="relative">
@@ -811,8 +824,8 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
 
               {/* Grouped custom fields */}
               {demoCustomFields && (() => {
-                const groups: { title: string; fields: typeof DEMO_CUSTOM_FORM_FIELDS }[] = [];
-                for (const f of DEMO_CUSTOM_FORM_FIELDS) {
+                const groups: { title: string; fields: typeof customList }[] = [];
+                for (const f of customList) {
                   const last = groups[groups.length - 1];
                   if (!last || last.title !== (f.group || '')) groups.push({ title: f.group || '', fields: [f] });
                   else last.fields.push(f);

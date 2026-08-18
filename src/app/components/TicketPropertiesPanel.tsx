@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
 import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
 import { SystemInfoAccordion } from './SystemInfoAccordion';
+import { TASK_CUSTOM_FORM_FIELDS, TASK_KEY_FIELDS } from './taskCustomFields';
 import { FileTypeBadge } from './DescriptionAttachments';
 import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
@@ -71,11 +72,15 @@ interface TicketPropertiesPanelProps {
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields in the CVE Fields accordion
   cveMode?: boolean;
+  /** Task detail page: task field set + "Task Properties" titles. */
+  taskMode?: boolean;
   /** Knowledge page: the right panel is a plain field list — no panel title, no field search. */
   knowledgeMode?: boolean;
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
   /** Knowledge page: article performance shown in the Analytics accordion. */
-  knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number };
+  knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number; comments?: number };
+  /** Opens the article comments thread — the same side panel the article body opens. */
+  onOpenKnowledgeComments?: () => void;
   /** Knowledge page requester preview: internal (technician) reviews are hidden. */
   knowledgeRequesterView?: boolean;
   /* Reviews lifted to the host drawer so the article body and this panel share one thread.
@@ -400,9 +405,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     registryDeployMode = false,
     endpointMode = false,
     cveMode = false,
+    taskMode = false,
     knowledgeMode = false,
     knowledgeInfo,
     knowledgeAnalytics,
+    onOpenKnowledgeComments,
     knowledgeRequesterView = false,
     knowledgeReviewItems,
     onKnowledgeReviewsChange,
@@ -808,6 +815,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Accordion: which asset users are expanded (showing account type / domain / SID / description)
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [expandedIntegrations, setExpandedIntegrations] = useState<Set<string>>(new Set());
+  // Task page: Key Information values the expand popup has edited, keyed by field label.
+  const [taskKeyValues, setTaskKeyValues] = useState<Record<string, string>>({});
   const [similarFilter, setSimilarFilter] = useState<'All' | 'Request' | 'Problem' | 'Change'>('All');
   // Patch File Details — the patch's files (can be empty → upload manually). Patch page only.
   const [patchFiles, setPatchFiles] = useState<{ name: string; size: string; language: string }[]>(PATCH_FILES);
@@ -869,7 +878,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   // Each module gets its own stored order so layouts don't leak across modules.
   // Only the Change detail page includes the Change Calendar section.
   const sectionStorageKey = patchMode
-    ? (endpointMode ? 'endpointPropertiesSectionOrder' : 'patchPropertiesSectionOrder')
+    ? (taskMode ? 'taskPropertiesSectionOrder' : endpointMode ? 'endpointPropertiesSectionOrder' : 'patchPropertiesSectionOrder')
     : hideAdditionalFields
       ? 'ticketV2PropertiesSectionOrder' // V2 ticket page — separate key so V1's saved layout is never clobbered
       : assetMode
@@ -880,7 +889,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           ? 'changePropertiesSectionOrderV4'
           : 'ticketPropertiesSectionOrderV3';
   const defaultSectionOrder = patchMode
-    ? (endpointMode ? ['Ticket Fields', 'Scan Info'] : knowledgeMode ? ['Analytics', 'Ticket Fields'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
+    ? (taskMode ? ['Ticket Fields', 'Additional Fields'] : endpointMode ? ['Ticket Fields', 'Scan Info'] : knowledgeMode ? ['Analytics', 'Ticket Fields'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
     : hideAdditionalFields
       ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
       /* The module info card sits directly under Key Info — both describe the record, so they
@@ -2113,6 +2122,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           registryDeployMode={registryDeployMode}
           endpointMode={endpointMode}
           cveMode={cveMode}
+          taskMode={taskMode}
+          taskValues={taskKeyValues}
           knowledgeMode={knowledgeMode}
           knowledgeInfo={knowledgeInfo}
           assetState={assetState}
@@ -2318,13 +2329,15 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           )}
         </div>
             );
-          } else if (section === 'Additional Fields' && !patchMode && !hideAdditionalFields && hasAdditionalFieldsMatch()) {
+          } else if (section === 'Additional Fields' && (!patchMode || taskMode) && !hideAdditionalFields && hasAdditionalFieldsMatch()) {
             return (
         <AdditionalFieldsAccordion
           title={additionalTitle}
+          customFields={taskMode ? TASK_CUSTOM_FORM_FIELDS : undefined}
+          hideBaseFields={taskMode}
           /* The expand popup shows the WHOLE record, so it needs Key Info too — the panel owns
              that state, so it hands the fields down and takes the committed values back. */
-          keyInfoFields={[
+          keyInfoFields={taskMode ? TASK_KEY_FIELDS.map((f) => ({ ...f, value: taskKeyValues[f.label] ?? f.value })) : [
             { label: 'Status', value: selectedStatus, options: statusOptions },
             { label: 'Priority', value: selectedPriority, options: priorityOptions },
             { label: 'Assignee', value: selectedAssignee, options: assigneeOptions },
@@ -2339,6 +2352,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             { label: 'Support Level', value: selectedSupportLevel, options: supportLevelOptions },
           ]}
           onKeyInfoChange={(label, value) => {
+            if (taskMode) { setTaskKeyValues((prev) => ({ ...prev, [label]: value })); return; }
             const setters: Record<string, (v: string) => void> = {
               'Status': setSelectedStatus,
               'Priority': setSelectedPriority,
@@ -2399,7 +2413,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           pinnedFields={pinnedFields}
           assetMode={assetMode}
           purchaseMode={purchaseMode}
-          demoCustomFields={demoCustomFields}
+          demoCustomFields={demoCustomFields || taskMode}
         />
             );
           }
@@ -2454,6 +2468,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             const helpful = knowledgeAnalytics?.helpful ?? 0;
             const notHelpful = knowledgeAnalytics?.notHelpful ?? 0;
             const totalRead = knowledgeAnalytics?.totalRead ?? 0;
+            const commentCount = knowledgeAnalytics?.comments ?? 0;
             const votes = helpful + notHelpful;
             const helpfulPct = votes > 0 ? Math.round((helpful / votes) * 100) : 0;
             return (
@@ -2465,13 +2480,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <span className="text-[13px] font-semibold text-[#364658]">Analytics</span>
                 </div>
                 <div className="space-y-3 px-4 pb-4">
-                  {/* Row 1 — readership: a single hero tile */}
-                  <div className="flex items-center gap-3 rounded-lg bg-[#F5F9FD] px-3.5 py-3">
-                    <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#3D8BD0] shadow-sm"><BookOpen size={17} /></span>
-                    <div className="min-w-0">
-                      <div className="text-[18px] font-bold leading-none tabular-nums text-[#364658]">{totalRead.toLocaleString()}</div>
-                      <div className="mt-1 text-[11px] text-[#7B8FA5]">Total Read</div>
+                  {/* Row 1 — reach: what was read, and what readers said back. The comment
+                      tile is a button because the thread itself is one click away. */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2.5 rounded-lg bg-[#F5F9FD] px-3 py-3">
+                      <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#3D8BD0] shadow-sm"><BookOpen size={17} /></span>
+                      <div className="min-w-0">
+                        <div className="text-[18px] font-bold leading-none tabular-nums text-[#364658]">{totalRead.toLocaleString()}</div>
+                        <div className="mt-1 text-[11px] text-[#7B8FA5]">Total Read</div>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => onOpenKnowledgeComments?.()}
+                      disabled={!onOpenKnowledgeComments}
+                      title="View all comments"
+                      className="flex items-center gap-2.5 rounded-lg bg-[#F5F9FD] px-3 py-3 text-left transition-colors hover:bg-[#EAF3FB] disabled:cursor-default disabled:hover:bg-[#F5F9FD]"
+                    >
+                      <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#3D8BD0] shadow-sm"><MessageSquare size={17} /></span>
+                      <div className="min-w-0">
+                        <div className="text-[18px] font-bold leading-none tabular-nums text-[#364658]">{commentCount.toLocaleString()}</div>
+                        <div className="mt-1 text-[11px] text-[#7B8FA5]">Comments</div>
+                      </div>
+                    </button>
                   </div>
 
                   {/* Row 2 — feedback: Helpful vs Not Helpful with a ratio bar */}
@@ -2511,7 +2541,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* System Info — always LAST, and deliberately outside the reorderable list: these fields
             are written by the platform, not chosen by the technician, so they sit below everything
             actionable and there is nothing to gain from moving them. */}
-        {!compactTicketFields && !cveMode && getFilteredAdditionalFields && (
+        {!compactTicketFields && !cveMode && !taskMode && getFilteredAdditionalFields && (
           <SystemInfoAccordion
             fields={getFilteredAdditionalFields()}
             pinnedFields={pinnedFields}
@@ -2541,10 +2571,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <div className="border-t border-[#E5E7EB]"></div>
         </div>
 
-        {/* Info Section - Features Available. Hidden in V2 compact mode and on the CVE and
-            Knowledge pages — all three drop the pin/search/filter affordances, so the hints
+        {/* Info Section - Features Available. Hidden in V2 compact mode and on the CVE, Knowledge
+            and Task pages — all of them drop the pin/search/filter affordances, so the hints
             would describe controls that are not there. */}
-        {!compactTicketFields && !cveMode && !knowledgeMode && (
+        {!compactTicketFields && !cveMode && !knowledgeMode && !taskMode && (
         <div className="mt-4 px-0">
           <div className="px-4 py-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
             {/* Pin hint hidden on the Patch / Patch Deployment pages — their fields are

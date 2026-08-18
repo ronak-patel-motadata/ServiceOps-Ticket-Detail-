@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
+import { TASK_KEY_FIELDS } from './taskCustomFields';
 import { DateField } from './DateField';
 import { ChevronDown, ChevronUp, ChevronRight, Check, Search, Filter, Laptop, Server, Monitor as MonitorIcon, HardDrive, User, Pin as PinIcon, Edit, Calendar as CalendarIcon, X, Plus, Clock, CheckCircle, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -375,13 +376,17 @@ interface AssetFieldsProps {
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields.
   cveMode?: boolean;
+  /** Task detail page: the six task fields, in place of the cloned patch set. */
+  taskMode?: boolean;
+  /** Task Key Information values the expand popup has changed, keyed by label. */
+  taskValues?: Record<string, string>;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
   // "View more" expansion — so ONE "View more" reveals both the extra fields AND system fields.
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, cmdbMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, taskMode = false, taskValues, cmdbMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -706,7 +711,21 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Last Updated Date', value: 'Mon, Jul 27, 2026 11:26 AM' },
     ];
 
-    const fields = knowledgeInfo ? KNOWLEDGE_FIELDS : registryDeployMode ? REGISTRY_DEPLOYMENT_FIELDS : packageDeployMode ? PACKAGE_DEPLOYMENT_FIELDS : patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
+    /* Task fields come from the shared TASK_KEY_FIELDS definition, so the expand popup edits the
+       very same list. Status and Priority carry dots, matching how those values read in the
+       listing and the header KPI strip; `taskValues` holds anything the popup has changed. */
+    const TASK_FIELDS: PatchField[] = TASK_KEY_FIELDS.map((f) => {
+      const value = taskValues?.[f.label] ?? f.value;
+      const dot = f.options?.find((o) => o.label === value)?.color;
+      return {
+        label: f.label,
+        value,
+        ...(dot ? { dot } : {}),
+        ...(f.label === 'Assignee' ? { kind: 'user' as const } : {}),
+      };
+    });
+
+    const fields = taskMode ? TASK_FIELDS : knowledgeInfo ? KNOWLEDGE_FIELDS : registryDeployMode ? REGISTRY_DEPLOYMENT_FIELDS : packageDeployMode ? PACKAGE_DEPLOYMENT_FIELDS : patchDeployMode ? PATCH_DEPLOYMENT_FIELDS : endpointMode ? ENDPOINT_FIELDS : cveMode ? CVE_FIELDS : PATCH_FIELDS;
 
     const roRow = (f: PatchField) => {
       const empty = !f.value || f.value === '---';

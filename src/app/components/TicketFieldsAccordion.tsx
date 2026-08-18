@@ -25,6 +25,8 @@ interface TicketFieldsAccordionProps {
   registryDeployMode?: boolean;
   endpointMode?: boolean;
   cveMode?: boolean;
+  taskMode?: boolean;
+  taskValues?: Record<string, string>;
   knowledgeMode?: boolean;
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
   ticketFieldsExpanded: boolean;
@@ -224,6 +226,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     registryDeployMode = false,
     endpointMode = false,
     cveMode = false,
+    taskMode = false,
+    taskValues,
     knowledgeMode = false,
     knowledgeInfo,
     ticketFieldsExpanded,
@@ -496,6 +500,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           knowledgeInfo={knowledgeInfo}
           endpointMode={endpointMode}
           cveMode={cveMode}
+          taskMode={taskMode}
+          taskValues={taskValues}
         />
       )}
 

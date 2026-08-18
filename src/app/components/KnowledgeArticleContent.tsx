@@ -6,7 +6,7 @@ import { HeaderIdPill } from './HeaderIdPill';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { KB_ARTICLES, fallbackArticle, type Block } from './knowledgeArticleData';
 import { KnowledgeAiSummary } from './KnowledgeAiSummary';
-import { ArticleComments } from './ArticleComments';
+import { ArticleComments, type ArticleComment } from './ArticleComments';
 import { ArticleToc } from './ArticleToc';
 
 /* Knowledge detail page body — the article itself. The Knowledge page has NO tabs: the full
@@ -164,7 +164,7 @@ function readingMinutes(blocks: Block[]) {
   return Math.max(1, Math.round(words / 200));
 }
 
-export function KnowledgeArticleContent({ articleId, title, centered = false, masthead, showAiSummary = false, review }: {
+export function KnowledgeArticleContent({ articleId, title, centered = false, masthead, showAiSummary = false, review, comments, onCommentsChange, commentsOpen, onCommentsOpenChange }: {
   articleId: string;
   title: string;
   /** Requester preview: portal-style centred reading column. */
@@ -505,7 +505,13 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
 
         {/* Reader thread. Sits after the helpful vote, so the page ends: read it, rate it, discuss
             it — each step asking a little more of the reader than the last. */}
-        <ArticleComments articleId={articleId} />
+        <ArticleComments
+          articleId={articleId}
+          comments={comments}
+          onCommentsChange={onCommentsChange}
+          open={commentsOpen}
+          onOpenChange={onCommentsOpenChange}
+        />
       </article>
 
       {/* Lightbox — click the backdrop or ✕ to close; Esc-free by design (prototype). */}

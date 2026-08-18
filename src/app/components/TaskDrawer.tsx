@@ -1,21 +1,31 @@
+/* Task detail page — a CLONE of the Patch detail page (PatchDrawer), the way every other
+ * patch-family page in this project was made. The Tasks listing adapts a TaskRow onto the Patch
+ * shape via taskToPatchShape() so this cloned body compiles unchanged; the page is then diverged
+ * from here, step by step. */
 /**
- * HardwareAssetDrawer Component
+ * TaskDrawer Component
  *
- * Cloned from TicketDrawer as the initial Hardware Asset detail page. It currently reuses the
- * full ticket-detail UI; an internal adapter (assetToTicket) maps a HardwareAsset onto the
- * Ticket shape the body expects, so this can be customized with asset-specific details later.
+ * Cloned from NonItAssetDrawer as the Patch detail page. It currently reuses the full asset-detail
+ * UI; an internal adapter (patchToAssetShape) maps a Patch onto the HardwareAsset shape the body
+ * expects, so this can be customized with patch-specific details later. This is a SEPARATE file so
+ * Patch changes stay isolated.
  *
  * Note: This file may trigger a Babel optimization warning about exceeding 500KB in transpiled output.
  * This is a known Babel behavior where certain optimizations are disabled for large files,
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, X, ChevronLeft, ChevronRight, History, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft, Users, Workflow, Orbit, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
-import { AiSparkle } from './AiSparkle';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
+import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { FileTypeBadge } from './DescriptionAttachments';
+import { RelSavedViews } from './RelSavedViews';
+import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
+import { ActiveIssuesPanel } from './ActiveIssuesPanel';
+import { RelSliderRow } from './RelSliderRow';
+import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
-import { useState, useRef, useEffect, useMemo, type ComponentType } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { AssetAiSummary } from './AssetAiSummary';
@@ -23,6 +33,7 @@ import { IconRequest, IconProblem, IconChange, IconRelease } from './SidebarIcon
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import type { HardwareAsset } from './HardwareAssetsListPage';
+import type { Patch } from './PatchesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -44,7 +55,12 @@ import { TaskFormPanel } from './TaskFormPanel';
 import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
-import { Paginated } from './Paginated';
+import { PatchComputersTab, INITIAL_COMPUTERS, INITIAL_INSTALLATIONS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
+import { PatchInstallationTab } from './PatchInstallationTab';
+import { BarListKpiCard, ColumnKpiCard } from './OverviewKpiCards';
+import { PatchVulnerabilitiesTab, VULNERABILITIES } from './PatchVulnerabilitiesTab';
+import { PatchSupersededTab } from './PatchSupersededTab';
+import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
 import { ResolutionTabContent } from './ResolutionTabContent';
 import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
@@ -102,20 +118,15 @@ import {
   getFilteredAdditionalFields,
   makeCrossModuleRelations,
 } from './TicketDrawerUtils';
-const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Problem',prefix:'PRB'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'}]);
+import { TASK_CUSTOM_FORM_FIELDS } from './taskCustomFields';
+const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'},{type:'Purchase',prefix:'PO'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
-import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
-import { RelSavedViews } from './RelSavedViews';
-import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
-import { ActiveIssuesPanel } from './ActiveIssuesPanel';
-import { RelSliderRow } from './RelSliderRow';
-
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
-interface HardwareAssetDrawerProps {
-  openAssets: HardwareAsset[];
+interface TaskDrawerProps {
+  openAssets: Patch[];
   activeAssetId: string | null;
   onClose: () => void;
   onCloseTab: (assetId: string) => void;
@@ -126,15 +137,31 @@ interface HardwareAssetDrawerProps {
   onStackWidthChange?: (w: number) => void;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
-  // Lifted active-tab memory (host remembers each open item's detail tab across drawer swaps).
-  stackActiveTab?: string;
-  onStackActiveTabChange?: (t: string) => void;
 }
 
 /**
- * Adapts a HardwareAsset onto the Ticket shape the cloned ticket-detail body consumes.
- * This is a temporary bridge so the UI renders unchanged; replace with asset-specific
- * fields when the Hardware Asset detail page is customized.
+ * Adapts a Patch onto the HardwareAsset shape the cloned asset-detail body consumes.
+ * Patch-only fields have no hardware equivalent yet, so hardware-only fields are filled with
+ * placeholders and the UI renders unchanged; replace with patch-specific fields when this page
+ * is customized.
+ */
+function patchToAssetShape(p: Patch): HardwareAsset {
+  return {
+    id: p.id,
+    name: p.name,
+    assetType: 'Patch' as HardwareAsset['assetType'],
+    status: 'In Use',
+    hostName: '---',
+    ipAddress: '---',
+    usedBy: null,
+    managedByGroup: 'IT Operations',
+    managedBy: { name: 'Unassigned' },
+    serialNumber: '---',
+  };
+}
+
+/**
+ * Adapts the (already-adapted) asset onto the Ticket shape the cloned ticket-detail body consumes.
  */
 function assetToTicket(a: HardwareAsset): Ticket {
   const statusMap: Record<HardwareAsset['status'], Ticket['status']> = {
@@ -154,287 +181,27 @@ function assetToTicket(a: HardwareAsset): Ticket {
   };
 }
 
-/* Highlights every occurrence of the find query inside one property label or value. Each
-   occurrence carries its own id so the find bar's arrows can scroll straight to it, and the
-   active one is tinted darker — the browser's own find-in-page convention. */
-function HwFind({ text, query, base, activeKey }: { text: string; query: string; base: string; activeKey?: string }) {
-  if (!query) return <>{text}</>;
-  const lower = text.toLowerCase();
-  const out: React.ReactNode[] = [];
-  let from = 0;
-  let n = 0;
-  let at = lower.indexOf(query);
-  if (at === -1) return <>{text}</>;
-  while (at !== -1) {
-    if (at > from) out.push(text.slice(from, at));
-    const key = `${base}:${n}`;
-    const active = key === activeKey;
-    out.push(
-      <mark
-        key={key}
-        id={`hw-match-${key}`}
-        className={`rounded-[2px] ${active ? 'bg-[#FDB022] text-[#1E293B]' : 'bg-[#FEF0C7] text-inherit'}`}
-      >
-        {text.slice(at, at + query.length)}
-      </mark>,
-    );
-    from = at + query.length;
-    n += 1;
-    at = lower.indexOf(query, from);
-  }
-  if (from < text.length) out.push(text.slice(from));
-  return <>{out}</>;
-}
+// Related records listed when hovering an Impact pill (keyed by relation type).
+const RELATED_RECORDS: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
+  Incident: [
+    { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
+    { id: 'INC-45', subject: 'Email sync failing on Outlook', assignee: 'Rohan Mehta', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+    { id: 'INC-51', subject: 'Slow boot after update', assignee: 'Imran Qureshi', status: 'Pending', statusColor: '#9CA3AF', priority: 'Low' },
+  ],
+  Problem: [
+    { id: 'PRB-12', subject: 'Recurring VPN disconnects', assignee: 'Vikram Sethi', status: 'Under Investigation', statusColor: '#8B5CF6', priority: 'High' },
+    { id: 'PRB-18', subject: 'Frequent BSOD on docking', assignee: 'Farah Sheikh', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
+  ],
+  Change: [
+    { id: 'CHG-08', subject: 'Windows 11 feature upgrade', assignee: 'Tabrez Khan', status: 'Scheduled', statusColor: '#3D8BD0', priority: 'Medium' },
+    { id: 'CHG-14', subject: 'BIOS firmware rollout', assignee: 'Neha Raje', status: 'Approved', statusColor: '#22A06B', priority: 'High' },
+  ],
+  Release: [
+    { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
+  ],
+};
 
-/* The Hardware tab's section catalog. Module scope so the find-in-page search can index every
-   property before a section has been opened — a hit inside a collapsed section still counts. */
-type HwRec = [string, string][];
-export const HARDWARE_CATEGORIES: { id: string; label: string; addable?: boolean; summary?: [string, string][]; items: HwRec[] }[] = [
-  { id: 'computer-system', label: 'Computer System', items: [[
-    ['Name', 'DESKTOP-7ABJPOF'],
-    ['Domain Name', 'WORKGROUP'],
-    ['Manufacturer', 'LENOVO'],
-    ['Model Name', '20NRS08A00'],
-    ['System Family', 'ThinkPad L390'],
-    ['System Type', 'x64-based PC'],
-    ['PC System Type', 'Mobile'],
-    ['UUID', '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093'],
-    ['Boot Up State', 'Normal boot'],
-    ['Number Of Logical Processors', '8'],
-    ['Number Of Processors', '1'],
-    ['Device Status', 'Ok'],
-    ['Part Of Domain', 'No'],
-    ['User Name', 'DESKTOP-7ABJPOF\\j.doe'],
-    ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
-    ['Description', 'AT/AT COMPATIBLE'],
-    ['Asset Replacement', '---'],
-  ]] },
-  { id: 'os', label: 'OS', items: [[
-    ['Manufacturer', 'Microsoft Corporation'],
-    ['OS Name', 'Microsoft Windows 11 Pro'],
-    ['OS Version', '10.0.26100'],
-    ['OS Architecture', '64 BIT'],
-    ['Product Key', '00330-52522-70557-AAOEM'],
-    ['License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
-    ['Activation Status', 'Licensed'],
-    ['Installed Date', 'Thu, Sep 18, 2025 05:30 AM'],
-    ['Display Version', '24H2'],
-    ['Build No', '26100.6899'],
-    ['End Of Active Support Date', '13/10/2026'],
-    ['End Of Life Date', '13/10/2026'],
-  ]] },
-  { id: 'bios', label: 'BIOS', items: [[
-    ['Name', 'R10ET62W (1.47 )'],
-    ['Manufacturer', 'LENOVO'],
-    ['SM BIOS Version', 'R10ET62W (1.47 )'],
-    ['Release Date', '16/04/2024'],
-    ['Device Status', 'Ok'],
-    ['Version', 'LENOVO - 1470'],
-    ['Serial Number', 'R90X70MP'],
-    ['Description', 'R10ET62W (1.47 )'],
-  ]] },
-  { id: 'ram', label: 'RAM', addable: true,
-    summary: [
-      ['Total slots', '1'],
-      ['Free slots', '0'],
-      ['Occupied slots', '1'],
-      ['Total RAM Size (GB)', '40.00'],
-    ],
-    items: [
-      [
-        ['Serial Number', 'reqwewer'],
-        ['Manufacturer', 'Musarubra US LLC'],
-        ['Size', '32.00 GB'],
-        ['Memory Type', 'RAM'],
-        ['Width', '64 Bit'],
-        ['Clock Speed', '2400.00 MHz'],
-        ['Bank Locater', 'channal A'],
-      ],
-      [
-        ['Serial Number', '34F2A4B5'],
-        ['Manufacturer', 'Samsung'],
-        ['Size', '8.00 GB'],
-        ['Memory Type', 'Unknown'],
-        ['Width', '64 Bit'],
-        ['Clock Speed', '2400.00 MHz'],
-        ['Bank Locater', 'ChannelA-DIMM0'],
-      ],
-    ] },
-  { id: 'processor', label: 'Processor', addable: true, items: [[
-    ['Manufacturer', 'GenuineIntel'],
-    ['Processor Name', 'Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz'],
-    ['Width', '64 Bit'],
-    ['CPU Speed', '1.90 GHz'],
-    ['Core Count', '4'],
-    ['External Clock', '100.00 MHz'],
-    ['L1 Cache Size', '0.25 MB'],
-    ['L2 Cache Size', '1.00 MB'],
-    ['L3 Cache Size', '6.00 MB'],
-    ['Family', 'Intel(R) Core(TM) i5 processor'],
-    ['Description', 'Intel64 Family 6 Model 142 Stepping 12'],
-    ['Device Id', 'CPU0'],
-    ['Socket Designation', 'U3E1'],
-  ]] },
-  { id: 'network-adapter', label: 'Network Adapter', addable: true, items: [
-    [
-      ['Manufacturer', 'Microsoft'],
-      ['MAC Address', 'C8:09:A8:65:58:EB'],
-      ['Device Status', 'Unknown'],
-      ['IP Address', '---'],
-      ['DNS Domain', '---'],
-      ['DNS Host Name', '---'],
-      ['DNS Server Search Orders', '---'],
-      ['DHCP Enable', 'No'],
-      ['DHCP Lease Obtained', '---'],
-      ['DHCP Lease Expires', '---'],
-      ['DHCP Server', '---'],
-      ['Default IP Gateway', '---'],
-      ['IP Subnet', '---'],
-      ['Connection Status', 'Media Disconnected'],
-      ['Description', 'Bluetooth Device (Personal Area Network)'],
-    ],
-    [
-      ['Manufacturer', 'Intel Corporation'],
-      ['MAC Address', 'C8:09:A8:65:58:E7'],
-      ['Device Status', 'Unknown'],
-      ['IP Address', 'fe80::99a9:9659:da7e:60ad, 192.168.1.60'],
-      ['DNS Domain', '---'],
-      ['DNS Host Name', 'DESKTOP-7ABJPOF'],
-      ['DNS Server Search Orders', '192.168.1.1'],
-      ['DHCP Enable', 'No'],
-      ['DHCP Lease Obtained', '---'],
-      ['DHCP Lease Expires', '---'],
-      ['DHCP Server', '192.168.1.1'],
-      ['Default IP Gateway', '192.168.1.1'],
-      ['IP Subnet', '255.255.255.0, ffff:ffff:ffff:ffff::'],
-      ['Connection Status', 'Connected'],
-      ['Description', 'Intel(R) Wireless-AC 9560 160MHz'],
-    ],
-    [
-      ['Manufacturer', 'Intel'],
-      ['MAC Address', '48:2A:E3:71:82:95'],
-      ['Device Status', 'Unknown'],
-      ['IP Address', '---'],
-      ['DNS Domain', '---'],
-      ['DNS Host Name', '---'],
-      ['DNS Server Search Orders', '---'],
-      ['DHCP Enable', 'No'],
-      ['DHCP Lease Obtained', '---'],
-      ['DHCP Lease Expires', '---'],
-      ['DHCP Server', '---'],
-      ['Default IP Gateway', '---'],
-      ['IP Subnet', '---'],
-      ['Connection Status', 'Media Disconnected'],
-      ['Description', 'Intel(R) Ethernet Connection (6) I219-LM'],
-    ],
-  ] },
-  { id: 'motherboard', label: 'Motherboard', items: [[
-    ['Manufacturer', 'LENOVO'],
-    ['Serial Number', 'W1KS9CT102C'],
-    ['Version', 'SDK0J40697 WIN'],
-    ['Installed Date', '---'],
-    ['Part Number', '---'],
-    ['Primary Bus Type', 'PCI'],
-    ['Secondary Bus Type', 'ISA'],
-    ['Device Status', 'Ok'],
-  ]] },
-  { id: 'physical-disk', label: 'Physical Disk', addable: true, items: [[
-    ['Name', '\\\\.\\PHYSICALDRIVE0'],
-    ['Manufacturer', '(Standard disk drives)'],
-    ['Size', '238.47 GB'],
-    ['Installed Date', '---'],
-    ['Device Status', 'Ok'],
-    ['Partition', '3'],
-    ['Media Type', 'Fixed hard disk media'],
-    ['Model', 'INTEL SSDPEKKF256G8L'],
-    ['Interface Type', 'SCSI'],
-    ['Serial Number', '5CD2_E42C_91A0_59CD.'],
-    ['PNP Device ID', 'SCSI\\DISK&VEN_NVME&PROD_INTEL_SSDPEKKF2...'],
-    ['Description', 'Disk drive'],
-    ['Storage Device Type', 'SSD'],
-  ]] },
-  { id: 'logical-disk', label: 'Logical Disk', addable: true, items: [[
-    ['Name', 'C:'],
-    ['File System Type', 'NTFS'],
-    ['Drive Type', 'Local Disk'],
-    ['Serial Number', 'F091C280'],
-    ['Device Status', 'Unknown'],
-    ['Size', '237.44 GB'],
-    ['Free Space', '138.29 GB'],
-    ['Description', 'Local Fixed Disk'],
-  ]] },
-  { id: 'monitor', label: 'Monitor', addable: true, items: [[
-    ['Manufacturer', 'LEN'],
-    ['Monitor Type', '---'],
-    ['Size', '13.23'],
-    ['Device Status', '---'],
-    ['Serial Number', '0'],
-    ['Installed Date', '---'],
-    ['PNP Device ID', '---'],
-    ['Screen Height', '17'],
-    ['Screen Width', '29'],
-    ['Week of Manufacture', '20'],
-    ['Year of Manufacture', '2017'],
-    ['Description', '---'],
-    ['Monitor Tag', '---'],
-  ]] },
-  { id: 'keyboard', label: 'Keyboard', addable: true, items: [[
-    ['Name', 'Enhanced (101- or 102-key)'],
-    ['Manufacturer', '---'],
-    ['Installed Date', '---'],
-    ['PNP Device ID', 'ACPI\\LEN0071\\4&254DEA5B&0'],
-    ['Device Status', 'Ok'],
-    ['Description', 'Standard PS/2 Keyboard'],
-    ['Keyboard Tag', 'Keyboard Serial No'],
-  ]] },
-  { id: 'pointing-device', label: 'Pointing Device', addable: true, items: [
-    [
-      ['Manufacturer', 'ELAN'],
-      ['Number Of Buttons', '---'],
-      ['Pointing Type', 'Unknown'],
-      ['Device Status', 'Ok'],
-      ['PNP Device ID', 'ACPI\\LEN2137\\4&254DEA5B&0'],
-      ['Description', 'ELAN Input Device For WDF'],
-      ['Mouse Tag', '---'],
-    ],
-    [
-      ['Manufacturer', 'Microsoft'],
-      ['Number Of Buttons', '---'],
-      ['Pointing Type', 'Unknown'],
-      ['Device Status', 'Ok'],
-      ['PNP Device ID', 'HID\\VID_04F3&PID_0000&COL01\\6&BE95B37&0...'],
-      ['Description', 'HID-compliant mouse'],
-      ['Mouse Tag', '---'],
-    ],
-  ] },
-  { id: 'shared-folder', label: 'Shared Folder', items: [] },
-  { id: 'usb-hub', label: 'USB Hub', addable: true, items: [
-    [
-      ['Name', 'USB Root Hub (USB 3.0)'],
-      ['Device Status', 'Ok'],
-      ['Device Status Information', '---'],
-      ['Device ID', 'USB\\ROOT_HUB30\\4&1CA724C0&0&0'],
-      ['Description', 'USB Root Hub (USB 3.0)'],
-    ],
-    [
-      ['Name', 'USB Composite Device'],
-      ['Device Status', 'Ok'],
-      ['Device Status Information', '---'],
-      ['Device ID', 'USB\\VID_04CA&PID_7070\\5&21EED693&0&5'],
-      ['Description', 'USB Composite Device'],
-    ],
-  ] },
-  { id: 'usb-controller', label: 'USB Controller', addable: true, items: [[
-    ['Name', '---'],
-    ['Manufacturer', '---'],
-    ['Device Status', '---'],
-    ['Device Status Information', '---'],
-    ['Device ID', '---'],
-    ['Description', '---'],
-  ]] },
-];
-
-export function HardwareAssetDrawer({
+export function TaskDrawer({
   openAssets,
   activeAssetId,
   onClose,
@@ -446,17 +213,21 @@ stackWidth,
 onStackWidthChange,
 stackMinimized,
 onStackMinimizedChange,
-  stackActiveTab,
-  onStackActiveTabChange,
-}: HardwareAssetDrawerProps) {
-  const openTickets = openAssets.map(assetToTicket);
+}: TaskDrawerProps) {
+  const assetList = openAssets.map(patchToAssetShape);
+  const openTickets = assetList.map(assetToTicket);
   const activeTicketId = activeAssetId;
   const activeTicket = openTickets.find(t => t.id === activeTicketId);
   const [minimizedLocal, setMinimizedLocal] = useState(false);
   const minimized = stackMinimized ?? minimizedLocal;
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
-  const activeAsset = openAssets.find(a => a.id === activeAssetId);
+  const activeAsset = assetList.find(a => a.id === activeAssetId);
+  // The RAW patch record (the adapted HardwareAsset shape has no description).
+  const activePatchRecord = openAssets.find(p => p.id === activeAssetId) ?? openAssets[0];
+  // Overview description is optional and collapsed by default; reset when switching patch tabs.
+  const [descExpanded, setDescExpanded] = useState(false);
+  useEffect(() => { setDescExpanded(false); }, [activeAssetId]);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
   const [assetType, setAssetType] = useState('');
@@ -464,26 +235,21 @@ onStackMinimizedChange,
   const [assetImpact, setAssetImpact] = useState('Low');
   const [assetGroup, setAssetGroup] = useState('Unassigned');
   const [assetManager, setAssetManager] = useState<{ name: string; initials?: string; color?: string }>({ name: 'Unassigned' });
+  const [softwareType, setSoftwareType] = useState('Managed');
   const [assetExtra, setAssetExtra] = useState<Record<string, string>>({
-    'Asset Group': 'Anblicks Group',
-    'Product': '',
-    'Used By': '',
-    'Location': 'KRISHNAPATNAM',
+    'Asset Group': 'Unassigned',
+    'Product': 'use case',
+    'Used By': 'Neha Raje',
+    'Location': '',
     'Category': '',
     'Department': '',
-    'Host Name': 'DESKTOP-7ABJPOF',
-    'Domain Name': 'WORKGROUP',
-    'UUID': '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093',
-    'IP Address': '192.168.1.60',
-    'MAC Address': 'C8:09:A8:65:58:E7',
-    'Subnet Mask': '255.255.255.0',
-    'Vendor': '',
-    'Asset Condition': 'Good',
+    'Vendor': 'Test vendor',
+    'Asset Condition': 'None',
     'Movement Status': 'None',
-    'Under Change Control': 'Yes',
-    'Business Service': 'Core Banking',
-    'Origin': 'Agent',
-    'Acquisition Date': '',
+    'Under Change Control': 'No',
+    'Business Service': '',
+    'Origin': 'Purchase',
+    'Acquisition Date': '2026-04-22',
     'Assignment Date': '',
   });
 
@@ -503,24 +269,12 @@ onStackMinimizedChange,
     impact: assetImpact, setImpact: setAssetImpact,
     managedByGroup: assetGroup, setManagedByGroup: setAssetGroup,
     managedBy: assetManager, setManagedBy: setAssetManager,
-    ci: 'CI-778 192.168.1.60',
+    softwareType, setSoftwareType,
     extra: assetExtra, setExtra: setAssetExtra,
   };
 
   // Agent Information shown in place of Requester Information on the asset page.
   // Real values from the asset where available; the rest are representative samples for now.
-  const agentInfo = {
-    id: activeAsset?.id || '---',
-    agentName: 'AGENT-417',
-    hostName: activeAsset?.hostName || '---',
-    hostStatusColor: '#EAB308',
-    ipAddress: activeAsset?.ipAddress || '---',
-    poller: '---',
-    os: 'Microsoft Windows 11 Pro',
-    version: '8.7.410',
-    domainName: 'WORKGROUP',
-    lastSyncDate: 'Wed, May 06, 2026 12:54 PM',
-  };
   const [drawerWidth, setDrawerWidth] = useState(stackWidth ?? (typeof window !== 'undefined' ? window.innerWidth - 54 : 1546));
   // Report full/small width changes up to the shared host so the view mode persists across tab switches/closes.
   useEffect(() => { if (onStackWidthChange) onStackWidthChange(drawerWidth); }, [drawerWidth]);
@@ -533,7 +287,9 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [installationSearch, setInstallationSearch] = useState('');
+  const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
   const [baselines, setBaselines] = useState<{ id: string; name: string; createdOn: string; createdBy: string }[]>([
     { id: 'BAS-31', name: 'New Base Line - 64 Bit', createdOn: 'Mon, Apr 27, 2026 11:44 AM', createdBy: 'System' },
@@ -581,210 +337,7 @@ onStackMinimizedChange,
   const baselineVarianceCount = 3;
   // Search across all Properties tab sections (Hardware Asset detail page).
   const [propertiesSearch, setPropertiesSearch] = useState('');
-  const [showLocationMap, setShowLocationMap] = useState(false);
-  const [showLocationHistory, setShowLocationHistory] = useState(false);
-  // Location History date filter (same From/To popup as the History tab's Audit Trail filter).
-  const [locHistFilterOpen, setLocHistFilterOpen] = useState(false);
-  const [locHistFrom, setLocHistFrom] = useState('');
-  const [locHistTo, setLocHistTo] = useState('');
-  const [locHistDraftFrom, setLocHistDraftFrom] = useState('');
-  const [locHistDraftTo, setLocHistDraftTo] = useState('');
-  // Geolocation config: `geoConfigured` toggles the card between the set-location view (with an
-  // edit pencil) and an empty "Add Location" state; the config side drawer holds the form.
-  // Seeded per asset (deterministic id hash, like the Impact KPI) so ~1 in 3 assets demos the
-  // blank state out of the box; Add Location / Enable=No flips it at runtime.
-  const geoSeedFor = (id: string | null | undefined) => ([...(id ?? '')].reduce((a, c) => a + c.charCodeAt(0), 0) % 3) !== 0;
-  const [geoConfigured, setGeoConfigured] = useState(() => geoSeedFor(activeAssetId));
-  useEffect(() => { setGeoConfigured(geoSeedFor(activeAssetId)); }, [activeAssetId]);
-  const [showGeoConfig, setShowGeoConfig] = useState(false);
-  const [geoEnabled, setGeoEnabled] = useState<'yes' | 'no'>('yes');
-  const [geoPref, setGeoPref] = useState<'default' | 'live'>('default');
-  const [geoLat, setGeoLat] = useState('23.0225');
-  const [geoLng, setGeoLng] = useState('72.5714');
-  // Open the config drawer — seed the form from the current configured state.
-  const openGeoConfig = () => { setGeoEnabled(geoConfigured ? 'yes' : 'no'); setShowGeoConfig(true); };
-  // "Locate On Map" picker — click the map to drop the pin manually; Done commits the draft
-  // coordinates back into the form. `pickSpan` = visible longitude span (zoom level).
-  const [showGeoPick, setShowGeoPick] = useState(false);
-  const [pickLat, setPickLat] = useState(23.0225);
-  const [pickLng, setPickLng] = useState(72.5714);
-  const [pickSpan, setPickSpan] = useState(40);
-  const geoPickMapRef = useRef<HTMLDivElement>(null);
-  const openGeoPick = () => {
-    const lat = parseFloat(geoLat); const lng = parseFloat(geoLng);
-    setPickLat(Number.isFinite(lat) ? lat : 23.0225);
-    setPickLng(Number.isFinite(lng) ? lng : 72.5714);
-    setPickSpan(40);
-    setShowGeoPick(true);
-  };
-  // Web-Mercator helpers so a click on the embedded map converts to real coordinates.
-  const mercY = (latDeg: number) => Math.log(Math.tan(Math.PI / 4 + (latDeg * Math.PI) / 360));
-  const invMercY = (y: number) => ((2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180) / Math.PI;
-  const saveGeoConfig = () => { setGeoConfigured(geoEnabled === 'yes'); setShowGeoConfig(false); toast.success('Geolocation updated'); };
-  // Whether the Hardware tab's jump-to-section list is open.
-  // The section rail opens with the tab — it is the map of what the Hardware tab holds, so a
-  // technician should not have to find it before they can navigate.
-  const [hardwareNavOpen, setHardwareNavOpen] = useState(true);
-  // Hardware-tab section nav scroll-spy: the nav row whose section is currently in view is
-  // highlighted; clicking sets it immediately (and pauses the spy so the smooth scroll's
-  // intermediate sections don't flicker through the highlight).
-  const [hardwareActiveSection, setHardwareActiveSection] = useState('computer-system');
-  const hwSpyPauseRef = useRef(0);
-
-  /* Hardware sections load ON DEMAND. Rendering all of them upfront meant the page fired one
-     query per section before anything was readable; as accordions, only the section a technician
-     actually opens is fetched, and only once. The first section opens by default so the tab is
-     never blank. Swap the timeout for the real request and the rest of this still holds. */
-  const [expandedHwSections, setExpandedHwSections] = useState<Set<string>>(new Set(['computer-system']));
-  const [loadedHwSections, setLoadedHwSections] = useState<Set<string>>(new Set(['computer-system']));
-  const [loadingHwSections, setLoadingHwSections] = useState<Set<string>>(new Set());
-  const loadHwSection = (id: string) => {
-    setLoadedHwSections((loaded) => {
-      if (loaded.has(id)) return loaded;
-      setLoadingHwSections((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-      setTimeout(() => {
-        setLoadedHwSections((prev) => new Set(prev).add(id));
-        setLoadingHwSections((prev) => { const n = new Set(prev); n.delete(id); return n; });
-      }, 500);
-      return loaded;
-    });
-  };
-  /** Open a section (loading it if this is the first time); collapsing never unloads it. */
-  const openHwSection = (id: string) => {
-    setExpandedHwSections((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-    loadHwSection(id);
-  };
-  const toggleHwSection = (id: string) => {
-    setExpandedHwSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    if (!expandedHwSections.has(id)) loadHwSection(id);
-  };
-  useEffect(() => {
-    let raf = 0;
-    const onScroll = (e: Event) => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        // Option 2 shows one section at a time, so the rail selection is the user's, not the
-        // scroll position's — the spy would only fight it.
-        if (hwTabbedRef.current) return;
-        if (Date.now() < hwSpyPauseRef.current) return;
-        const secs = Array.from(document.querySelectorAll<HTMLElement>('[id^="hw-section-"]'));
-        if (!secs.length) return;
-        let active = secs[0].id;
-        for (const sec of secs) {
-          if (sec.getBoundingClientRect().top <= 150) active = sec.id; else break;
-        }
-        // Scrolled to the very bottom → the last section is the one being read, even if its
-        // heading never crosses the threshold.
-        const t = e.target;
-        if (t instanceof HTMLElement && t.contains(secs[0]) && t.scrollHeight - t.scrollTop - t.clientHeight < 8) active = secs[secs.length - 1].id;
-        setHardwareActiveSection(active.replace('hw-section-', ''));
-      });
-    };
-    document.addEventListener('scroll', onScroll, true);
-    return () => { document.removeEventListener('scroll', onScroll, true); if (raf) cancelAnimationFrame(raf); };
-  }, []);
-  // Common search across all Hardware tab sections.
-  const [hardwareSearch, setHardwareSearch] = useState('');
-  // Deleted Hardware record cards, keyed as `${categoryId}:${index}`.
-  const [removedHardwareItems, setRemovedHardwareItems] = useState<Set<string>>(new Set());
-
-  /* Hardware tab layout, OPTION 2 — AST-002 only. Instead of one long page of accordions, the
-     left rail becomes real sub-tabs: exactly one section renders at a time, so a technician sees
-     a short, focused property list and the page fetches only what they asked for. Every other
-     asset keeps option 1 (the stacked accordions). */
-  const hwTabbed = activeAssetId === 'AST-002';
-  const hwTabbedRef = useRef(hwTabbed);
-  hwTabbedRef.current = hwTabbed;
-
-  /* Hardware tab find-in-page. The search no longer FILTERS the sections — hiding everything that
-     did not match left a technician staring at one field with no idea what surrounded it. Instead
-     every property stays put, each hit is highlighted, and the find bar walks them with a
-     "N of M" counter, exactly like the browser's own find. */
-  const hwQuery = hardwareSearch.trim().toLowerCase();
-  const [hwMatchIdx, setHwMatchIdx] = useState(0);
-  // Bumped on every arrow press so re-pressing with a single match still re-scrolls to it.
-  const [hwJumpNonce, setHwJumpNonce] = useState(0);
-  const hwMatches = useMemo(() => {
-    if (!hwQuery) return [] as { key: string; section: string }[];
-    const out: { key: string; section: string }[] = [];
-    const add = (base: string, text: string, section: string) => {
-      const lower = text.toLowerCase();
-      let at = lower.indexOf(hwQuery);
-      let n = 0;
-      while (at !== -1) {
-        out.push({ key: `${base}:${n}`, section });
-        n += 1;
-        at = lower.indexOf(hwQuery, at + hwQuery.length);
-      }
-    };
-    // Document order — summary cards render above the record cards within each section.
-    for (const s of HARDWARE_CATEGORIES) {
-      s.summary?.forEach(([label, value], si) => {
-        add(`${s.id}:s${si}:l`, label, s.id);
-        add(`${s.id}:s${si}:v`, value, s.id);
-      });
-      s.items.forEach((fields, i) => {
-        if (removedHardwareItems.has(`${s.id}:${i}`)) return;
-        fields.forEach(([label, value], fi) => {
-          add(`${s.id}:${i}:${fi}:l`, label, s.id);
-          add(`${s.id}:${i}:${fi}:v`, value, s.id);
-        });
-      });
-    }
-    return out;
-  }, [hwQuery, removedHardwareItems]);
-  const hwActiveKey = hwMatches[hwMatchIdx]?.key;
-  const hwGoMatch = (dir: 1 | -1) => {
-    if (!hwMatches.length) return;
-    setHwMatchIdx((i) => (i + dir + hwMatches.length) % hwMatches.length);
-    setHwJumpNonce((n) => n + 1);
-  };
-  // A new query always starts from the first hit.
-  useEffect(() => { setHwMatchIdx(0); setHwJumpNonce((n) => n + 1); }, [hwQuery]);
-  useEffect(() => {
-    const m = hwMatches[hwMatchIdx];
-    if (!m) return;
-    // A hit outside the section on screen still counts — option 2 switches sub-tab to reach it,
-    // option 1 opens (and loads) the collapsed accordion.
-    if (hwTabbedRef.current) setHardwareActiveSection(m.section);
-    openHwSection(m.section);
-    hwSpyPauseRef.current = Date.now() + 900;
-    const jump = () => {
-      const el = document.getElementById(`hw-match-${m.key}`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return !!el;
-    };
-    if (jump()) return;
-    // The section may still be fetching its rows — retry until the row paints.
-    let tries = 0;
-    const timer = window.setInterval(() => {
-      if (jump() || (tries += 1) > 10) window.clearInterval(timer);
-    }, 150);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hwMatchIdx, hwJumpNonce, hwMatches]);
-  const [showAiDropdown, setShowAiDropdown] = useState(false);
-  const [showOldMessages, setShowOldMessages] = useState(false);
-  const [showSubTabSearch, setShowSubTabSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [isSortedFromTop, setIsSortedFromTop] = useState(false);
-  const [showReplyEditor, setShowReplyEditor] = useState(false);
-  const [showForwardEditor, setShowForwardEditor] = useState(false);
-  const [showCollaborateEditor, setShowCollaborateEditor] = useState(false);
-  const [showNoteEditor, setShowNoteEditor] = useState(false);
-  const [showCc, setShowCc] = useState(false);
-  const [isWatching, setIsWatching] = useState(false);
-  const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
-  const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
-  const [showQrMenu, setShowQrMenu] = useState(false);
-  // Relationship tab view controls: layout mode, refresh key, and full-screen toggle.
+  // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
   const [relView, setRelView] = useState<'graph' | 'tree' | 'grid'>('graph');
   const [relFull, setRelFull] = useState(false);
   const [relKey, setRelKey] = useState(0);
@@ -816,6 +369,12 @@ onStackMinimizedChange,
   // Active Issues panel: the (red) node whose hover-card issues strip was clicked.
   const [relIssuesTarget, setRelIssuesTarget] = useState<{ id: string; name: string } | null>(null);
   const relSearchRef = useRef<HTMLInputElement>(null);
+  // Relationship download popup (same as the audit-trail download).
+  const [showRelDownload, setShowRelDownload] = useState(false);
+  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'Excel' | 'CSV' | 'PNG'>('PDF');
+  const [relDlPwProtected, setRelDlPwProtected] = useState(false);
+  const [relDlShowPw, setRelDlShowPw] = useState(false);
+  const [relDlPassword, setRelDlPassword] = useState('');
   // Relationship-tab hotkeys: Ctrl+F focuses the node search (Esc in the field clears it),
   // Ctrl+Shift+F toggles fullscreen, 1/2 switch Full/Tree view (ignored while typing).
   useEffect(() => {
@@ -840,166 +399,69 @@ onStackMinimizedChange,
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [activeMainTab]);
-  const [relZoom, setRelZoom] = useState(1);
-  const [relPan, setRelPan] = useState({ x: 0, y: 0 });
-  // Relationship download popup (same as the audit-trail download).
-  const [showRelDownload, setShowRelDownload] = useState(false);
-  const [relDlFormat, setRelDlFormat] = useState<'PDF' | 'PNG'>('PDF');
-  const [relDlPwProtected, setRelDlPwProtected] = useState(false);
-  const [relDlShowPw, setRelDlShowPw] = useState(false);
-  const [relDlPassword, setRelDlPassword] = useState('');
+  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
+  const [showLocationMap, setShowLocationMap] = useState(false);
+  const [showLocationHistory, setShowLocationHistory] = useState(false);
+  // Whether the Hardware tab's jump-to-section list is open.
+  const [hardwareNavOpen, setHardwareNavOpen] = useState(false);
+  // Common search across all Hardware tab sections.
+  const [hardwareSearch, setHardwareSearch] = useState('');
+  // Deleted Hardware record cards, keyed as `${categoryId}:${index}`.
+  const [removedHardwareItems, setRemovedHardwareItems] = useState<Set<string>>(new Set());
+  const [showAiDropdown, setShowAiDropdown] = useState(false);
+  const [showOldMessages, setShowOldMessages] = useState(false);
+  const [showSubTabSearch, setShowSubTabSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isSortedFromTop, setIsSortedFromTop] = useState(false);
+  const [showReplyEditor, setShowReplyEditor] = useState(false);
+  const [showForwardEditor, setShowForwardEditor] = useState(false);
+  const [showCollaborateEditor, setShowCollaborateEditor] = useState(false);
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [showCc, setShowCc] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
+  const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
+  const [showBarcodeMenu, setShowBarcodeMenu] = useState(false);
+  const [showQrMenu, setShowQrMenu] = useState(false);
   const [showAddBarcodePopup, setShowAddBarcodePopup] = useState(false);
   const [addBarcodeValue, setAddBarcodeValue] = useState('');
-  // Pre-applied relation type filter when navigating from the Contracts & Purchases card.
-  const [relationsInitialFilter, setRelationsInitialFilter] = useState<string | null>(null);
+  // Patch approval decision, per patch id: 'none' (just created → both buttons),
+  // 'approved' (only Decline shows), 'declined' (only Approve shows).
+  const [patchDecision, setPatchDecision] = useState<Record<string, 'none' | 'approved' | 'declined'>>({});
 
-  // Health & compliance KPI grid — reused in the Overview (AST-001) and at the top (other assets).
-  // Per-asset impact counts: deterministically derived from the asset id so each
-  // asset consistently shows a different number of pills (1–4) when opened.
-  const impactSeed = [...(activeAssetId ?? 'AST-000')].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-  const impactItems: { label: string; n: number; color: string; icon: ComponentType<{ size?: number }>; filter: string }[] = [
-    { label: 'Incidents', n: (impactSeed % 3) + 4, color: '#DC2626', icon: IconRequest, filter: 'Request' },
-    { label: 'Problems', n: Math.floor(impactSeed / 4) % 3, color: '#D97706', icon: IconProblem, filter: 'Problem' },
-    { label: 'Changes', n: Math.floor(impactSeed / 7) % 3, color: '#8B5CF6', icon: IconChange, filter: 'Change' },
-    { label: 'Releases', n: Math.floor(impactSeed / 11) % 2, color: '#22A06B', icon: IconRelease, filter: 'Release' },
-  ];
-  const impactVisible = impactItems.filter((it) => it.n > 0);
-  // Related records listed when hovering an Impact pill (keyed by singular type).
-  const relatedRecords: Record<string, { id: string; subject: string; assignee: string; status: string; statusColor: string; priority: string }[]> = {
-    Incident: [
-      { id: 'INC-32', subject: 'Wi-Fi not working', assignee: 'Neha Raje', status: 'In Progress', statusColor: '#3D8BD0', priority: 'High' },
-      { id: 'INC-45', subject: 'Email sync failing on Outlook', assignee: 'Rohan Mehta', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
-      { id: 'INC-51', subject: 'Slow boot after update', assignee: 'Imran Qureshi', status: 'Pending', statusColor: '#9CA3AF', priority: 'Low' },
-    ],
-    Problem: [
-      { id: 'PRB-12', subject: 'Recurring VPN disconnects', assignee: 'Vikram Sethi', status: 'Under Investigation', statusColor: '#8B5CF6', priority: 'High' },
-      { id: 'PRB-18', subject: 'Frequent BSOD on docking', assignee: 'Farah Sheikh', status: 'Open', statusColor: '#D97706', priority: 'Medium' },
-    ],
-    Change: [
-      { id: 'CHG-08', subject: 'Windows 11 feature upgrade', assignee: 'Tabrez Khan', status: 'Scheduled', statusColor: '#3D8BD0', priority: 'Medium' },
-      { id: 'CHG-14', subject: 'BIOS firmware rollout', assignee: 'Neha Raje', status: 'Approved', statusColor: '#22A06B', priority: 'High' },
-    ],
-    Release: [
-      { id: 'REL-03', subject: 'Q3 security patch release', assignee: 'Vikram Sethi', status: 'Planning', statusColor: '#D97706', priority: 'Medium' },
-    ],
+  // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
+  // a deployment record (Installation tab); once that record's status turns Success the computer
+  // moves into the Installed bucket in the Computers tab.
+  const [patchComputers, setPatchComputers] = useState<PatchComputer[]>(INITIAL_COMPUTERS);
+  const [patchInstallations, setPatchInstallations] = useState<PatchInstallation[]>(INITIAL_INSTALLATIONS);
+  const handleInstallPatch = (agentIds: string[]) => {
+    setPatchInstallations((prev) => {
+      const existing = new Set(prev.map((r) => r.agentId));
+      const toAdd = agentIds
+        .filter((id) => !existing.has(id))
+        .map((id) => {
+          const c = patchComputers.find((x) => x.id === id);
+          return {
+            id: `INST-${id}`,
+            agentId: id,
+            hostName: c?.hostName ?? id,
+            ipAddress: c?.ipAddress ?? '---',
+            configType: 'Install',
+            deploymentDate: '---',
+            installationStatus: 'Yet to Receive' as const,
+            retryStatus: 0,
+            downloadStatus: 'Success',
+            taskType: 'Manual Remote Deployment',
+          };
+        });
+      return [...toAdd, ...prev];
+    });
+    const n = agentIds.length;
+    toast.success(`${n} computer${n > 1 ? 's' : ''} queued for install`);
   };
-  const healthComplianceGrid = (
-    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
-      {([
-        { label: 'Warranty', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
-          ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
-            a: "**Warranty status:** Expires in **23 days** (Jul 11, 2026).\n**Coverage:** Dell ProSupport Plus — onsite next-business-day.\n\n**Recommended next steps:**\n• Raise a renewal PO with the vendor before expiry to avoid a coverage gap\n• Confirm the renewal term (1 yr / 3 yr) with the asset owner\n• Attach the renewal quote to this asset's Financials tab\n\nWould you like me to draft a renewal request to the vendor?" } },
-        { label: 'Antivirus', value: 'Active', note: 'CrowdStrike Falcon', sub: 'Protection enabled', color: '#22A06B', icon: Shield,
-          ai: { action: 'Run a scan', q: 'Run a security scan on this asset',
-            a: "**Antivirus:** Active — CrowdStrike Falcon, definitions updated 4 hours ago.\n**Last full scan:** 2 days ago — 0 threats found.\n\n**Recommended next steps:**\n• Trigger an on-demand full scan now\n• Verify real-time protection is enabled\n• Review the quarantine log for the last 30 days\n\nShall I trigger an on-demand scan and notify the asset owner?" } },
-        { label: 'Patches', value: '2', sub: 'Missing updates', color: '#D97706', icon: Download,
-          ai: { action: 'Deploy patches', q: 'Which patches are missing on this asset and how do I deploy them?',
-            a: "**Patch status:** **2 missing** updates.\n\n**Missing:**\n• KB5034441 — Security Update (Critical)\n• KB5034123 — Cumulative Update (Important)\n\n**Recommended next steps:**\n• Schedule deployment in the next maintenance window\n• A reboot is required after KB5034441\n• Re-validate against the patch baseline after install\n\nWould you like me to schedule these patches for the next window?" } },
-        baselineVarianceCount > 0
-          ? { label: 'Baseline Variance', value: `${baselineVarianceCount}`, sub: 'Deviations detected', color: '#DC2626', icon: ShieldAlert,
-              ai: { action: 'Investigate drift', q: 'What baseline variances were detected on this asset?',
-                a: "**Baseline variance:** **3 deviations** from the approved Gold baseline.\n\n**Detected changes:**\n• Unapproved service enabled: Remote Registry\n• Firewall rule modified: inbound 3389 (RDP) opened\n• Local admin group: 1 unexpected member added\n\n**Recommended next steps:**\n• Review each deviation and revert unauthorized changes\n• Confirm with the asset owner whether changes were intentional\n• Re-run the baseline scan to clear resolved items\n\nWant me to open a change to remediate these deviations?" } }
-          : { label: 'Encryption', value: 'On', sub: 'Disk encrypted', color: '#22A06B', icon: Lock,
-              ai: { action: 'Verify encryption', q: 'Is this asset encrypted and is the recovery key escrowed?',
-                a: "**Encryption:** On — BitLocker (XTS-AES 256).\n**Recovery key:** Escrowed in AD on May 30, 2026.\n\n**Recommended next steps:**\n• Confirm the key is recoverable from the directory\n• Verify the TPM is healthy and owned\n\nWant me to validate the recovery key escrow?" } },
-        { label: 'Software', value: '1', sub: 'Unauthorized app', color: '#DC2626', icon: AppWindow,
-          ai: { action: 'Review software', q: 'Which unauthorized software is installed on this asset?',
-            a: "**Unauthorized software:** **1 application** flagged against policy.\n\n**Flagged:**\n• uTorrent 3.6 — prohibited (P2P category)\n\n**Recommended next steps:**\n• Uninstall via software deployment\n• Notify the user of the policy violation\n• Add to the blocklist to prevent reinstall\n\nShall I queue an uninstall and notify the user?" } },
-        { label: 'Compliance', value: 'At risk', sub: 'Needs attention', color: '#DC2626', icon: BadgeCheck,
-          ai: { action: 'Fix compliance', q: "Why is this asset's compliance at risk and how do I fix it?",
-            a: "**Compliance:** **At risk** — 3 of 12 controls failing.\n\n**Failing controls:**\n• Disk encryption not enforced (BitLocker off)\n• 2 missing security patches\n• 1 unauthorized application present\n\n**Recommended next steps:**\n• Enable BitLocker and escrow the recovery key\n• Deploy the 2 missing patches\n• Remove the unauthorized application\n\nWould you like me to bundle these into a single remediation plan?" } },
-        ...(impactVisible.length > 0 ? [{ label: 'Impact', color: '#3D8BD0', icon: Activity, impact: true }] : []),
-        { label: 'Approvals', value: '2', sub: 'Pending', color: '#D97706', icon: CheckSquare },
-      ] as { label: string; value?: string; unit?: string; sub?: string; color: string; icon: typeof Shield; impact?: boolean; ai?: { action: string; q: string; a: string } }[]).map((c) => {
-        const Icon = c.icon;
-        if (c.impact) {
-          return (
-            <div key={c.label} className={`${impactVisible.length >= 3 ? 'col-span-2' : ''} bg-white rounded-xl p-4 border border-[#E5E7EB]`}>
-              <div className="flex items-center gap-2.5 mb-3">
-                <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}><Icon size={14} /></span>
-                <div className="text-[13px] font-medium text-[#7B8FA5]">Open related records for this asset</div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {impactVisible.map((it) => {
-                  const ItIcon = it.icon;
-                  const recs = (relatedRecords[it.label.replace(/s$/, '')] || []).slice(0, Math.min(3, it.n));
-                  return (
-                    <Tooltip key={it.label}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }}
-                          className="group/imp flex items-center gap-1.5 rounded bg-[#F9FAFB] border border-[#EEF1F4] pl-2 pr-3 py-2.5 hover:bg-white hover:shadow-sm transition-all"
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = it.color)}
-                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#EEF1F4')}
-                        >
-                          <span className="flex size-5 items-center justify-center rounded-md flex-shrink-0" style={{ backgroundColor: `${it.color}1A`, color: it.color }}><ItIcon size={12} /></span>
-                          <span className="text-[15px] font-bold leading-none" style={{ color: it.color }}>{it.n}</span>
-                          <span className="text-[12px] text-[#64748B] group-hover/imp:text-[#364658] transition-colors">{it.label}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[300px]">
-                        
-                        <div className="max-h-[260px] overflow-y-auto">
-                          {recs.map((r) => (
-                            <button key={r.id} onClick={() => onOpenRelation?.({ ticketId: r.id, subject: r.subject, type: (String(it.filter) === 'Incident' ? 'Request' : String(it.filter)), status: r.status, priority: r.priority, assignedTo: { name: r.assignee } })} className="w-full text-left px-3 py-2 border-t border-[#F0F2F5] first:border-t-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{r.id}</span>
-                                <span className="text-[12px] font-medium text-[#364658] truncate flex-1 hover:text-[#3D8BD0]">{r.subject}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#9CA3AF] flex-shrink-0"><path d="M7 17L17 7M17 7H8M17 7V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#7B8FA5]">
-                                <span className="inline-flex items-center gap-1"><User size={11} />{r.assignee}</span>
-                                <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.statusColor }} />{r.status}</span>
-                                <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ backgroundColor: r.priority === 'High' ? '#DC2626' : r.priority === 'Medium' ? '#D97706' : '#22A06B' }} />{r.priority}</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        {it.n > 3 && (
-                          <button onClick={() => { setRelationsInitialFilter(it.filter); setActiveMainTab('relations'); }} className="w-full text-left px-3 py-2.5 border-t border-[#F0F2F5] text-[12px] font-medium text-[#3D8BD0] hover:bg-[#F9FAFB] transition-colors cursor-pointer">View all {it.n}</button>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        }
-        return (
-        <div key={c.label} className="group relative bg-white rounded-xl p-4 border border-[#E5E7EB]">
-          {/* Header: icon badge + label */}
-          <div className="flex items-center gap-2.5 mb-3">
-            <span className="flex size-7 items-center justify-center rounded-lg flex-shrink-0" style={{ backgroundColor: `${c.color}1A`, color: c.color }}>
-              <Icon size={14} />
-            </span>
-            <span className="text-[13px] font-medium text-[#7B8FA5]">{c.label}</span>
-          </div>
-          {/* Value */}
-          {/* Value + optional inline note (e.g. the antivirus product name) — the note sits to
-              the RIGHT of the value so the card height matches its neighbours, and flex-wrap
-              drops it below only when there's not enough width (narrow view + long name). */}
-          <div className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 ${drawerWidth > 1080 ? 'text-[20px]' : 'text-[18px]'} font-bold leading-none`} style={{ color: c.color }}>
-            <span>{c.value}{c.unit && <span className="text-[14px] font-semibold ml-1">{c.unit}</span>}</span>
-            {'note' in c && c.note && <span className="text-[12px] font-medium text-[#364658]" title={c.note}>{c.note}</span>}
-          </div>
-          {/* Subtitle */}
-          {c.sub && <div className="text-[12px] text-[#9CA3AF] mt-2">{c.sub}</div>}
-          {c.ai && (
-            <button
-              onClick={() => quickActionHandlerRef.current?.(c.ai!.q, c.ai!.a)}
-              title={`Ask ServiceOps AI — ${c.ai.action}`}
-              style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), var(--Core-White, #FFF)' }}
-              className="group/ai absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all flex items-center gap-1 rounded-sm pl-1.5 pr-2 py-1 text-[#364658] hover:text-[#3D8BD0] hover:shadow-sm"
-            >
-              <Sparkles size={11} className="flex-shrink-0 group-hover/ai:scale-110 transition-transform" />
-              <span className="text-[10px] font-medium whitespace-nowrap">{c.ai.action}</span>
-            </button>
-          )}
-        </div>
-        );
-      })}
-    </div>
-  );
+  const handleInstallationSuccess = (agentId: string) => {
+    setPatchComputers((prev) => prev.map((c) => (c.id === agentId ? { ...c, bucket: 'Installed' } : c)));
+  };
 
   // Conversation count - total messages in conversation tab (includes old activities when expanded)
   const conversationCount = 16;
@@ -1090,7 +552,7 @@ onStackMinimizedChange,
   ]);
   
   // Properties Panel State
-  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes'>('properties');
+  const [activeGroup, setActiveGroup] = useState<'properties' | 'activity' | 'suggestions' | 'chatbot' | 'users' | 'notes' | 'affected-products' | 'file-details'>('properties');
   const [pinnedFields, setPinnedFields] = useState<string[]>([]);
   const [showPropertiesSearch, setShowPropertiesSearch] = useState(true);
   const [propertiesSearchQuery, setPropertiesSearchQuery] = useState('');
@@ -1390,7 +852,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Asset Properties' : activeGroup === 'activity' ? 'Attachments' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Task Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -1449,15 +911,18 @@ onStackMinimizedChange,
   const hasTicketFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
     const query = propertiesSearchQuery.toLowerCase();
-    // Asset fields: match the asset field labels (or the section title).
-    return ASSET_FIELD_LABELS.some(f => f.toLowerCase().includes(query)) || 'asset fields'.includes(query);
+    // Patch-family pages render their own read-only field set, which AssetFields filters
+    // internally — never gate the accordion on the ASSET label list or a real match is hidden.
+    return true;
   };
 
   const hasAdditionalFieldsMatch = () => {
     if (!propertiesSearchQuery) return true;
-    return getFilteredAdditionalFormFieldsWrapper().length > 0 || 
-           getFilteredAdditionalFieldsWrapper().length > 0 || 
-           'additional fields'.includes(propertiesSearchQuery.toLowerCase());
+    const query = propertiesSearchQuery.toLowerCase();
+    // Task Information carries only the task's own custom fields — the request form's base fields
+    // (Project Name, Request Channel…) never render here, so they must not gate the accordion.
+    return TASK_CUSTOM_FORM_FIELDS.some((f) => f.label.toLowerCase().includes(query)) ||
+           'task information'.includes(query);
   };
 
   const hasRequesterInfoMatch = () => {
@@ -1625,36 +1090,10 @@ onStackMinimizedChange,
     const calculateTabOverflow = () => {
       if (!tabContainerRef.current) return;
 
-      // Determine which tabs should be shown based on ticket type and state
-      const baseTabsForOthers = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'audit'];
-      const baseTabsForINC35 = ['overview', 'properties', 'hardware', 'software', 'baseline', 'relationship', 'financials', 'service-request', 'audit'];
-      
-      // Build tabs list dynamically based on conditions
-      let allTabs: string[] = [];
-      
-      if (activeTicket?.id === 'INC-35') {
-        allTabs = [...baseTabsForINC35];
-      } else {
-        allTabs = [...baseTabsForOthers];
-      }
-      
-      // Add Approvals tab after Relationship (if not INC-32)
-      if (activeTicket?.id !== 'INC-32') {
-        const anchor = allTabs.indexOf('relationship') !== -1 ? allTabs.indexOf('relationship')
-          : allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline')
-          : allTabs.indexOf('software');
-        allTabs.splice(anchor + 1, 0, 'approvals');
-      }
-
-      // Add Relations tab based on condition: show if NOT INC-32, OR if INC-32 has relations
-      const shouldShowRelations = activeTicket?.id !== 'INC-32' ||
-                                  (activeTicket?.id && ticketRelations[activeTicket.id]?.length > 0);
-      if (shouldShowRelations) {
-        // Insert relations after approvals (if exists) or baseline/software
-        const approvalsIndex = allTabs.indexOf('approvals');
-        const anchorIndex = approvalsIndex !== -1 ? approvalsIndex : (allTabs.indexOf('baseline') !== -1 ? allTabs.indexOf('baseline') : allTabs.indexOf('software'));
-        allTabs.splice(anchorIndex + 1, 0, 'relations');
-      }
+      // Patch detail tabs — Overview (properties) · Vulnerabilities · Endpoint (computers) ·
+      // Installation · Superseded · Audit Trail.
+      // Approvals, Relationship, Relations and Financials were removed for the Patch page.
+      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'installation', 'superseded', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1668,6 +1107,9 @@ onStackMinimizedChange,
         'properties': 85,
         'hardware': 85,
         'software': 80,
+        'consolidated': 165,
+        'installation': 100,
+        'meter': 70,
         'baseline': 80,
         'relationship': 95,
         'financials': 85,
@@ -1676,6 +1118,9 @@ onStackMinimizedChange,
         'tasks': 60,
         'approvals': 85,
         'relations': 80,
+        'computers': 100,
+        'vulnerabilities': 120,
+        'superseded': 110,
         'audit': 100,
         'resolution': 90
       };
@@ -1878,22 +1323,10 @@ onStackMinimizedChange,
     }
   }, [showBadgeAssigneeDropdown]);
 
-  // When the active record changes, restore the tab the user last left it on (remembered by
-  // the drawer host), else default to Overview. `tabInitRef` marks this as a programmatic set
-  // so the reporting effect below doesn't echo it back.
-  const tabInitRef = useRef(false);
+  // Asset detail page opens on the Overview tab by default.
   useEffect(() => {
-    if (!activeAsset) return;
-    const want = (stackActiveTab as typeof activeMainTab | undefined) ?? 'overview';
-    setActiveMainTab((prev) => { if (prev !== want) tabInitRef.current = true; return want; });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (activeAsset) setActiveMainTab('properties');
   }, [activeAssetId]);
-  // Report user-driven tab changes up so the host remembers them per open item.
-  useEffect(() => {
-    if (tabInitRef.current) { tabInitRef.current = false; return; }
-    onStackActiveTabChange?.(activeMainTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab]);
 
   // Update ticket fields when active ticket changes
   useEffect(() => {
@@ -2651,281 +2084,101 @@ onStackMinimizedChange,
         {/* Header Actions */}
         <div className="bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-start justify-between flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h1 className="text-[18px] font-semibold text-[#364658] truncate flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-block size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#EAB308' }} />
-                </TooltipTrigger>
-                <TooltipContent>Agent installed</TooltipContent>
-              </Tooltip>
+            <h1 className="text-[18px] font-semibold text-[#364658] flex items-center gap-2 min-w-0">
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Main asset KPIs — Asset Type · Created · Status · Used By · Impact · Managed By Group · Managed By */}
+            {/* Patch KPIs — Category · Severity · Approval Status · Release Date · KB */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              if (activeAsset?.assetType) items.push({ key: 'type', tip: `Asset Type: ${activeAsset.assetType}`, node: (
+              const p = activePatchRecord;
+
+              const category = p?.category ?? 'Updates';
+              items.push({ key: 'category', tip: `Category: ${category}`, node: (
                 <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Asset Type</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{activeAsset.assetType}</span>
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Category</span>
+                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{category}</span>
                 </span>
               ) });
-              items.push({ key: 'created', tip: 'Created: 26 Feb 2025, 3:02 PM', node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Created</span>
-                  <span className="text-[12px] font-medium text-[#364658]">26 Feb 2025, 3:02 PM</span>
-                </span>
-              ) });
-              items.push({ key: 'status', tip: `Status: ${activeAsset?.status || '—'}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeAsset?.status === 'In Use' ? '#22A06B' : activeAsset?.status === 'Available' ? '#3D8BD0' : activeAsset?.status === 'In Repair' ? '#D97706' : '#6B7280' }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{activeAsset?.status || '—'}</span>
-                </span>
-              ) });
-              // Used By — single name, or "primary +N" with everyone on hover.
-              {
-                const ub = activeAsset?.usedBy;
-                let node: React.ReactNode; let tip: string;
-                if (!ub) {
-                  tip = 'Used By: Unassigned';
-                  node = (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="text-[11px] text-[#7B8FA5]">Used By</span>
-                      <span className="text-[12px] font-medium text-[#9CA3AF]">Unassigned</span>
-                    </span>
-                  );
-                } else {
-                  const primary = ub.label.replace(/\s*\(.*\)\s*$/, '');
-                  const total = 1 + (ub.more ?? 0);
-                  if (total <= 1) {
-                    tip = `Used By: ${primary}`;
-                    node = (
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Used By</span>
-                        <span className="text-[12px] font-medium text-[#364658] truncate max-w-[160px]">{primary}</span>
-                      </span>
-                    );
-                  } else {
-                    const more = ub.more ?? 0;
-                    const POOL = ['Rahul Verma', 'Sneha Iyer', 'Arjun Mehta', 'Kavya Reddy', 'Aarav Sharma', 'Diya Kapoor', 'Karan Malhotra', 'Ananya Iyer', 'Rohan Mehta', 'Neha Raje', 'Vikram Sethi', 'Imran Qureshi'];
-                    const isGroup = /team|desk|group|ops|operations/i.test(primary);
-                    const CAP = 8;
-                    const members: string[] = [];
-                    if (!isGroup) members.push(primary);
-                    let pi = 0;
-                    while (members.length < Math.min(total, CAP)) { members.push(POOL[pi % POOL.length]); pi++; }
-                    const extra = total - members.length;
-                    tip = `Used By: ${primary} +${more}`;
-                    node = (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex items-center gap-1.5 cursor-default min-w-0">
-                            <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Used By</span>
-                            <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{primary}</span>
-                            <span className="text-[11px] font-semibold text-[#3D8BD0] bg-[#3D8BD0]/10 rounded px-1 py-px flex-shrink-0">+{more}</span>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-[240px]">
-                          {isGroup && <div className="text-[11px] font-semibold mb-1">{primary}</div>}
-                          {members.map((n) => (
-                            <div key={n} className="text-[11px] leading-5">{n}</div>
-                          ))}
-                          {extra > 0 && <div className="text-[11px] text-[#9CA3AF] mt-0.5">+{extra} more</div>}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  }
-                }
-                items.push({ key: 'usedby', tip, node });
-              }
-              items.push({ key: 'impact', tip: `Impact: ${assetImpact}`, node: (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">Impact</span>
-                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: assetImpact === 'High' ? '#E74C3C' : assetImpact === 'Medium' ? '#F59E0B' : '#22A06B' }} />
-                  <span className="text-[12px] font-medium text-[#364658]">{assetImpact}</span>
-                </span>
-              ) });
-              if (assetGroup) items.push({ key: 'managedbygroup', tip: `Managed By Group: ${assetGroup}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By Group</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[180px]">{assetGroup}</span>
-                </span>
-              ) });
-              items.push({ key: 'managedby', tip: `Managed By: ${activeAsset?.managedBy.name || '—'}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Managed By</span>
-                  <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: activeAsset?.managedBy.color || '#6366F1' }}>
-                    {activeAsset?.managedBy.initials || (activeAsset?.managedBy.name || '').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+
+              if (p?.severity) {
+                const sevColor = ({ Critical: '#EF4444', Important: '#F59E0B', Moderate: '#EAB308', Low: '#111827', Unspecified: '#6B7280' } as Record<string, string>)[p.severity] ?? '#6B7280';
+                items.push({ key: 'severity', tip: `Severity: ${p.severity}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Severity</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevColor }} />
+                    <span className="text-[12px] font-medium text-[#364658]">{p.severity}</span>
                   </span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[140px]">{activeAsset?.managedBy.name || '—'}</span>
+                ) });
+              }
+
+              if (p?.approvalStatus) {
+                const approved = p.approvalStatus === 'Approved';
+                items.push({ key: 'approval', tip: `Approval Status: ${p.approvalStatus}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Approval Status</span>
+                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: approved ? '#22C55E' : '#F59E0B' }} />
+                    <span className="text-[12px] font-medium" style={{ color: approved ? '#22A06B' : '#D97706' }}>{p.approvalStatus}</span>
+                  </span>
+                ) });
+              }
+
+              if (p?.releaseDate) {
+                // 'Tue, Apr 14, 2026 04:55 PM' → 'Apr 14, 2026' (weekday + time trimmed for the strip)
+                const shortDate = p.releaseDate.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
+                items.push({ key: 'release', tip: `Release Date: ${p.releaseDate}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Release Date</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{shortDate}</span>
+                  </span>
+                ) });
+              }
+
+              // KB number lives in the patch title for catalog updates; not every patch has one.
+              const kb = p?.name.match(/\bKB\d+\b/)?.[0] ?? null;
+              items.push({ key: 'kb', tip: kb ? `KB Number: ${kb}` : 'KB Number: not applicable for this patch', node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">KB Number</span>
+                  <span className={`text-[12px] font-medium ${kb ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{kb ?? '---'}</span>
                 </span>
               ) });
-              return <div className="pl-[18px]"><HeaderKpiRow items={items} /></div>;
+
+              return <HeaderKpiRow items={items} />;
             })()}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
-            <div
-              className="relative"
-              onMouseEnter={() => setShowBarcodeMenu(true)}
-              onMouseLeave={() => setShowBarcodeMenu(false)}
-            >
-              <button
-                onClick={() => setShowBarcodeMenu((v) => !v)}
-                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <Barcode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showBarcodeMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                  {/* Barcode preview */}
-                  <div className="px-4 pb-2 flex flex-col items-center">
-                    <div
-                      className="h-11 w-full rounded-sm"
-                      style={{
-                        background:
-                          'repeating-linear-gradient(90deg, #1F2937 0px, #1F2937 1px, #fff 1px, #fff 3px, #1F2937 3px, #1F2937 5px, #fff 5px, #fff 6px, #1F2937 6px, #1F2937 9px, #fff 9px, #fff 11px)',
-                      }}
-                    />
-                    <span className="text-[12px] tracking-[0.18em] text-[#364658] mt-1.5 font-medium">88t540565065</span>
-                  </div>
-
-                  <div className="my-1 border-t border-[#F0F2F5]" />
-
-                  {/* Options */}
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Print Barcode</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Copy size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Copy UPC Code</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                    <Settings2 size={15} className="text-[#6B7280] flex-shrink-0" />
-                    <span>Settings</span>
-                  </button>
-                  <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#DC2626] flex items-center gap-2.5">
-                    <Trash2 size={15} className="text-[#DC2626] flex-shrink-0" />
-                    <span>Remove Barcode</span>
-                  </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setShowQrMenu(true)}
-              onMouseLeave={() => setShowQrMenu(false)}
-            >
-              <button
-                onClick={() => setShowQrMenu((v) => !v)}
-                className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
-              >
-                <QrCode size={16} className="text-[#6b7280]" />
-              </button>
-
-              {showQrMenu && (
-                <div className="absolute top-full right-0 pt-1 z-[9999] w-[224px]">
-                  <div className="bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2">
-                    {/* QR preview */}
-                    <div className="px-4 pb-2 flex flex-col items-center">
-                      <svg viewBox="0 0 33 33" className="w-32 h-32" shapeRendering="crispEdges">
-                        <rect width="33" height="33" fill="#fff" />
-                        {/* Finder patterns (3 corners) */}
-                        {[[0, 0], [26, 0], [0, 26]].map(([fx, fy], i) => (
-                          <g key={i}>
-                            <rect x={fx} y={fy} width="7" height="7" fill="#1F2937" />
-                            <rect x={fx + 1} y={fy + 1} width="5" height="5" fill="#fff" />
-                            <rect x={fx + 2} y={fy + 2} width="3" height="3" fill="#1F2937" />
-                          </g>
-                        ))}
-                        {/* Alignment pattern (bottom-right) */}
-                        <g>
-                          <rect x={24} y={24} width="5" height="5" fill="#1F2937" />
-                          <rect x={25} y={25} width="3" height="3" fill="#fff" />
-                          <rect x={26} y={26} width="1" height="1" fill="#1F2937" />
-                        </g>
-                        {/* Data modules (dense) */}
-                        {Array.from({ length: 33 * 33 }).map((_, idx) => {
-                          const x = idx % 33;
-                          const y = Math.floor(idx / 33);
-                          const inFinder = (x < 8 && y < 8) || (x > 24 && y < 8) || (x < 8 && y > 24);
-                          const inAlign = x >= 24 && x <= 28 && y >= 24 && y <= 28;
-                          if (inFinder || inAlign) return null;
-                          if (((x * 1103 + y * 2741 + x * y * 13 + 7) % 7) < 3)
-                            return <rect key={idx} x={x} y={y} width="1" height="1" fill="#1F2937" />;
-                          return null;
-                        })}
-                      </svg>
-                    </div>
-
-                    <div className="my-1 border-t border-[#F0F2F5]" />
-
-                    {/* Option */}
-                    <button className="w-full px-4 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] flex items-center gap-2.5">
-                      <Printer size={15} className="text-[#6B7280] flex-shrink-0" />
-                      <span>Print QR Code</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
-            <div className="relative">
-              <div className="inline-flex items-stretch h-8">
-                <button
-                  onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }}
-                  className="flex items-center px-4 bg-white border border-[#DFE5ED] border-r-0 text-[#364658] text-[12px] font-medium rounded-l hover:bg-[#F5F7FA]"
-                >
-                  Add Relation
-                </button>
-                <button
-                  onClick={() => { setShowPropertiesRelationDropdown(false); setShowRelationModeMenu((v) => !v); }}
-                  title="Relation options"
-                  className="flex items-center px-1.5 bg-white border border-[#DFE5ED] rounded-r hover:bg-[#F5F7FA]"
-                >
-                  <ChevronDown size={14} className="text-[#6b7280]" />
-                </button>
-              </div>
-              {showRelationModeMenu && (
+            {/* Patch approval actions — both show on a freshly created patch; after a decision only
+                the opposite action remains, so the user can flip it (approve ⇄ decline). */}
+            {(() => {
+              const pid = activeAsset?.id ?? '';
+              const decision = patchDecision[pid] ?? 'none';
+              return (
                 <>
-                  <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
-                    <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
-                    <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
-                  </div>
-                </>
-              )}
-              
-              {showPropertiesRelationDropdown && (
-                <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
-                  ref={propertiesRelationDropdownRef}
-                >
-                  <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
-                  {['Request', 'Problem', 'Change', 'Release', 'Asset', 'CI', 'Contract', 'Knowledge', 'Purchase', 'Project'].map((type) => (
+                  {decision !== 'approved' && (
                     <button
-                      key={type}
-                      onClick={() => {
-                        setPropertiesRelationType(type);
-                        setShowPropertiesRelationDropdown(false);
-                        setShowPropertiesRelationModal(true);
-                      }}
-                      className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
+                      onClick={() => { setPatchDecision((p) => ({ ...p, [pid]: 'approved' })); toast.success(`${pid || 'Patch'} approved`); }}
+                      className="flex items-center h-8 px-4 bg-[#16A34A] text-white text-[12px] font-medium rounded hover:bg-[#15803D]"
                     >
-                      {type}
+                      Approve
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                  )}
+                  {decision !== 'declined' && (
+                    <button
+                      onClick={() => { setPatchDecision((p) => ({ ...p, [pid]: 'declined' })); toast.error(`${pid || 'Patch'} declined`); }}
+                      className="flex items-center h-8 px-4 bg-[#DC2626] text-white text-[12px] font-medium rounded hover:bg-[#B91C1C]"
+                    >
+                      Decline
+                    </button>
+                  )}
+                </>
+              );
+            })()}
             <HardwareAssetActionsMenu
+              patch
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
@@ -2938,9 +2191,12 @@ onStackMinimizedChange,
         {/* Main Content Area - Two Column Layout */}
         <div className="flex flex-1 overflow-hidden" data-onboarding-container>
           {/* Left Content */}
-          <div className="flex-1 flex flex-col relative min-w-0 min-h-0" data-onboarding="main-workspace">
-            {/* Scrollable Content Area */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col relative min-w-0" data-onboarding="main-workspace">
+            {/* Scrollable Content Area — the Superseded tab is a full-height React Flow map
+                (like the CMDB Dependency Map), so it must NOT scroll: become a flex column with
+                overflow-hidden there so the map fills EXACTLY (its controls never clip) and no
+                gutter/scrollbar appears. */}
+            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto'}>
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -3232,17 +2488,12 @@ onStackMinimizedChange,
               <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
-                    { id: 'overview', label: 'Overview' },
                     { id: 'properties', label: 'Properties' },
-                    { id: 'hardware', label: 'Hardware' },
-                    { id: 'software', label: 'Software' },
-                    { id: 'baseline', label: 'Baseline' },
-                    { id: 'relationship', label: 'Relationship' },
-                    { id: 'financials', label: 'Financials' },
-                    { id: 'service-request', label: 'Service Request', condition: activeTicket?.id === 'INC-35' },
-                    { id: 'approvals', label: 'Approvals', condition: activeTicket?.id !== 'INC-32' },
-                    { id: 'relations', label: 'Relations', condition: true },
-                    { id: 'audit', label: 'History' },
+                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
+                    { id: 'computers', label: 'Endpoint' },
+                    { id: 'installation', label: 'Deployment' },
+                    { id: 'superseded', label: 'Superseded' },
+                    { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
                   const allowedTabIds = tabConfig.map(tab => tab.id);
@@ -3251,20 +2502,26 @@ onStackMinimizedChange,
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
-                    'properties': 'Properties',
+                    'properties': 'Overview',
                     'hardware': 'Hardware',
                     'software': 'Software',
+                    'consolidated': 'Consolidated Software',
+                    'installation': 'Deployment',
+                    'meter': 'Meter',
                     'baseline': 'Baseline',
                     'relationship': 'Relationship',
                     'financials': 'Financials',
                     'service-request': 'Service Request',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
-                    'audit': 'History'
+                    'computers': 'Endpoint',
+                    'vulnerabilities': 'Vulnerabilities',
+                    'superseded': 'Superseded',
+                    'audit': 'Audit Trail'
                   };
 
                   const renderTab = (tabId: string) => (
-                    <button 
+                    <button
                       key={tabId}
                       className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
                       onClick={() => setActiveMainTab(tabId as any)}
@@ -3329,73 +2586,42 @@ onStackMinimizedChange,
 
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
-            <div className="px-6 py-6 space-y-6">
-              {/* AI summary (no heading — icon + short asset summary) */}
-              <AssetAiSummary
-                summary="This device is healthy and actively managed, but its warranty is nearing expiry and a couple of updates are still pending."
-                points={[
-                  'Warranty expires in 23 days — plan a renewal or replacement to avoid a coverage gap.',
-                  '2 security patches are pending installation on this asset.',
-                  'Antivirus is active and the device is baseline-compliant with no major variance.',
-                ]}
-              
-                actions={[
-                  { label: 'Renew Warranty', question: 'How do I renew the warranty for this device?', answer: 'The warranty expires in 23 days. I can raise a warranty renewal request with the vendor and link this asset, or start a hardware replacement if renewal is not cost-effective. Recommended: renew now to avoid a coverage gap.' },
-                  { label: 'Install Pending Patches', question: 'Install the 2 pending security patches on this asset', answer: '2 security patches are pending on this device. I can schedule the deployment in the next maintenance window and notify the assigned user before the reboot. Recommended: deploy both patches this week.' },
-                ]}
-                onAction={(q, a) => quickActionHandlerRef.current?.(q, a)}/>
-
-              {/* Group: Health & Compliance */}
-              <div>
-                <div>
-                  {healthComplianceGrid}
+            <div className="px-6 py-6 space-y-4">
+              {/* License & compliance — the headline status for a software asset */}
+              <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold text-[#364658]">License &amp; compliance</h3>
+                </div>
+                <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                  {[
+                    { label: 'License', value: 'Active', color: '#22A06B', dot: true },
+                    { label: 'Compliance', value: 'Compliant', color: '#22A06B' },
+                    { label: 'Patch Status', value: 'Up to date', color: '#22A06B' },
+                    { label: 'Reclaimable Seats', value: '8 unused', color: '#D97706', dot: true },
+                  ].map((c) => (
+                    <div key={c.label} className="bg-[#F9FAFB] rounded-lg p-3">
+                      <div className="text-[12px] text-[#7B8FA5] mb-1 flex items-center gap-1.5">
+                        {c.dot && <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />}
+                        {c.label}
+                      </div>
+                      <div className="text-[13px] font-semibold" style={{ color: c.color }}>{c.value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Group: Configuration */}
-              <div>
-                <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-3' : drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+              {/* License + Installation + Versions snapshots — one row */}
+              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-1'} gap-4 items-stretch`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Hardware snapshot</h3>
-                    <button onClick={() => setActiveMainTab('hardware')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">License snapshot</h3>
                   </div>
                   <div className="space-y-3">
                     {[
-                      ['Processor', 'Intel Core i5-8365U · 4 cores'],
-                      ['Memory', '40.00 GB'],
-                      ['Storage', '238.47 GB SSD'],
-                      ['Model', 'LENOVO 20NRS08A00'],
-                    ].map(([l, v]) => (
-                      <div key={l} className="flex items-start gap-3">
-                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
-                        <span className="text-[13px] font-medium text-[#364658] flex-1 min-w-0 break-words">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">OS snapshot</h3>
-                    <button
-                      onClick={() => {
-                        setActiveMainTab('hardware');
-                        setHardwareActiveSection('os');
-                        openHwSection('os'); // arrive with the section open, not collapsed
-                        setTimeout(() => {
-                          document.getElementById('hw-section-os')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 120);
-                      }}
-                      className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1"
-                    >View more<ChevronRight size={14} /></button>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      ['OS Name', 'Microsoft Windows 11 Pro', '#364658'],
-                      ['Activation', 'Licensed', '#22A06B'],
-                      ['Display Version', '24H2', '#364658'],
-                      ['End of Life', '13/10/2026', '#D97706'],
+                      ['Total Seats', '150', '#364658'],
+                      ['Used', '94', '#364658'],
+                      ['Available', '56', '#22A06B'],
+                      ['Expiry Date', 'Jul 14, 2026', '#D97706'],
                     ].map(([l, v, color]) => (
                       <div key={l} className="flex items-start gap-3">
                         <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
@@ -3407,15 +2633,35 @@ onStackMinimizedChange,
 
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Software snapshot</h3>
-                    <button onClick={() => setActiveMainTab('software')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Installation snapshot</h3>
+                    <button onClick={() => setActiveMainTab('installation')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
                   <div className="space-y-3">
                     {[
-                      ['Total', '142', '#364658'],
+                      ['Total Installs', '42', '#364658'],
+                      ['Laptops', '28', '#364658'],
+                      ['Desktops', '11', '#364658'],
+                      ['Servers', '3', '#364658'],
+                    ].map(([l, v, color]) => (
+                      <div key={l} className="flex items-start gap-3">
+                        <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
+                        <span className="text-[13px] font-medium flex-1 min-w-0 break-words" style={{ color }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Versions snapshot</h3>
+                    <button onClick={() => setActiveMainTab('consolidated')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['Versions', '5', '#364658'],
+                      ['Latest', '150.1', '#22A06B'],
+                      ['Outdated', '12', '#D97706'],
                       ['Prohibited', '1', '#DC2626'],
-                      ['Excluded', '2', '#364658'],
-                      ['Expired', '3', '#D97706'],
                     ].map(([l, v, color]) => (
                       <div key={l} className="flex items-start gap-3">
                         <span className="text-[12px] text-[#64748B] flex-shrink-0 w-[100px]">{l}</span>
@@ -3425,99 +2671,15 @@ onStackMinimizedChange,
                   </div>
                 </div>
               </div>
-              </div>
 
-              {/* Group: Assignment & Location */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+              {/* Cost snapshot + Software details */}
+              <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Users</h3>
-                    <button
-                      onClick={() => { setIsAccordionCollapsed(false); setActiveGroup('users'); }}
-                      className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1"
-                    >
-                      +15 more<ChevronRight size={14} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { name: 'J. Doe', dept: 'Sales', initials: 'JD', color: '#6366F1' },
-                      { name: 'A. Kumar', dept: 'IT Operations', initials: 'AK', color: '#10B981' },
-                    ].map((u) => (
-                      <div key={u.name} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#F9FAFB] min-w-0">
-                        <span className="flex size-6 items-center justify-center rounded-sm text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: u.color }}>{u.initials}</span>
-                        <div className="min-w-0">
-                          <div className="text-[12px] font-medium text-[#364658] truncate">{u.name}</div>
-                          <div className="text-[11px] text-[#7B8FA5] truncate">{u.dept}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Current Location</h3>
-                    {/* View history only once a location is configured */}
-                    {geoConfigured && (
-                      <button onClick={() => setShowLocationHistory(true)} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View history<ChevronRight size={14} /></button>
-                    )}
-                  </div>
-                  <div className="flex-1 flex items-center">
-                    {geoConfigured ? (
-                      <div className="w-full flex items-center gap-3 rounded-lg bg-[#F9FAFB] px-3 py-2.5">
-                        <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-[#364658] truncate">Ahmedabad (India)</div>
-                          <div className="text-[12px] text-[#7B8FA5]">Since 12 Jan 2026</div>
-                        </div>
-                        <button
-                          onClick={() => setShowLocationMap(true)}
-                          className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex-shrink-0"
-                        >
-                          View on Map
-                        </button>
-                        {/* Edit the configured geolocation */}
-                        <button
-                          onClick={openGeoConfig}
-                          title="Edit geolocation"
-                          className="flex size-8 flex-shrink-0 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#6B7280] hover:text-[#3D8BD0] hover:border-[#3D8BD0] transition-colors"
-                        >
-                          <Edit size={15} />
-                        </button>
-                      </div>
-                    ) : (
-                      /* Empty state — no location configured yet: short text left, action right */
-                      <div className="w-full flex items-center gap-3 rounded-lg border border-dashed border-[#DFE5ED] bg-[#F9FAFB] px-3 py-2.5">
-                        <span className="flex size-10 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0] flex-shrink-0"><MapPin size={18} /></span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-medium text-[#364658]">No location set</div>
-                          <div className="text-[12px] text-[#7B8FA5] truncate">Configure geolocation to track this asset.</div>
-                        </div>
-                        <button
-                          onClick={openGeoConfig}
-                          className="inline-flex flex-shrink-0 items-center gap-1 px-2.5 py-1.5 bg-white border border-[#DFE5ED] text-[#364658] text-[13px] font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors whitespace-nowrap"
-                        >
-                          <Plus size={16} /> Add Location
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              </div>
-
-              {/* Group: Financials & Contracts */}
-              <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
-                <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Financial snapshot</h3>
-                    <button onClick={() => setActiveMainTab('financials')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Cost snapshot</h3>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {[['Book value', '$842'], ['Depreciation', '60%'], ['TCO', '$1,420']].map(([l, v]) => (
+                    {[['Total Cost', '$12,400'], ['Cost / Seat', '$82'], ['Annual', '$4,200']].map(([l, v]) => (
                       <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
                         <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
                         <div className="text-[15px] font-semibold text-[#364658]">{v}</div>
@@ -3528,34 +2690,34 @@ onStackMinimizedChange,
 
                 <div className="border border-[#E5E7EB] rounded-lg p-5 bg-white">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Contracts &amp; Purchases</h3>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Software details</h3>
+                    <button onClick={() => setActiveMainTab('properties')} className="text-[13px] text-[#3D8BD0] hover:underline font-medium flex items-center gap-1">View more<ChevronRight size={14} /></button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                     {[
-                      { label: 'Active Contracts', value: '3', filter: 'Contract' },
-                      { label: 'Active Purchases', value: '2', filter: 'Purchase' },
-                    ].map((c) => (
-                      <button
-                        key={c.label}
-                        onClick={() => { setRelationsInitialFilter(c.filter); setActiveMainTab('relations'); }}
-                        className="bg-[#F9FAFB] rounded-lg p-3 text-left hover:bg-[#EFF3F8] transition-colors"
-                      >
-                        <div className="text-[12px] text-[#7B8FA5] mb-1">{c.label}</div>
-                        <div className="text-[15px] font-semibold text-[#364658]">{c.value}</div>
-                      </button>
+                      ['Publisher', 'Microsoft Corporation'],
+                      ['Category', 'Web Browser'],
+                      ['License Type', 'Subscription'],
+                      ['First Detected', 'May 18, 2026'],
+                      ['Last Audit', 'Jun 02, 2026'],
+                      ['Software Type', 'Managed'],
+                    ].map(([l, v]) => (
+                      <div key={l} className="min-w-0">
+                        <div className="text-[12px] text-[#64748B] mb-0.5">{l}</div>
+                        <div className="text-[13px] font-medium text-[#364658] break-words">{v}</div>
+                      </div>
                     ))}
                   </div>
                 </div>
-              </div>
               </div>
 
             </div>
             )}
 
-            {/* Current Location — map popup (above the geolocation config drawer, which can open it) */}
+            {/* Current Location — map popup */}
             {showLocationMap && (
               <div
-                className="fixed inset-0 z-[10005] flex items-center justify-center bg-black/50 p-4"
+                className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
                 onClick={() => setShowLocationMap(false)}
               >
                 <div
@@ -3576,17 +2738,6 @@ onStackMinimizedChange,
                     </button>
                   </div>
                   <div className="p-5">
-                    {/* Geolocation sync info — clean label-over-value band above the map */}
-                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-[#EEF1F4] bg-[#F8FAFC] px-4 py-3">
-                      <div className="min-w-0">
-                        <div className="text-[11px] text-[#7B8FA5]">Geolocation Last Sync Time</div>
-                        <div className="mt-0.5 text-[13px] font-medium text-[#364658]">Jul 23, 2026 04:12 PM</div>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[11px] text-[#7B8FA5]">Geolocation Last Sync Location</div>
-                        <div className="mt-0.5 text-[13px] font-medium text-[#364658] break-words">Ahmedabad, Gujarat, India (23.0225° N, 72.5714° E)</div>
-                      </div>
-                    </div>
                     <iframe
                       title="Asset location map"
                       className="w-full h-[420px] rounded-lg border border-[#E5E7EB]"
@@ -3622,392 +2773,567 @@ onStackMinimizedChange,
                   className="fixed top-0 right-0 h-full w-[440px] max-w-[90vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
                   style={{ transform: showLocationHistory ? 'translateX(0)' : 'translateX(100%)' }}
                 >
-                  {/* Header — title + date-range text + filter (History-tab recipe) + close */}
+                  {/* Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
                     <div className="flex items-center gap-2">
                       <MapPin size={18} className="text-[#3D8BD0]" />
                       <h2 className="text-[18px] font-semibold text-[#111827]">Location History</h2>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <button
-                          onClick={() => { setLocHistDraftFrom(locHistFrom); setLocHistDraftTo(locHistTo); setLocHistFilterOpen((o) => !o); }}
-                          title="Filter"
-                          className={`size-8 flex items-center justify-center rounded border transition-colors hover:bg-[#F3F4F6] ${locHistFrom || locHistTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}
-                        >
-                          <Filter size={15} />
-                        </button>
-                        {locHistFilterOpen && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setLocHistFilterOpen(false)} />
-                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
-                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
-                              <div className="space-y-3">
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><DateField value={locHistDraftFrom} onChange={setLocHistDraftFrom} /></div>
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={locHistDraftTo} min={locHistDraftFrom || undefined} onChange={setLocHistDraftTo} /></div>
-                              </div>
-                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                                <button onClick={() => { setLocHistFrom(''); setLocHistTo(''); setLocHistDraftFrom(''); setLocHistDraftTo(''); setLocHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
-                                <button onClick={() => { setLocHistFrom(locHistDraftFrom); setLocHistTo(locHistDraftTo); setLocHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setShowLocationHistory(false)}
-                        className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                  </div>
-                  {/* Timeline — entries whose stay OVERLAPS the applied From/To range */}
-                  <div className="flex-1 overflow-auto px-6 py-5">
-                    {(() => {
-                      const all = [
-                        { name: 'Ahmedabad (India)', period: 'Since 12 Jan 2026', by: 'Riya Shah', current: true, start: '2026-01-12', end: '' },
-                        { name: 'Mumbai (India)', period: '04 Aug 2024 – 12 Jan 2026', by: 'Karan Mehta', current: false, start: '2024-08-04', end: '2026-01-12' },
-                        { name: 'Pune (India)', period: '17 Mar 2023 – 04 Aug 2024', by: 'Amit Verma', current: false, start: '2023-03-17', end: '2024-08-04' },
-                        { name: 'Bengaluru (India)', period: '02 Sep 2022 – 17 Mar 2023', by: 'System (provisioning)', current: false, start: '2022-09-02', end: '2023-03-17' },
-                      ];
-                      const rows = all.filter((h) =>
-                        (!locHistFrom || !h.end || h.end >= locHistFrom) && (!locHistTo || h.start <= locHistTo)
-                      );
-                      if (rows.length === 0) {
-                        return (
-                          <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <span className="flex size-11 items-center justify-center rounded-full bg-[#F3F4F6] text-[#9CA3AF] mb-2"><MapPin size={20} /></span>
-                            <p className="text-[13px] font-medium text-[#364658]">No location changes in this range</p>
-                            <p className="text-[12px] text-[#7B8FA5] mt-0.5">Adjust or clear the date filter to see more history.</p>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="space-y-0">
-                          {rows.map((h, i, arr) => (
-                            <div key={h.name + h.period} className="flex gap-3">
-                              {/* timeline rail */}
-                              <div className="flex flex-col items-center">
-                                <span className={`mt-1 size-2.5 rounded-full flex-shrink-0 ${h.current ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`} />
-                                {i < arr.length - 1 && <span className="w-px flex-1 bg-[#E5E7EB]" />}
-                              </div>
-                              <div className={`min-w-0 ${i < arr.length - 1 ? 'pb-4' : ''}`}>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[13px] font-medium text-[#364658]">{h.name}</span>
-                                  {h.current && (
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF3FB] text-[#3D8BD0]">Current</span>
-                                  )}
-                                </div>
-                                <div className="text-[12px] text-[#64748B] mt-0.5">{h.period}</div>
-                                <div className="text-[11px] text-[#9CA3AF] mt-0.5">Updated by {h.by}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Geolocation configuration — side drawer (Add / Edit location) */}
-            {showGeoConfig && (
-              <>
-                <div
-                  className="fixed inset-0 bg-black/30 z-[10000] transition-opacity duration-300"
-                  onClick={() => setShowGeoConfig(false)}
-                />
-                <div
-                  className="fixed top-0 right-0 h-full w-[480px] max-w-[90vw] bg-white shadow-2xl z-[10001] flex flex-col transition-transform duration-300"
-                  style={{ transform: showGeoConfig ? 'translateX(0)' : 'translateX(100%)' }}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={18} className="text-[#3D8BD0]" />
-                      <h2 className="text-[18px] font-semibold text-[#111827]">{geoConfigured ? 'Edit Geolocation' : 'Add Geolocation'}</h2>
-                    </div>
                     <button
-                      onClick={() => setShowGeoConfig(false)}
+                      onClick={() => setShowLocationHistory(false)}
                       className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]"
                     >
                       <X size={20} />
                     </button>
                   </div>
-
-                  {/* Body — the geolocation form only (map lives behind "View on Map" on the card;
-                      history behind the card's "View history") */}
+                  {/* Timeline */}
                   <div className="flex-1 overflow-auto px-6 py-5">
-                    <div className="space-y-6">
-                      {/* Enable Geolocation */}
-                      <div>
-                        <div className="text-[13px] text-[#64748B] mb-2">Enable Geolocation <span className="text-[#EF4444]">*</span></div>
-                        <div className="flex items-center gap-6">
-                          {(['yes', 'no'] as const).map((v) => (
-                            <label key={v} className="inline-flex items-center gap-2 cursor-pointer">
-                              <input type="radio" name="geoEnabled" checked={geoEnabled === v} onChange={() => setGeoEnabled(v)} className="accent-[#3D8BD0]" />
-                              <span className="text-[13px] text-[#364658] capitalize">{v}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* The rest only applies when geolocation is enabled */}
-                      {geoEnabled === 'yes' && (
-                        <>
-                          {/* Geolocation Preference */}
-                          <div>
-                            <div className="text-[13px] text-[#64748B] mb-2">Geolocation Preference <span className="text-[#EF4444]">*</span></div>
-                            <div className="flex items-center gap-6">
-                              <label className="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="geoPref" checked={geoPref === 'default'} onChange={() => setGeoPref('default')} className="accent-[#3D8BD0]" />
-                                <span className="text-[13px] text-[#364658]">Default</span>
-                              </label>
-                              <label className="inline-flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="geoPref" checked={geoPref === 'live'} onChange={() => setGeoPref('live')} className="accent-[#3D8BD0]" />
-                                <span className="text-[13px] text-[#364658]">Live Location</span>
-                              </label>
-                            </div>
+                    <div className="space-y-0">
+                      {[
+                        { name: 'Ahmedabad (India)', period: 'Since 12 Jan 2026', by: 'Riya Shah', current: true },
+                        { name: 'Mumbai (India)', period: '04 Aug 2024 – 12 Jan 2026', by: 'Karan Mehta', current: false },
+                        { name: 'Pune (India)', period: '17 Mar 2023 – 04 Aug 2024', by: 'Amit Verma', current: false },
+                        { name: 'Bengaluru (India)', period: '02 Sep 2022 – 17 Mar 2023', by: 'System (provisioning)', current: false },
+                      ].map((h, i, arr) => (
+                        <div key={h.name + h.period} className="flex gap-3">
+                          {/* timeline rail */}
+                          <div className="flex flex-col items-center">
+                            <span className={`mt-1 size-2.5 rounded-full flex-shrink-0 ${h.current ? 'bg-[#3D8BD0]' : 'bg-[#CBD5E1]'}`} />
+                            {i < arr.length - 1 && <span className="w-px flex-1 bg-[#E5E7EB]" />}
                           </div>
-
-                          {/* Latitude / Longitude */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="min-w-0">
-                              <label className="block text-[13px] text-[#64748B] mb-1.5">Latitude</label>
-                              <input value={geoLat} onChange={(e) => setGeoLat(e.target.value)} disabled={geoPref === 'live'} className="w-full h-9 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]" />
+                          <div className={`min-w-0 ${i < arr.length - 1 ? 'pb-4' : ''}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-medium text-[#364658]">{h.name}</span>
+                              {h.current && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EAF3FB] text-[#3D8BD0]">Current</span>
+                              )}
                             </div>
-                            <div className="min-w-0">
-                              <label className="block text-[13px] text-[#64748B] mb-1.5">Longitude</label>
-                              <input value={geoLng} onChange={(e) => setGeoLng(e.target.value)} disabled={geoPref === 'live'} className="w-full h-9 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0] disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]" />
-                            </div>
+                            <div className="text-[12px] text-[#64748B] mt-0.5">{h.period}</div>
+                            <div className="text-[11px] text-[#9CA3AF] mt-0.5">Updated by {h.by}</div>
                           </div>
-
-                          {/* Locate On Map — opens the pin-picker popup above this drawer */}
-                          <div>
-                            <label className="block text-[13px] text-[#64748B] mb-1.5">Locate On Map</label>
-                            <button
-                              onClick={openGeoPick}
-                              title="Locate on map"
-                              className="flex size-9 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#3D8BD0] hover:border-[#3D8BD0] hover:bg-[#F5F9FD] transition-colors"
-                            >
-                              <MapPin size={16} />
-                            </button>
-                          </div>
-                          {geoPref === 'live' && (
-                            <p className="text-[12px] text-[#7B8FA5]">Live Location is tracked from the agent — coordinates are read-only.</p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Footer — Update / Cancel */}
-                  <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#E5E7EB] flex-shrink-0">
-                    <button onClick={saveGeoConfig} className="rounded bg-[#111827] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#000] transition-colors">Update</button>
-                    <button onClick={() => setShowGeoConfig(false)} className="rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors">Cancel</button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Locate On Map — pin-picker popup (opens above the geolocation drawer). Click the
-                map to drop the pin; the marker re-renders at the real clicked coordinates. */}
-            {showGeoPick && (() => {
-              // Compute a bbox around the draft pin matching the map's aspect ratio, so the
-              // embed doesn't letterbox and click→coordinate mapping stays accurate.
-              const el = geoPickMapRef.current;
-              const aspect = el ? Math.max(0.5, el.clientWidth / el.clientHeight) : 1.9;
-              const lonHalf = pickSpan / 2;
-              const yHalf = ((pickSpan * Math.PI) / 180 / aspect) / 2;
-              const cy = mercY(pickLat);
-              const latMin = invMercY(cy - yHalf);
-              const latMax = invMercY(cy + yHalf);
-              const lonMin = pickLng - lonHalf;
-              const lonMax = pickLng + lonHalf;
-              const bbox = `${lonMin}%2C${latMin}%2C${lonMax}%2C${latMax}`;
-              const placePin = (e: React.MouseEvent<HTMLDivElement>) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const fx = (e.clientX - rect.left) / rect.width;
-                const fy = (e.clientY - rect.top) / rect.height;
-                const yMin = mercY(latMin); const yMax = mercY(latMax);
-                setPickLng(+(lonMin + fx * (lonMax - lonMin)).toFixed(4));
-                setPickLat(+invMercY(yMax - fy * (yMax - yMin)).toFixed(4));
-              };
-              return (
-                <div
-                  className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/50 p-4"
-                  onClick={() => setShowGeoPick(false)}
-                >
-                  <div
-                    className="bg-white rounded-xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} className="text-[#3D8BD0]" />
-                        <h3 className="text-[14px] font-semibold text-[#364658]">Locate On Map</h3>
-                      </div>
-                      <button
-                        onClick={() => setShowGeoPick(false)}
-                        className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#7B8FA5] hover:text-[#364658]"
-                        title="Close"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-
-                    {/* Map — click anywhere to place the pin */}
-                    <div className="p-5 pb-0">
-                      <div ref={geoPickMapRef} className="relative h-[440px] w-full overflow-hidden rounded-lg border border-[#E5E7EB]">
-                        <iframe
-                          title="Locate on map"
-                          className="absolute inset-0 h-full w-full"
-                          loading="lazy"
-                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${pickLat}%2C${pickLng}`}
-                        />
-                        {/* Click-capture layer (the iframe can't report clicks) */}
-                        <div className="absolute inset-0 cursor-crosshair" onClick={placePin} />
-                        {/* Hint chip */}
-                        <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#111827]/80 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm">
-                          Click on the map to place the pin
-                        </div>
-                        {/* Zoom controls — same card recipe as the canvas maps */}
-                        <div className="absolute right-3 top-3 flex flex-col overflow-hidden rounded-lg border border-[#E5E7EB] bg-white shadow-sm">
-                          <button onClick={() => setPickSpan((s) => Math.max(1, s / 2))} className="flex size-8 items-center justify-center text-[#364658] hover:bg-[#F3F4F6] transition-colors" title="Zoom in"><Plus size={14} /></button>
-                          <button onClick={() => setPickSpan((s) => Math.min(160, s * 2))} className="flex size-8 items-center justify-center border-t border-[#E5E7EB] text-[#364658] hover:bg-[#F3F4F6] transition-colors" title="Zoom out"><Minus size={14} /></button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer — picked coordinates + Done / Cancel */}
-                    <div className="flex items-center justify-between gap-3 px-5 py-4 flex-shrink-0">
-                      <span className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                        <MapPin size={13} className="text-[#3D8BD0]" />
-                        Pin at <span className="font-medium text-[#364658] tabular-nums">{pickLat}°, {pickLng}°</span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setGeoLat(String(pickLat)); setGeoLng(String(pickLng)); setShowGeoPick(false); }}
-                          className="rounded bg-[#111827] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#000] transition-colors"
-                        >
-                          Done
-                        </button>
-                        <button onClick={() => setShowGeoPick(false)} className="rounded border border-[#DFE5ED] bg-white px-4 py-2 text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors">Cancel</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {activeMainTab === 'properties' && (
-            <div className="px-6 py-6">
-              {/* Common field search across all property sections */}
-              <div className="relative mb-5 max-w-[360px]">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  type="text"
-                  placeholder="Search fields..."
-                  value={propertiesSearch}
-                  onChange={(e) => setPropertiesSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                />
-              </div>
-              {(() => {
-                const q = propertiesSearch.trim().toLowerCase();
-                const sections = [
-                {
-                  title: 'Hardware Properties',
-                  icon: <HardDrive className="size-4 text-[#3D8BD0] flex-shrink-0" />,
-                  fields: [
-                    ['Serial Number', activeAsset?.serialNumber || '---'],
-                    ['Manufacturer', 'LENOVO'],
-                    ['Warranty Start Date', '---'],
-                    ['Warranty Expiration Date', '---'],
-                    ['Warranty Last Sync Date', '---'],
-                    ['Audit Date', '---'],
-                    ['New Text Input', '---'],
-                    ['E-Fatura', '---'],
-                  ] as [string, string][],
-                },
-                {
-                  title: 'Computer Properties',
-                  icon: <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
-                  fields: [
-                    ['OS Name', 'Microsoft Windows 11 Pro'],
-                    ['OS Version', '10.0.26100'],
-                    ['Service Pack Name', '---'],
-                    ['OS License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
-                    ['OS Manufacturer', 'Microsoft Corporation'],
-                    ['OS Architecture', '64 BIT'],
-                    ['Boot Up State', 'Normal boot'],
-                    ['Memory Size', '8.00 GB'],
-                    ['Disk Size', '238.47 GB'],
-                    ['CPU Speed', '1.90 GHz'],
-                    ['CPU Core Count', '4'],
-                    ['Part Of Domain', 'No'],
-                    ['Domain Name', 'WORKGROUP'],
-                    ['Number Of Logical Processors', '8'],
-                    ['Number Of Processors', '1'],
-                    ['PC System Type', 'Mobile'],
-                    ['Last Logged In User', 'DESKTOP-7ABJPOF\\j.doe'],
-                    ['Activation Status', 'Licensed'],
-                    ['Parent VM Host', '---'],
-                    ['Chassis Type', 'Notebook'],
-                    ['Display Version', '24H2'],
-                    ['Build No', '26100.6899'],
-                    ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
-                  ] as [string, string][],
-                },
-                ];
-                const filtered = sections
-                  .map((s) => ({
-                    ...s,
-                    fields: q ? s.fields.filter(([label, value]) => label.toLowerCase().includes(q) || value.toLowerCase().includes(q)) : s.fields,
-                  }))
-                  .filter((s) => s.fields.length > 0);
-                if (filtered.length === 0) {
-                  return <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No fields match your search.</div>;
-                }
-                return (
-                  <div className="space-y-6">
-                  {filtered.map((section) => (
-                <div key={section.title} className="group/section">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      {section.icon}
-                      <h3 className="text-[14px] font-semibold text-[#364658]">{section.title}</h3>
-                    </div>
-                    <button
-                      title={`Edit ${section.title}`}
-                      className="text-[#7B8FA5] hover:text-[#3D8BD0] opacity-0 group-hover/section:opacity-100 transition-opacity"
-                    >
-                      <Edit size={15} />
-                    </button>
-                  </div>
-                  <div className="rounded-lg p-5 bg-[#F9FAFB]">
-                    <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                      {section.fields.map(([label, value]) => (
-                        <div key={label} className="min-w-0">
-                          <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
-                          <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-                  ))}
+              </>
+            )}
+
+            {activeMainTab === 'properties' && (
+            <div className="px-6 py-6">
+              {/* Description — OPTIONAL. Only some patches carry release notes, so this renders
+                  nothing at all when absent (no empty band). Clamped to 2 lines with View more. */}
+              {activePatchRecord?.description && (() => {
+                const text = activePatchRecord.description!;
+                const isLong = text.length > 160;
+                return (
+                  <div className="mb-6 bg-white rounded-lg border border-[#E5E7EB] p-4">
+                    <h3 className="text-[14px] font-semibold text-[#364658] mb-2">Description</h3>
+                    <p className={`text-[13px] text-[#364658] leading-relaxed whitespace-pre-line ${!descExpanded && isLong ? 'line-clamp-2' : ''}`}>
+                      {text}
+                    </p>
+                    {isLong && (
+                      <button
+                        onClick={() => setDescExpanded((v) => !v)}
+                        className="mt-1.5 text-[13px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
+                      >
+                        {descExpanded ? 'View less' : 'View more'}
+                        {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    )}
                   </div>
                 );
               })()}
+
+              {/* KPI strip — each card shows a headline count plus its own distribution as a
+                  stacked bar + legend (far easier to read at this size than a pie), and each card
+                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
+              {(() => {
+                const wide = drawerWidth > 1080;
+
+                type Seg = { label: string; value: number; color: string };
+                type Kpi = {
+                  key: string; label: string; icon: typeof Activity; color: string;
+                  total: number; segments?: Seg[]; note?: string;
+                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
+                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
+                  chart: 'donut' | 'bar' | 'none' | 'list';
+                  kind?: 'bars' | 'columns';
+                  /** Preview rows for chart: 'list'. */
+                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
+                  /** Spans half the row instead of a third. */
+                  half?: boolean;
+                  onClick: () => void;
+                };
+
+                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
+                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
+
+                const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
+                const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
+                const epIgnored = patchComputers.filter((c) => c.bucket === 'Ignored').length;
+
+                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
+                const depSuccess = dep('Success');
+                const depFailed = dep('Failed');
+                const depProgress = dep('In Progress');
+                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
+
+                const kpis: Kpi[] = [
+                  {
+                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
+                    chart: 'donut', total: VULNERABILITIES.length,
+                    segments: [
+                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
+                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('vulnerabilities'),
+                  },
+                  {
+                    key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
+                    chart: 'donut', kind: 'bars', total: patchComputers.length,
+                    segments: [
+                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
+                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
+                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('computers'),
+                  },
+                  {
+                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
+                    chart: 'donut', kind: 'columns', total: patchInstallations.length,
+                    segments: [
+                      { label: 'Success', value: depSuccess, color: '#22C55E' },
+                      { label: 'Failed', value: depFailed, color: '#EF4444' },
+                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
+                      { label: 'Others', value: depOther, color: '#94A3B8' },
+                    ],
+                    onClick: () => setActiveMainTab('installation'),
+                  },
+                  {
+                    key: 'products', label: 'Affected Products', icon: Layers, color: '#0EA5E9',
+                    chart: 'list', total: PATCH_AFFECTED_PRODUCTS.length, half: true,
+                    items: PATCH_AFFECTED_PRODUCTS.slice(0, 2).map((p) => ({
+                      icon: p.type === 'Application' ? <AppWindow size={14} /> : <Monitor size={14} />,
+                      primary: p.name,
+                      secondary: p.type,
+                    })),
+                    onClick: () => setActiveGroup('affected-products'),
+                  },
+                  {
+                    key: 'files', label: 'Files', icon: Files, color: '#64748B',
+                    chart: 'list', total: PATCH_FILES.length, half: true,
+                    items: PATCH_FILES.slice(0, 2).map((f) => ({
+                      icon: <FileText size={14} />,
+                      primary: f.name,
+                      secondary: `${f.size} · Language: ${f.language}`,
+                      actions: (
+                        <>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => { navigator.clipboard?.writeText(f.name).catch(() => {}); toast.success('Link copied'); }}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
+                              ><Copy size={14} /></button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy link</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => toast.success(`Downloading ${f.name}`)}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
+                              ><Download size={14} /></button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download</TooltipContent>
+                          </Tooltip>
+                        </>
+                      ),
+                    })),
+                    onClick: () => setActiveGroup('file-details'),
+                  },
+                ];
+
+                return (
+                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
+                     the two list cards take half each (span 3) — together they fill the row. */
+                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
+                    {kpis.map((k) => {
+                      if (k.chart === 'donut' && k.kind) {
+                        return (
+                          <div key={k.key} className={wide ? 'col-span-2' : ''}>
+                            {k.kind === 'bars'
+                              ? <BarListKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />
+                              : <ColumnKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />}
+                          </div>
+                        );
+                      }
+                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
+                      // Records beyond the inline preview — surfaced in the link as "+N more".
+                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
+                      const isDonut = k.chart === 'donut' && segs.length > 0;
+                      const dia = wide ? 140 : 112;      // gauge diameter
+                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
+                      let acc = 0;                      // running offset per segment
+                      return (
+                        <div
+                          key={k.key}
+                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
+                              <k.icon size={15} />
+                            </span>
+                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
+                            {/* Only this link navigates — the card itself is not clickable
+                                (same as the Software Overview cards' "View more ›"). Preview cards
+                                carry the remaining count instead, like the Hardware "Users" card. */}
+                            <button
+                              onClick={k.onClick}
+                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
+                            >
+                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
+                            </button>
+                          </div>
+
+                          {isDonut ? (
+                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
+                            <div className="mt-2 flex flex-1 items-center gap-4">
+                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
+                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
+                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
+                                  {segs.map((s) => {
+                                    const len = (s.value / Math.max(k.total, 1)) * C;
+                                    const off = -(acc / Math.max(k.total, 1)) * C;
+                                    acc += s.value;
+                                    return (
+                                      <circle
+                                        key={s.label}
+                                        cx="50" cy="50" r="40" fill="none"
+                                        stroke={s.color} strokeWidth="16"
+                                        strokeDasharray={`${len} ${C - len}`}
+                                        strokeDashoffset={off}
+                                      />
+                                    );
+                                  })}
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-[22px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
+                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
+                                </div>
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                {segs.map((s) => (
+                                  <div key={s.label} className="flex items-center gap-2">
+                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                    <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
+                                    <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : k.chart === 'list' ? (
+                            /* Just the first 2 records — no count line; the total lives in the
+                               "+N more" link, exactly like the Hardware Overview "Users" card. */
+                            <>
+                              <div className="mt-3 space-y-2">
+                                {(k.items ?? []).map((it) => (
+                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
+                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
+                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
+                                    </div>
+                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
+                                {k.total}
+                              </div>
+                              {segs.length > 0 ? (
+                                <>
+                                  {/* Stacked distribution bar */}
+                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                                    {segs.map((s) => (
+                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
+                                    ))}
+                                  </div>
+                                  {/* Legend */}
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                                    {segs.map((s) => (
+                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                                        {s.label}
+                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             </div>
             )}
 
             {activeMainTab === 'hardware' && (() => {
-              const hardwareCategories = HARDWARE_CATEGORIES;
+              type Rec = [string, string][];
+              const hardwareCategories: { id: string; label: string; addable?: boolean; summary?: [string, string][]; items: Rec[] }[] = [
+                { id: 'computer-system', label: 'Computer System', items: [[
+                  ['Name', 'DESKTOP-7ABJPOF'],
+                  ['Domain Name', 'WORKGROUP'],
+                  ['Manufacturer', 'LENOVO'],
+                  ['Model Name', '20NRS08A00'],
+                  ['System Family', 'ThinkPad L390'],
+                  ['System Type', 'x64-based PC'],
+                  ['PC System Type', 'Mobile'],
+                  ['UUID', '2BA4E3CC-2326-11B2-A85C-F7CA1D29E093'],
+                  ['Boot Up State', 'Normal boot'],
+                  ['Number Of Logical Processors', '8'],
+                  ['Number Of Processors', '1'],
+                  ['Device Status', 'Ok'],
+                  ['Part Of Domain', 'No'],
+                  ['User Name', 'DESKTOP-7ABJPOF\\j.doe'],
+                  ['Last Reboot Time', 'Mon, May 18, 2026 10:28 AM'],
+                  ['Description', 'AT/AT COMPATIBLE'],
+                  ['Asset Replacement', '---'],
+                ]] },
+                { id: 'os', label: 'OS', items: [[
+                  ['Manufacturer', 'Microsoft Corporation'],
+                  ['OS Name', 'Microsoft Windows 11 Pro'],
+                  ['OS Version', '10.0.26100'],
+                  ['OS Architecture', '64 BIT'],
+                  ['Product Key', '00330-52522-70557-AAOEM'],
+                  ['License Key', 'WJRNT-PD98V-89FHW-KPWYJ-9TPKC'],
+                  ['Activation Status', 'Licensed'],
+                  ['Installed Date', 'Thu, Sep 18, 2025 05:30 AM'],
+                  ['Display Version', '24H2'],
+                  ['Build No', '26100.6899'],
+                  ['End Of Active Support Date', '13/10/2026'],
+                  ['End Of Life Date', '13/10/2026'],
+                ]] },
+                { id: 'bios', label: 'BIOS', items: [[
+                  ['Name', 'R10ET62W (1.47 )'],
+                  ['Manufacturer', 'LENOVO'],
+                  ['SM BIOS Version', 'R10ET62W (1.47 )'],
+                  ['Release Date', '16/04/2024'],
+                  ['Device Status', 'Ok'],
+                  ['Version', 'LENOVO - 1470'],
+                  ['Serial Number', 'R90X70MP'],
+                  ['Description', 'R10ET62W (1.47 )'],
+                ]] },
+                { id: 'ram', label: 'RAM', addable: true,
+                  summary: [
+                    ['Total slots', '1'],
+                    ['Free slots', '0'],
+                    ['Occupied slots', '1'],
+                    ['Total RAM Size (GB)', '40.00'],
+                  ],
+                  items: [
+                    [
+                      ['Serial Number', 'reqwewer'],
+                      ['Manufacturer', 'Musarubra US LLC'],
+                      ['Size', '32.00 GB'],
+                      ['Memory Type', 'RAM'],
+                      ['Width', '64 Bit'],
+                      ['Clock Speed', '2400.00 MHz'],
+                      ['Bank Locater', 'channal A'],
+                    ],
+                    [
+                      ['Serial Number', '34F2A4B5'],
+                      ['Manufacturer', 'Samsung'],
+                      ['Size', '8.00 GB'],
+                      ['Memory Type', 'Unknown'],
+                      ['Width', '64 Bit'],
+                      ['Clock Speed', '2400.00 MHz'],
+                      ['Bank Locater', 'ChannelA-DIMM0'],
+                    ],
+                  ] },
+                { id: 'processor', label: 'Processor', addable: true, items: [[
+                  ['Manufacturer', 'GenuineIntel'],
+                  ['Processor Name', 'Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz'],
+                  ['Width', '64 Bit'],
+                  ['CPU Speed', '1.90 GHz'],
+                  ['Core Count', '4'],
+                  ['External Clock', '100.00 MHz'],
+                  ['L1 Cache Size', '0.25 MB'],
+                  ['L2 Cache Size', '1.00 MB'],
+                  ['L3 Cache Size', '6.00 MB'],
+                  ['Family', 'Intel(R) Core(TM) i5 processor'],
+                  ['Description', 'Intel64 Family 6 Model 142 Stepping 12'],
+                  ['Device Id', 'CPU0'],
+                  ['Socket Designation', 'U3E1'],
+                ]] },
+                { id: 'network-adapter', label: 'Network Adapter', addable: true, items: [
+                  [
+                    ['Manufacturer', 'Microsoft'],
+                    ['MAC Address', 'C8:09:A8:65:58:EB'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', '---'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', '---'],
+                    ['DNS Server Search Orders', '---'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '---'],
+                    ['Default IP Gateway', '---'],
+                    ['IP Subnet', '---'],
+                    ['Connection Status', 'Media Disconnected'],
+                    ['Description', 'Bluetooth Device (Personal Area Network)'],
+                  ],
+                  [
+                    ['Manufacturer', 'Intel Corporation'],
+                    ['MAC Address', 'C8:09:A8:65:58:E7'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', 'fe80::99a9:9659:da7e:60ad, 192.168.1.60'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', 'DESKTOP-7ABJPOF'],
+                    ['DNS Server Search Orders', '192.168.1.1'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '192.168.1.1'],
+                    ['Default IP Gateway', '192.168.1.1'],
+                    ['IP Subnet', '255.255.255.0, ffff:ffff:ffff:ffff::'],
+                    ['Connection Status', 'Connected'],
+                    ['Description', 'Intel(R) Wireless-AC 9560 160MHz'],
+                  ],
+                  [
+                    ['Manufacturer', 'Intel'],
+                    ['MAC Address', '48:2A:E3:71:82:95'],
+                    ['Device Status', 'Unknown'],
+                    ['IP Address', '---'],
+                    ['DNS Domain', '---'],
+                    ['DNS Host Name', '---'],
+                    ['DNS Server Search Orders', '---'],
+                    ['DHCP Enable', 'No'],
+                    ['DHCP Lease Obtained', '---'],
+                    ['DHCP Lease Expires', '---'],
+                    ['DHCP Server', '---'],
+                    ['Default IP Gateway', '---'],
+                    ['IP Subnet', '---'],
+                    ['Connection Status', 'Media Disconnected'],
+                    ['Description', 'Intel(R) Ethernet Connection (6) I219-LM'],
+                  ],
+                ] },
+                { id: 'motherboard', label: 'Motherboard', items: [[
+                  ['Manufacturer', 'LENOVO'],
+                  ['Serial Number', 'W1KS9CT102C'],
+                  ['Version', 'SDK0J40697 WIN'],
+                  ['Installed Date', '---'],
+                  ['Part Number', '---'],
+                  ['Primary Bus Type', 'PCI'],
+                  ['Secondary Bus Type', 'ISA'],
+                  ['Device Status', 'Ok'],
+                ]] },
+                { id: 'physical-disk', label: 'Physical Disk', addable: true, items: [[
+                  ['Name', '\\\\.\\PHYSICALDRIVE0'],
+                  ['Manufacturer', '(Standard disk drives)'],
+                  ['Size', '238.47 GB'],
+                  ['Installed Date', '---'],
+                  ['Device Status', 'Ok'],
+                  ['Partition', '3'],
+                  ['Media Type', 'Fixed hard disk media'],
+                  ['Model', 'INTEL SSDPEKKF256G8L'],
+                  ['Interface Type', 'SCSI'],
+                  ['Serial Number', '5CD2_E42C_91A0_59CD.'],
+                  ['PNP Device ID', 'SCSI\\DISK&VEN_NVME&PROD_INTEL_SSDPEKKF2...'],
+                  ['Description', 'Disk drive'],
+                  ['Storage Device Type', 'SSD'],
+                ]] },
+                { id: 'logical-disk', label: 'Logical Disk', addable: true, items: [[
+                  ['Name', 'C:'],
+                  ['File System Type', 'NTFS'],
+                  ['Drive Type', 'Local Disk'],
+                  ['Serial Number', 'F091C280'],
+                  ['Device Status', 'Unknown'],
+                  ['Size', '237.44 GB'],
+                  ['Free Space', '138.29 GB'],
+                  ['Description', 'Local Fixed Disk'],
+                ]] },
+                { id: 'monitor', label: 'Monitor', addable: true, items: [[
+                  ['Manufacturer', 'LEN'],
+                  ['Monitor Type', '---'],
+                  ['Size', '13.23'],
+                  ['Device Status', '---'],
+                  ['Serial Number', '0'],
+                  ['Installed Date', '---'],
+                  ['PNP Device ID', '---'],
+                  ['Screen Height', '17'],
+                  ['Screen Width', '29'],
+                  ['Week of Manufacture', '20'],
+                  ['Year of Manufacture', '2017'],
+                  ['Description', '---'],
+                  ['Monitor Tag', '---'],
+                ]] },
+                { id: 'keyboard', label: 'Keyboard', addable: true, items: [[
+                  ['Name', 'Enhanced (101- or 102-key)'],
+                  ['Manufacturer', '---'],
+                  ['Installed Date', '---'],
+                  ['PNP Device ID', 'ACPI\\LEN0071\\4&254DEA5B&0'],
+                  ['Device Status', 'Ok'],
+                  ['Description', 'Standard PS/2 Keyboard'],
+                  ['Keyboard Tag', 'Keyboard Serial No'],
+                ]] },
+                { id: 'pointing-device', label: 'Pointing Device', addable: true, items: [
+                  [
+                    ['Manufacturer', 'ELAN'],
+                    ['Number Of Buttons', '---'],
+                    ['Pointing Type', 'Unknown'],
+                    ['Device Status', 'Ok'],
+                    ['PNP Device ID', 'ACPI\\LEN2137\\4&254DEA5B&0'],
+                    ['Description', 'ELAN Input Device For WDF'],
+                    ['Mouse Tag', '---'],
+                  ],
+                  [
+                    ['Manufacturer', 'Microsoft'],
+                    ['Number Of Buttons', '---'],
+                    ['Pointing Type', 'Unknown'],
+                    ['Device Status', 'Ok'],
+                    ['PNP Device ID', 'HID\\VID_04F3&PID_0000&COL01\\6&BE95B37&0...'],
+                    ['Description', 'HID-compliant mouse'],
+                    ['Mouse Tag', '---'],
+                  ],
+                ] },
+                { id: 'shared-folder', label: 'Shared Folder', items: [] },
+                { id: 'usb-hub', label: 'USB Hub', addable: true, items: [
+                  [
+                    ['Name', 'USB Root Hub (USB 3.0)'],
+                    ['Device Status', 'Ok'],
+                    ['Device Status Information', '---'],
+                    ['Device ID', 'USB\\ROOT_HUB30\\4&1CA724C0&0&0'],
+                    ['Description', 'USB Root Hub (USB 3.0)'],
+                  ],
+                  [
+                    ['Name', 'USB Composite Device'],
+                    ['Device Status', 'Ok'],
+                    ['Device Status Information', '---'],
+                    ['Device ID', 'USB\\VID_04CA&PID_7070\\5&21EED693&0&5'],
+                    ['Description', 'USB Composite Device'],
+                  ],
+                ] },
+                { id: 'usb-controller', label: 'USB Controller', addable: true, items: [[
+                  ['Name', '---'],
+                  ['Manufacturer', '---'],
+                  ['Device Status', '---'],
+                  ['Device Status Information', '---'],
+                  ['Device ID', '---'],
+                  ['Description', '---'],
+                ]] },
+              ];
               const iconFor: Record<string, JSX.Element> = {
                 'computer-system': <Monitor className="size-4 text-[#3D8BD0] flex-shrink-0" />,
                 'os': <Disc className="size-4 text-[#3D8BD0] flex-shrink-0" />,
@@ -4026,64 +3352,40 @@ onStackMinimizedChange,
                 'usb-controller': <Usb className="size-4 text-[#3D8BD0] flex-shrink-0" />,
               };
               const isWide = drawerWidth > 1080;
-              // Effective content width for the grids — the inline nav rail eats ~226px.
-              const hwRailOpen = hwTabbed || hardwareNavOpen;
-              const hwW = drawerWidth - (hwRailOpen && isWide ? 226 : 0);
-              const navList = hardwareCategories.map((c) => {
-                const navHits = hwMatches.reduce((n, m) => (m.section === c.id ? n + 1 : n), 0);
-                return (
+              const navList = hardwareCategories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => {
                     if (!isWide) setHardwareNavOpen(false);
-                    setHardwareActiveSection(c.id);
-                    openHwSection(c.id);
-                    // Option 2 swaps the panel in place; option 1 scrolls to the section.
-                    if (hwTabbed) return;
-                    hwSpyPauseRef.current = Date.now() + 900;
                     if (typeof document !== 'undefined') {
                       document.getElementById(`hw-section-${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                   }}
-                  className={`w-full flex items-center gap-2 text-left px-4 py-2 text-[13px] transition-colors ${hardwareActiveSection === c.id ? 'bg-[#E8F4FD] text-[#3D8BD0] font-medium' : 'text-[#364658] hover:bg-[#F5F7FA]'}`}
+                  className="w-full flex items-center gap-2 text-left px-4 py-2 text-[13px] text-[#364658] hover:bg-[#F5F7FA] transition-colors"
                 >
                   {iconFor[c.id]}
-                  <span className="min-w-0 flex-1 truncate">{c.label}</span>
-                  {/* Where the hits are — the whole point of a tabbed layout is that you cannot
-                      see the other sections, so the rail has to say so. */}
-                  {hwTabbed && hwQuery && navHits > 0 && (
-                    <span className="inline-flex h-[18px] min-w-[18px] flex-shrink-0 items-center justify-center rounded-full bg-[#FEF0C7] px-1.5 text-[11px] font-semibold text-[#B54708]">
-                      {navHits}
-                    </span>
-                  )}
+                  {c.label}
                 </button>
-                );
-              });
-              const q = hwQuery;
-              // Every section always renders; the count tells the reader where the hits are,
-              // even in a section they have not opened yet.
-              const sectionsToRender = hardwareCategories.map((section) => {
-                const nonRemoved = section.items
-                  .map((fields, i) => ({ fields, i }))
-                  .filter(({ i }) => !removedHardwareItems.has(`${section.id}:${i}`));
-                const hits = hwMatches.reduce((n, m) => (m.section === section.id ? n + 1 : n), 0);
-                return { section, nonRemoved, hits };
-              });
-              // Option 2: one section at a time — the rail selection IS the content.
-              const visibleSections = hwTabbed
-                ? sectionsToRender.filter(({ section }) => section.id === hardwareActiveSection)
-                : sectionsToRender;
-              const hitsElsewhere = hwTabbed && hwQuery
-                ? hwMatches.reduce((n, m) => (m.section === hardwareActiveSection ? n : n + 1), 0)
-                : 0;
+              ));
+              const q = hardwareSearch.trim().toLowerCase();
+              const sectionsToRender = hardwareCategories
+                .map((section) => {
+                  const nonRemoved = section.items
+                    .map((fields, i) => ({ fields, i }))
+                    .filter(({ i }) => !removedHardwareItems.has(`${section.id}:${i}`));
+                  const labelMatch = !q || section.label.toLowerCase().includes(q);
+                  const matched = nonRemoved
+                    .map(({ fields, i }) => ({ i, fields: q && !labelMatch ? fields.filter(([l, v]) => l.toLowerCase().includes(q) || v.toLowerCase().includes(q)) : fields }))
+                    .filter(({ fields }) => fields.length > 0);
+                  return { section, nonRemoved, matched };
+                })
+                .filter(({ matched }) => !q || matched.length > 0);
               return (
                 <div className="px-6 py-6">
                   {/* Sticky toolbar: jump-to-section + search (sits just below the main tab bar) */}
                   <div className="sticky top-[45px] z-10 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white">
                     <div className="flex items-center gap-3">
-                      {/* Option 2 keeps the rail pinned in wide view, so its toggle only exists
-                          where the rail has to collapse into a dropdown. */}
-                      <div className={`relative flex-shrink-0 ${hwTabbed && isWide ? 'hidden' : ''}`}>
+                      <div className="relative flex-shrink-0">
                         <button
                           onClick={() => setHardwareNavOpen((o) => !o)}
                           title="Jump to section"
@@ -4098,57 +3400,22 @@ onStackMinimizedChange,
                           </div>
                         )}
                       </div>
-                      <div className="relative flex-1 max-w-[420px]">
+                      <div className="relative flex-1 max-w-[360px]">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                         <input
                           type="text"
-                          placeholder="Find in properties..."
+                          placeholder="Search properties..."
                           value={hardwareSearch}
                           onChange={(e) => setHardwareSearch(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); hwGoMatch(e.shiftKey ? -1 : 1); }
-                            if (e.key === 'Escape') setHardwareSearch('');
-                          }}
-                          className={`w-full pl-9 ${q ? 'pr-[164px]' : 'pr-3'} py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent`}
+                          className="w-full pl-9 pr-3 py-2 text-[13px] text-[#364658] bg-white border border-[#DFE5ED] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
                         />
-                        {/* Match counter + step-through arrows, browser-find style. */}
-                        {q && (
-                          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-                            <span className={`px-1.5 text-[12px] tabular-nums ${hwMatches.length ? 'text-[#64748B]' : 'text-[#9CA3AF]'}`}>
-                              {hwMatches.length ? `${hwMatchIdx + 1} of ${hwMatches.length}` : 'No results'}
-                            </span>
-                            <button
-                              title="Previous match (Shift+Enter)"
-                              onClick={() => hwGoMatch(-1)}
-                              disabled={!hwMatches.length}
-                              className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6] disabled:opacity-40"
-                            >
-                              <ChevronUp size={14} />
-                            </button>
-                            <button
-                              title="Next match (Enter)"
-                              onClick={() => hwGoMatch(1)}
-                              disabled={!hwMatches.length}
-                              className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6] disabled:opacity-40"
-                            >
-                              <ChevronDown size={14} />
-                            </button>
-                            <button
-                              title="Clear search (Esc)"
-                              onClick={() => setHardwareSearch('')}
-                              className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex gap-4 mt-2">
                     {/* Wide view: inline left column that reserves space */}
-                    {hwRailOpen && isWide && (
+                    {hardwareNavOpen && isWide && (
                       <div className="flex-shrink-0 w-[210px]">
                         <div className="sticky top-[124px] bg-white border border-[#E5E7EB] rounded-lg shadow-sm py-1 max-h-[70vh] overflow-y-auto">
                           {navList}
@@ -4157,96 +3424,37 @@ onStackMinimizedChange,
                     )}
 
                     <div className="flex-1 min-w-0">
-                      {/* Option 1 stacks every section; option 2 shows the selected one. */}
-                      {hitsElsewhere > 0 && (
-                        <div className="mb-3 flex items-center gap-2 rounded border border-[#FDE4A6] bg-[#FFFBEB] px-3 py-2 text-[12px] text-[#B54708]">
-                          <Search size={13} className="flex-shrink-0" />
-                          <span className="min-w-0 flex-1">
-                            {hwMatches.length > hitsElsewhere
-                              ? hitsElsewhere + (hitsElsewhere === 1 ? ' more match in other sections' : ' more matches in other sections')
-                              : 'No matches in this section — ' + hitsElsewhere + (hitsElsewhere === 1 ? ' found elsewhere' : ' found in other sections')}
-                          </span>
-                          <button
-                            onClick={() => { setHwMatchIdx(0); setHwJumpNonce((n) => n + 1); }}
-                            className="flex-shrink-0 font-medium text-[#B54708] underline-offset-2 hover:underline"
-                          >
-                            Go to first match
-                          </button>
-                        </div>
-                      )}
-                      <div className="space-y-3">
-                    {visibleSections.map(({ section, nonRemoved, hits }) => {
-                      const showEmptyState = nonRemoved.length === 0;
-                      const itemsToShow = nonRemoved;
-                      // The reader stays in control of what is open — stepping to a match opens
-                      // its section on the way, which keeps the on-demand loading intact.
-                      const open = hwTabbed || expandedHwSections.has(section.id);
-                      const loading = loadingHwSections.has(section.id);
-                      const ready = loadedHwSections.has(section.id);
+                      {/* All sections stacked, full width */}
+                      {q && sectionsToRender.length === 0 ? (
+                        <div className="text-[13px] text-[#9CA3AF] py-10 text-center">No properties match your search.</div>
+                      ) : (
+                      <div className="space-y-8">
+                    {sectionsToRender.map(({ section, nonRemoved, matched }) => {
+                      const showEmptyState = !q && nonRemoved.length === 0;
+                      const itemsToShow = matched;
                       return (
-                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px] rounded-lg border border-[#E5E7EB] bg-white">
-                          <div className="flex items-center justify-between gap-2 px-4 py-3">
-                            <button
-                              onClick={() => { if (!hwTabbed) toggleHwSection(section.id); }}
-                              className={`flex min-w-0 flex-1 items-center gap-2 text-left ${hwTabbed ? 'cursor-default' : ''}`}
-                            >
+                        <div key={section.id} id={`hw-section-${section.id}`} className="scroll-mt-[132px]">
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
                               {iconFor[section.id]}
                               <h3 className="text-[14px] font-semibold text-[#364658]">{section.label}</h3>
-                              {/* Count comes from the section list itself, so the header is
-                                  meaningful before the section's data is fetched. */}
-                              {nonRemoved.length > 1 && (
-                                <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EEF2F6] px-1 text-[11px] font-semibold text-[#64748B]">
-                                  {nonRemoved.length}
-                                </span>
-                              )}
-                              {/* Hits live here so a collapsed section still advertises its matches. */}
-                              {q && hits > 0 && (
-                                <span className="inline-flex h-[18px] items-center rounded-full bg-[#FEF0C7] px-1.5 text-[11px] font-semibold text-[#B54708]">
-                                  {hits}
-                                </span>
-                              )}
-                              {loading && <span className="text-[11px] text-[#9CA3AF]">Loading…</span>}
-                            </button>
-                            <div className="flex flex-shrink-0 items-center gap-2">
-                              {section.addable && (
-                                <button
-                                  title={`Add ${section.label}`}
-                                  className="size-8 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
-                                >
-                                  <Plus size={16} />
-                                </button>
-                              )}
-                              {/* No collapse control in option 2 — the rail already decides what
-                                  is on screen, so a chevron would be a second, competing switch. */}
-                              {!hwTabbed && (
-                                <button onClick={() => toggleHwSection(section.id)} className="flex size-8 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6]">
-                                  {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                </button>
-                              )}
                             </div>
+                            {section.addable && (
+                              <button
+                                title={`Add ${section.label}`}
+                                className="size-8 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            )}
                           </div>
 
-                          {open && (
-                          <div className="px-4 pb-4">
-                          {!ready || loading ? (
-                            /* Skeleton while the section's data is in flight — the shape of what
-                               is coming, so the card does not collapse and re-expand on arrival. */
-                            <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5 rounded-lg bg-[#F9FAFB] p-5`}>
-                              {Array.from({ length: 8 }).map((_, i) => (
-                                <div key={i} className="min-w-0">
-                                  <div className="mb-2 h-2.5 w-16 animate-pulse rounded bg-[#E5E9EF]" />
-                                  <div className="h-3 w-28 animate-pulse rounded bg-[#EEF1F5]" />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                          <>
-                          {section.summary && (
-                            <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-4`}>
-                              {section.summary.map(([label, value], si) => (
+                          {!q && section.summary && (
+                            <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-4`}>
+                              {section.summary.map(([label, value]) => (
                                 <div key={label} className="border border-[#DFE5ED] rounded-lg p-4 bg-white">
-                                  <div className="text-[12px] text-[#7B8FA5] mb-1"><HwFind text={label} query={q} base={`${section.id}:s${si}:l`} activeKey={hwActiveKey} /></div>
-                                  <div className="text-[15px] font-semibold text-[#364658]"><HwFind text={value} query={q} base={`${section.id}:s${si}:v`} activeKey={hwActiveKey} /></div>
+                                  <div className="text-[12px] text-[#7B8FA5] mb-1">{label}</div>
+                                  <div className="text-[15px] font-semibold text-[#364658]">{value}</div>
                                 </div>
                               ))}
                             </div>
@@ -4289,11 +3497,11 @@ onStackMinimizedChange,
                                       <Trash2 size={15} />
                                     </button>
                                   </div>
-                                  <div className={`grid ${hwW > 1380 ? 'grid-cols-4' : hwW > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
-                                    {fields.map(([label, value], fi) => (
+                                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-5`}>
+                                    {fields.map(([label, value]) => (
                                       <div key={label} className="min-w-0">
-                                        <div className="text-[12px] text-[#64748B] mb-1"><HwFind text={label} query={q} base={`${section.id}:${i}:${fi}:l`} activeKey={hwActiveKey} /></div>
-                                        <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}><HwFind text={value} query={q} base={`${section.id}:${i}:${fi}:v`} activeKey={hwActiveKey} /></div>
+                                        <div className="text-[12px] text-[#64748B] mb-1">{label}</div>
+                                        <div className={`text-[13px] font-medium break-words ${value === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{value}</div>
                                       </div>
                                     ))}
                                   </div>
@@ -4301,16 +3509,197 @@ onStackMinimizedChange,
                               ))}
                             </div>
                           )}
-                          </>
-                          )}
-                          </div>
-                          )}
                         </div>
                       );
                     })}
                       </div>
+                      )}
                     </div>
                   </div>
+                </div>
+              );
+            })()}
+
+            {/* Consolidated Software — common software consolidated from the Software Asset list */}
+            {activeMainTab === 'consolidated' && (() => {
+              const rows = [
+                { id: 'AST-353', name: 'Adobe Refresh Manager', version: '1.8.0', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Tue, Sep 23, 2025 01:45 PM' },
+                { id: 'AST-339', name: 'Adobe Acrobat (64-bit)', version: '---', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Mon, Sep 22, 2025 02:45 PM' },
+                { id: 'AST-318', name: 'Google Chrome', version: '149.0.7827.116', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Thu, Sep 18, 2025 10:12 AM' },
+                { id: 'AST-292', name: '7-Zip 24.09 (x64)', version: '24.09', group: 'Unassigned', managedBy: { name: 'Unassigned' } as { name: string; initials?: string; color?: string }, created: 'Fri, Sep 05, 2025 04:30 PM' },
+                { id: 'AST-274', name: 'Notepad++ (64-bit)', version: '8.7.5', group: 'IT Operations', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Wed, Aug 27, 2025 09:05 AM' },
+              ].map((r, i) => ({ ...r, i })).filter((r) => !removedConsolidated.has(r.i));
+              const headers = ['Name', 'Asset Type', 'Status', 'Version', 'Software Type', 'Managed By Group', 'Managed By', 'Created Date', 'Actions'];
+              return (
+                <div className="px-6 py-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.length === 0 ? (
+                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No consolidated software.</td></tr>
+                        ) : rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <button className="text-[12px] text-[#3D8BD0] hover:underline max-w-[170px] truncate text-left align-bottom">{r.name}</button>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><Package size={14} className="text-[#6B7280]" />Application</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.version}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center justify-between gap-2 min-w-[110px] rounded-md border border-[#DFE5ED] px-2.5 py-1.5 text-[#364658]">Managed<ChevronDown size={13} className="text-[#7B8FA5]" /></span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                {r.managedBy.initials ? (
+                                  <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
+                                ) : (
+                                  <span className="flex h-6 w-6 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={13} /></span>
+                                )}
+                                <span className="text-[#364658]">{r.managedBy.name}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <button title="Unconsolidate" onClick={() => setRemovedConsolidated((p) => new Set(p).add(r.i))} className="text-[#EF4444] hover:text-[#DC2626]"><Unlink size={15} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Installation — hardware assets where this software is installed */}
+            {/* Legacy Software-clone Installation grid — replaced by PatchInstallationTab below (kept as dead code). */}
+            {false && (() => {
+              const all = [
+                { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', type: 'Windows Laptop', ip: '10.190.44.202', group: 'Unassigned', managedBy: { name: 'Neha Raje', initials: 'NR', color: '#EC4899' }, created: 'Tue, Apr 28, 2026 11:44 AM' },
+                { id: 'LAP-6712', host: 'FIN-LT-0188', type: 'Windows Laptop', ip: '10.20.22.188', group: 'End User Computing', managedBy: { name: 'Tabrez Khan', initials: 'TK', color: '#3D8BD0' }, created: 'Mon, Mar 17, 2026 09:20 AM' },
+                { id: 'DSK-5521', host: 'OPS-DT-0211', type: 'Windows Desktop', ip: '10.20.21.211', group: 'IT Operations', managedBy: { name: 'Farah Sheikh', initials: 'FS', color: '#A78BFA' }, created: 'Fri, Feb 06, 2026 02:10 PM' },
+                { id: 'LAP-6420', host: 'ENG-LT-0312', type: 'Windows Laptop', ip: '10.20.19.112', group: 'IT Operations', managedBy: { name: 'Vikram Sethi', initials: 'VS', color: '#10B981' }, created: 'Wed, Jan 14, 2026 04:45 PM' },
+              ];
+              const q = installationSearch.trim().toLowerCase();
+              const rows = q ? all.filter((r) => r.id.toLowerCase().includes(q) || r.host.toLowerCase().includes(q) || r.ip.includes(q) || r.type.toLowerCase().includes(q)) : all;
+              const headers = ['Name', 'Asset Type', 'Status', 'Host Name', 'IP Address', 'Used By', 'Managed By Group', 'Managed By', 'Created Date'];
+              return (
+                <div className="px-6 py-6">
+                  <div className="relative mb-4">
+                    <input
+                      type="text"
+                      value={installationSearch}
+                      onChange={(e) => setInstallationSearch(e.target.value)}
+                      placeholder="Select field or enter a keyword to search..."
+                      className="h-8 w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                    />
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1100px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.length === 0 ? (
+                          <tr><td colSpan={headers.length} className="px-4 py-10 text-center text-[#9CA3AF]">No installations found.</td></tr>
+                        ) : rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <span className="text-[#364658] max-w-[150px] truncate inline-block align-bottom">{r.host}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><Laptop size={14} className="text-[#6B7280]" />{r.type}</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[#364658]"><span className="size-2 rounded-full bg-[#22C55E]" />In Use</span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.host}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.ip}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[#9ca3af]">---<ChevronDown size={13} /></span></td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.group}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium text-white" style={{ backgroundColor: r.managedBy.color }}>{r.managedBy.initials}</span>
+                                <span className="text-[#364658]">{r.managedBy.name}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.created}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-end mt-4 text-[12px] text-[#7B8FA5]">
+                    Showing 1-{rows.length} of {rows.length} items
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Meter — software usage metering across the assets it's installed on */}
+            {activeMainTab === 'meter' && (() => {
+              const rows = [
+                { id: 'LAP-6787', host: 'DESKTOP-JJ3ICI2', user: 'Neha Raje', sessions: 218, hours: '342h 10m', last: 'Tue, Jun 17, 2026 09:12 AM', status: 'Active' },
+                { id: 'LAP-6712', host: 'FIN-LT-0188', user: 'Priya Nair', sessions: 176, hours: '288h 45m', last: 'Mon, Jun 16, 2026 06:40 PM', status: 'Active' },
+                { id: 'DSK-5521', host: 'OPS-DT-0211', user: 'Arjun Patel', sessions: 54, hours: '61h 20m', last: 'Fri, May 30, 2026 02:05 PM', status: 'Idle' },
+                { id: 'LAP-6420', host: 'ENG-LT-0312', user: 'Karan Malhotra', sessions: 12, hours: '8h 05m', last: 'Wed, Apr 02, 2026 11:18 AM', status: 'Idle' },
+              ];
+              const summary = [
+                ['Total Usage', '700h 20m', '#364658'],
+                ['Active Users (30d)', '2', '#22A06B'],
+                ['Avg Sessions / User', '115', '#364658'],
+                ['Idle Installs', '2', '#D97706'],
+              ] as [string, string, string][];
+              const headers = ['Name', 'Used By', 'Sessions', 'Total Usage', 'Last Used', 'Status'];
+              return (
+                <div className="px-6 py-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Gauge size={16} className="text-[#3D8BD0]" />
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Usage metering</h3>
+                  </div>
+                  <div className={`grid ${drawerWidth > 1380 ? 'grid-cols-4' : drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                    {summary.map(([l, v, color]) => (
+                      <div key={l} className="bg-[#F9FAFB] rounded-lg p-3">
+                        <div className="text-[12px] text-[#7B8FA5] mb-1">{l}</div>
+                        <div className="text-[15px] font-semibold" style={{ color }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-[12px]">
+                      <thead className="bg-white border-b border-[#e5e7eb]">
+                        <tr>{headers.map((h) => (<th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>))}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {rows.map((r) => (
+                          <tr key={r.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                                <span className="text-[#364658] max-w-[150px] truncate inline-block align-bottom">{r.host}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.user}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.sessions}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.hours}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{r.last}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 text-[#364658]">
+                                <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.status === 'Active' ? '#22C55E' : '#D97706' }} />
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-end text-[12px] text-[#7B8FA5]">Showing 1-{rows.length} of {rows.length} items</div>
                 </div>
               );
             })()}
@@ -4365,7 +3754,7 @@ onStackMinimizedChange,
                     <div className="flex items-center justify-center min-h-[400px]">
                       <div className="text-center">
                         <div className="inline-flex items-center justify-center size-16 rounded-full bg-[#F5F7FA] mb-4">
-                          <AppWindow className="size-8 text-[#7B8FA5]" />
+                          <Package className="size-8 text-[#7B8FA5]" />
                         </div>
                         <h3 className="text-[14px] font-semibold text-[#364658] mb-2">No Software Yet</h3>
                         <p className="text-[13px] text-[#7B8FA5] max-w-md mb-4">Get started by adding software to this asset.</p>
@@ -4448,9 +3837,6 @@ onStackMinimizedChange,
                     </div>
                   </div>
 
-                  <Paginated rows={visible} sticky bleed="-mx-6 -mb-6">
-                  {(pageRows) => (
-                  <>
                   {softwareView === 'list' ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-[12px]">
@@ -4464,7 +3850,7 @@ onStackMinimizedChange,
                       <tbody className="divide-y divide-[#e5e7eb] bg-white">
                         {visible.length === 0 ? (
                           <tr><td colSpan={cols.length} className="px-4 py-10 text-center text-[#9CA3AF]">No software found.</td></tr>
-                        ) : pageRows.map(({ s, i }) => (
+                        ) : visible.map(({ s, i }) => (
                           <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
                             {cols.map((c) => (
                               <td key={c.key} className="px-4 py-3 whitespace-nowrap text-[#364658]">{c.cell(s, i)}</td>
@@ -4480,7 +3866,7 @@ onStackMinimizedChange,
                       <div className="py-10 text-center text-[13px] text-[#9CA3AF]">No software found.</div>
                     ) : (
                     <div className="grid gap-4 grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3">
-                      {pageRows.map(({ s, i }) => (
+                      {visible.map(({ s, i }) => (
                         <div
                           key={i}
                           className="group relative rounded-xl border border-[#E5E7EB] bg-white p-4 hover:border-[#3D8BD0] hover:shadow-sm transition-all"
@@ -4494,7 +3880,7 @@ onStackMinimizedChange,
                           {/* Header: icon + name + manufacturer */}
                           <div className="flex items-start gap-3 pr-16">
                             <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
-                              <AppWindow size={20} />
+                              <Package size={20} />
                             </span>
                             <div className="min-w-0">
                               <button className="block text-[13px] font-semibold text-[#3D8BD0] hover:underline truncate text-left max-w-full" title={s.name}>{s.name}</button>
@@ -4516,118 +3902,72 @@ onStackMinimizedChange,
                               <div className="text-[11px] text-[#9CA3AF]">Installed Location</div>
                               <div className="text-[12px] text-[#364658] truncate" title={s.installedLocation}>{s.installedLocation || '---'}</div>
                             </div>
+                            {s.description && (
+                              <div className="col-span-2 min-w-0">
+                                <div className="text-[11px] text-[#9CA3AF]">Description</div>
+                                <div className="text-[12px] text-[#364658] truncate" title={s.description}>{s.description}</div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                     )
                   )}
-                  </>
-                  )}
-                  </Paginated>
                 </div>
               );
             })()}
 
             {activeMainTab === 'baseline' && (
               <div className="px-6 py-6 space-y-8">
-                {/* Baseline — single-baseline half-width card + Add on the same row */}
-                <div className="flex items-start gap-3">
-                  <div className={`${baselines.length === 0 || drawerWidth <= 1080 ? 'w-full' : 'w-1/2'} min-w-0`}>
-                  {baselines.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-[#D7DEE6] bg-[#FAFBFC] py-10 flex flex-col items-center justify-center text-center">
-                      <span className="flex size-11 items-center justify-center rounded-full bg-[#EEF2F6] text-[#9CA3AF] mb-3"><ShieldCheck size={22} /></span>
-                      <div className="text-[13px] font-medium text-[#364658]">No baseline added yet</div>
-                      <div className="text-[12px] text-[#9CA3AF] mt-1 mb-4">Capture a baseline to track configuration drift.</div>
-                      <button
-                        onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#DFE5ED] text-[#364658] text-sm font-medium rounded hover:bg-[#F5F7FA] hover:border-[#3D8BD0] transition-colors"
-                      >
-                        <Plus size={15} /> Add Baseline
-                      </button>
-                    </div>
-                  ) : baselines.map((b) => (
-                    <div key={b.id} className="rounded-xl border border-[#E5E7EB] bg-white p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{b.id}</span>
-                            <span className="text-[15px] font-semibold text-[#364658]">{b.name}</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[12px] text-[#9CA3AF] whitespace-nowrap">Created On:</span>
-                              <span className="text-[12px] text-[#364658] whitespace-nowrap">{b.createdOn}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[12px] text-[#9CA3AF] whitespace-nowrap">Created By:</span>
-                              <span className="text-[12px] text-[#364658] whitespace-nowrap">{b.createdBy}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button title="View attributes" className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><Eye size={16} /></button>
-                            </TooltipTrigger>
-                            <TooltipContent arrowClassName="bg-white fill-white" className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg w-[280px]">
-                              <div className="px-3 py-2 border-b border-[#F0F2F5] text-[12px] font-semibold text-[#364658]">Attributes</div>
-                              <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-[#7B8FA5]">
-                                <span>Attribute Name</span><span>Value</span>
+                {/* Baseline */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[14px] font-semibold text-[#3D8BD0]">Baseline</h3>
+                    <button
+                      title="Add Baseline"
+                      disabled={baselines.length >= 1}
+                      onClick={() => { setSelectedBaselineId(null); setBaselineSearch(''); setShowAddBaseline(true); }}
+                      className="size-8 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px]">
+                      <thead className="border-b border-[#e5e7eb]">
+                        <tr>
+                          {['ID', 'Name', 'Created On', 'Created By', 'Actions'].map((h) => (
+                            <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {baselines.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-10 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={16} /> No Data Found</span></td></tr>
+                        ) : baselines.map((b) => (
+                          <tr key={b.id} className="hover:bg-[#F9FAFB] transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.id}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.name}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdOn}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.createdBy}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button>
+                                <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={15} /></button>
+                                <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={15} /></button>
                               </div>
-                              {[
-                                { name: 'OS Architecture', group: 'OS', value: '64 BIT' },
-                                { name: 'OS Name', group: 'OS', value: 'Microsoft Windows 11 Pro' },
-                                { name: 'Total Physical Memory', group: 'RAM', value: '16 GB' },
-                              ].map((a) => (
-                                <div key={a.name} className="px-3 py-1.5 flex items-start justify-between gap-3 border-t border-[#F0F2F5]">
-                                  <div className="min-w-0">
-                                    <div className="text-[12px] text-[#364658]">{a.name}</div>
-                                    <div className="text-[11px] text-[#9CA3AF]">{a.group}</div>
-                                  </div>
-                                  <div className="text-[12px] text-[#3D8BD0] text-right">{a.value}</div>
-                                </div>
-                              ))}
-                            </TooltipContent>
-                          </Tooltip>
-                          {/* The baseline's own history lives in the History tab; rather than make
-                              the reader find it there, jump straight to it with the right category
-                              already chosen. */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => { setHistoryCategory('baseline-history'); setActiveMainTab('audit'); }}
-                                className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"
-                              >
-                                <History size={16} />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>View baseline history</TooltipContent>
-                          </Tooltip>
-                          <button title="Change Baseline" onClick={() => { setSelectedBaselineId(b.id); setBaselineSearch(''); setShowAddBaseline(true); }} className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#F3F4F6] hover:text-[#3D8BD0] transition-colors"><ArrowRightLeft size={16} /></button>
-                          <button title="Delete" onClick={() => setBaselines((prev) => prev.filter((x) => x.id !== b.id))} className="size-8 flex items-center justify-center rounded text-[#7B8FA5] hover:bg-[#FEF2F2] hover:text-[#EF4444] transition-colors"><Trash2 size={16} /></button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
                 {/* Variance */}
                 <div>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-[14px] font-semibold text-[#3D8BD0]">Variance</h3>
-                    {/* This table shows only OPEN variances; everything ever detected is in the
-                        History tab, so the link goes there with that category pre-selected. */}
-                    <button
-                      onClick={() => { setHistoryCategory('variance-history'); setActiveMainTab('audit'); }}
-                      className="inline-flex items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2.5 py-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F9FD]"
-                    >
-                      <History size={13} />
-                      View variance history
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
+                  <h3 className="text-[14px] font-semibold text-[#3D8BD0] mb-3">Variance</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-[12px]">
                       <thead className="border-b border-[#e5e7eb]">
@@ -4829,7 +4169,7 @@ onStackMinimizedChange,
                   </div>
                   {/* Saved views */}
                   <RelSavedViews
-                    storageKey="relViews:hardware"
+                    storageKey="relViews:non-it"
                     reset={() => { setRelView('graph'); setRelFilter([]); setRelConnFilter([]); setRelKey((k) => k + 1); }}
                     capture={() => ({ mode: relView, filter: relFilter, connFilter: relConnFilter, graph: relSnapRef.current?.capture() ?? null })}
                     apply={(v) => {
@@ -4913,7 +4253,7 @@ onStackMinimizedChange,
                           <div className="mb-4">
                             <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label>
                             <div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">
-                              {(['PDF', 'PNG'] as const).map((f) => (
+                              {(['PDF', 'Excel', 'CSV', 'PNG'] as const).map((f) => (
                                 <button key={f} onClick={() => setRelDlFormat(f)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${relDlFormat === f ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{f}</button>
                               ))}
                             </div>
@@ -5219,9 +4559,8 @@ onStackMinimizedChange,
                     ))}
                   </div>
 
-                  {/* Depreciation + Cost breakdown — one row, equal heights (the breakdown rows
-                      spread to fill whatever height the Depreciation card takes) */}
-                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-stretch`}>
+                  {/* Depreciation + Cost breakdown — one row */}
+                  <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 items-start`}>
                   {/* Depreciation chart */}
                   <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <div className="flex items-center justify-between mb-1">
@@ -5268,16 +4607,12 @@ onStackMinimizedChange,
                             <circle cx={px((elapsed / lifeMonths) * 12)} cy={py(currentBV)} r={4} fill="#3D8BD0" stroke="#fff" strokeWidth={2} />
                           )}
                         </svg>
-                        {/* Depreciation properties — the product's field set, minus Purchase Cost
-                            (already a top hero KPI). Salvage type/percentage derive from config. */}
                         <div className="flex flex-wrap gap-2 mt-3">
                           {[
-                            ['Acquisition Date', 'Feb 26, 2025'],
-                            ['Depreciation Method', configured ? deprConfig.method : (deprConfig.derivation === 'none' ? 'Do Not Depreciate' : 'Not configured')],
-                            [deprConfig.type === 'useful' ? 'Useful Life' : 'Depreciation %/Year', deprConfig.usefulLife ? (deprConfig.type === 'useful' ? `${deprConfig.usefulLife} mo` : `${deprConfig.usefulLife}%`) : '—'],
-                            ['Salvage Value Type', deprConfig.salvageValue ? 'Value' : '—'],
-                            ['Salvage Percentage', deprConfig.salvageValue && base > 0 ? `${Math.round((salvage / base) * 100)}%` : '—'],
-                            ['Salvage Value', deprConfig.salvageValue ? `${num(salvage)} ${deprConfig.currency}` : '—'],
+                            ['Method', configured ? deprConfig.method : (deprConfig.derivation === 'none' ? 'Do Not Depreciate' : 'Not configured')],
+                            ['Purchase Cost', `${num(base)} ATS`],
+                            ['Salvage', deprConfig.salvageValue ? `${num(salvage)} ${deprConfig.currency}` : '—'],
+                            [deprConfig.type === 'useful' ? 'Useful Life' : 'Rate', deprConfig.usefulLife ? (deprConfig.type === 'useful' ? `${deprConfig.usefulLife} mo` : `${deprConfig.usefulLife}%`) : '—'],
                           ].map(([l, v]) => (
                             <span key={l} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F9FAFB] text-[12px]">
                               <span className="text-[#7B8FA5]">{l}:</span>
@@ -5292,9 +4627,9 @@ onStackMinimizedChange,
                   </div>
 
                   {/* Cost breakdown */}
-                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5 flex flex-col">
+                  <div className="rounded-lg border border-[#E5E7EB] bg-white p-5">
                     <h3 className="text-[14px] font-semibold text-[#364658] mb-4">Cost breakdown</h3>
-                    <div className="flex-1 flex flex-col justify-between gap-3">
+                    <div className="space-y-3">
                       {factors.map(({ f, c }) => {
                         const amt = byFactor(f);
                         return (
@@ -5331,7 +4666,7 @@ onStackMinimizedChange,
                                 </div>
                                 {r.description && <div className="text-[12px] text-[#7B8FA5] mt-0.5 truncate">{r.description}</div>}
                               </div>
-                              <div className="hidden group-hover:flex items-center gap-2.5 flex-shrink-0">
+                              <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
                                 <button title="Edit" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Edit size={14} /></button>
                                 <button title="Delete" onClick={() => setCostRecords((prev) => prev.filter((x) => x.id !== r.id))} className="text-[#7B8FA5] hover:text-[#EF4444]"><Trash2 size={14} /></button>
                               </div>
@@ -7226,27 +6561,37 @@ onStackMinimizedChange,
               />
             )}
 
+            {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
+            {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
+
+            {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
+            {activeMainTab === 'computers' && (
+              <PatchComputersTab computers={patchComputers} setComputers={setPatchComputers} onInstall={handleInstallPatch} />
+            )}
+
+            {/* Installation Tab Content — deployment records for this patch */}
+            {activeMainTab === 'installation' && (
+              <PatchInstallationTab installations={patchInstallations} setInstallations={setPatchInstallations} onInstalled={handleInstallationSuccess} />
+            )}
+
+            {/* Superseded Tab Content — supersedence chain (Superseded / Superseded By) */}
+            {activeMainTab === 'superseded' && <PatchSupersededTab patchId={activeAsset?.id} patchName={activeAsset?.name} />}
+
             {/* Audit Trails Tab Content */}
             {activeMainTab === 'audit' && (() => {
               const categories = [
                 { id: 'audit', label: 'Audit Trail' },
-                { id: 'change-logs', label: 'Change Logs' },
-                { id: 'scan', label: 'Scan History' },
-                { id: 'wol', label: 'WOL History' },
                 { id: 'movement', label: 'Movement History' },
                 { id: 'repair', label: 'Repair History' },
-                { id: 'utilization', label: 'Asset Utilization History' },
-                { id: 'baseline-history', label: 'Baseline History' },
-                { id: 'variance-history', label: 'Variance History' },
               ];
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Method Changed', details: 'Changed Depreciation Method from "Sum Of The Years Digit" to "Double Declining Balance"', field: 'Method', from: 'Sum Of The Years Digit', to: 'Double Declining Balance', time: 'Sat, Jun 20, 2026 04:39 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Depreciation Type Changed', details: 'Changed Depreciation Type from "Useful Life" to "Depreciation Percentage"', field: 'Type', from: 'Useful Life', to: 'Depreciation Percentage', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Useful Life Changed', details: 'Changed Useful Life from "200" to "12"', field: 'Useful Life', from: '200', to: '12', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Salvage Amount Changed', details: 'Changed Salvage Amount from "18" to "100"', field: 'Salvage', from: '18', to: '100', time: 'Sat, Jun 20, 2026 04:38 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Purchase Cost Added', details: 'Added the asset purchase cost', time: 'Sat, Jun 20, 2026 04:20 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Patch Approved', details: 'Approved the patch for deployment', field: 'Approval Status', from: 'Not Approved', to: 'Approved', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Test Status Updated', details: 'Marked the patch as passed in the pilot test ring', field: 'Test Status', from: 'Not Tested', to: 'Passed', time: 'Sat, Jun 20, 2026 02:12 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Downloaded', details: 'Downloaded the patch package (3.77 MB) to the file server', field: 'Download Status', from: '---', to: 'Success', time: 'Sat, Jun 20, 2026 11:05 AM' },
+                { user: 'Jainam Shah', initials: 'JS', color: '#F59E0B', action: 'Added to Deployment', details: 'Added the patch to deployment "April 2026 Patch Tuesday" (PDR-1433)', time: 'Fri, May 22, 2026 05:30 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Synced', details: 'Patch discovered and synced from the vendor catalog by the patch scan', time: 'Fri, May 22, 2026 10:14 AM' },
               ];
               const changeLogs = [
                 { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
@@ -7285,21 +6630,10 @@ onStackMinimizedChange,
 
               return (
                 <div className="px-6 py-6">
-                  {/* Sticky toolbar: category dropdown (left) + date range / filter / download (right) */}
+                  {/* Sticky toolbar: title (left) + date range / filter / download (right).
+                      The Patch page has only Audit Trail history, so the category dropdown was removed. */}
                   <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
-                    <div className="relative">
-                      <button onClick={() => setShowHistoryMenu((o) => !o)} className="inline-flex items-center gap-2 px-3 py-2 rounded border border-[#DFE5ED] text-[13px] font-medium text-[#364658] hover:bg-[#F3F4F6] transition-colors min-w-[200px] justify-between">
-                        {activeCat.label}
-                        <ChevronDown size={14} className="text-[#7B8FA5]" />
-                      </button>
-                      {showHistoryMenu && (
-                        <div className="absolute top-full left-0 mt-1 z-50 w-[230px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1">
-                          {categories.map((c) => (
-                            <button key={c.id} onClick={() => { setHistoryCategory(c.id); setShowHistoryMenu(false); }} className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#F5F7FA] transition-colors ${historyCategory === c.id ? 'text-[#3D8BD0] font-medium' : 'text-[#364658]'}`}>{c.label}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Audit Trail</h3>
                     <div className="flex items-center gap-2 ml-auto">
                       <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
                       <div className="relative">
@@ -8453,8 +7787,11 @@ onStackMinimizedChange,
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
+            softwareMode={true}
+            nonItMode={true}
+            patchMode={true}
+            taskMode={true}
             assetState={assetState}
-            agentInfo={agentInfo}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}
             onQuickActionReady={(handler) => {
@@ -8563,8 +7900,8 @@ onStackMinimizedChange,
             togglePinField={togglePinField}
             getFilteredPinnedFields={getFilteredPinnedFieldsWrapper}
             getGroupTitle={getGroupTitleWrapper}
-            propertiesTitle="Asset Properties"
-            additionalTitle="Asset Information"
+            propertiesTitle="Task Properties"
+            additionalTitle="Task Information"
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}
@@ -9596,4 +8933,4 @@ onStackMinimizedChange,
   );
 }
 
-export default HardwareAssetDrawer;
+export default TaskDrawer;

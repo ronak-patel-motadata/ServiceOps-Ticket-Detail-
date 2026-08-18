@@ -57,6 +57,7 @@ import { TasksTabContent } from './TasksTabContent';
 import { AuditTrailsTabContent } from './AuditTrailsTabContent';
 import { RelationsTabContent } from './RelationsTabContent';
 import { KnowledgeArticleContent, summarizeArticle } from './KnowledgeArticleContent';
+import { seedComments, type ArticleComment } from './ArticleComments';
 import { KnowledgeAiSummary } from './KnowledgeAiSummary';
 import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
 import { PatchComputersTab, INITIAL_COMPUTERS, type PatchComputer, type PatchInstallation } from './PatchComputersTab';
@@ -859,6 +860,14 @@ onStackMinimizedChange,
      same thread and opens the same panel — two surfaces, one source. */
   const [kbReviews, setKbReviews] = useState<KnowledgeReview[]>([]);
   const [kbReviewsOpen, setKbReviewsOpen] = useState(false);
+  /* Comments follow the same rule as reviews: the article body and the Analytics card in the
+     right panel are two views of ONE thread, so the drawer owns it. */
+  const [kbComments, setKbComments] = useState<ArticleComment[]>(() => seedComments(activeTicketId ?? ''));
+  const [kbCommentsOpen, setKbCommentsOpen] = useState(false);
+  useEffect(() => {
+    setKbComments(seedComments(activeTicketId ?? ''));
+    setKbCommentsOpen(false);
+  }, [activeTicketId]);
   const [showReviewSchedule, setShowReviewSchedule] = useState(false);
   // Dev toggle: preview the page as the REQUESTER sees it (article-only, no internal chrome).
   const [viewAsRequester, setViewAsRequester] = useState(false);
@@ -3115,6 +3124,10 @@ onStackMinimizedChange,
               <KnowledgeArticleContent
                 articleId={activeTicket.id}
                 title={activeTicket.subject}
+                comments={kbComments}
+                onCommentsChange={setKbComments}
+                commentsOpen={kbCommentsOpen}
+                onCommentsOpenChange={setKbCommentsOpen}
                 centered={viewAsRequester}
                 showAiSummary={viewAsRequester}
                 review={viewAsRequester ? (() => {
@@ -8266,7 +8279,9 @@ onStackMinimizedChange,
               helpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[0] ?? 0,
               notHelpful: KB_FEEDBACK[activeTicket?.id ?? '']?.[1] ?? 0,
               totalRead: activePatchRecord?.knowledge?.totalRead ?? 0,
+              comments: kbComments.length,
             }}
+            onOpenKnowledgeComments={() => setKbCommentsOpen(true)}
             knowledgeInfo={{
               status: viewAsRequester ? '' : (activeTicket?.id ? (KB_STATUS[activeTicket.id] ?? 'Published') : 'Published'),
               createdOn: (activePatchRecord?.knowledge?.created ?? '---').replace(/^[A-Za-z]{3},\s*/, ''),

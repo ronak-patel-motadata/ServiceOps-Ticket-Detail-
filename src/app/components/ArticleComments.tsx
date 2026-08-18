@@ -144,9 +144,24 @@ function Composer({ onPost }: { onPost: (text: string) => void }) {
   );
 }
 
-export function ArticleComments({ articleId }: { articleId: string }) {
-  const [comments, setComments] = useState<ArticleComment[]>(() => seedComments(articleId));
-  const [showAll, setShowAll] = useState(false);
+/* The thread can be OWNED by the page (so the Analytics card can show its count and open the
+   same panel) or left to manage itself — pass comments/open to control it. */
+export function ArticleComments({ articleId, comments: controlled, onCommentsChange, open: openProp, onOpenChange }: {
+  articleId: string;
+  comments?: ArticleComment[];
+  onCommentsChange?: (next: ArticleComment[]) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [ownComments, setOwnComments] = useState<ArticleComment[]>(() => seedComments(articleId));
+  const comments = controlled ?? ownComments;
+  const setComments = (update: (prev: ArticleComment[]) => ArticleComment[]) => {
+    if (controlled) onCommentsChange?.(update(controlled));
+    else setOwnComments(update);
+  };
+  const [ownShowAll, setOwnShowAll] = useState(false);
+  const showAll = openProp ?? ownShowAll;
+  const setShowAll = (next: boolean) => { onOpenChange?.(next); if (openProp === undefined) setOwnShowAll(next); };
   const [query, setQuery] = useState('');
 
   const post = (text: string) => {
