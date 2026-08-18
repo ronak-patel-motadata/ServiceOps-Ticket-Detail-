@@ -2541,7 +2541,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* System Info — always LAST, and deliberately outside the reorderable list: these fields
             are written by the platform, not chosen by the technician, so they sit below everything
             actionable and there is nothing to gain from moving them. */}
-        {!compactTicketFields && !cveMode && !taskMode && getFilteredAdditionalFields && (
+        {!compactTicketFields && !cveMode && !taskMode && !knowledgeMode && getFilteredAdditionalFields && (
           <SystemInfoAccordion
             fields={getFilteredAdditionalFields()}
             pinnedFields={pinnedFields}

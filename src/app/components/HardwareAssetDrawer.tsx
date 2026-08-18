@@ -4073,9 +4073,6 @@ onStackMinimizedChange,
               const visibleSections = hwTabbed
                 ? sectionsToRender.filter(({ section }) => section.id === hardwareActiveSection)
                 : sectionsToRender;
-              const hitsElsewhere = hwTabbed && hwQuery
-                ? hwMatches.reduce((n, m) => (m.section === hardwareActiveSection ? n : n + 1), 0)
-                : 0;
               return (
                 <div className="px-6 py-6">
                   {/* Sticky toolbar: jump-to-section + search (sits just below the main tab bar) */}
@@ -4158,22 +4155,6 @@ onStackMinimizedChange,
 
                     <div className="flex-1 min-w-0">
                       {/* Option 1 stacks every section; option 2 shows the selected one. */}
-                      {hitsElsewhere > 0 && (
-                        <div className="mb-3 flex items-center gap-2 rounded border border-[#FDE4A6] bg-[#FFFBEB] px-3 py-2 text-[12px] text-[#B54708]">
-                          <Search size={13} className="flex-shrink-0" />
-                          <span className="min-w-0 flex-1">
-                            {hwMatches.length > hitsElsewhere
-                              ? hitsElsewhere + (hitsElsewhere === 1 ? ' more match in other sections' : ' more matches in other sections')
-                              : 'No matches in this section — ' + hitsElsewhere + (hitsElsewhere === 1 ? ' found elsewhere' : ' found in other sections')}
-                          </span>
-                          <button
-                            onClick={() => { setHwMatchIdx(0); setHwJumpNonce((n) => n + 1); }}
-                            className="flex-shrink-0 font-medium text-[#B54708] underline-offset-2 hover:underline"
-                          >
-                            Go to first match
-                          </button>
-                        </div>
-                      )}
                       <div className="space-y-3">
                     {visibleSections.map(({ section, nonRemoved, hits }) => {
                       const showEmptyState = nonRemoved.length === 0;
