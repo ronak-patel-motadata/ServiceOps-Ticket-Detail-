@@ -6,9 +6,11 @@ interface DiagnosisCardProps {
   timestamp: string;
   onEdit: () => void;
   onDelete: () => void;
+  /** The Internal lock pill. Off on the Request page, where "Diagnosis" already says it. */
+  showInternalTag?: boolean;
 }
 
-export function DiagnosisCard({ content, timestamp, onEdit, onDelete }: DiagnosisCardProps) {
+export function DiagnosisCard({ content, timestamp, onEdit, onDelete, showInternalTag = true }: DiagnosisCardProps) {
   return (
     <div className="flex gap-3 group relative">
       <div className="flex flex-col items-center">
@@ -31,17 +33,19 @@ export function DiagnosisCard({ content, timestamp, onEdit, onDelete }: Diagnosi
             <Stethoscope className="size-3" />
             Diagnosis
           </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
-                <Lock className="size-3" />
-                Internal
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Not Visible to Requester</p>
-            </TooltipContent>
-          </Tooltip>
+          {showInternalTag && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
+                  <Lock className="size-3" />
+                  Internal
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Not Visible to Requester</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <div className="bg-[rgba(245,133,24,0.10)] rounded-lg border-l-2 border-[#F58518] p-4 mt-2">
           <p className="text-sm text-[#364658] leading-relaxed whitespace-pre-wrap">

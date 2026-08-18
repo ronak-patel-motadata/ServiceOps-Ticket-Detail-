@@ -225,8 +225,11 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
     { id: 'art-comments', text: 'Comments', kind: 'comments', count: comments?.length },
   ];
 
+  /* Technician view reserves a right gutter (pr-12) for the section rail — its column is
+     left-aligned and can run the full drawer width, so in a small drawer the ticks landed on
+     the text. The requester column is centered inside generous margins, so px-10 is enough. */
   return (
-    <div className={`relative ${centered ? 'px-10 py-10' : 'px-6 py-6'}`}>
+    <div className={`relative ${centered ? 'px-10 py-10' : 'py-6 pl-6 pr-12'}`}>
       {/* The rail rides a zero-width column spanning the article's full height, so its sticky
           child can park mid-viewport for the whole scroll without reserving any layout width. */}
       <div className="pointer-events-none absolute inset-y-0 right-4 z-20 w-0">

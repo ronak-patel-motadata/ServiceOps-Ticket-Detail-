@@ -6,6 +6,7 @@ import { SystemFieldsRenderer } from './SystemFieldsRenderer';
 import { TicketFieldsAccordion } from './TicketFieldsAccordion';
 import { KnowledgeBaseModal } from './KnowledgeBaseModal';
 import type { AssetFieldState, AgentInfo } from './AssetFields';
+import { assetKeyInfoFields, applyAssetKeyInfo } from './AssetFields';
 import { AdditionalFieldsAccordion } from './AdditionalFieldsAccordion';
 import { getSlaPenaltyAmount, formatPenaltyAmount } from './TicketDrawerUtils';
 import { DateTimePickerPopup } from './DateTimePickerPopup';
@@ -2337,7 +2338,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           hideBaseFields={taskMode}
           /* The expand popup shows the WHOLE record, so it needs Key Info too — the panel owns
              that state, so it hands the fields down and takes the committed values back. */
-          keyInfoFields={taskMode ? TASK_KEY_FIELDS.map((f) => ({ ...f, value: taskKeyValues[f.label] ?? f.value })) : [
+          keyInfoFields={taskMode
+            ? TASK_KEY_FIELDS.map((f) => ({ ...f, value: taskKeyValues[f.label] ?? f.value }))
+            /* Asset and procurement pages carry their OWN Key Information — the popup reads the
+               same definition the accordion renders, so it can never show the Request page's
+               fields on an asset again. */
+            : (assetMode || licenseMode || contractMode || purchaseMode)
+              ? assetKeyInfoFields(assetState, { software: softwareMode, nonIt: nonItMode, cmdb: cmdbMode, license: licenseMode, contract: contractMode, purchase: purchaseMode })
+              : [
             { label: 'Status', value: selectedStatus, options: statusOptions },
             { label: 'Priority', value: selectedPriority, options: priorityOptions },
             { label: 'Assignee', value: selectedAssignee, options: assigneeOptions },
@@ -2353,6 +2361,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           ]}
           onKeyInfoChange={(label, value) => {
             if (taskMode) { setTaskKeyValues((prev) => ({ ...prev, [label]: value })); return; }
+            if (assetMode || licenseMode || contractMode || purchaseMode) { applyAssetKeyInfo(assetState, label, value); return; }
             const setters: Record<string, (v: string) => void> = {
               'Status': setSelectedStatus,
               'Priority': setSelectedPriority,

@@ -181,6 +181,14 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
   const shownKeyFields = keyInfoFields.filter((f) => expandMatch(f.label));
   const BASE_EXPAND_FIELDS = ['Project Name', 'Cost Center', 'Business Unit', 'Building', 'Request Channel', 'Description'];
   const baseFieldsShown = !hideBaseFields && BASE_EXPAND_FIELDS.some(expandMatch);
+  // Shown-of-total across every section the popup renders, for the result strip under the header.
+  const expandAllLabels = [
+    ...keyInfoFields.map((f) => f.label),
+    ...(hideBaseFields ? [] : BASE_EXPAND_FIELDS),
+    ...(demoCustomFields ? customList.map((f) => f.label) : []),
+  ];
+  const expandTotal = expandAllLabels.length;
+  const expandShown = expandAllLabels.filter(expandMatch).length;
 
   const applyExpandFields = () => {
     setSelectedProjectName(draftFields['Project Name']);
@@ -666,36 +674,44 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
         <div className="fixed inset-0 z-[10002] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowExpandFields(false)} />
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[840px] max-h-[86vh] flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
+            {/* Header — title, then the field search, then close. The search used to sit in a
+                full-width band of its own, which read as a second toolbar for one small control;
+                inline it balances the row and hands the body back its space. */}
+            <div className="flex items-center gap-3 px-5 py-3 border-b border-[#E5E7EB] flex-shrink-0">
               {/* Same heading as the card it expands from, so the modal is clearly that card. */}
-              <h2 className="text-[16px] font-semibold text-[#364658]">{title}</h2>
+              <h2 className="min-w-0 flex-1 truncate text-[16px] font-semibold text-[#364658]">{title}</h2>
+              <div className="relative w-[240px] flex-shrink-0">
+                <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  value={expandQuery}
+                  onChange={(e) => setExpandQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setExpandQuery(''); } }}
+                  placeholder="Search fields"
+                  className="h-8 w-full rounded border border-transparent bg-[#F5F7FA] pl-8 pr-7 text-[13px] text-[#364658] transition-colors placeholder:text-[#9CA3AF] hover:bg-[#EFF2F6] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
+                />
+                {expandQuery && (
+                  <button
+                    onClick={() => setExpandQuery('')}
+                    title="Clear"
+                    className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded hover:bg-[#E5E9EF]"
+                  >
+                    <X size={13} className="text-[#7B8FA5]" />
+                  </button>
+                )}
+              </div>
               <button onClick={() => setShowExpandFields(false)} className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6] text-[#6B7280] hover:text-[#111827]">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Search — the popup now holds every field on the record, so finding one by name
-                matters more than scrolling to it. Matches on label across all three sections. */}
-            <div className="flex-shrink-0 border-b border-[#E5E7EB] px-5 py-3">
-              <div className="relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  value={expandQuery}
-                  onChange={(e) => setExpandQuery(e.target.value)}
-                  placeholder="Search fields..."
-                  className="h-9 w-full rounded border border-[#DFE5ED] bg-white pl-9 pr-9 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:outline-none"
-                />
-                {expandQuery && (
-                  <button
-                    onClick={() => setExpandQuery('')}
-                    className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded hover:bg-[#F3F4F6]"
-                  >
-                    <X size={14} className="text-[#9CA3AF]" />
-                  </button>
-                )}
+            {/* A search that hides most of the record should say how much it kept. */}
+            {expandQuery.trim() && (
+              <div className="flex-shrink-0 border-b border-[#EEF1F4] bg-[#FAFBFC] px-5 py-1.5 text-[12px] text-[#7B8FA5]">
+                {expandShown > 0
+                  ? <>Showing <span className="font-medium text-[#364658]">{expandShown}</span> of {expandTotal} fields</>
+                  : <>No fields match &ldquo;{expandQuery.trim()}&rdquo;</>}
               </div>
-            </div>
+            )}
 
             {/* Body */}
             <div className="overflow-y-auto px-5 py-4">

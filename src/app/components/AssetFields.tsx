@@ -234,6 +234,115 @@ const TYPE_TREE: { label: string; children: string[] }[] = [
   { label: 'SNMP Devices', children: ['Router', 'Switch', 'Firewall'] },
 ];
 
+/** What the expand popup calls a "Key Information" field. Mirrors ExpandKeyField. */
+export interface AssetKeyInfoField {
+  label: string;
+  value: string;
+  options?: { label: string; color?: string }[];
+}
+
+/** Which variant of the accordion is on screen — the popup has to match it field for field. */
+export interface AssetKeyInfoMode {
+  software?: boolean;
+  nonIt?: boolean;
+  cmdb?: boolean;
+  license?: boolean;
+  contract?: boolean;
+  purchase?: boolean;
+}
+
+/* The expand popup shows the SAME Key Information the accordion does, so both read from here.
+   Built next to the variants above deliberately: a second hand-written copy in the panel is how
+   the popup ended up listing the Request page's fields on an asset. */
+export function assetKeyInfoFields(state: AssetFieldState | undefined, mode: AssetKeyInfoMode = {}): AssetKeyInfoField[] {
+  const extra = state?.extra ?? {};
+  const plain = (labels: string[]) => labels.map((label) => ({ label, value: extra[label] ?? '' }));
+
+  if (mode.license) {
+    return [
+      { label: 'Product', value: state?.product ?? '' },
+      { label: 'License Type', value: state?.licenseType ?? '', options: LICENSE_TYPE_OPTIONS.map((o) => ({ label: o })) },
+    ];
+  }
+  const pick = (label: string, options?: string[]) => ({ label, value: extra[label] ?? '', options: options?.map((o) => ({ label: o })) });
+  const owners = OWNER_OPTIONS.map((o) => ({ label: o.name, color: o.color }));
+
+  if (mode.contract) {
+    return [
+      ...plain(['Contract Number', 'Contract Start Date', 'Contract End Date', 'Cost']),
+      { label: 'Contract Type', value: extra['Contract Type'] ?? '', options: CONTRACT_TYPE_OPTIONS.map((o) => ({ label: o })) },
+      pick('Vendor'),
+      // Behind "View more" in the accordion — the popup is the whole record, so it shows them.
+      { label: 'Owner', value: extra['Owner'] ?? '', options: owners },
+      pick('Department', ['IT', 'Finance', 'HR', 'Operations', 'Sales', 'Procurement']),
+    ];
+  }
+  if (mode.purchase) {
+    return [
+      { label: 'Status', value: state?.status ?? '', options: PURCHASE_STATUS_OPTIONS },
+      ...plain(['Order Number', 'Cost (INR)']),
+      { label: 'Cost Center', value: extra['Cost Center'] ?? '', options: COST_CENTER_OPTIONS.map((o) => ({ label: o })) },
+      ...plain(['Purchase Required By', 'Purchase Order Date']),
+      { label: 'Owner', value: extra['Owner'] ?? '', options: owners },
+      pick('Vendor'),
+      pick('GL Code', ['5010 - IT Equipment', '5020 - Software', '5030 - Services', '6010 - Maintenance', '6020 - Consumables']),
+      pick('Print Template', ['Standard', 'Detailed', 'Compact']),
+      pick('Invoice Received', ['None', 'Partial', 'Full']),
+      pick('Payment Status', ['None', 'Pending', 'Partially Paid', 'Paid']),
+      ...plain(['Total Invoice Amount', 'Total Payment Amount']),
+    ];
+  }
+
+  const assetTypes = TYPE_TREE.flatMap((t) => t.children).map((o) => ({ label: o }));
+  const fields: AssetKeyInfoField[] = [
+    { label: 'Asset Type', value: state?.assetType ?? '', options: assetTypes },
+    { label: 'Status', value: state?.status ?? '', options: STATUS_OPTIONS },
+    { label: 'Impact', value: state?.impact ?? '', options: IMPACT_OPTIONS },
+  ];
+  if (mode.software) {
+    fields.push({ label: 'Software Type', value: state?.softwareType ?? '', options: SOFTWARE_TYPE_OPTIONS.map((o) => ({ label: o })) });
+  }
+  fields.push(
+    { label: 'Managed By Group', value: state?.managedByGroup ?? '', options: GROUP_OPTIONS.map((o) => ({ label: o })) },
+    { label: 'Managed By', value: state?.managedBy?.name ?? '', options: MANAGER_OPTIONS.map((m) => ({ label: m.name, color: m.color })) },
+  );
+  // The software variant hides CI, matching the accordion.
+  if (!mode.software) fields.push({ label: 'CI', value: state?.ci ?? '' });
+
+  /* Everything behind the accordion's "View more" belongs here too — the popup exists to show the
+     WHOLE record at once, so hiding half of it would defeat the point. */
+  const more = mode.software ? SOFTWARE_MORE_FIELDS
+    : mode.nonIt ? NONIT_MORE_FIELDS
+      : mode.cmdb ? CMDB_MORE_FIELDS
+        : ASSET_MORE_FIELDS;
+  fields.push(...more.map((f) => ({
+    label: f.label,
+    value: extra[f.label] ?? '',
+    options: f.options?.map((o) => ({ label: o })),
+  })));
+  return fields;
+}
+
+/** Commits one popup edit back onto the asset state the accordion reads. */
+export function applyAssetKeyInfo(state: AssetFieldState | undefined, label: string, value: string) {
+  if (!state) return;
+  switch (label) {
+    case 'Asset Type': state.setAssetType(value); return;
+    case 'Status': state.setStatus(value); return;
+    case 'Impact': state.setImpact(value); return;
+    case 'Managed By Group': state.setManagedByGroup(value); return;
+    case 'Software Type': state.setSoftwareType?.(value); return;
+    case 'License Type': state.setLicenseType?.(value); return;
+    case 'Managed By': {
+      const m = MANAGER_OPTIONS.find((o) => o.name === value);
+      state.setManagedBy(m ? { name: m.name, initials: m.initials, color: m.color } : { name: value });
+      return;
+    }
+    // Everything else lives in the "extra" bag, keyed by label.
+    default: state.setExtra?.({ ...(state.extra ?? {}), [label]: value });
+  }
+}
+
 export function assetTypeIcon(type?: string) {
   switch (type) {
     case 'Mac Laptop':

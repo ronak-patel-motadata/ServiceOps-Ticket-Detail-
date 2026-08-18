@@ -5222,6 +5222,7 @@ onStackActiveGroupChange,
                     {/* Display saved diagnosis */}
                     {diagnosisData && (
                       <DiagnosisCard
+                        showInternalTag={false}
                         content={diagnosisData.content}
                         timestamp={diagnosisData.timestamp}
                         onEdit={() => {
