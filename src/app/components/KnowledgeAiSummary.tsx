@@ -14,6 +14,7 @@ export function KnowledgeAiSummary({
   context,
   points = [],
   generatedBy = 'ServiceOps AI',
+  onDemand = false,
 }: {
   /** What the article says, in one or two paragraphs — enough to act on without opening it. */
   summary: string[];
@@ -21,9 +22,17 @@ export function KnowledgeAiSummary({
   context?: string;
   points?: string[];
   generatedBy?: string;
+  /** Requester view: nothing is generated up front — a "Summarise KB" button does it on
+   *  demand, and only then does the card show content + the regenerate icon. */
+  onDemand?: boolean;
 }) {
   const [open, setOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [generated, setGenerated] = useState(!onDemand);
+  const generate = () => {
+    setRefreshing(true);
+    setTimeout(() => { setRefreshing(false); setGenerated(true); setOpen(true); }, 1600);
+  };
 
   return (
     <div
@@ -36,31 +45,41 @@ export function KnowledgeAiSummary({
           {refreshing ? 'Generating summary…' : 'AI Summary'}
         </span>
         <div className="ml-auto flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {!generated ? (
+            <button
+              onClick={generate}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium text-[#364658] transition-opacity hover:opacity-80 disabled:opacity-60"
+              style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+            >
+              {refreshing ? 'Summarising…' : 'Summarise KB'}
+            </button>
+          ) : (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={generate}
+                    disabled={refreshing}
+                    className="flex size-7 items-center justify-center rounded transition-colors hover:bg-white/70"
+                  >
+                    <RefreshCw size={13} className={`text-[#7B8FA5] ${refreshing ? 'animate-spin' : ''}`} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Regenerate</TooltipContent>
+              </Tooltip>
               <button
-                onClick={() => {
-                  setRefreshing(true);
-                  setTimeout(() => setRefreshing(false), 1600);
-                }}
-                disabled={refreshing}
+                onClick={() => setOpen(!open)}
                 className="flex size-7 items-center justify-center rounded transition-colors hover:bg-white/70"
               >
-                <RefreshCw size={13} className={`text-[#7B8FA5] ${refreshing ? 'animate-spin' : ''}`} />
+                {open ? <ChevronUp size={15} className="text-[#7B8FA5]" /> : <ChevronDown size={15} className="text-[#7B8FA5]" />}
               </button>
-            </TooltipTrigger>
-            <TooltipContent>Regenerate</TooltipContent>
-          </Tooltip>
-          <button
-            onClick={() => setOpen(!open)}
-            className="flex size-7 items-center justify-center rounded transition-colors hover:bg-white/70"
-          >
-            {open ? <ChevronUp size={15} className="text-[#7B8FA5]" /> : <ChevronDown size={15} className="text-[#7B8FA5]" />}
-          </button>
+            </>
+          )}
         </div>
       </div>
 
-      {open && (
+      {open && generated && (
         <div className="px-4 pb-4">
           <div className="space-y-2.5">
             {summary.map((para, i) => (

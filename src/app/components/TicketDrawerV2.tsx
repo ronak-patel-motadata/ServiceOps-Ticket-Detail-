@@ -1021,14 +1021,8 @@ onStackActiveGroupChange,
     setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
   };
 
-  // Onboarding - shows once per session, resets on page refresh
-  useEffect(() => {
-    const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
-    if (!hasSeenOnboarding && activeTicketId) {
-      setActiveGroupLocal('properties'); // local-only default; never clobbers a persisted group
-      setTimeout(() => setShowOnboarding(true), 500);
-    }
-  }, [activeTicketId]);
+  // Onboarding no longer auto-opens on first visit — the 3-dot menu's "In-App User Guide"
+  // is the one way in, so the tour is invited rather than imposed.
 
   // Local default when the request changes — local-only so a group the user explicitly opened
   // (e.g. Suggestions) persists across opening a related record; only applies when the host has

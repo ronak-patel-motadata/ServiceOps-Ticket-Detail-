@@ -1,7 +1,7 @@
-import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown , Trash2 , Pencil } from 'lucide-react';
+import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown , Trash2 , Pencil, ChevronsUpDown } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions } from './EditorToolbar';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 export interface ApprovalComment { id: number; author: string; initials: string; color: string; content: string; time: string }
@@ -44,13 +44,22 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalSubject, comment
 /* The comment thread + composer WITHOUT the popup shell, so the same experience can be hosted
    by the approval side popup AND as a page tab (Task detail). The parent must be a flex
    column: the thread takes the leftover height, the composer stays pinned at the bottom. */
-export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, onDeleteComment, toolbarBorder = true, collapsibleComposer = false }: {
+export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, onDeleteComment, toolbarBorder = true, collapsibleComposer = false, boxed = false, inlineThread = false, showInternalTag = true }: {
   comments: ApprovalComment[];
   onAddComment: (comment: ApprovalComment) => void;
   onUpdateComment?: (id: number, content: string) => void;
   onDeleteComment?: (id: number) => void;
   /** The rule under the toolbar. Off in the Comments TAB, where the tab strip already draws one. */
   toolbarBorder?: boolean;
+  /** The Internal lock pill. Off on the Task page — tasks are technician-only, so saying
+   *  "Internal" on every comment states the obvious. */
+  showInternalTag?: boolean;
+  /** Task pages: the thread flows with the page (no internal scroll) — the drawer provides
+   *  the single top-to-bottom scroll and the sticky tab strip. */
+  inlineThread?: boolean;
+  /** Wraps the toolbar + thread in ONE bordered card (Task option 2); the composer stays
+   *  outside the card so it can stick to the viewport bottom. */
+  boxed?: boolean;
   /** Comments-TAB mode: the composer sticks to the bottom of the viewport and rests as a
    *  one-line prompt — clicking expands the full editor, sending collapses it again. */
   collapsibleComposer?: boolean;
@@ -60,6 +69,7 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
   const [commentContent, setCommentContent] = useState('');
   const [commentSearch, setCommentSearch] = useState('');
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [showOldComments, setShowOldComments] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(!collapsibleComposer);
   const composerExpandedRef = useRef(composerExpanded);
   composerExpandedRef.current = composerExpanded;
@@ -157,9 +167,23 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
   const strip = (html: string) => html.replace(/<[^>]*>/g, ' ');
   const q = commentSearch.trim().toLowerCase();
   const filteredComments = q ? comments.filter((c) => strip(c.content).toLowerCase().includes(q)) : comments;
-  const visibleComments = sortNewestFirst ? [...filteredComments].reverse() : filteredComments;
+  /* Long threads open on the recent tail — the older comments fold behind a centred pill,
+     the conversation-tab pattern. Searching or sorting newest-first shows everything. */
+  const canCollapse = !q && !sortNewestFirst && filteredComments.length > 3;
+  const hiddenCount = canCollapse && !showOldComments ? filteredComments.length - 3 : 0;
+  const shownChrono = hiddenCount ? filteredComments.slice(hiddenCount) : filteredComments;
+  const visibleComments = sortNewestFirst ? [...shownChrono].reverse() : shownChrono;
+  /* 'Aug 12, 4:10 PM' → Today / Yesterday / 'Aug 12' (conversation-tab day groups). */
+  const dayLabel = (time: string) => {
+    const datePart = time.split(',')[0];
+    const now = new Date();
+    const d = new Date(`${datePart}, ${now.getFullYear()}`);
+    if (isNaN(d.getTime())) return datePart;
+    const diff = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+    return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : datePart;
+  };
 
-  return (
+  const threadBody = (
     <>
         {/* Search + sort toolbar (shown once there are comments) */}
         {/* Toolbar — the Conversation/Tasks-tab recipe: bordered icon buttons; the search
@@ -211,7 +235,7 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
         )}
 
         {/* Comment Form Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className={boxed ? 'p-4' : inlineThread ? 'flex-1 p-4' : 'flex-1 overflow-y-auto p-4'}>
           {comments.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <div className="inline-flex items-center justify-center size-14 rounded-full bg-[#F5F7FA] mb-3">
@@ -223,8 +247,28 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
             <div className="text-center py-10 text-[13px] text-[#7B8FA5]">No comments match your search.</div>
           ) : (
             <div className="space-y-5">
-              {visibleComments.map((c) => (
-                <div key={c.id} className="group/cmt flex gap-3">
+              {canCollapse && !showOldComments && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setShowOldComments(true)}
+                    className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-3 py-1.5 text-[12px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:text-[#3D8BD0]"
+                  >
+                    {`${filteredComments.length - 3} older ${filteredComments.length - 3 === 1 ? 'comment' : 'comments'}`}
+                    <ChevronsUpDown size={13} className="text-[#7B8FA5]" />
+                  </button>
+                </div>
+              )}
+              {visibleComments.map((c, i) => (
+                <Fragment key={c.id}>
+                {/* Day separator — the conversation tab's gradient hairline + centred label */}
+                {(i === 0 || dayLabel(visibleComments[i - 1].time) !== dayLabel(c.time)) && (
+                  <div className="flex items-center gap-3 pt-1 pb-1">
+                    <div className="h-px flex-1 rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.00) 0%, rgba(223, 229, 237, 0.60) 100%)' }} />
+                    <span className="text-xs font-medium text-[#7B8FA5]">{dayLabel(c.time)}</span>
+                    <div className="h-px flex-1 rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(223, 229, 237, 0.60) 0%, rgba(223, 229, 237, 0.00) 100%)' }} />
+                  </div>
+                )}
+                <div className="group/cmt flex gap-3">
                   <div className="size-[26px] rounded flex items-center justify-center text-white text-xs font-semibold flex-shrink-0" style={{ backgroundColor: c.color }}>
                     {c.initials}
                   </div>
@@ -232,6 +276,7 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-semibold text-[#364658]">{c.author}</span>
                       <span className="text-xs text-[#7B8FA5]">{c.time}</span>
+                      {showInternalTag && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-[#F5F7FA] text-[#7B8FA5] text-xs rounded font-medium cursor-help">
@@ -243,6 +288,7 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
                           Not Visible to Requester
                         </TooltipContent>
                       </Tooltip>
+                      )}
                       {(onUpdateComment || onDeleteComment) && (
                         <span className="ml-auto flex flex-shrink-0 items-center gap-2 opacity-0 transition-opacity group-hover/cmt:opacity-100">
                           {onUpdateComment && (
@@ -287,11 +333,21 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
                     />
                   </div>
                 </div>
+                </Fragment>
               ))}
             </div>
           )}
         </div>
 
+    </>
+  );
+  return (
+    <>
+      {boxed ? (
+        <div className="mx-2 mb-4 flex-1">{threadBody}</div>
+      ) : (
+        threadBody
+      )}
         {/* Comment Input Form - Fixed at Bottom */}
         <div className={collapsibleComposer ? 'sticky bottom-0 z-20 border-t border-[#DFE5ED] bg-white p-4' : 'p-4 border-t border-[#DFE5ED]'}>
           {/* Editing indicator — makes the mode obvious and gives a way back out */}

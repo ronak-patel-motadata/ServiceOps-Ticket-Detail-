@@ -336,8 +336,22 @@ onStackActiveGroupChange,
   const [isWatching, setIsWatching] = useState(false);
   const [showWatchersDropdown, setShowWatchersDropdown] = useState(false);
   
-  // Conversation count - total messages in conversation tab (includes old activities when expanded)
-  const conversationCount = 16;
+  /* Conversation tab badge = UNREAD messages, not the total. Seeded per record; opening the
+     tab shows a NEW-messages divider at the unread boundary, scrolls to it, and marks the
+     thread read after a beat (Slack pattern) — the divider stays for the rest of the visit. */
+  const [unreadConvCount, setUnreadConvCount] = useState(3);
+  const [unreadMarker, setUnreadMarker] = useState(0);
+  useEffect(() => { setUnreadConvCount(3); setUnreadMarker(0); }, [activeTicketId]);
+  useEffect(() => {
+    if (activeMainTab !== 'conversation') { setUnreadMarker(0); return; }
+    if (unreadConvCount > 0) {
+      setUnreadMarker(unreadConvCount);
+      const read = setTimeout(() => setUnreadConvCount(0), 2000);
+      const jump = setTimeout(() => document.getElementById('unread-divider')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
+      return () => { clearTimeout(read); clearTimeout(jump); };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainTab]);
   
   // Approvals count - based on ticket ID
   const getApprovalsCount = (ticketId: string | undefined) => {
@@ -1018,14 +1032,8 @@ onStackActiveGroupChange,
     setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
   };
 
-  // Onboarding - shows once per session, resets on page refresh
-  useEffect(() => {
-    const hasSeenOnboarding = sessionStorage.getItem('hasSeenTicketDetailsOnboarding');
-    if (!hasSeenOnboarding && activeTicketId) {
-      setActiveGroupLocal('properties'); // local-only default; never clobbers a persisted group
-      setTimeout(() => setShowOnboarding(true), 500);
-    }
-  }, [activeTicketId]);
+  // Onboarding no longer auto-opens on first visit — the 3-dot menu's "In-App User Guide"
+  // is the one way in, so the tour is invited rather than imposed.
 
   // Local default when the request changes — local-only so a group the user explicitly opened
   // (e.g. Suggestions) persists across opening a related record; only applies when the host has
@@ -3182,9 +3190,9 @@ onStackActiveGroupChange,
                       onClick={() => setActiveMainTab(tabId as any)}
                     >
                       {tabLabels[tabId]}
-                      {tabId === 'conversation' && activeTicket?.id !== 'INC-32' && activeTicket?.id !== 'INC-35' && (
-                        <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
-                          {conversationCount}
+                      {tabId === 'conversation' && activeTicket?.id !== 'INC-32' && activeTicket?.id !== 'INC-35' && unreadConvCount > 0 && (
+                        <span className="rounded bg-[#3D8BD0] px-1 py-0.5 text-[12px] font-medium text-white">
+                          {unreadConvCount}
                         </span>
                       )}
                       {tabId === 'tasks' && tasksCount > 0 && (
@@ -3773,6 +3781,18 @@ onStackActiveGroupChange,
                   </div>
                 </div>
                 </div>
+                )}
+
+                {/* Unread boundary — everything below arrived since the last visit */}
+                {unreadMarker > 0 && activeConversationTab !== 'technician' && (
+                  <div id="unread-divider" className="flex items-center gap-3 pt-2 pb-4">
+                    <div className="h-px flex-1 bg-[#3D8BD0]/30" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3D8BD0]/25 bg-[#F0F7FD] px-2.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">
+                      <span className="size-1.5 rounded-full bg-[#3D8BD0]" />
+                      {unreadMarker} new {unreadMarker === 1 ? 'message' : 'messages'}
+                    </span>
+                    <div className="h-px flex-1 bg-[#3D8BD0]/30" />
+                  </div>
                 )}
 
                 {/* Today Group */}

@@ -30,12 +30,17 @@ export function SummaryStaleNotice({
     <div className="flex items-center gap-2">
       {/* A label, not a control — the refresh icon beside it is the only thing that regenerates. */}
       {stale && !regenerating && (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#3D8BD0]">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium">
           <span className="relative flex size-1.5 flex-shrink-0">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#3D8BD0] opacity-75" />
-            <span className="relative inline-flex size-1.5 rounded-full bg-[#3D8BD0]" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#8B5CF6] opacity-75" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-[#8B5CF6]" />
           </span>
-          <span className="whitespace-nowrap">New conversations added — Regenerate</span>
+          <span
+            className="whitespace-nowrap bg-clip-text text-transparent"
+            style={{ backgroundImage: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 55%, #F911E3 100%)' }}
+          >
+            New conversations added — Regenerate
+          </span>
         </span>
       )}
       <Tooltip>
@@ -47,7 +52,7 @@ export function SummaryStaleNotice({
           >
             <RefreshCw
               size={14}
-              className={`transition-colors ${regenerating ? 'animate-spin text-[#3D8BD0]' : stale ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`}
+              className={`transition-colors ${regenerating ? 'animate-spin text-[#8B5CF6]' : stale ? 'text-[#8B5CF6]' : 'text-[#7B8FA5]'}`}
             />
           </button>
         </TooltipTrigger>

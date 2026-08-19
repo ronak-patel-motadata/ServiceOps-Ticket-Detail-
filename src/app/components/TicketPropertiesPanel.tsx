@@ -1679,7 +1679,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               V2 ticket page (compactTicketFields): the panel holds only 7 fixed fields, so the
               properties field-search + filter are dropped — search lives in the Incident
               Details tab instead. Activity/Suggestions searches are unaffected. */}
-          {((activeGroup === 'properties' && !compactTicketFields && !cveMode && !knowledgeMode) || activeGroup === 'activity' || activeGroup === 'suggestions') && (
+          {((activeGroup === 'properties' && !compactTicketFields && !cveMode && !knowledgeMode) || (activeGroup === 'activity' && assetMode && !taskMode)) && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1 border border-[#DFE5ED] rounded px-2 py-1.5">
                 <Search size={16} className="text-[#7B8FA5]" />

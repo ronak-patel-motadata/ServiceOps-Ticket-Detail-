@@ -15,7 +15,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files, History } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { FileTypeBadge, DescriptionAttachments, type AttachmentFile } from './DescriptionAttachments';
 import { RelSavedViews } from './RelSavedViews';
@@ -226,6 +226,11 @@ onStackMinimizedChange,
   const setMinimized = onStackMinimizedChange ?? setMinimizedLocal;
   useEffect(() => { setMinimized(false); }, [activeTicket?.id]);
   const activeAsset = assetList.find(a => a.id === activeAssetId);
+  /* Task detail OPTION 2 — TA-7647 only: no tabs at all. One scroll of Description → Linked →
+     Checklist → Comments (Jira-style), with the Audit Trail behind a History icon in the
+     header that opens a side popup. Every other task keeps option 1 (the tabbed page). */
+  const taskV2 = activeAssetId === 'TA-7647';
+  const [showAuditPanel, setShowAuditPanel] = useState(false);
   // The RAW patch record (the adapted HardwareAsset shape has no description).
   const activePatchRecord = openAssets.find(p => p.id === activeAssetId) ?? openAssets[0];
   // Overview description is optional and collapsed by default; reset when switching patch tabs.
@@ -435,7 +440,15 @@ onStackMinimizedChange,
   // Comments tab — the approval-popup thread, hosted as a page tab.
   const [taskComments, setTaskComments] = useState<ApprovalComment[]>([
     { id: 1, author: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', content: 'Please prioritise this — the new joiner needs the licence before onboarding on Monday.', time: 'Aug 12, 4:10 PM' },
-    { id: 2, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Three seats are free under the E3 agreement — assigning from that pool, no new purchase needed.', time: 'Aug 13, 9:05 AM' },
+    { id: 2, author: 'Priya Nair', initials: 'PN', color: '#22A06B', content: 'HR confirmed the start date is Monday the 24th. Manager approval is already on the parent request.', time: 'Aug 12, 4:35 PM' },
+    { id: 3, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Picking this up. Checking seat availability under the E3 agreement first.', time: 'Aug 12, 5:02 PM' },
+    { id: 4, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Three seats are free under the E3 agreement — assigning from that pool, no new purchase needed.', time: 'Aug 13, 9:05 AM' },
+    { id: 5, author: 'Michael Chen', initials: 'MC', color: '#0EA5E9', content: 'Heads up — the AD sync job runs at 11 AM and 4 PM. Create the account before a sync window or the mailbox provisioning slips to the next run.', time: 'Aug 13, 10:20 AM' },
+    { id: 6, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Account created in the Joiners OU with the standard naming convention. Waiting on the 11 AM sync for the mailbox.', time: 'Aug 16, 10:48 AM' },
+    { id: 7, author: 'Emma Wilson', initials: 'EW', color: '#EC4899', content: 'Security groups applied from the Finance baseline template. Flag anything extra the role needs and I will raise it separately.', time: 'Aug 16, 2:15 PM' },
+    { id: 8, author: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', content: 'Requester asked whether the laptop will be ready the same day — linking the hardware task here so the two land together.', time: 'Aug 18, 11:30 AM' },
+    { id: 9, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Mailbox is live and the licence shows Active in the admin centre. Left the welcome-mail template with HR.', time: 'Aug 18, 3:42 PM' },
+    { id: 10, author: 'Priya Nair', initials: 'PN', color: '#22A06B', content: 'Verified first sign-in on the test device — MFA enrolment worked first time. Ticking the last checklist item once the requester confirms.', time: 'Aug 19, 9:12 AM' },
   ]);
   /* Overview tab — checklist (manual add / edit / remove / toggle) + the evidence files. */
   const [taskChecklist, setTaskChecklist] = useState<{ id: number; text: string; done: boolean }[]>([
@@ -443,6 +456,9 @@ onStackMinimizedChange,
     { id: 2, text: 'Assign the licence to the new joiner account', done: false },
     { id: 3, text: 'Verify activation and first sign-in on the user device', done: false },
   ]);
+  // Option 2: the checklist and comments sections are accordions — headers collapse them.
+  const [checklistOpen, setChecklistOpen] = useState(true);
+  const [commentsOpen, setCommentsOpen] = useState(true);
   const [addingCheckItem, setAddingCheckItem] = useState(false);
   const [checkDraft, setCheckDraft] = useState('');
   const [editingCheckId, setEditingCheckId] = useState<number | null>(null);
@@ -2074,6 +2090,266 @@ onStackMinimizedChange,
   if (openTickets.length === 0 || !activeTicket) return null;
   if (minimized) return <MinimizedDrawerRail items={stackTabs ?? openTickets} activeId={activeTicket?.id} onSelect={(id) => { onTabChange(id); setMinimized(false); }} onRestore={() => setMinimized(false)} />;
 
+  /* Audit Trail content — one renderer serving the tab (option 1) and the side popup (option 2). */
+  const renderAuditTrail = () => {
+              const categories = [
+                { id: 'audit', label: 'Audit Trail' },
+                { id: 'movement', label: 'Movement History' },
+                { id: 'repair', label: 'Repair History' },
+              ];
+              const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
+
+              const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
+                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Status Updated', details: 'Started assigning the licence from the E3 agreement pool', field: 'Status', from: 'Open', to: 'In Progress', time: 'Thu, Aug 13, 2026 09:20 AM' },
+                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Work Logged', details: 'Logged 30 minutes — assigned the E3 licence and confirmed activation', time: 'Thu, Aug 13, 2026 09:35 AM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Assignee Changed', details: 'Handed the task to the software licensing team', field: 'Assignee', from: 'Unassigned', to: 'Sarah Johnson', time: 'Wed, Aug 12, 2026 04:15 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Priority Updated', details: 'Raised the priority — the new joiner starts on Monday', field: 'Priority', from: 'P3', to: 'P1', time: 'Wed, Aug 12, 2026 04:12 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Due Date Set', details: 'Scheduled the task ahead of the onboarding date', field: 'Due Date', from: '---', to: 'Mon, Aug 17, 2026', time: 'Wed, Aug 12, 2026 04:10 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Task Created', details: 'Created from request INC-31 "Employee onboarding — new joiner" (stage: Provisioning)', time: 'Wed, Aug 12, 2026 03:58 PM' },
+              ];
+              const changeLogs = [
+                { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
+                { text: 'USB Controller Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:31 PM' },
+                { text: 'OS Component has been Removed', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:29 PM' },
+                { text: 'RAM Component : Size (GB) Updated from 8 to 32', by: 'Rakesh Rathod', time: 'Wed, Jun 17, 2026 06:41 PM' },
+                { text: 'Computer System : User Name Updated from Constellation to leofan', by: 'Agent', time: 'Mon, May 18, 2026 11:27 AM' },
+                { text: 'Processor Component : Intel(R) Core(TM) i5-8365U has been Added', by: 'Agent', time: 'Mon, May 18, 2026 09:33 AM' },
+              ];
+              const scanHistory = [
+                'Mon, May 18, 2026 02:25 PM', 'Mon, May 18, 2026 01:25 PM', 'Mon, May 18, 2026 12:25 PM',
+                'Mon, May 18, 2026 11:26 AM', 'Mon, May 18, 2026 09:48 AM', 'Mon, May 18, 2026 09:29 AM',
+              ];
+              const utilization = [
+                ['Mon, May 18, 2026 11:23 AM', 'Mon, May 18, 2026 11:23 AM', '30 seconds', '51 minutes 3 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 10:28 AM', 'Mon, May 18, 2026 10:31 AM', '3 minutes 8 seconds', '45 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 10:27 AM', 'Mon, May 18, 2026 10:28 AM', '31 seconds', '12 minutes 54 seconds', 'Mon, May 18, 2026 11:26 AM'],
+                ['Mon, May 18, 2026 09:43 AM', 'Mon, May 18, 2026 10:14 AM', '30 minutes 43 seconds', '---', 'Mon, May 18, 2026 10:27 AM'],
+              ];
+              const baselineHistory = [
+                { id: 'BAS-31', by: 'Rakesh Rathod', on: 'Fri, Jun 19, 2026 07:17 PM', reason: 'New Baseline Added', latest: 'Yes' },
+                { id: 'BAS-14', by: 'Rakesh Rathod', on: 'Wed, Jun 17, 2026 11:40 AM', reason: 'New Baseline Added', latest: 'No' },
+                { id: 'BAS-31', by: 'System', on: 'Mon, May 18, 2026 09:33 AM', reason: 'New Baseline Added', latest: 'No' },
+              ];
+
+              const emptyState = (cols: string[]) => (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px] text-[12px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr>{cols.map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
+                    </thead>
+                    <tbody><tr><td colSpan={cols.length} className="px-4 py-12 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={18} /> No Data Found</span></td></tr></tbody>
+                  </table>
+                </div>
+              );
+
+              return (
+                <div className="px-6 py-6">
+                  {/* Sticky toolbar: title (left) + date range / filter / download (right).
+                      The Patch page has only Audit Trail history, so the category dropdown was removed. */}
+                  <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Audit Trail</h3>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
+                      <div className="relative">
+                        <button onClick={() => { setHistDownloadOpen(false); setHistDraftFrom(histFrom); setHistDraftTo(histTo); setHistFilterOpen((o) => !o); }} title="Filter" className={`size-8 flex items-center justify-center rounded border transition-colors hover:bg-[#F3F4F6] ${histFrom || histTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}><Filter size={15} /></button>
+                        {histFilterOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setHistFilterOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
+                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
+                              <div className="space-y-3">
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><DateField value={histDraftFrom} onChange={setHistDraftFrom} /></div>
+                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={histDraftTo} min={histDraftFrom || undefined} onChange={setHistDraftTo} /></div>
+                              </div>
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                                <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
+                                <button onClick={() => { setHistFrom(histDraftFrom); setHistTo(histDraftTo); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <button onClick={() => { setHistFilterOpen(false); setHistDownloadOpen((o) => !o); }} title="Download" className="size-8 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
+                        {histDownloadOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setHistDownloadOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
+                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
+                              <div className="mb-4"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label><div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">{['PDF', 'Excel', 'CSV'].map((ff) => (<button key={ff} onClick={() => setHistDlFormat(ff)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${histDlFormat === ff ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{ff}</button>))}</div></div>
+                              <div className="mb-3"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label><button onClick={() => setHistDlPw((v) => !v)} role="switch" aria-checked={histDlPw} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${histDlPw ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}><span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${histDlPw ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} /></button></div>
+                              {histDlPw && (<div className="mb-1"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label><div className="relative"><Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" /><input type={histShowPw ? 'text' : 'password'} value={histDlPassword} onChange={(e) => setHistDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /><button onClick={() => setHistShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{histShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></div>)}
+                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]"><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button></div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content per category */}
+                  <div className="mt-2">
+                    {historyCategory === 'audit' && (() => {
+                      const dayLabel = (t) => t.replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
+                      const timeOf = (t) => (t.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)?.[0] ?? '').replace(/^0/, '');
+                      const inRange = (t) => { const d = new Date(t.substring(t.indexOf(',') + 2)); const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if (histFrom && k < histFrom) return false; if (histTo && k > histTo) return false; return true; };
+                      const grp = [];
+                      for (const e of auditEntries.filter((x) => inRange(x.time))) {
+                        const key = dayLabel(e.time);
+                        let g = grp.find((x) => x.label === key);
+                        if (!g) { g = { label: key, items: [] }; grp.push(g); }
+                        g.items.push(e);
+                      }
+                      return (
+                        <div className="space-y-6">
+                          {grp.map((group) => (
+                            <div key={group.label}>
+                              <div className="flex items-center gap-3 mb-3"><span className="text-[12px] font-semibold text-[#7B8FA5] flex-shrink-0">{group.label}</span><div className="flex-1 h-px bg-[#EEF1F5]" /></div>
+                              <div className="relative">
+                                {group.items.map((e, index, arr) => (
+                                  <div key={index} className="relative flex gap-3 py-3.5 px-2 -mx-2 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                                    {index !== arr.length - 1 && <div className="absolute left-[22px] top-[44px] bottom-[-2px] w-px bg-[#EEF1F5]" />}
+                                    <div className="size-[26px] rounded-[6px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: e.color }}>{e.initials}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[13px] font-semibold text-[#364658]">{e.user}</span>
+                                        <span className="text-[11px] font-medium text-[#64748B] bg-[#F1F5F9] rounded px-1.5 py-0.5">{e.action}</span>
+                                        <span className="inline-flex items-center gap-1 text-[11px] text-[#9CA3AF]"><Clock size={11} />{timeOf(e.time)}</span>
+                                      </div>
+                                      <p className="text-[13px] text-[#5A6B7B] mt-1">{e.details}</p>
+                                      {e.field && (
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          <span className="inline-flex items-center gap-1.5 text-[12px] bg-white border border-[#E8EDF3] rounded-md px-2 py-1">
+                                            <span className="text-[#7B8FA5]">{e.field}</span>
+                                            <span className="text-[#94A3B8] line-through">{e.from}</span>
+                                            <span className="text-[#CBD5E1]">→</span>
+                                            <span className="text-[#059669] font-medium">{e.to}</span>
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    {historyCategory === 'change-logs' && (
+                      <div className="relative">
+                        {changeLogs.map((c, index, array) => {
+                          const ini = c.by === 'Agent' ? 'AG' : c.by.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+                          const color = c.by === 'Agent' ? '#10B981' : '#3D8BD0';
+                          return (
+                            <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                              {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
+                              <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: color }}>{ini}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="py-1">
+                                  <div className="flex items-start justify-between gap-3 mb-1">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-[13px] font-semibold text-[#364658]">{c.by}</span>
+                                        <span className="text-[12px] text-[#7B8FA5]">•</span>
+                                        <span className="text-[12px] text-[#7B8FA5]">Change Log</span>
+                                      </div>
+                                      <p className="text-[13px] text-[#364658]">{c.text}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{c.time}</span></div>
+                                  </div>
+                                  <button className="mt-1 text-[12px] text-[#3D8BD0] hover:underline font-medium">View Changes</button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {historyCategory === 'scan' && (
+                      <div className="relative">
+                        {scanHistory.map((t, index, array) => (
+                          <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
+                            {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
+                            <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: '#10B981' }}>AG</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="py-1">
+                                <div className="flex items-start justify-between gap-3 mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-[13px] font-semibold text-[#364658]">Agent Discovery</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">•</span>
+                                      <span className="text-[12px] text-[#7B8FA5]">Scan</span>
+                                    </div>
+                                    <p className="text-[13px] text-[#364658]">{activeAsset?.id || 'Asset'} was scanned successfully</p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{t}</span></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {historyCategory === 'wol' && emptyState(['History Date', 'Source', 'WOL Status', 'WOL Remarks', 'Last Updated Date'])}
+                    {historyCategory === 'movement' && emptyState(['ID', 'Requester', 'Movement Date', 'Movement Type', 'Movement Status', 'From Location', 'To Location', 'From Department', 'To Department', 'Returnable/Transferable'])}
+                    {historyCategory === 'repair' && emptyState(['Requester', 'Reference No', 'Vendor', 'Sent Date', 'Expected Return', 'In Warranty', 'Return Date', 'Repair Type', 'Repair Cost', 'Warranty Cost', 'Replaced', 'Replaced By', 'Action'])}
+
+                    {historyCategory === 'utilization' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[800px] text-[12px]">
+                          <thead className="border-b border-[#e5e7eb]">
+                            <tr>{['From Time', 'To Time', 'Up Time Duration', 'Down Time Duration', 'Last Updated Date'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {utilization.map((row, i) => (
+                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                                {row.map((cell, j) => <td key={j} className={`px-4 py-3 whitespace-nowrap ${cell === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{cell}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {historyCategory === 'baseline-history' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1000px] text-[12px]">
+                          <thead className="border-b border-[#e5e7eb]">
+                            <tr>
+                              <th className="w-[40px] px-4 py-2.5"></th>
+                              {['ID', 'Created By', 'Created On', 'Reason', 'Change Id', 'Change Status', 'Request Id', 'Request Status', 'Latest', 'Actions'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                            {baselineHistory.map((b, i) => (
+                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
+                                <td className="px-4 py-3"><input type="checkbox" className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0]" /></td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0] font-medium">{b.id}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.by}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.on}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[160px] truncate">{b.reason}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.latest}</td>
+                                <td className="px-4 py-3 whitespace-nowrap"><button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {historyCategory === 'variance-history' && emptyState(['History Id', 'Detection Date', 'Asset Component', 'Attribute Name', 'Expected Value', 'Current Value', 'Approval Status', 'Approval By', 'Approval Date', 'Change Id', 'Request Id', 'Reference Rollback Request'])}
+                  </div>
+                </div>
+              );
+  };
+
   return (
     <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl z-50 flex flex-col ${drawerWidth <= 1080 ? 'border-l border-[#e5e7eb]' : ''}`} ref={drawerRef} style={{ width: `${drawerWidth}px` }} data-drawer>
       {/* Resize Handle */}
@@ -2225,6 +2501,19 @@ onStackMinimizedChange,
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
+            {taskV2 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setShowAuditPanel(true)}
+                    className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]"
+                  >
+                    <History size={16} className="text-[#6b7280]" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Audit Trail</TooltipContent>
+              </Tooltip>
+            )}
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
@@ -2239,7 +2528,7 @@ onStackMinimizedChange,
                 (like the CMDB Dependency Map), so it must NOT scroll: become a flex column with
                 overflow-hidden there so the map fills EXACTLY (its controls never clip) and no
                 gutter/scrollbar appears. */}
-            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : activeMainTab === 'comments' ? 'flex-1 overflow-y-auto flex flex-col' : 'flex-1 overflow-y-auto'}>
+            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : (activeMainTab === 'comments' || taskV2) ? 'flex-1 overflow-y-auto flex flex-col' : 'flex-1 overflow-y-auto'}>
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -2651,7 +2940,8 @@ When the work is done, verify the result with the requester, attach the confirma
               );
             })()}
 
-            {/* Tabs: Conversation, Task, etc. */}
+            {/* Tabs: Conversation, Task, etc. — option 2 has NO tabs, everything is one scroll */}
+            {!taskV2 && (
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
@@ -2749,6 +3039,7 @@ When the work is done, verify the result with the requester, attach the confirma
                 })()}
               </div>
             </div>
+            )}
 
             {/* Tab Content */}
             {activeMainTab === 'overview' && (
@@ -2985,15 +3276,19 @@ When the work is done, verify the result with the requester, attach the confirma
               </>
             )}
 
-            {activeMainTab === 'properties' && (() => {
+            {(activeMainTab === 'properties' || taskV2) && (() => {
               const doneCount = taskChecklist.filter((c) => c.done).length;
               const checkPct = taskChecklist.length ? Math.round((doneCount / taskChecklist.length) * 100) : 0;
               return (
               <div className="px-6 py-6 space-y-4">
                 {/* Checklist — the steps of the task. Add / edit / remove inline; the bar keeps
-                    the "how far along" answer one glance away (Jira subtasks pattern). */}
-                <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
-                  <div className="mb-2 flex items-center gap-2.5">
+                    the "how far along" answer one glance away (Jira subtasks pattern). Option 2
+                    lifts the header + progress out of the card, Jira-Subtasks style. */}
+                <div className={taskV2 ? '' : 'rounded-lg border border-[#E5E7EB] bg-white p-4'}>
+                  <div
+                    className={`mb-2 flex items-center gap-2.5 ${taskV2 ? 'cursor-pointer select-none' : ''}`}
+                    onClick={() => { if (taskV2) setChecklistOpen((v) => !v); }}
+                  >
                     <span className="flex size-7 items-center justify-center rounded bg-[#22A06B]/10 text-[#22A06B]"><CheckSquare size={15} /></span>
                     <h3 className="text-[14px] font-semibold text-[#364658]">Checklist</h3>
                     {taskChecklist.length > 0 && (
@@ -3002,12 +3297,20 @@ When the work is done, verify the result with the requester, attach the confirma
                       </span>
                     )}
                     {taskChecklist.length > 0 && <span className="ml-auto text-[11px] text-[#94A3B8]">{checkPct}% done</span>}
+                    {taskV2 && (
+                      <span className={taskChecklist.length > 0 ? '' : 'ml-auto'}>
+                        {checklistOpen ? <ChevronUp size={16} className="text-[#7B8FA5]" /> : <ChevronDown size={16} className="text-[#7B8FA5]" />}
+                      </span>
+                    )}
                   </div>
+                  {(!taskV2 || checklistOpen) && (
+                  <>
                   {taskChecklist.length > 0 && (
                     <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-[#EEF2F6]">
                       <div className="h-full rounded-full bg-[#22C55E] transition-all duration-300" style={{ width: `${checkPct}%` }} />
                     </div>
                   )}
+                  <div className={taskV2 ? 'rounded-lg border border-[#E5E7EB] bg-white p-4' : ''}>
                   {taskChecklist.length === 0 && !addingCheckItem && (
                     <p className="mb-1 text-[13px] text-[#9CA3AF]">No checklist yet — break the task into steps so progress is visible.</p>
                   )}
@@ -3082,6 +3385,9 @@ When the work is done, verify the result with the requester, attach the confirma
                       <Plus size={15} />
                       Add checklist item
                     </button>
+                  )}
+                  </div>
+                  </>
                   )}
                 </div>
               </div>
@@ -6563,8 +6869,30 @@ When the work is done, verify the result with the requester, attach the confirma
 
             {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
             {/* Comments Tab — thread + composer, composer pinned at the bottom */}
-            {activeMainTab === 'comments' && (
+            {(activeMainTab === 'comments' || taskV2) && (
+              <>
+              {taskV2 && (
+                <div
+                  className="flex cursor-pointer select-none items-center gap-2.5 px-6 pb-2 pt-1"
+                  onClick={() => setCommentsOpen((v) => !v)}
+                >
+                  <span className="flex size-7 items-center justify-center rounded bg-[#3D8BD0]/10 text-[#3D8BD0]"><MessageSquare size={15} /></span>
+                  <h3 className="text-[14px] font-semibold text-[#364658]">Comments</h3>
+                  {taskComments.length > 0 && (
+                    <span className="inline-flex h-[18px] items-center rounded-full bg-[#EEF2F6] px-1.5 text-[11px] font-semibold text-[#64748B]">
+                      {taskComments.length}
+                    </span>
+                  )}
+                  <span className="ml-auto">
+                    {commentsOpen ? <ChevronUp size={16} className="text-[#7B8FA5]" /> : <ChevronDown size={16} className="text-[#7B8FA5]" />}
+                  </span>
+                </div>
+              )}
+              {(!taskV2 || commentsOpen) && (
               <CommentThreadPanel
+                boxed={taskV2}
+                inlineThread
+                showInternalTag={false}
                 toolbarBorder={false}
                 collapsibleComposer
                 comments={taskComments}
@@ -6572,6 +6900,8 @@ When the work is done, verify the result with the requester, attach the confirma
                 onUpdateComment={(id, content) => setTaskComments((prev) => prev.map((c) => (c.id === id ? { ...c, content } : c)))}
                 onDeleteComment={(id) => setTaskComments((prev) => prev.filter((c) => c.id !== id))}
               />
+              )}
+              </>
             )}
 
             {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
@@ -6590,264 +6920,7 @@ When the work is done, verify the result with the requester, attach the confirma
             {activeMainTab === 'superseded' && <PatchSupersededTab patchId={activeAsset?.id} patchName={activeAsset?.name} />}
 
             {/* Audit Trails Tab Content */}
-            {activeMainTab === 'audit' && (() => {
-              const categories = [
-                { id: 'audit', label: 'Audit Trail' },
-                { id: 'movement', label: 'Movement History' },
-                { id: 'repair', label: 'Repair History' },
-              ];
-              const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
-
-              const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Status Updated', details: 'Started assigning the licence from the E3 agreement pool', field: 'Status', from: 'Open', to: 'In Progress', time: 'Thu, Aug 13, 2026 09:20 AM' },
-                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Work Logged', details: 'Logged 30 minutes — assigned the E3 licence and confirmed activation', time: 'Thu, Aug 13, 2026 09:35 AM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Assignee Changed', details: 'Handed the task to the software licensing team', field: 'Assignee', from: 'Unassigned', to: 'Sarah Johnson', time: 'Wed, Aug 12, 2026 04:15 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Priority Updated', details: 'Raised the priority — the new joiner starts on Monday', field: 'Priority', from: 'P3', to: 'P1', time: 'Wed, Aug 12, 2026 04:12 PM' },
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Due Date Set', details: 'Scheduled the task ahead of the onboarding date', field: 'Due Date', from: '---', to: 'Mon, Aug 17, 2026', time: 'Wed, Aug 12, 2026 04:10 PM' },
-                { user: 'System', initials: 'SY', color: '#10B981', action: 'Task Created', details: 'Created from request INC-31 "Employee onboarding — new joiner" (stage: Provisioning)', time: 'Wed, Aug 12, 2026 03:58 PM' },
-              ];
-              const changeLogs = [
-                { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
-                { text: 'USB Controller Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:31 PM' },
-                { text: 'OS Component has been Removed', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 12:29 PM' },
-                { text: 'RAM Component : Size (GB) Updated from 8 to 32', by: 'Rakesh Rathod', time: 'Wed, Jun 17, 2026 06:41 PM' },
-                { text: 'Computer System : User Name Updated from Constellation to leofan', by: 'Agent', time: 'Mon, May 18, 2026 11:27 AM' },
-                { text: 'Processor Component : Intel(R) Core(TM) i5-8365U has been Added', by: 'Agent', time: 'Mon, May 18, 2026 09:33 AM' },
-              ];
-              const scanHistory = [
-                'Mon, May 18, 2026 02:25 PM', 'Mon, May 18, 2026 01:25 PM', 'Mon, May 18, 2026 12:25 PM',
-                'Mon, May 18, 2026 11:26 AM', 'Mon, May 18, 2026 09:48 AM', 'Mon, May 18, 2026 09:29 AM',
-              ];
-              const utilization = [
-                ['Mon, May 18, 2026 11:23 AM', 'Mon, May 18, 2026 11:23 AM', '30 seconds', '51 minutes 3 seconds', 'Mon, May 18, 2026 11:26 AM'],
-                ['Mon, May 18, 2026 10:28 AM', 'Mon, May 18, 2026 10:31 AM', '3 minutes 8 seconds', '45 seconds', 'Mon, May 18, 2026 11:26 AM'],
-                ['Mon, May 18, 2026 10:27 AM', 'Mon, May 18, 2026 10:28 AM', '31 seconds', '12 minutes 54 seconds', 'Mon, May 18, 2026 11:26 AM'],
-                ['Mon, May 18, 2026 09:43 AM', 'Mon, May 18, 2026 10:14 AM', '30 minutes 43 seconds', '---', 'Mon, May 18, 2026 10:27 AM'],
-              ];
-              const baselineHistory = [
-                { id: 'BAS-31', by: 'Rakesh Rathod', on: 'Fri, Jun 19, 2026 07:17 PM', reason: 'New Baseline Added', latest: 'Yes' },
-                { id: 'BAS-14', by: 'Rakesh Rathod', on: 'Wed, Jun 17, 2026 11:40 AM', reason: 'New Baseline Added', latest: 'No' },
-                { id: 'BAS-31', by: 'System', on: 'Mon, May 18, 2026 09:33 AM', reason: 'New Baseline Added', latest: 'No' },
-              ];
-
-              const emptyState = (cols: string[]) => (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-[12px]">
-                    <thead className="border-b border-[#e5e7eb]">
-                      <tr>{cols.map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
-                    </thead>
-                    <tbody><tr><td colSpan={cols.length} className="px-4 py-12 text-center text-[#9CA3AF]"><span className="inline-flex items-center gap-2"><Info size={18} /> No Data Found</span></td></tr></tbody>
-                  </table>
-                </div>
-              );
-
-              return (
-                <div className="px-6 py-6">
-                  {/* Sticky toolbar: title (left) + date range / filter / download (right).
-                      The Patch page has only Audit Trail history, so the category dropdown was removed. */}
-                  <div className="sticky top-[45px] z-30 -mx-6 px-6 -mt-6 pt-6 pb-3 bg-white flex items-center gap-3 flex-wrap">
-                    <h3 className="text-[14px] font-semibold text-[#364658]">Audit Trail</h3>
-                    <div className="flex items-center gap-2 ml-auto">
-                      <span className="text-[12px] text-[#7B8FA5] hidden sm:inline">Sat, Dec 20, 2025 — Sat, Jun 20, 2026</span>
-                      <div className="relative">
-                        <button onClick={() => { setHistDownloadOpen(false); setHistDraftFrom(histFrom); setHistDraftTo(histTo); setHistFilterOpen((o) => !o); }} title="Filter" className={`size-8 flex items-center justify-center rounded border transition-colors hover:bg-[#F3F4F6] ${histFrom || histTo ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#364658]'}`}><Filter size={15} /></button>
-                        {histFilterOpen && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setHistFilterOpen(false)} />
-                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
-                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
-                              <div className="space-y-3">
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">From</label><DateField value={histDraftFrom} onChange={setHistDraftFrom} /></div>
-                                <div><label className="text-[12px] text-[#7B8FA5] mb-1 block">To</label><DateField value={histDraftTo} min={histDraftFrom || undefined} onChange={setHistDraftTo} /></div>
-                              </div>
-                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
-                                <button onClick={() => { setHistFrom(''); setHistTo(''); setHistDraftFrom(''); setHistDraftTo(''); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Clear</button>
-                                <button onClick={() => { setHistFrom(histDraftFrom); setHistTo(histDraftTo); setHistFilterOpen(false); }} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Apply</button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <button onClick={() => { setHistFilterOpen(false); setHistDownloadOpen((o) => !o); }} title="Download" className="size-8 flex items-center justify-center rounded border border-[#DFE5ED] text-[#364658] hover:bg-[#F3F4F6] transition-colors"><Download size={15} /></button>
-                        {histDownloadOpen && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setHistDownloadOpen(false)} />
-                            <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50 text-left">
-                              <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
-                              <div className="mb-4"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Format</label><div className="inline-flex rounded border border-[#DFE5ED] overflow-hidden">{['PDF', 'Excel', 'CSV'].map((ff) => (<button key={ff} onClick={() => setHistDlFormat(ff)} className={`px-4 py-1.5 text-[13px] font-medium transition-colors ${histDlFormat === ff ? 'bg-[#3D8BD0] text-white' : 'bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}>{ff}</button>))}</div></div>
-                              <div className="mb-3"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label><button onClick={() => setHistDlPw((v) => !v)} role="switch" aria-checked={histDlPw} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${histDlPw ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}><span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${histDlPw ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} /></button></div>
-                              {histDlPw && (<div className="mb-1"><label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label><div className="relative"><Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" /><input type={histShowPw ? 'text' : 'password'} value={histDlPassword} onChange={(e) => setHistDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" /><button onClick={() => setHistShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{histShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></div>)}
-                              <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]"><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button><button onClick={() => setHistDownloadOpen(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button></div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content per category */}
-                  <div className="mt-2">
-                    {historyCategory === 'audit' && (() => {
-                      const dayLabel = (t) => t.replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
-                      const timeOf = (t) => (t.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)?.[0] ?? '').replace(/^0/, '');
-                      const inRange = (t) => { const d = new Date(t.substring(t.indexOf(',') + 2)); const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if (histFrom && k < histFrom) return false; if (histTo && k > histTo) return false; return true; };
-                      const grp = [];
-                      for (const e of auditEntries.filter((x) => inRange(x.time))) {
-                        const key = dayLabel(e.time);
-                        let g = grp.find((x) => x.label === key);
-                        if (!g) { g = { label: key, items: [] }; grp.push(g); }
-                        g.items.push(e);
-                      }
-                      return (
-                        <div className="space-y-6">
-                          {grp.map((group) => (
-                            <div key={group.label}>
-                              <div className="flex items-center gap-3 mb-3"><span className="text-[12px] font-semibold text-[#7B8FA5] flex-shrink-0">{group.label}</span><div className="flex-1 h-px bg-[#EEF1F5]" /></div>
-                              <div className="relative">
-                                {group.items.map((e, index, arr) => (
-                                  <div key={index} className="relative flex gap-3 py-3.5 px-2 -mx-2 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-                                    {index !== arr.length - 1 && <div className="absolute left-[22px] top-[44px] bottom-[-2px] w-px bg-[#EEF1F5]" />}
-                                    <div className="size-[26px] rounded-[6px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: e.color }}>{e.initials}</div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[13px] font-semibold text-[#364658]">{e.user}</span>
-                                        <span className="text-[11px] font-medium text-[#64748B] bg-[#F1F5F9] rounded px-1.5 py-0.5">{e.action}</span>
-                                        <span className="inline-flex items-center gap-1 text-[11px] text-[#9CA3AF]"><Clock size={11} />{timeOf(e.time)}</span>
-                                      </div>
-                                      <p className="text-[13px] text-[#5A6B7B] mt-1">{e.details}</p>
-                                      {e.field && (
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                          <span className="inline-flex items-center gap-1.5 text-[12px] bg-white border border-[#E8EDF3] rounded-md px-2 py-1">
-                                            <span className="text-[#7B8FA5]">{e.field}</span>
-                                            <span className="text-[#94A3B8] line-through">{e.from}</span>
-                                            <span className="text-[#CBD5E1]">→</span>
-                                            <span className="text-[#059669] font-medium">{e.to}</span>
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    {historyCategory === 'change-logs' && (
-                      <div className="relative">
-                        {changeLogs.map((c, index, array) => {
-                          const ini = c.by === 'Agent' ? 'AG' : c.by.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-                          const color = c.by === 'Agent' ? '#10B981' : '#3D8BD0';
-                          return (
-                            <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-                              {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
-                              <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: color }}>{ini}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="py-1">
-                                  <div className="flex items-start justify-between gap-3 mb-1">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-[13px] font-semibold text-[#364658]">{c.by}</span>
-                                        <span className="text-[12px] text-[#7B8FA5]">•</span>
-                                        <span className="text-[12px] text-[#7B8FA5]">Change Log</span>
-                                      </div>
-                                      <p className="text-[13px] text-[#364658]">{c.text}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{c.time}</span></div>
-                                  </div>
-                                  <button className="mt-1 text-[12px] text-[#3D8BD0] hover:underline font-medium">View Changes</button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {historyCategory === 'scan' && (
-                      <div className="relative">
-                        {scanHistory.map((t, index, array) => (
-                          <div key={index} className="relative flex gap-3 mb-4 p-3 -mx-3 rounded-lg hover:bg-[#F9FAFB] transition-colors">
-                            {index !== array.length - 1 && <div className="absolute left-[24px] top-[24px] bottom-[-24px] w-[1px] bg-[#E5E7EB]" />}
-                            <div className="size-[24px] rounded-[4px] flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0 relative z-10" style={{ backgroundColor: '#10B981' }}>AG</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="py-1">
-                                <div className="flex items-start justify-between gap-3 mb-1">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                      <span className="text-[13px] font-semibold text-[#364658]">Agent Discovery</span>
-                                      <span className="text-[12px] text-[#7B8FA5]">•</span>
-                                      <span className="text-[12px] text-[#7B8FA5]">Scan</span>
-                                    </div>
-                                    <p className="text-[13px] text-[#364658]">{activeAsset?.id || 'Asset'} was scanned successfully</p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 text-[11px] text-[#9CA3AF] whitespace-nowrap"><Clock size={11} /><span>{t}</span></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {historyCategory === 'wol' && emptyState(['History Date', 'Source', 'WOL Status', 'WOL Remarks', 'Last Updated Date'])}
-                    {historyCategory === 'movement' && emptyState(['ID', 'Requester', 'Movement Date', 'Movement Type', 'Movement Status', 'From Location', 'To Location', 'From Department', 'To Department', 'Returnable/Transferable'])}
-                    {historyCategory === 'repair' && emptyState(['Requester', 'Reference No', 'Vendor', 'Sent Date', 'Expected Return', 'In Warranty', 'Return Date', 'Repair Type', 'Repair Cost', 'Warranty Cost', 'Replaced', 'Replaced By', 'Action'])}
-
-                    {historyCategory === 'utilization' && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[800px] text-[12px]">
-                          <thead className="border-b border-[#e5e7eb]">
-                            <tr>{['From Time', 'To Time', 'Up Time Duration', 'Down Time Duration', 'Last Updated Date'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}</tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                            {utilization.map((row, i) => (
-                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
-                                {row.map((cell, j) => <td key={j} className={`px-4 py-3 whitespace-nowrap ${cell === '---' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{cell}</td>)}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {historyCategory === 'baseline-history' && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[1000px] text-[12px]">
-                          <thead className="border-b border-[#e5e7eb]">
-                            <tr>
-                              <th className="w-[40px] px-4 py-2.5"></th>
-                              {['ID', 'Created By', 'Created On', 'Reason', 'Change Id', 'Change Status', 'Request Id', 'Request Status', 'Latest', 'Actions'].map((h) => <th key={h} className="px-4 py-2.5 text-left text-[12px] font-semibold text-[#364658] tracking-wider whitespace-nowrap">{h}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                            {baselineHistory.map((b, i) => (
-                              <tr key={i} className="hover:bg-[#F9FAFB] transition-colors">
-                                <td className="px-4 py-3"><input type="checkbox" className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0]" /></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#3D8BD0] font-medium">{b.id}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.by}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.on}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#364658] max-w-[160px] truncate">{b.reason}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#9CA3AF]">---</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-[#364658]">{b.latest}</td>
-                                <td className="px-4 py-3 whitespace-nowrap"><button title="View" className="text-[#7B8FA5] hover:text-[#3D8BD0]"><Eye size={15} /></button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {historyCategory === 'variance-history' && emptyState(['History Id', 'Detection Date', 'Asset Component', 'Attribute Name', 'Expected Value', 'Current Value', 'Approval Status', 'Approval By', 'Approval Date', 'Change Id', 'Request Id', 'Reference Rollback Request'])}
-                  </div>
-                </div>
-              );
-            })()}
+            {activeMainTab === 'audit' && !taskV2 && renderAuditTrail()}
 
             {/* Resolution Tab Content */}
             {activeMainTab === 'resolution' && (
@@ -8936,6 +9009,23 @@ When the work is done, verify the result with the requester, attach the confirma
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}
         />
+      )}
+
+      {/* Audit Trail side popup — option 2 (Reviews-panel pattern; the content is the same
+          renderer the Audit Trail tab uses, so the two designs can never drift). */}
+      {showAuditPanel && (
+        <>
+          <div className="fixed inset-0 z-[10000] bg-black/40" onClick={() => setShowAuditPanel(false)} />
+          <div className="fixed inset-y-0 right-0 z-[10001] flex w-[760px] max-w-[94vw] flex-col bg-white shadow-2xl">
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
+              <h2 className="text-[16px] font-semibold text-[#364658]">Audit Trail</h2>
+              <button onClick={() => setShowAuditPanel(false)} className="flex size-8 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]">
+                <X size={16} className="text-[#64748B]" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{renderAuditTrail()}</div>
+          </div>
+        </>
       )}
 
       {/* SLA History Modal */}

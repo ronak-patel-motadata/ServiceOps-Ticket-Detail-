@@ -416,7 +416,7 @@ export function KnowledgeArticleContent({ articleId, title, centered = false, ma
             summary carries would mean anything here. */}
         {showAiSummary && (
           <div className="mb-8">
-            <KnowledgeAiSummary summary={summarizeArticle(articleId, title)} />
+            <KnowledgeAiSummary summary={summarizeArticle(articleId, title)} onDemand />
           </div>
         )}
 
