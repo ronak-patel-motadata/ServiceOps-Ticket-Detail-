@@ -2125,6 +2125,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           cveMode={cveMode}
           taskMode={taskMode}
           taskValues={taskKeyValues}
+          onTaskValueChange={(label, value) => setTaskKeyValues((prev) => ({ ...prev, [label]: value }))}
           knowledgeMode={knowledgeMode}
           knowledgeInfo={knowledgeInfo}
           assetState={assetState}
@@ -2620,8 +2621,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {/* Activity and Resources Group Content */}
         {activeGroup === 'activity' && (
           <div className="space-y-3">
-        {/* Work Tracker Accordion (hidden on asset/license pages) */}
-        {!assetMode && hasWorkTrackerMatch() && (
+        {/* Work Tracker Accordion (hidden on asset/license pages; the Task page keeps it) */}
+        {(!assetMode || taskMode) && hasWorkTrackerMatch() && (
         <div className="border border-[#DFE5ED] rounded-lg">
           <button
             onClick={() => setWorkTrackerExpanded(!workTrackerExpanded)}
@@ -2990,7 +2991,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           );
         })()}
 
-        {/* Info Section - Features Available */}
+        {/* Search-hint card — dropped on the Task page: one hint for one control is noise. */}
+        {!taskMode && (
         <div className="mt-6 px-4">
           <div className="p-3 bg-[#F8F9FB] rounded-md space-y-2.5 text-[11px] text-[#7B8FA5]">
             <div className="flex items-start gap-2">
@@ -3002,6 +3004,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
           </div>
         </div>
+        )}
           </div>
         )}
 
@@ -4359,8 +4362,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           </Tooltip>
           )}
 
-          {/* Affected Products — Patch page only (replaces Notes; deployment/endpoint pages drop it) */}
-          {patchMode && !patchDeployMode && !endpointMode && !cveMode && (
+          {/* Affected Products — Patch page only (replaces Notes; deployment/endpoint/task pages drop it) */}
+          {patchMode && !patchDeployMode && !endpointMode && !cveMode && !taskMode && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -4385,8 +4388,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </>
         )}
 
-        {/* Group 2: Activity/Attachments Icon — hidden on the Patch page (replaced by File Details) */}
-        {!patchMode && (
+        {/* Group 2: Activity/Attachments Icon — hidden on the Patch page (replaced by File Details), but the Task page keeps the ticket version */}
+        {(!patchMode || taskMode) && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -4402,17 +4405,17 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
               }`}
             >
-              {assetMode
+              {assetMode && !taskMode
                 ? <Paperclip size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
                 : <Activity size={16} className={activeGroup === 'activity' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />}
             </button>
           </TooltipTrigger>
-          <TooltipContent>{assetMode ? 'Attachments' : 'Activity and Resources'}</TooltipContent>
+          <TooltipContent>{assetMode && !taskMode ? 'Attachments' : 'Activity and Resources'}</TooltipContent>
         </Tooltip>
         )}
 
-        {/* File Details — Patch page only (replaces Attachments; deployment/endpoint pages drop it) */}
-        {patchMode && !patchDeployMode && !endpointMode && !cveMode && (
+        {/* File Details — Patch page only (replaces Attachments; deployment/endpoint/task pages drop it) */}
+        {patchMode && !patchDeployMode && !endpointMode && !cveMode && !taskMode && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button

@@ -18,17 +18,70 @@ interface ApprovalCommentPopupProps {
   onDeleteComment?: (id: number) => void;
 }
 
-export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubject, comments, onAddComment, onUpdateComment, onDeleteComment }: ApprovalCommentPopupProps) {
+export function ApprovalCommentPopup({ isOpen, onClose, approvalSubject, comments, onAddComment, onUpdateComment, onDeleteComment }: ApprovalCommentPopupProps) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end">
+      <div className="flex h-full w-[600px] max-w-[95vw] flex-col bg-white shadow-xl">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
+          <div className="min-w-0">
+            <h3 className="text-[18px] font-semibold text-[#364658]">Comments</h3>
+            <p className="truncate text-[14px] text-[#7B8FA5]" title={approvalSubject}>{approvalSubject}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="text-[#7B8FA5] hover:text-[#364658]" onClick={onClose}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <CommentThreadPanel comments={comments} onAddComment={onAddComment} onUpdateComment={onUpdateComment} onDeleteComment={onDeleteComment} collapsibleComposer />
+      </div>
+    </div>
+  );
+}
+
+/* The comment thread + composer WITHOUT the popup shell, so the same experience can be hosted
+   by the approval side popup AND as a page tab (Task detail). The parent must be a flex
+   column: the thread takes the leftover height, the composer stays pinned at the bottom. */
+export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, onDeleteComment, toolbarBorder = true, collapsibleComposer = false }: {
+  comments: ApprovalComment[];
+  onAddComment: (comment: ApprovalComment) => void;
+  onUpdateComment?: (id: number, content: string) => void;
+  onDeleteComment?: (id: number) => void;
+  /** The rule under the toolbar. Off in the Comments TAB, where the tab strip already draws one. */
+  toolbarBorder?: boolean;
+  /** Comments-TAB mode: the composer sticks to the bottom of the viewport and rests as a
+   *  one-line prompt — clicking expands the full editor, sending collapses it again. */
+  collapsibleComposer?: boolean;
+}) {
   // Which comment the composer is currently editing (null = writing a new one).
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [commentContent, setCommentContent] = useState('');
   const [commentSearch, setCommentSearch] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [composerExpanded, setComposerExpanded] = useState(!collapsibleComposer);
+  const composerExpandedRef = useRef(composerExpanded);
+  composerExpandedRef.current = composerExpanded;
   const [sortNewestFirst, setSortNewestFirst] = useState(false);
   const [showAIAssistMenu, setShowAIAssistMenu] = useState(false);
   const [showToneSubmenu, setShowToneSubmenu] = useState(false);
   const [showFormattingMenu, setShowFormattingMenu] = useState(false);
 
   const commentFormRef = useRef<HTMLDivElement>(null);
+
+  // Tab mode: clicking anywhere outside the editor card minimises it (the draft survives).
+  useEffect(() => {
+    if (!collapsibleComposer) return;
+    const onDown = (e: MouseEvent) => {
+      if (!composerExpandedRef.current) return;
+      if (commentFormRef.current?.contains(e.target as Node)) return;
+      setComposerExpanded(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsibleComposer]);
   const commentContentRef = useRef<HTMLDivElement>(null);
   const aiAssistMenuRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +124,6 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
-  if (!isOpen) return null;
-
   const handleSend = () => {
     const text = commentContent.replace(/<[^>]*>/g, '').trim();
     if (!text) return; // don't add empty comments
@@ -82,6 +133,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
       setEditingCommentId(null);
       setCommentContent('');
       if (commentContentRef.current) commentContentRef.current.innerHTML = '';
+      if (collapsibleComposer) setComposerExpanded(false);
       return;
     }
     const now = new Date();
@@ -97,6 +149,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
     if (commentContentRef.current) {
       commentContentRef.current.innerHTML = '';
     }
+    if (collapsibleComposer) setComposerExpanded(false);
     // keep the popup open so the user sees their comment appear
   };
 
@@ -107,39 +160,40 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
   const visibleComments = sortNewestFirst ? [...filteredComments].reverse() : filteredComments;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-end">
-      <div className="flex h-full w-[600px] max-w-[95vw] flex-col bg-white shadow-xl">
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-[#DFE5ED] flex items-center justify-between">
-          <div className="min-w-0">
-            <h3 className="text-[18px] font-semibold text-[#364658]">Comments</h3>
-            <p className="truncate text-[14px] text-[#7B8FA5]" title={approvalSubject}>{approvalSubject}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="text-[#7B8FA5] hover:text-[#364658]" onClick={onClose}>
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
+    <>
         {/* Search + sort toolbar (shown once there are comments) */}
+        {/* Toolbar — the Conversation/Tasks-tab recipe: bordered icon buttons; the search
+            expands into a field on click and collapses (clearing itself) on ✕. */}
         {comments.length > 0 && (
-          <div className="px-4 py-2.5 border-b border-[#DFE5ED] flex items-center gap-2 flex-shrink-0">
-            <div className="flex-1 flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white">
-              <Search size={15} className="text-[#7B8FA5] flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search comments..."
-                value={commentSearch}
-                onChange={(e) => setCommentSearch(e.target.value)}
-                className="outline-none text-sm bg-transparent placeholder:text-[#9CA3AF] text-[#364658] flex-1 min-w-0"
-              />
-              {commentSearch && (
-                <button className="p-0.5 hover:bg-[#F5F7FA] rounded flex-shrink-0" onClick={() => setCommentSearch('')}>
+          <div className={`px-4 py-2.5 ${toolbarBorder ? 'border-b border-[#DFE5ED]' : ''} flex items-center gap-2 flex-shrink-0`}>
+            {!searchExpanded ? (
+              <button
+                className="size-8 flex items-center justify-center border border-[#DFE5ED] rounded text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658] transition-colors flex-shrink-0"
+                title="Search"
+                onClick={() => setSearchExpanded(true)}
+              >
+                <Search size={16} />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 h-9 px-3 border border-[#DFE5ED] rounded bg-white flex-1 min-w-0">
+                <Search size={16} className="text-[#7B8FA5] flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search comments..."
+                  value={commentSearch}
+                  onChange={(e) => setCommentSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setSearchExpanded(false); setCommentSearch(''); } }}
+                  className="outline-none text-sm bg-transparent placeholder:text-[#9CA3AF] text-[#364658] flex-1 min-w-0"
+                  autoFocus
+                />
+                <button
+                  className="p-0.5 hover:bg-[#F5F7FA] rounded transition-colors flex-shrink-0"
+                  onClick={() => { setSearchExpanded(false); setCommentSearch(''); }}
+                >
                   <X size={14} className="text-[#7B8FA5]" />
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             <button
               onClick={() => setSortNewestFirst((s) => !s)}
               title={sortNewestFirst ? 'Newest first' : 'Oldest first'}
@@ -147,6 +201,12 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
             >
               <ArrowUpDown size={16} />
             </button>
+            {/* How much the search kept — quiet, right-aligned, so filtering is never silent. */}
+            <span className="ml-auto flex-shrink-0 text-[12px] text-[#7B8FA5]">
+              {commentSearch.trim()
+                ? `${filteredComments.length} of ${comments.length}`
+                : `${comments.length} ${comments.length === 1 ? 'comment' : 'comments'}`}
+            </span>
           </div>
         )}
 
@@ -190,10 +250,11 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
                               className="rounded p-1.5 hover:bg-[#F3F4F6]"
                               title="Edit"
                               onClick={() => {
+                                setComposerExpanded(true);
                                 setEditingCommentId(c.id);
                                 if (commentContentRef.current) commentContentRef.current.innerHTML = c.content;
                                 setCommentContent(c.content);
-                                commentContentRef.current?.focus();
+                                setTimeout(() => commentContentRef.current?.focus(), 50);
                               }}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -232,7 +293,7 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
         </div>
 
         {/* Comment Input Form - Fixed at Bottom */}
-        <div className="p-4 border-t border-[#DFE5ED]">
+        <div className={collapsibleComposer ? 'sticky bottom-0 z-20 border-t border-[#DFE5ED] bg-white p-4' : 'p-4 border-t border-[#DFE5ED]'}>
           {/* Editing indicator — makes the mode obvious and gives a way back out */}
           {editingCommentId !== null && (
             <div className="mb-2 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
@@ -248,7 +309,20 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
               >Cancel</button>
             </div>
           )}
-          <div className="border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm" ref={commentFormRef}>
+          {!composerExpanded && (
+            <button
+              onClick={() => {
+                setComposerExpanded(true);
+                setTimeout(() => commentContentRef.current?.focus(), 50);
+              }}
+              className="w-full rounded-lg border border-[#DFE5ED] bg-white px-4 py-2.5 text-left text-sm text-[#9CA3AF] transition-colors hover:border-[#3D8BD0] hover:bg-[#F9FBFD]"
+            >
+              {commentContent.replace(/<[^>]*>/g, ' ').trim()
+                ? <span className="block truncate text-[#364658]">{commentContent.replace(/<[^>]*>/g, ' ').trim()}</span>
+                : 'Start typing your comment...'}
+            </button>
+          )}
+          <div className={`border-2 border-[#3D8BD0] rounded-lg bg-white shadow-sm ${composerExpanded ? '' : 'hidden'}`} ref={commentFormRef}>
             {/* Comment Form */}
             <div className="p-4">
               {/* Text Area — uncontrolled contentEditable (never re-write its HTML while typing,
@@ -434,7 +508,6 @@ export function ApprovalCommentPopup({ isOpen, onClose, approvalId, approvalSubj
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }

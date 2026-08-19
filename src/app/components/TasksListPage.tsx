@@ -77,6 +77,16 @@ const taskToPatchShape = (t: TaskRow): Patch => ({
   rebootRequired: 'No',
   approvalStatus: 'Approved',
   category: t.taskType,
+  task: {
+    status: t.status,
+    priority: t.priority,
+    taskType: t.taskType,
+    assignee: t.assignee,
+    reference: t.reference,
+    referenceModule: t.referenceModule,
+    overdueBy: t.overdueBy,
+    dueDate: t.overdueBy ? 'Sun, Jul 26, 2026' : 'Mon, Aug 17, 2026',
+  },
 });
 
 const CURRENT_USER = 'Sarah Johnson';

@@ -27,6 +27,7 @@ interface TicketFieldsAccordionProps {
   cveMode?: boolean;
   taskMode?: boolean;
   taskValues?: Record<string, string>;
+  onTaskValueChange?: (label: string, value: string) => void;
   knowledgeMode?: boolean;
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
   ticketFieldsExpanded: boolean;
@@ -228,6 +229,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     cveMode = false,
     taskMode = false,
     taskValues,
+    onTaskValueChange,
     knowledgeMode = false,
     knowledgeInfo,
     ticketFieldsExpanded,
@@ -502,6 +504,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           cveMode={cveMode}
           taskMode={taskMode}
           taskValues={taskValues}
+          onTaskValueChange={onTaskValueChange}
         />
       )}
 

@@ -31,10 +31,27 @@ export function KnowledgeReviewsPanel({
   const [reviewFormattingOpen, setReviewFormattingOpen] = useState(false);
   const reviewContentRef = useRef<HTMLDivElement>(null);
   const reviewAutoOpenedRef = useRef(false);
+  /* The composer rests as a one-line prompt; clicking expands it, sending or clicking
+     anywhere outside minimises it again. The draft survives — the editor is hidden, not
+     unmounted — and the prompt previews it. (Same behaviour as the comment composers.) */
+  const [composerExpanded, setComposerExpanded] = useState(false);
+  const composerExpandedRef = useRef(composerExpanded);
+  composerExpandedRef.current = composerExpanded;
+  const reviewFormRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!composerExpandedRef.current) return;
+      if (reviewFormRef.current?.contains(e.target as Node)) return;
+      setComposerExpanded(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   // Reset the composer whenever the panel is closed, so it never reopens mid-edit.
   useEffect(() => {
     if (!open) {
+      setComposerExpanded(false);
       setEditingReviewId(null);
       setReviewDraft('');
       if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
@@ -99,10 +116,11 @@ export function KnowledgeReviewsPanel({
                             className="rounded p-1.5 hover:bg-[#F3F4F6]"
                             title="Edit"
                             onClick={() => {
+                              setComposerExpanded(true);
                               setEditingReviewId(r.id);
                               if (reviewContentRef.current) reviewContentRef.current.innerHTML = r.text;
                               setReviewDraft(r.text);
-                              reviewContentRef.current?.focus();
+                              setTimeout(() => reviewContentRef.current?.focus(), 50);
                             }}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -157,7 +175,20 @@ export function KnowledgeReviewsPanel({
                   >Cancel</button>
                 </div>
               )}
-              <div className="rounded-lg border-2 border-[#3D8BD0] bg-white shadow-sm">
+              {!composerExpanded && (
+                <button
+                  onClick={() => {
+                    setComposerExpanded(true);
+                    setTimeout(() => reviewContentRef.current?.focus(), 50);
+                  }}
+                  className="w-full rounded-lg border border-[#DFE5ED] bg-white px-4 py-2.5 text-left text-sm text-[#9CA3AF] transition-colors hover:border-[#3D8BD0] hover:bg-[#F9FBFD]"
+                >
+                  {reviewDraft.replace(/<[^>]*>/g, ' ').trim()
+                    ? <span className="block truncate text-[#364658]">{reviewDraft.replace(/<[^>]*>/g, ' ').trim()}</span>
+                    : 'Write a review...'}
+                </button>
+              )}
+              <div className={`rounded-lg border-2 border-[#3D8BD0] bg-white shadow-sm ${composerExpanded ? '' : 'hidden'}`} ref={reviewFormRef}>
                 <div className="p-4">
                   <div className="mb-4">
                     <div
@@ -202,6 +233,7 @@ export function KnowledgeReviewsPanel({
                           }
                           if (reviewContentRef.current) reviewContentRef.current.innerHTML = '';
                           setReviewDraft('');
+                          setComposerExpanded(false);
                         }}
                       />
                     </div>

@@ -489,13 +489,15 @@ interface AssetFieldsProps {
   taskMode?: boolean;
   /** Task Key Information values the expand popup has changed, keyed by label. */
   taskValues?: Record<string, string>;
+  /** Task page: commits an inline Key Information edit (the accordion is editable there). */
+  onTaskValueChange?: (label: string, value: string) => void;
   // CMDB variant: display-label swaps only — 'Asset Type' → 'CI Type', 'CI' → 'Asset'.
   cmdbMode?: boolean;
   // Extra content (the System Fields subsection) rendered at the bottom of the
   // "View more" expansion — so ONE "View more" reveals both the extra fields AND system fields.
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, taskMode = false, taskValues, cmdbMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, taskMode = false, taskValues, onTaskValueChange, cmdbMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -525,6 +527,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('[data-dtp]')) return;
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
     };
     document.addEventListener('mousedown', onClick);
@@ -925,12 +928,190 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     // "Refrence Url"; Endpoint page: after "OS Version"; CVE page: after the 6 summary fields
     // (before the dates). The fallback keeps it findable when searching "tags".
     const tagsAfter = endpointMode ? 'OS Version' : cveMode ? 'Patch Availability' : 'Refrence Url';
+    /* Task Key Information is EDITABLE, like the ticket page — a dropdown per option field
+       (borderless trigger, chevron on hover) and an inline input for the date range. The
+       other patch-family pages stay read-only. */
+    const taskRow = (f: PatchField) => {
+      /* Assignee gets the SAME user picker the ticket page uses (avatar chip, search,
+         Unassigned, presence dots) — same list too, so the two pages agree. */
+      if (f.label === 'Assignee') {
+        const sel = OWNER_OPTIONS.find((o) => o.name === f.value) ?? null;
+        return (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">Assignee</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                  {sel ? (
+                    <span className="flex size-5 items-center justify-center rounded text-[10px] font-semibold text-white" style={{ backgroundColor: sel.color }}>{sel.initials}</span>
+                  ) : (
+                    <span className="flex size-5 items-center justify-center rounded bg-[#F1F5F9] text-[#9CA3AF]"><User size={12} /></span>
+                  )}
+                </span>
+                <button className={`${triggerClass} pl-9`} title={f.value} onClick={() => toggle('task:assignee')}>{f.value || 'Unassigned'}</button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'task:assignee' && (
+                  <div className={menuClass}>
+                    <div className="px-3 pb-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search for users..."
+                          autoFocus
+                          value={ownerSearch}
+                          onChange={(e) => setOwnerSearch(e.target.value)}
+                          className="w-full pl-3 pr-9 py-2 text-[13px] text-[#364658] bg-[#F9FAFB] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                        />
+                        <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                      </div>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <button
+                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
+                        onClick={() => { onTaskValueChange?.('Assignee', 'Unassigned'); setOpen(null); setOwnerSearch(''); }}
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          <span className="size-6 rounded-full border-2 border-dashed border-[#9CA3AF] flex-shrink-0" />
+                          <span className="text-[13px] text-[#364658] truncate">Unassigned</span>
+                        </span>
+                        {!sel && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                      </button>
+                      {OWNER_OPTIONS.filter((o) => o.name.toLowerCase().includes(ownerSearch.toLowerCase())).map((o) => (
+                        <button key={o.name} className={optionClass} onClick={() => { onTaskValueChange?.('Assignee', o.name); setOpen(null); setOwnerSearch(''); }}>
+                          <span className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className="size-6 rounded flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0" style={{ backgroundColor: o.color }}>{o.initials}</span>
+                            <span className="text-[13px] text-[#364658] truncate">{o.name}</span>
+                          </span>
+                          <span className="flex items-center gap-2 flex-shrink-0">
+                            <span className="size-2 rounded-full" style={{ backgroundColor: o.status }} />
+                            {f.value === o.name && <Check size={14} className="text-[#3D8BD0]" />}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      /* The date range opens the Tasks-tab calendar popup: labelled Start / Due DateFields.
+         Picks write the raw values AND the combined display string, so the popup and the
+         expand modal stay in step. */
+      if (f.label === 'Start Date - End Date') {
+        const startV = taskValues?.['Start Date'] ?? '';
+        const endV = taskValues?.['End Date'] ?? '';
+        const fmtDT = (d: string) => `${new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, ${new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+        const display = startV && endV ? `${fmtDT(startV)} → ${fmtDT(endV)}` : startV ? fmtDT(startV) : endV ? fmtDT(endV) : f.value;
+        const commit = (k: 'Start Date' | 'End Date', v: string) => {
+          onTaskValueChange?.(k, v);
+          const sVal = k === 'Start Date' ? v : startV;
+          const eVal = k === 'End Date' ? v : endV;
+          const disp = sVal && eVal ? `${fmtDT(sVal)} → ${fmtDT(eVal)}` : sVal ? fmtDT(sVal) : eVal ? fmtDT(eVal) : '';
+          onTaskValueChange?.('Start Date - End Date', disp);
+        };
+        return (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{f.label}</div>
+            <div className="flex-1 min-w-0">
+              <div className="group relative">
+                <button className={`${triggerClass} pl-3`} title={display} onClick={() => toggle('task:dates')}>{display || <span className="text-[#9CA3AF]">Select dates</span>}</button>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                {open === 'task:dates' && (
+                  <div className="absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[12px] text-[#7B8FA5] mb-1 block">Start Date</label>
+                        <div className="flex items-center gap-1.5">
+                          <div className="min-w-0 flex-1"><DateField mode="datetime" value={startV} onChange={(v) => commit('Start Date', v)} /></div>
+                          {startV && (
+                            <button title="Clear start date" onClick={() => commit('Start Date', '')} className="flex size-7 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6] hover:text-[#EF4444]">
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[12px] text-[#7B8FA5] mb-1 block">Due Date</label>
+                        <div className="flex items-center gap-1.5">
+                          <div className="min-w-0 flex-1"><DateField mode="datetime" value={endV} onChange={(v) => commit('End Date', v)} /></div>
+                          {endV && (
+                            <button title="Clear due date" onClick={() => commit('End Date', '')} className="flex size-7 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6] hover:text-[#EF4444]">
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {(startV || endV || display) && (
+                        <div className="flex justify-end border-t border-[#F0F2F5] pt-2.5">
+                          <button
+                            onClick={() => { onTaskValueChange?.('Start Date', ''); onTaskValueChange?.('End Date', ''); onTaskValueChange?.('Start Date - End Date', ''); }}
+                            className="text-[12px] font-medium text-[#7B8FA5] transition-colors hover:text-[#EF4444]"
+                          >
+                            Clear dates
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      const def = TASK_KEY_FIELDS.find((k) => k.label === f.label);
+      if (!def?.options) {
+        return (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{f.label}</div>
+            <div className="flex-1 min-w-0">
+              <input
+                type="text"
+                value={f.value}
+                onChange={(e) => onTaskValueChange?.(f.label, e.target.value)}
+                className="w-full px-3 py-2 text-[13px] text-[#364658] bg-transparent rounded hover:bg-[#F5F7FA] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+        );
+      }
+      const dot = def.options.find((o) => o.label === f.value)?.color;
+      const key = 'task:' + f.label;
+      return (
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[12px] flex-shrink-0 w-[120px] text-[#4A5568]">{f.label}</div>
+          <div className="flex-1 min-w-0 relative">
+            <button className={`${triggerClass} ${dot ? "pl-7" : "pl-3"} group/task relative`} onClick={() => toggle(key)}>
+              {dot && <span className="absolute left-3 top-1/2 -translate-y-1/2 size-2 rounded-full" style={{ backgroundColor: dot }} />}
+              <span className="truncate">{f.value || '---'}</span>
+              <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#7B8FA5] opacity-0 group-hover/task:opacity-100 transition-opacity" />
+            </button>
+            {open === key && (
+              <div className={menuClass}>
+                {def.options.map((o) => (
+                  <button key={o.label} className={optionClass} onClick={() => { onTaskValueChange?.(f.label, o.label); setOpen(null); }}>
+                    <span className="flex items-center gap-2 text-[13px] text-[#364658]">
+                      {o.color && <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: o.color }} />}
+                      {o.label}
+                    </span>
+                    {f.value === o.label && <Check size={14} className="text-[#3D8BD0] flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     const visible = fields.filter((f) => !q || f.label.toLowerCase().includes(q));
     return (
       <div className="px-4 pb-4 space-y-2" ref={ref}>
         {visible.map((f) => (
           <Fragment key={f.label}>
-            {roRow(f)}
+            {taskMode ? taskRow(f) : roRow(f)}
             {f.label === tagsAfter && tagsRow}
           </Fragment>
         ))}

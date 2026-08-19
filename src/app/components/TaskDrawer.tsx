@@ -17,7 +17,7 @@
  */
 import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
-import { FileTypeBadge } from './DescriptionAttachments';
+import { FileTypeBadge, DescriptionAttachments, type AttachmentFile } from './DescriptionAttachments';
 import { RelSavedViews } from './RelSavedViews';
 import { AddRelationshipPanel, REL_RELATIONS } from './AddRelationshipPanel';
 import { ActiveIssuesPanel } from './ActiveIssuesPanel';
@@ -122,6 +122,9 @@ import { TASK_CUSTOM_FORM_FIELDS } from './taskCustomFields';
 const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'},{type:'Purchase',prefix:'PO'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
+import { CommentThreadPanel, type ApprovalComment } from './ApprovalCommentPopup';
+import { AddWorkLogModal } from './AddWorkLogModal';
+import { WorkHistoryModal } from './WorkHistoryModal';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
@@ -227,6 +230,7 @@ onStackMinimizedChange,
   const activePatchRecord = openAssets.find(p => p.id === activeAssetId) ?? openAssets[0];
   // Overview description is optional and collapsed by default; reset when switching patch tabs.
   const [descExpanded, setDescExpanded] = useState(false);
+  const [highlightTaskAttachments, setHighlightTaskAttachments] = useState(false);
   useEffect(() => { setDescExpanded(false); }, [activeAssetId]);
 
   // Editable asset field values (lifted here so the Pinned Fields section can read them too).
@@ -287,7 +291,7 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'comments' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('properties');
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -428,6 +432,40 @@ onStackMinimizedChange,
   // Patch approval decision, per patch id: 'none' (just created → both buttons),
   // 'approved' (only Decline shows), 'declined' (only Approve shows).
   const [patchDecision, setPatchDecision] = useState<Record<string, 'none' | 'approved' | 'declined'>>({});
+  // Comments tab — the approval-popup thread, hosted as a page tab.
+  const [taskComments, setTaskComments] = useState<ApprovalComment[]>([
+    { id: 1, author: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', content: 'Please prioritise this — the new joiner needs the licence before onboarding on Monday.', time: 'Aug 12, 4:10 PM' },
+    { id: 2, author: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', content: 'Three seats are free under the E3 agreement — assigning from that pool, no new purchase needed.', time: 'Aug 13, 9:05 AM' },
+  ]);
+  /* Overview tab — checklist (manual add / edit / remove / toggle) + the evidence files. */
+  const [taskChecklist, setTaskChecklist] = useState<{ id: number; text: string; done: boolean }[]>([
+    { id: 1, text: 'Confirm seat availability under the E3 agreement', done: true },
+    { id: 2, text: 'Assign the licence to the new joiner account', done: false },
+    { id: 3, text: 'Verify activation and first sign-in on the user device', done: false },
+  ]);
+  const [addingCheckItem, setAddingCheckItem] = useState(false);
+  const [checkDraft, setCheckDraft] = useState('');
+  const [editingCheckId, setEditingCheckId] = useState<number | null>(null);
+  const [editCheckDraft, setEditCheckDraft] = useState('');
+  const saveNewCheckItem = () => {
+    const text = checkDraft.trim();
+    if (!text) return;
+    setTaskChecklist((prev) => [...prev, { id: Date.now(), text, done: false }]);
+    setCheckDraft('');
+    setAddingCheckItem(false);
+  };
+  const saveEditedCheckItem = () => {
+    const text = editCheckDraft.trim();
+    if (!text || editingCheckId === null) return;
+    setTaskChecklist((prev) => prev.map((c) => (c.id === editingCheckId ? { ...c, text } : c)));
+    setEditingCheckId(null);
+  };
+  const TASK_ATTACHMENTS: AttachmentFile[] = [
+    { name: 'licence-agreement-e3.pdf', size: '1.2 MB' },
+    { name: 'activation-confirmation.png', size: '356 KB' },
+    { name: 'joiner-onboarding-form.docx', size: '84 KB' },
+    { name: 'mailbox-provisioning-log.txt', size: '12 KB' },
+  ];
 
   // Computers + Installation tabs share this state: installing a patch on a Missing computer creates
   // a deployment record (Installation tab); once that record's status turns Success the computer
@@ -713,6 +751,20 @@ onStackMinimizedChange,
   const [showTimerPopup, setShowTimerPopup] = useState(false);
   const [workDescription, setWorkDescription] = useState('');
   const [showWorkHistory, setShowWorkHistory] = useState(false);
+  const [showWorkLogModal, setShowWorkLogModal] = useState(false);
+  const [workLogs, setWorkLogs] = useState<any[]>([
+    { id: 'wl-1', technician: { name: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0' }, start: '2026-08-12T10:15', end: '2026-08-12T12:45', description: 'Verified the licence pool and reserved a seat' },
+    { id: 'wl-2', technician: { name: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6' }, start: '2026-08-13T09:05', end: '2026-08-13T09:35', description: 'Assigned the E3 licence and confirmed activation', timeTaken: '30 minutes' },
+  ]);
+  const [editingWorkLog, setEditingWorkLog] = useState<any>(null);
+  const handleAddWorkLog = (log: any) => setWorkLogs((prev) => [{ id: `wl-${Date.now()}`, ...log }, ...prev]);
+  const handleDeleteWorkLog = (id: string) => setWorkLogs((prev) => prev.filter((l) => l.id !== id));
+  const handleUpdateWorkLog = (id: string, log: any) =>
+    setWorkLogs((prev) => prev.map((l) => (l.id === id ? { ...l, ...log, timeTaken: undefined } : l)));
+  const handleEditWorkLog = (log: any) => {
+    setEditingWorkLog(log);
+    setShowWorkLogModal(true);
+  };
   const [showSLAHistory, setShowSLAHistory] = useState(false);
   
   // Tab Overflow
@@ -852,7 +904,7 @@ onStackMinimizedChange,
 
   // Wrapper functions for utilities that need current state
   const getFilteredPinnedFieldsWrapper = () => getFilteredPinnedFields(pinnedFields, propertiesSearchQuery);
-  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Task Properties' : activeGroup === 'activity' ? 'Attachments' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
+  const getGroupTitleWrapper = () => (activeGroup === 'properties' ? 'Task Properties' : activeGroup === 'activity' ? 'Activity & Resources' : activeGroup === 'affected-products' ? 'Affected Products' : activeGroup === 'file-details' ? 'File Details' : getGroupTitle(activeGroup));
   const getCurrentStatusColorWrapper = () => getCurrentStatusColor(selectedStatus);
   const getCurrentPriorityColorWrapper = () => getCurrentPriorityColor(selectedPriority);
   const getCurrentAssigneeColorWrapper = () => getCurrentAssigneeColor(selectedAssignee);
@@ -990,8 +1042,8 @@ onStackMinimizedChange,
   };
 
   const openManualWorkLog = () => {
-    // Handle opening manual work log modal
-    console.log('Open manual work log');
+    setEditingWorkLog(null);
+    setShowWorkLogModal(true);
   };
 
   // Properties Panel Relation Modal Helper Functions (local handlers)
@@ -1093,7 +1145,7 @@ onStackMinimizedChange,
       // Patch detail tabs — Overview (properties) · Vulnerabilities · Endpoint (computers) ·
       // Installation · Superseded · Audit Trail.
       // Approvals, Relationship, Relations and Financials were removed for the Patch page.
-      let allTabs: string[] = ['properties', 'vulnerabilities', 'computers', 'installation', 'superseded', 'audit'];
+      let allTabs: string[] = ['properties', 'comments', 'audit'];
 
       const containerWidth = tabContainerRef.current.offsetWidth;
       const paddingLeft = 24; // 6 * 4 = 24px
@@ -1121,6 +1173,7 @@ onStackMinimizedChange,
         'computers': 100,
         'vulnerabilities': 120,
         'superseded': 110,
+        'comments': 105,
         'audit': 100,
         'resolution': 90
       };
@@ -2088,58 +2141,82 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Patch KPIs — Category · Severity · Approval Status · Release Date · KB */}
+            {/* Task KPIs — Status · Priority · Assignee · Type · Due · Reference: the working
+                facts of a task, with Due as the action signal and the parent record one click
+                away. Data rides in on the adapter payload so every task shows its own values. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
-              const p = activePatchRecord;
+              const t = activePatchRecord?.task;
 
-              const category = p?.category ?? 'Updates';
-              items.push({ key: 'category', tip: `Category: ${category}`, node: (
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Category</span>
-                  <span className="text-[12px] font-medium text-[#364658] truncate max-w-[150px]">{category}</span>
+              const status = t?.status ?? 'In Progress';
+              const statusColor = ({ 'Open': '#F59E0B', 'In Progress': '#3D8BD0', 'Closed': '#22A06B', 'On Hold': '#8B5CF6', 'Not Started': '#94A3B8' } as Record<string, string>)[status] ?? '#94A3B8';
+              items.push({ key: 'status', tip: `Status: ${status}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+                  <span className="text-[12px] font-medium text-[#364658]">{status}</span>
                 </span>
               ) });
 
-              if (p?.severity) {
-                const sevColor = ({ Critical: '#EF4444', Important: '#F59E0B', Moderate: '#EAB308', Low: '#111827', Unspecified: '#6B7280' } as Record<string, string>)[p.severity] ?? '#6B7280';
-                items.push({ key: 'severity', tip: `Severity: ${p.severity}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Severity</span>
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: sevColor }} />
-                    <span className="text-[12px] font-medium text-[#364658]">{p.severity}</span>
-                  </span>
-                ) });
-              }
-
-              if (p?.approvalStatus) {
-                const approved = p.approvalStatus === 'Approved';
-                items.push({ key: 'approval', tip: `Approval Status: ${p.approvalStatus}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Approval Status</span>
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: approved ? '#22C55E' : '#F59E0B' }} />
-                    <span className="text-[12px] font-medium" style={{ color: approved ? '#22A06B' : '#D97706' }}>{p.approvalStatus}</span>
-                  </span>
-                ) });
-              }
-
-              if (p?.releaseDate) {
-                // 'Tue, Apr 14, 2026 04:55 PM' → 'Apr 14, 2026' (weekday + time trimmed for the strip)
-                const shortDate = p.releaseDate.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, '');
-                items.push({ key: 'release', tip: `Release Date: ${p.releaseDate}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Release Date</span>
-                    <span className="text-[12px] font-medium text-[#364658]">{shortDate}</span>
-                  </span>
-                ) });
-              }
-
-              // KB number lives in the patch title for catalog updates; not every patch has one.
-              const kb = p?.name.match(/\bKB\d+\b/)?.[0] ?? null;
-              items.push({ key: 'kb', tip: kb ? `KB Number: ${kb}` : 'KB Number: not applicable for this patch', node: (
+              const priority = t?.priority ?? 'Medium';
+              const prioColor = ({ Urgent: '#DC2626', High: '#EF4444', Medium: '#F59E0B', Low: '#3D8BD0' } as Record<string, string>)[priority] ?? '#64748B';
+              items.push({ key: 'priority', tip: `Priority: ${priority}`, node: (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#7B8FA5]">KB Number</span>
-                  <span className={`text-[12px] font-medium ${kb ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{kb ?? '---'}</span>
+                  <span className="text-[11px] text-[#7B8FA5]">Priority</span>
+                  <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: prioColor }} />
+                  <span className="text-[12px] font-medium text-[#364658]">{priority}</span>
+                </span>
+              ) });
+
+              const assignee = t?.assignee || 'Unassigned';
+              items.push({ key: 'assignee', tip: `Assignee: ${assignee}`, node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Assignee</span>
+                  <span className={`text-[12px] font-medium truncate max-w-[140px] ${assignee === 'Unassigned' ? 'text-[#9CA3AF]' : 'text-[#364658]'}`}>{assignee}</span>
+                </span>
+              ) });
+
+              const type = t?.taskType ?? activePatchRecord?.category ?? 'Implementation';
+              items.push({ key: 'type', tip: `Task Type: ${type}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Type</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{type}</span>
+                </span>
+              ) });
+
+              // Due — the strip's action signal: red once missed, a plain date otherwise.
+              if (t?.overdueBy) {
+                items.push({ key: 'due', tip: `Due ${t.dueDate} — ${t.overdueBy}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Due</span>
+                    <span className="size-2 rounded-full flex-shrink-0 bg-[#DC2626]" />
+                    <span className="text-[12px] font-medium text-[#DC2626]">{t.overdueBy}</span>
+                  </span>
+                ) });
+              } else {
+                const dueFull = t?.dueDate ?? 'Mon, Aug 17, 2026';
+                const due = dueFull.replace(/^[A-Za-z]{3},\s*/, '');
+                items.push({ key: 'due', tip: `Due date: ${dueFull}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">Due</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{due}</span>
+                  </span>
+                ) });
+              }
+
+              // Parent record — the reason the task exists; opens as a tab in this drawer.
+              const refType = ({ request: 'Request', problem: 'Problem', change: 'Change', release: 'Release' } as Record<string, string>)[t?.referenceModule ?? ''] ?? null;
+              items.push({ key: 'reference', tip: t?.reference ? `Created from ${t.reference}` : 'Not linked to a parent record', node: (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-[#7B8FA5] flex-shrink-0">Reference</span>
+                  {t?.reference && refType ? (
+                    <button
+                      onClick={() => onOpenRelation?.({ ticketId: t.reference!, subject: t.reference!, type: refType, status: 'Open', priority: 'Medium', assignedTo: { name: 'Unassigned' } } as Parameters<NonNullable<typeof onOpenRelation>>[0])}
+                      className="text-[12px] font-medium text-[#3D8BD0] hover:underline truncate max-w-[140px]"
+                    >{t.reference}</button>
+                  ) : (
+                    <span className="text-[12px] font-medium text-[#9CA3AF]">None</span>
+                  )}
                 </span>
               ) });
 
@@ -2151,40 +2228,6 @@ onStackMinimizedChange,
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
             </button>
-            {/* Patch approval actions — both show on a freshly created patch; after a decision only
-                the opposite action remains, so the user can flip it (approve ⇄ decline). */}
-            {(() => {
-              const pid = activeAsset?.id ?? '';
-              const decision = patchDecision[pid] ?? 'none';
-              return (
-                <>
-                  {decision !== 'approved' && (
-                    <button
-                      onClick={() => { setPatchDecision((p) => ({ ...p, [pid]: 'approved' })); toast.success(`${pid || 'Patch'} approved`); }}
-                      className="flex items-center h-8 px-4 bg-[#16A34A] text-white text-[12px] font-medium rounded hover:bg-[#15803D]"
-                    >
-                      Approve
-                    </button>
-                  )}
-                  {decision !== 'declined' && (
-                    <button
-                      onClick={() => { setPatchDecision((p) => ({ ...p, [pid]: 'declined' })); toast.error(`${pid || 'Patch'} declined`); }}
-                      className="flex items-center h-8 px-4 bg-[#DC2626] text-white text-[12px] font-medium rounded hover:bg-[#B91C1C]"
-                    >
-                      Decline
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-            <HardwareAssetActionsMenu
-              patch
-              onOpenApprovalPopup={() => {
-                setShowCreateApprovalPopup(true);
-                setActiveMainTab('approvals');
-              }}
-              onOpenAddBarcode={() => setShowAddBarcodePopup(true)}
-            />
           </div>
         </div>
 
@@ -2196,7 +2239,7 @@ onStackMinimizedChange,
                 (like the CMDB Dependency Map), so it must NOT scroll: become a flex column with
                 overflow-hidden there so the map fills EXACTLY (its controls never clip) and no
                 gutter/scrollbar appears. */}
-            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto'}>
+            <div className={activeMainTab === 'superseded' ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : activeMainTab === 'comments' ? 'flex-1 overflow-y-auto flex flex-col' : 'flex-1 overflow-y-auto'}>
             {/* Properties Section */}
             <div className="px-6 py-4 bg-white border-b border-[#E5E7EB] hidden">
               {/* Properties Badges */}
@@ -2483,16 +2526,138 @@ onStackMinimizedChange,
               </div>
             </div>
 
+            {/* Above the tabs, like the ticket page: who raised the task and when, the
+                description, its evidence files, and the record it was raised from. */}
+            {(() => {
+              const t = activePatchRecord?.task;
+              const refType = ({ request: 'Request', problem: 'Problem', change: 'Change', release: 'Release' } as Record<string, string>)[t?.referenceModule ?? ''] ?? null;
+              const openRel = (type: string, id: string, subject: string) =>
+                onOpenRelation?.({ ticketId: id, subject, type, status: 'Open', priority: 'Medium', assignedTo: { name: 'Unassigned' } } as Parameters<NonNullable<typeof onOpenRelation>>[0]);
+              const description = `${activeTicket?.subject ?? 'This task'}. ${t?.reference ? `Raised from ${t.reference} as part of its ${(t?.taskType ?? 'implementation').toLowerCase()} work. ` : ''}Work through the checklist in order and capture evidence as you go — the attachments on this task are the record the parent will be resolved against.
+
+Before starting, confirm the affected user's availability and note the current configuration so it can be restored if anything goes wrong. Coordinate with the owning group before touching shared infrastructure, and raise a change if the scope grows beyond what this task describes. Any licence or hardware spend above the pre-approved amount needs the cost centre owner's sign-off first.
+
+When the work is done, verify the result with the requester, attach the confirmation to this task, and log the time spent in the Work Tracker. If anything blocks completion — missing approvals, unavailable stock, or a dependency on another team — put it in the comments so the parent record shows why the task is waiting.`;
+              const descIsLong = description.length > 220;
+              const refSubject = ({
+                request: 'Employee onboarding — new joiner',
+                problem: 'Recurring VPN drops across the Finance office',
+                change: 'Q3 security patch rollout',
+                release: 'Service portal 4.2 release',
+              } as Record<string, string>)[t?.referenceModule ?? 'request'];
+              return (
+            <div className="bg-white px-6 pb-5 pt-4">
+              <div className="flex items-start gap-3">
+              <div className="flex size-[24px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[10px] font-semibold text-white">RR</div>
+              <div className="min-w-0 flex-1">
+              {/* Creator byline — replaces a "Description" heading, as on the ticket page. */}
+              <div className="mb-2 flex items-center gap-2.5">
+                <span className="text-sm font-semibold text-[#364658]">Rakesh Rathod</span>
+                <span className="text-xs text-[#7B8FA5]">created this task</span>
+                <span className="size-1 rounded-full bg-[#CBD5E1]" />
+                <span className="text-xs text-[#7B8FA5]">Aug 12, 2026 03:58 PM</span>
+                {/* Jump to evidence — expands the description and lands on the attachments,
+                    flashing them so the eye knows where it arrived (ticket-page behaviour). */}
+                <button
+                  onClick={() => {
+                    setDescExpanded(true);
+                    setHighlightTaskAttachments(true);
+                    setTimeout(() => { document.getElementById('task-attachments-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200);
+                    setTimeout(() => setHighlightTaskAttachments(false), 3000);
+                  }}
+                  className="ml-auto flex items-center gap-1 text-[12px] text-[#6b7280] transition-colors hover:text-[#3D8BD0]"
+                >
+                  <Paperclip size={12} />
+                  <span>{TASK_ATTACHMENTS.length}</span>
+                </button>
+              </div>
+              <p className={`text-[13px] leading-relaxed text-[#364658] whitespace-pre-line ${!descExpanded && descIsLong ? 'line-clamp-2' : ''}`}>
+                {description}
+              </p>
+              {descIsLong && !descExpanded && (
+                <button
+                  onClick={() => setDescExpanded(true)}
+                  className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:text-[#2E6BA4]"
+                >
+                  View more
+                  <ChevronDown size={14} />
+                </button>
+              )}
+              {descExpanded && (
+                <div id="task-attachments-section" className="scroll-mt-4">
+                  <DescriptionAttachments files={TASK_ATTACHMENTS} highlight={highlightTaskAttachments} />
+                </div>
+              )}
+              {descExpanded && (
+                <button
+                  onClick={() => setDescExpanded(false)}
+                  className="mt-3 inline-flex items-center gap-1 rounded border border-[#DFE5ED] bg-[#F5F9FD] px-2.5 py-1 text-[13px] font-semibold text-[#3D8BD0] transition-colors hover:border-[#3D8BD0] hover:bg-[#EBF3FB]"
+                >
+                  View less
+                  <ChevronUp size={14} />
+                </button>
+              )}
+              </div>
+              </div>
+              {/* Related — Affected-Items style: one minimal pill (module icon + id + subject),
+                  the detail lives in the hover card, the click opens the record in this drawer. */}
+              {t?.reference && refType && (
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] font-medium text-[#364658]">Linked :</span>
+                  <Tooltip delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => openRel(refType, t.reference!, refSubject)}
+                        className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2.5 py-1 text-[12px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F9FBFD]"
+                      >
+                        <span className="flex flex-shrink-0 items-center text-[#7B8FA5]">
+                          {refType === 'Problem' ? <IconProblem size={14} /> : refType === 'Change' ? <IconChange size={14} /> : refType === 'Release' ? <IconRelease size={14} /> : <IconRequest size={14} />}
+                        </span>
+                        <span className="font-semibold text-[#3D8BD0]">{t.reference}</span>
+                        <span className="max-w-[240px] truncate">{refSubject}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="start" sideOffset={6} hideArrow className="w-[280px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
+                      <div className="flex items-center gap-2 border-b border-[#F0F2F5] px-3 py-2">
+                        <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.reference}</span>
+                        <span className="min-w-0 truncate text-[12px] font-medium">{refSubject}</span>
+                      </div>
+                      <div className="space-y-2 px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-[60px] flex-shrink-0 text-[11px] text-[#7B8FA5]">Requester</span>
+                          <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#8B5CF6] text-[9px] font-semibold text-white">PN</span>
+                          <span className="truncate text-[12px] font-medium">Priya Nair</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-[60px] flex-shrink-0 text-[11px] text-[#7B8FA5]">Created</span>
+                          <span className="text-[12px] font-medium">Aug 12, 2026 03:45 PM</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-[60px] flex-shrink-0 text-[11px] text-[#7B8FA5]">Status</span>
+                          <span className="size-2 flex-shrink-0 rounded-full bg-[#F59E0B]" />
+                          <span className="text-[12px] font-medium">Open</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-[60px] flex-shrink-0 text-[11px] text-[#7B8FA5]">Priority</span>
+                          <span className="size-2 flex-shrink-0 rounded-full bg-[#F59E0B]" />
+                          <span className="text-[12px] font-medium">Medium</span>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
+              );
+            })()}
+
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
               <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
-                    { id: 'properties', label: 'Properties' },
-                    { id: 'vulnerabilities', label: 'Vulnerabilities' },
-                    { id: 'computers', label: 'Endpoint' },
-                    { id: 'installation', label: 'Deployment' },
-                    { id: 'superseded', label: 'Superseded' },
+                    { id: 'properties', label: 'Checklist' },
+                    { id: 'comments', label: 'Comments' },
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => tab.condition !== false);
 
@@ -2502,7 +2667,7 @@ onStackMinimizedChange,
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
-                    'properties': 'Overview',
+                    'properties': 'Checklist',
                     'hardware': 'Hardware',
                     'software': 'Software',
                     'consolidated': 'Consolidated Software',
@@ -2517,6 +2682,7 @@ onStackMinimizedChange,
                     'computers': 'Endpoint',
                     'vulnerabilities': 'Vulnerabilities',
                     'superseded': 'Superseded',
+                    'comments': 'Comments',
                     'audit': 'Audit Trail'
                   };
 
@@ -2819,274 +2985,108 @@ onStackMinimizedChange,
               </>
             )}
 
-            {activeMainTab === 'properties' && (
-            <div className="px-6 py-6">
-              {/* Description — OPTIONAL. Only some patches carry release notes, so this renders
-                  nothing at all when absent (no empty band). Clamped to 2 lines with View more. */}
-              {activePatchRecord?.description && (() => {
-                const text = activePatchRecord.description!;
-                const isLong = text.length > 160;
-                return (
-                  <div className="mb-6 bg-white rounded-lg border border-[#E5E7EB] p-4">
-                    <h3 className="text-[14px] font-semibold text-[#364658] mb-2">Description</h3>
-                    <p className={`text-[13px] text-[#364658] leading-relaxed whitespace-pre-line ${!descExpanded && isLong ? 'line-clamp-2' : ''}`}>
-                      {text}
-                    </p>
-                    {isLong && (
-                      <button
-                        onClick={() => setDescExpanded((v) => !v)}
-                        className="mt-1.5 text-[13px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                      >
-                        {descExpanded ? 'View less' : 'View more'}
-                        {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </button>
+            {activeMainTab === 'properties' && (() => {
+              const doneCount = taskChecklist.filter((c) => c.done).length;
+              const checkPct = taskChecklist.length ? Math.round((doneCount / taskChecklist.length) * 100) : 0;
+              return (
+              <div className="px-6 py-6 space-y-4">
+                {/* Checklist — the steps of the task. Add / edit / remove inline; the bar keeps
+                    the "how far along" answer one glance away (Jira subtasks pattern). */}
+                <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+                  <div className="mb-2 flex items-center gap-2.5">
+                    <span className="flex size-7 items-center justify-center rounded bg-[#22A06B]/10 text-[#22A06B]"><CheckSquare size={15} /></span>
+                    <h3 className="text-[14px] font-semibold text-[#364658]">Checklist</h3>
+                    {taskChecklist.length > 0 && (
+                      <span className="inline-flex h-[18px] items-center rounded-full bg-[#EEF2F6] px-1.5 text-[11px] font-semibold text-[#64748B]">
+                        {doneCount}/{taskChecklist.length}
+                      </span>
                     )}
+                    {taskChecklist.length > 0 && <span className="ml-auto text-[11px] text-[#94A3B8]">{checkPct}% done</span>}
                   </div>
-                );
-              })()}
-
-              {/* KPI strip — each card shows a headline count plus its own distribution as a
-                  stacked bar + legend (far easier to read at this size than a pie), and each card
-                  is clickable, jumping to the tab / right-panel group that owns the detail. */}
-              {(() => {
-                const wide = drawerWidth > 1080;
-
-                type Seg = { label: string; value: number; color: string };
-                type Kpi = {
-                  key: string; label: string; icon: typeof Activity; color: string;
-                  total: number; segments?: Seg[]; note?: string;
-                  /** 'donut' = gauge + legend (same treatment as the Software Installation snapshot);
-                   *  'list'  = the first 2 records inline (same as the Hardware "Users" card). */
-                  chart: 'donut' | 'bar' | 'none' | 'list';
-                  kind?: 'bars' | 'columns';
-                  /** Preview rows for chart: 'list'. */
-                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
-                  /** Spans half the row instead of a third. */
-                  half?: boolean;
-                  onClick: () => void;
-                };
-
-                const vulnApproved = VULNERABILITIES.filter((v) => v.bucket === 'Approved').length;
-                const vulnDeclined = VULNERABILITIES.filter((v) => v.bucket === 'Declined').length;
-
-                const epMissing = patchComputers.filter((c) => c.bucket === 'Missing').length;
-                const epInstalled = patchComputers.filter((c) => c.bucket === 'Installed').length;
-                const epIgnored = patchComputers.filter((c) => c.bucket === 'Ignored').length;
-
-                const dep = (s: string) => patchInstallations.filter((r) => r.installationStatus === s).length;
-                const depSuccess = dep('Success');
-                const depFailed = dep('Failed');
-                const depProgress = dep('In Progress');
-                const depOther = patchInstallations.length - depSuccess - depFailed - depProgress;
-
-                const kpis: Kpi[] = [
-                  {
-                    key: 'vulnerabilities', label: 'Vulnerabilities', icon: ShieldCheck, color: '#DC2626',
-                    chart: 'donut', total: VULNERABILITIES.length,
-                    segments: [
-                      { label: 'Approved', value: vulnApproved, color: '#22C55E' },
-                      { label: 'Declined', value: vulnDeclined, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('vulnerabilities'),
-                  },
-                  {
-                    key: 'endpoints', label: 'Endpoints', icon: Monitor, color: '#3D8BD0',
-                    chart: 'donut', kind: 'bars', total: patchComputers.length,
-                    segments: [
-                      { label: 'Missing', value: epMissing, color: '#F59E0B' },
-                      { label: 'Installed', value: epInstalled, color: '#22C55E' },
-                      { label: 'Ignored', value: epIgnored, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('computers'),
-                  },
-                  {
-                    key: 'deployments', label: 'Deployments', icon: Download, color: '#8B5CF6',
-                    chart: 'donut', kind: 'columns', total: patchInstallations.length,
-                    segments: [
-                      { label: 'Success', value: depSuccess, color: '#22C55E' },
-                      { label: 'Failed', value: depFailed, color: '#EF4444' },
-                      { label: 'In Progress', value: depProgress, color: '#F59E0B' },
-                      { label: 'Others', value: depOther, color: '#94A3B8' },
-                    ],
-                    onClick: () => setActiveMainTab('installation'),
-                  },
-                  {
-                    key: 'products', label: 'Affected Products', icon: Layers, color: '#0EA5E9',
-                    chart: 'list', total: PATCH_AFFECTED_PRODUCTS.length, half: true,
-                    items: PATCH_AFFECTED_PRODUCTS.slice(0, 2).map((p) => ({
-                      icon: p.type === 'Application' ? <AppWindow size={14} /> : <Monitor size={14} />,
-                      primary: p.name,
-                      secondary: p.type,
-                    })),
-                    onClick: () => setActiveGroup('affected-products'),
-                  },
-                  {
-                    key: 'files', label: 'Files', icon: Files, color: '#64748B',
-                    chart: 'list', total: PATCH_FILES.length, half: true,
-                    items: PATCH_FILES.slice(0, 2).map((f) => ({
-                      icon: <FileText size={14} />,
-                      primary: f.name,
-                      secondary: `${f.size} · Language: ${f.language}`,
-                      actions: (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => { navigator.clipboard?.writeText(f.name).catch(() => {}); toast.success('Link copied'); }}
-                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
-                              ><Copy size={14} /></button>
-                            </TooltipTrigger>
-                            <TooltipContent>Copy link</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => toast.success(`Downloading ${f.name}`)}
-                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F0F8FF] hover:text-[#3D8BD0]"
-                              ><Download size={14} /></button>
-                            </TooltipTrigger>
-                            <TooltipContent>Download</TooltipContent>
-                          </Tooltip>
-                        </>
-                      ),
-                    })),
-                    onClick: () => setActiveGroup('file-details'),
-                  },
-                ];
-
-                return (
-                  /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
-                     the two list cards take half each (span 3) — together they fill the row. */
-                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
-                    {kpis.map((k) => {
-                      if (k.chart === 'donut' && k.kind) {
-                        return (
-                          <div key={k.key} className={wide ? 'col-span-2' : ''}>
-                            {k.kind === 'bars'
-                              ? <BarListKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />
-                              : <ColumnKpiCard label={k.label} icon={k.icon} color={k.color} total={k.total} segments={k.segments ?? []} onClick={k.onClick} />}
-                          </div>
-                        );
-                      }
-                      const segs = (k.segments ?? []).filter((s) => s.value > 0);
-                      // Records beyond the inline preview — surfaced in the link as "+N more".
-                      const rest = k.chart === 'list' ? k.total - (k.items ?? []).length : 0;
-                      const isDonut = k.chart === 'donut' && segs.length > 0;
-                      const dia = wide ? 140 : 112;      // gauge diameter
-                      const C = 2 * Math.PI * 40;       // circumference of the r=40 track
-                      let acc = 0;                      // running offset per segment
-                      return (
-                        <div
-                          key={k.key}
-                          className={`flex flex-col rounded-lg border border-[#E5E7EB] bg-white p-4 ${wide ? (k.half ? 'col-span-3' : 'col-span-2') : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="flex size-7 flex-shrink-0 items-center justify-center rounded" style={{ backgroundColor: `${k.color}1A`, color: k.color }}>
-                              <k.icon size={15} />
-                            </span>
-                            <span className="text-[13px] text-[#64748B]">{k.label}</span>
-                            {/* Only this link navigates — the card itself is not clickable
-                                (same as the Software Overview cards' "View more ›"). Preview cards
-                                carry the remaining count instead, like the Hardware "Users" card. */}
-                            <button
-                              onClick={k.onClick}
-                              className="ml-auto flex flex-shrink-0 items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:underline"
+                  {taskChecklist.length > 0 && (
+                    <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-[#EEF2F6]">
+                      <div className="h-full rounded-full bg-[#22C55E] transition-all duration-300" style={{ width: `${checkPct}%` }} />
+                    </div>
+                  )}
+                  {taskChecklist.length === 0 && !addingCheckItem && (
+                    <p className="mb-1 text-[13px] text-[#9CA3AF]">No checklist yet — break the task into steps so progress is visible.</p>
+                  )}
+                  <div className="space-y-0.5">
+                    {taskChecklist.map((c) => (
+                      <div key={c.id} className="group/chk -mx-2 flex items-center gap-2.5 rounded px-2 py-1.5 transition-colors hover:bg-[#F8FAFC]">
+                        {editingCheckId === c.id ? (
+                          <>
+                            <input
+                              autoFocus
+                              value={editCheckDraft}
+                              onChange={(e) => setEditCheckDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') saveEditedCheckItem(); if (e.key === 'Escape') setEditingCheckId(null); }}
+                              className="h-8 min-w-0 flex-1 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                            />
+                            <button onClick={saveEditedCheckItem} disabled={!editCheckDraft.trim()} className="h-8 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:opacity-50">Save</button>
+                            <button onClick={() => setEditingCheckId(null)} className="h-8 rounded border border-[#DFE5ED] bg-white px-3 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]">Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="checkbox"
+                              checked={c.done}
+                              onChange={() => setTaskChecklist((prev) => prev.map((x) => (x.id === c.id ? { ...x, done: !x.done } : x)))}
+                              className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                            />
+                            <span
+                              onClick={() => setTaskChecklist((prev) => prev.map((x) => (x.id === c.id ? { ...x, done: !x.done } : x)))}
+                              className={`min-w-0 flex-1 cursor-pointer select-none text-[13px] ${c.done ? 'text-[#9CA3AF] line-through' : 'text-[#364658]'}`}
                             >
-                              {rest > 0 ? `+${rest} more` : 'View more'}<ChevronRight size={14} />
-                            </button>
-                          </div>
-
-                          {isDonut ? (
-                            /* Gauge + legend — same donut treatment as the Software "Installation snapshot" */
-                            <div className="mt-2 flex flex-1 items-center gap-4">
-                              <div className="relative flex-shrink-0" style={{ width: dia, height: dia }}>
-                                <svg viewBox="0 0 100 100" className="-rotate-90" style={{ width: dia, height: dia }}>
-                                  <circle cx="50" cy="50" r="40" fill="none" stroke="#F1F5F9" strokeWidth="16" />
-                                  {segs.map((s) => {
-                                    const len = (s.value / Math.max(k.total, 1)) * C;
-                                    const off = -(acc / Math.max(k.total, 1)) * C;
-                                    acc += s.value;
-                                    return (
-                                      <circle
-                                        key={s.label}
-                                        cx="50" cy="50" r="40" fill="none"
-                                        stroke={s.color} strokeWidth="16"
-                                        strokeDasharray={`${len} ${C - len}`}
-                                        strokeDashoffset={off}
-                                      />
-                                    );
-                                  })}
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  <span className="text-[22px] font-semibold leading-none tabular-nums text-[#364658]">{k.total}</span>
-                                  <span className="mt-0.5 text-[10px] text-[#7B8FA5]">Total</span>
-                                </div>
-                              </div>
-                              <div className="min-w-0 flex-1 space-y-2">
-                                {segs.map((s) => (
-                                  <div key={s.label} className="flex items-center gap-2">
-                                    <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                    <span className="min-w-[84px] truncate text-[12px] text-[#64748B]">{s.label}</span>
-                                    <span className="text-[13px] font-semibold tabular-nums text-[#364658]">{s.value}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : k.chart === 'list' ? (
-                            /* Just the first 2 records — no count line; the total lives in the
-                               "+N more" link, exactly like the Hardware Overview "Users" card. */
-                            <>
-                              <div className="mt-3 space-y-2">
-                                {(k.items ?? []).map((it) => (
-                                  <div key={it.primary} className="flex min-w-0 items-center gap-2 rounded-lg bg-[#F9FAFB] px-2.5 py-2">
-                                    <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
-                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
-                                    </div>
-                                    {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className={`mt-2 font-semibold tabular-nums ${wide ? 'text-[20px]' : 'text-[18px]'}`} style={{ color: k.color }}>
-                                {k.total}
-                              </div>
-                              {segs.length > 0 ? (
-                                <>
-                                  {/* Stacked distribution bar */}
-                                  <div className="mt-2.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
-                                    {segs.map((s) => (
-                                      <span key={s.label} style={{ width: `${(s.value / Math.max(k.total, 1)) * 100}%`, backgroundColor: s.color }} />
-                                    ))}
-                                  </div>
-                                  {/* Legend */}
-                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                                    {segs.map((s) => (
-                                      <span key={s.label} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
-                                        <span className="size-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                                        {s.label}
-                                        <span className="font-medium text-[#364658] tabular-nums">{s.value}</span>
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="mt-2 text-[12px] text-[#64748B]">{k.note}</div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+                              {c.text}
+                            </span>
+                            <span className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/chk:opacity-100">
+                              <button
+                                title="Edit"
+                                onClick={() => { setEditingCheckId(c.id); setEditCheckDraft(c.text); }}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6] hover:text-[#3D8BD0]"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                title="Remove"
+                                onClick={() => setTaskChecklist((prev) => prev.filter((x) => x.id !== c.id))}
+                                className="flex size-7 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#FEF2F2] hover:text-[#EF4444]"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                );
-              })()}
-
-            </div>
-            )}
+                  {addingCheckItem ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={checkDraft}
+                        placeholder="What needs to be done?"
+                        onChange={(e) => setCheckDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveNewCheckItem(); if (e.key === 'Escape') { setAddingCheckItem(false); setCheckDraft(''); } }}
+                        className="h-8 min-w-0 flex-1 rounded border border-[#DFE5ED] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                      />
+                      <button onClick={saveNewCheckItem} disabled={!checkDraft.trim()} className="h-8 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:opacity-50">Add</button>
+                      <button onClick={() => { setAddingCheckItem(false); setCheckDraft(''); }} className="h-8 rounded border border-[#DFE5ED] bg-white px-3 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]">Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setAddingCheckItem(true); setCheckDraft(''); }}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2E6BA4]"
+                    >
+                      <Plus size={15} />
+                      Add checklist item
+                    </button>
+                  )}
+                </div>
+              </div>
+              );
+            })()}
 
             {activeMainTab === 'hardware' && (() => {
               type Rec = [string, string][];
@@ -6562,6 +6562,18 @@ onStackMinimizedChange,
             )}
 
             {/* Vulnerabilities Tab Content — Approved / Declined CVE buckets */}
+            {/* Comments Tab — thread + composer, composer pinned at the bottom */}
+            {activeMainTab === 'comments' && (
+              <CommentThreadPanel
+                toolbarBorder={false}
+                collapsibleComposer
+                comments={taskComments}
+                onAddComment={(c) => setTaskComments((prev) => [...prev, c])}
+                onUpdateComment={(id, content) => setTaskComments((prev) => prev.map((c) => (c.id === id ? { ...c, content } : c)))}
+                onDeleteComment={(id) => setTaskComments((prev) => prev.filter((c) => c.id !== id))}
+              />
+            )}
+
             {activeMainTab === 'vulnerabilities' && <PatchVulnerabilitiesTab endpoints={patchComputers} />}
 
             {/* Computers Tab Content — Missing / Installed / Ignored buckets */}
@@ -6587,11 +6599,12 @@ onStackMinimizedChange,
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Patch Approved', details: 'Approved the patch for deployment', field: 'Approval Status', from: 'Not Approved', to: 'Approved', time: 'Sat, Jun 20, 2026 04:39 PM' },
-                { user: 'Dharti Parikh', initials: 'DP', color: '#8B5CF6', action: 'Test Status Updated', details: 'Marked the patch as passed in the pilot test ring', field: 'Test Status', from: 'Not Tested', to: 'Passed', time: 'Sat, Jun 20, 2026 02:12 PM' },
-                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Downloaded', details: 'Downloaded the patch package (3.77 MB) to the file server', field: 'Download Status', from: '---', to: 'Success', time: 'Sat, Jun 20, 2026 11:05 AM' },
-                { user: 'Jainam Shah', initials: 'JS', color: '#F59E0B', action: 'Added to Deployment', details: 'Added the patch to deployment "April 2026 Patch Tuesday" (PDR-1433)', time: 'Fri, May 22, 2026 05:30 PM' },
-                { user: 'System', initials: 'SY', color: '#10B981', action: 'Patch Synced', details: 'Patch discovered and synced from the vendor catalog by the patch scan', time: 'Fri, May 22, 2026 10:14 AM' },
+                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Status Updated', details: 'Started assigning the licence from the E3 agreement pool', field: 'Status', from: 'Open', to: 'In Progress', time: 'Thu, Aug 13, 2026 09:20 AM' },
+                { user: 'Sarah Johnson', initials: 'SJ', color: '#8B5CF6', action: 'Work Logged', details: 'Logged 30 minutes — assigned the E3 licence and confirmed activation', time: 'Thu, Aug 13, 2026 09:35 AM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Assignee Changed', details: 'Handed the task to the software licensing team', field: 'Assignee', from: 'Unassigned', to: 'Sarah Johnson', time: 'Wed, Aug 12, 2026 04:15 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Priority Updated', details: 'Raised the priority — the new joiner starts on Monday', field: 'Priority', from: 'P3', to: 'P1', time: 'Wed, Aug 12, 2026 04:12 PM' },
+                { user: 'Rakesh Rathod', initials: 'RR', color: '#3D8BD0', action: 'Due Date Set', details: 'Scheduled the task ahead of the onboarding date', field: 'Due Date', from: '---', to: 'Mon, Aug 17, 2026', time: 'Wed, Aug 12, 2026 04:10 PM' },
+                { user: 'System', initials: 'SY', color: '#10B981', action: 'Task Created', details: 'Created from request INC-31 "Employee onboarding — new joiner" (stage: Provisioning)', time: 'Wed, Aug 12, 2026 03:58 PM' },
               ];
               const changeLogs = [
                 { text: 'Monitor Component has been Added', by: 'Rakesh Rathod', time: 'Fri, Jun 19, 2026 05:17 PM' },
@@ -7885,6 +7898,7 @@ onStackMinimizedChange,
             workDescription={workDescription}
             setWorkDescription={setWorkDescription}
             setShowWorkHistory={setShowWorkHistory}
+            onAddWorkLog={handleAddWorkLog}
             setShowSLAHistory={setShowSLAHistory}
             attachments={attachments}
             showAllAttachments={showAllAttachments}
@@ -8928,6 +8942,22 @@ onStackMinimizedChange,
       <SLAHistoryModal
         isOpen={showSLAHistory}
         onClose={() => setShowSLAHistory(false)}
+      />
+
+      <AddWorkLogModal
+        isOpen={showWorkLogModal}
+        onClose={() => { setShowWorkLogModal(false); setEditingWorkLog(null); }}
+        onAdd={handleAddWorkLog}
+        editingLog={editingWorkLog}
+        onUpdate={handleUpdateWorkLog}
+      />
+
+      <WorkHistoryModal
+        isOpen={showWorkHistory}
+        onClose={() => setShowWorkHistory(false)}
+        logs={workLogs}
+        onDelete={handleDeleteWorkLog}
+        onEdit={handleEditWorkLog}
       />
     </div>
   );

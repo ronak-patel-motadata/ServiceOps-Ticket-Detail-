@@ -58,9 +58,10 @@ export const TASK_USER_GROUP_OPTIONS = [
 export const TASK_ASSIGNEE_OPTIONS = [
   { label: 'Unassigned' },
   { label: 'Sarah Johnson' },
-  { label: 'Rakesh Rathod' },
-  { label: 'Meera Iyer' },
-  { label: 'Daniel Cruz' },
+  { label: 'Michael Chen' },
+  { label: 'Emma Wilson' },
+  { label: 'David Kim' },
+  { label: 'Lisa Anderson' },
 ];
 
 export const TASK_KEY_FIELDS: TaskKeyField[] = [
