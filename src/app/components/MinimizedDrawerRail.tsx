@@ -1,14 +1,16 @@
+import { useState, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
-interface MinimizedItem { id: string; subject?: string }
+interface MinimizedItem { id: string; subject?: string; noIdPill?: boolean }
 
 /**
- * Thin right-edge rail shown when a detail drawer is minimized (DevRev-style).
- * Stays narrow so the top-right profile icon remains visible; widens slightly on
- * hover. The expand handle restores the drawer; when several items are open they
- * stack as compact vertical chips (active highlighted) — clicking one restores
- * the drawer to that item. While minimized, the list page behind stays usable.
+ * Compact right-edge dock shown when a detail drawer is minimized.
+ *
+ * Deliberately NOT full height any more — the old edge-to-edge rail sat over the header's
+ * profile icon and anything else living on the right. This is a small floating tab parked at
+ * the vertical centre of the right edge: a panel icon + a count badge saying how many items
+ * are open. Hovering slides out a card listing them (ID pill + subject, active highlighted);
+ * clicking a row restores the drawer on that item, clicking the tab restores the active one.
  */
 export function MinimizedDrawerRail({
   items,
@@ -21,52 +23,67 @@ export function MinimizedDrawerRail({
   onSelect: (id: string) => void;
   onRestore: () => void;
 }) {
-  const MAX = 8;
-  const shown = items.slice(0, MAX);
-  const overflow = items.length - shown.length;
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+  const enter = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } setOpen(true); };
+  const leave = () => { closeTimer.current = window.setTimeout(() => setOpen(false), 150); };
 
   return (
     <div
-      onClick={onRestore}
-      title="Expand panel"
-      className="group fixed right-0 top-0 h-screen w-7 hover:w-9 bg-white border-l border-[#e5e7eb] z-50 flex flex-col items-center transition-[width] duration-200 cursor-pointer"
-      style={{ boxShadow: '-4px 0 20px rgba(0,0,0,0.06)' }}
+      className="fixed right-0 top-1/2 z-50 -translate-y-1/2"
+      onMouseEnter={enter}
+      onMouseLeave={leave}
       data-drawer-minimized
     >
-      {/* Expand handle */}
-      <span className="w-full py-3 flex items-center justify-center text-[#9ca3af] group-hover:text-[#3D8BD0] transition-colors flex-shrink-0 border-b border-[#f0f2f5]">
-        <ChevronLeft size={16} />
-      </span>
+      {/* The dock tab — small, attached to the edge, restores the active item on click. */}
+      <button
+        onClick={onRestore}
+        aria-label="Expand panel"
+        className="group relative flex flex-col items-center gap-1.5 rounded-l-lg border border-r-0 border-[#DFE5ED] bg-white px-1.5 py-3 transition-colors hover:bg-[#F5F9FD]"
+        style={{ boxShadow: '-4px 0 16px rgba(0,0,0,0.08)' }}
+      >
+        <ChevronLeft size={14} className="text-[#9ca3af] transition-colors group-hover:text-[#3D8BD0]" />
+        {/* How many items are open — the number the collapsed state exists to answer. */}
+        <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#3D8BD0] px-1 text-[10px] font-semibold text-white">
+          {items.length}
+        </span>
+        {/* What the number counts — a quiet edge-tab label reading top to bottom. */}
+        <span className="[writing-mode:vertical-rl] text-[10px] font-medium tracking-[0.08em] text-[#7B8FA5] transition-colors group-hover:text-[#3D8BD0]">
+          Open items
+        </span>
+      </button>
 
-      {/* Open items (stacked vertical chips) */}
-      <div className="flex-1 w-full flex flex-col items-center justify-start gap-1 py-3 overflow-y-auto">
-        {shown.map((it) => {
-          const active = it.id === activeId;
-          return (
-            <Tooltip key={it.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSelect(it.id); }}
-                  className={`w-[calc(100%-8px)] mx-auto flex items-center justify-center py-2 rounded-sm transition-colors ${active ? 'bg-[#EAF2FB]' : 'hover:bg-[#f3f4f6]'}`}
-                >
-                  <span
-                    className={`[writing-mode:vertical-rl] rotate-180 text-[11px] font-semibold tracking-wide truncate transition-colors ${active ? 'text-[#3D8BD0]' : 'text-[#7B8FA5]'}`}
-                    style={{ maxHeight: '32vh' }}
-                  >
-                    {it.id}
-                  </span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="max-w-[280px]">
-                <span className="font-semibold">{it.id}</span>{it.subject ? ` — ${it.subject}` : ''}
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-        {overflow > 0 && (
-          <span className="mt-1 text-[10px] font-medium text-[#9ca3af]" title={`${overflow} more`}>+{overflow}</span>
-        )}
-      </div>
+      {/* Hover fly-out — the open items, readable instead of rotated. */}
+      {open && (
+        <div className="absolute right-full top-1/2 -translate-y-1/2 pr-1.5">
+        <div className="w-[240px] rounded-lg border border-[#E5E7EB] bg-white py-1.5 shadow-lg">
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#7B8FA5]">
+            Open items
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto">
+          {items.map((it) => {
+            const active = it.id === activeId;
+            return (
+              <button
+                key={it.id}
+                onClick={(e) => { e.stopPropagation(); onSelect(it.id); }}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors ${active ? 'bg-[#EAF2FB]' : 'hover:bg-[#F5F7FA]'}`}
+              >
+                {!it.noIdPill && (
+                <span className={`flex-shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${active ? 'bg-white text-[#3D8BD0]' : 'bg-[#e8f4fd] text-[#3D8BD0]'}`}>
+                  {it.id}
+                </span>
+                )}
+                <span className={`min-w-0 truncate text-[12px] ${active ? 'font-medium text-[#3D8BD0]' : 'text-[#364658]'}`}>
+                  {it.subject ?? ''}
+                </span>
+              </button>
+            );
+          })}
+          </div>
+        </div>
+        </div>
+      )}
     </div>
   );
 }

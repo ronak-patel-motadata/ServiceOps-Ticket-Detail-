@@ -17,6 +17,7 @@ import { PatchDeploymentDrawer } from './PatchDeploymentDrawer';
 import { PackageDeploymentDrawer } from './PackageDeploymentDrawer';
 import { RegistryDeploymentDrawer } from './RegistryDeploymentDrawer';
 import { KnowledgeDrawer } from './KnowledgeDrawer';
+import { ReportDrawer } from './ReportDrawer';
 import { EndpointDrawer } from './EndpointDrawer';
 import { VulnerabilityDrawer } from './VulnerabilityDrawer';
 import { DetectedCveDrawer } from './DetectedCveDrawer';
@@ -34,7 +35,7 @@ import { TaskDrawer } from './TaskDrawer';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'report';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -136,15 +137,74 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
 
   const active = stack.find((s) => s.key === activeKey) || null;
   // Enrich each tab with status/priority/technician (field names vary by module) for the tab hover card.
-  const tabMeta = (data: any) => {
-    if (!data) return {};
-    const status = typeof data.status === 'string' ? data.status : undefined;
-    const priority = typeof data.priority === 'string' ? data.priority : undefined;
-    const tech = data.assignedTo?.name ?? data.assignee ?? data.managedBy ?? data.owner ?? data.technician ?? (typeof data.usedBy === 'string' ? data.usedBy : data.usedBy?.name);
-    const technician = typeof tech === 'string' && tech.trim() ? tech : undefined;
-    return { status, priority, technician };
+  /* Tab hover-card KPIs — module-aware so EVERY open item shows 2-3 useful chips, not just
+     the ticket family. Each chip: optional dot colour, optional grey label, a value, and
+     `user` for the person icon. Unknown shapes fall back to the generic field sniff. */
+  const sevDot = (v?: string) => ({ critical: '#EF4444', important: '#F59E0B', high: '#EF4444', moderate: '#EAB308', medium: '#F59E0B', low: '#22A06B', unspecified: '#6B7280' } as Record<string, string>)[(v ?? '').toLowerCase()] ?? '#6B7280';
+  const stDot = (v?: string) => {
+    const s = (v ?? '').toLowerCase();
+    if (s === 'open' || s === 'pending' || s === 'not started' || s === 'sent for approval' || s === 'generated' || s === 'draft') return '#D97706';
+    if (s === 'in progress' || s === 'ordered' || s === 'partially received' || s === 'on hold') return '#3D8BD0';
+    if (s.includes('resolv') || s.includes('close') || s === 'in use' || s === 'completed' || s === 'operational' || s === 'approved' || s === 'received' || s === 'active' || s === 'published') return '#22A06B';
+    if (s === 'expired' || s === 'missing' || s === 'declined') return '#EF4444';
+    return '#9CA3AF';
   };
-  const stackTabs = stack.map((s) => ({ id: s.id, subject: s.subject, ...tabMeta(s.data) }));
+  const prDot = (v?: string) => ({ urgent: '#DC2626', high: '#EF4444', p1: '#DC2626', p2: '#F59E0B', medium: '#D97706', p3: '#22A06B', low: '#22A06B', p4: '#64748B' } as Record<string, string>)[(v ?? '').toLowerCase()] ?? '#9CA3AF';
+  type TabKpi = { label?: string; value: string; dot?: string; user?: boolean };
+  const tabMeta = (module: StackModule, data: any): { kpis?: TabKpi[] } => {
+    if (!data) return {};
+    const kpis: TabKpi[] = [];
+    const push = (k: Partial<TabKpi> & { value?: string | null }) => { if (k.value && kpis.length < 3) kpis.push(k as TabKpi); };
+    if (module === 'tasks' && data.task) {
+      const t = data.task;
+      push({ value: t.status, dot: stDot(t.status) });
+      push({ value: t.priority, dot: prDot(t.priority) });
+      push({ value: t.assignee, user: true });
+    } else if (module === 'patches' || module === 'vulnerabilities') {
+      push({ label: 'Severity', value: data.severity, dot: sevDot(data.severity) });
+      push({ label: 'Approval', value: data.approvalStatus, dot: stDot(data.approvalStatus) });
+      push({ label: 'Category', value: data.category ?? 'Updates' });
+    } else if (module === 'patch-deployments' && data.deployment) {
+      push({ value: data.deployment.status, dot: stDot(data.deployment.status) });
+      push({ label: 'Policy', value: data.deployment.policy });
+      push({ label: 'Install After', value: data.deployment.installAfter });
+    } else if (module === 'endpoints' && data.endpoint) {
+      push({ value: data.endpoint.agentOnline ? 'Agent Online' : 'Agent Offline', dot: data.endpoint.agentOnline ? '#22C55E' : '#F59E0B' });
+      push({ label: 'Health', value: data.endpoint.systemHealth, dot: data.endpoint.systemHealth === 'Healthy' ? '#22C55E' : data.endpoint.systemHealth === 'Warning' ? '#F59E0B' : '#EF4444' });
+      push({ label: 'OS', value: data.endpoint.osName });
+    } else if (module === 'detected-cves' && data.cve) {
+      const c = data.cve;
+      push({ label: 'Severity', value: c.severity, dot: sevDot(c.severity) });
+      push({ label: 'CVSS', value: c.cvssScore != null ? String(c.cvssScore) : undefined });
+      push({ label: 'Exploit', value: c.exploitStatus, dot: (c.exploitStatus ?? '').toLowerCase() === 'yes' ? '#EF4444' : '#9CA3AF' });
+    } else if (module === 'knowledge' && data.knowledge) {
+      push({ value: data.knowledge.author, user: true });
+      push({ label: 'Folder', value: data.knowledge.folder });
+      push({ label: 'Reads', value: data.knowledge.totalRead != null ? String(data.knowledge.totalRead) : undefined });
+    } else if (module === 'software-licenses') {
+      push({ label: 'Type', value: data.licenseType });
+      push({ label: 'Product', value: data.product });
+      push({ label: 'Expiry', value: data.expiryDate ?? 'Never' });
+    } else if (module === 'contracts') {
+      push({ value: data.status, dot: stDot(data.status) });
+      push({ label: 'Type', value: data.contractType });
+      push({ label: 'Expires', value: data.endDate });
+    } else if (module === 'purchases') {
+      push({ value: data.status, dot: stDot(data.status) });
+      push({ label: 'Vendor', value: typeof data.vendor === 'string' ? data.vendor.replace(/^VCAT-\d+:\s*/, '') : undefined });
+      push({ label: 'Required', value: data.requiredBy });
+    } else {
+      // Ticket family + assets/CMDB — the generic sniff, now emitted as chips too.
+      const tech = data.assignedTo?.name ?? data.assignee ?? (typeof data.managedBy === 'string' ? data.managedBy : data.managedBy?.name) ?? data.owner ?? data.technician ?? (typeof data.usedBy === 'string' ? data.usedBy : data.usedBy?.name);
+      if (typeof data.status === 'string') push({ value: data.status, dot: stDot(data.status) });
+      if (typeof data.priority === 'string') push({ value: data.priority, dot: prDot(data.priority) });
+      if (typeof tech === 'string' && tech.trim()) push({ value: tech, user: true });
+      if (typeof data.assetType === 'string') push({ label: 'Type', value: data.assetType });
+    }
+    return kpis.length ? { kpis } : {};
+  };
+  // Reports have no user-facing id, so the drawer chrome (tabs, dock) hides the internal one.
+  const stackTabs = stack.map((s) => ({ id: s.id, subject: s.subject, noIdPill: s.module === 'report' || undefined, ...tabMeta(s.module, s.data) }));
 
   let drawer: ReactNode = null;
   if (active) {
@@ -185,6 +245,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       case 'package-deployments': drawer = <PackageDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'registry-deployments': drawer = <RegistryDeploymentDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       case 'knowledge': drawer = <KnowledgeDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
+      case 'report': drawer = <ReportDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Task detail page — clone of the Patch detail page; the list adapts the task record.
       case 'tasks': drawer = <TaskDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;
       // Endpoint detail page — clone of the Patch detail page; the list adapts the endpoint record.

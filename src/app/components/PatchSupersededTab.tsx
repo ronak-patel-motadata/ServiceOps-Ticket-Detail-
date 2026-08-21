@@ -386,7 +386,6 @@ function CanvasControls() {
                 <ShortcutRow keys={<><Kbd>+</Kbd><span className="text-[10px] text-[#9CA3AF]">/</span><Kbd>−</Kbd></>} label="Zoom in / out" />
                 <ShortcutRow keys={<Kbd>F</Kbd>} label="Fit & center all nodes" />
                 <div className="mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">View</div>
-                <ShortcutRow keys={<Kbd>E</Kbd>} label="Expand / collapse all" />
                 <ShortcutRow keys={<Kbd>R</Kbd>} label="Reset layout" />
                 <ShortcutRow keys={<><Kbd>Ctrl</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>Shift</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>F</Kbd></>} label="Toggle fullscreen" />
                 <div className="mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Search</div>
@@ -745,13 +744,6 @@ export function PatchSupersededTab({ patchId, patchName }: PatchSupersededTabPro
         return;
       }
       if (inField) return;
-      if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        setAllExpanded((was) => {
-          if (was) setCollapseKey((k) => k + 1); else setExpandKey((k) => k + 1);
-          return !was;
-        });
-      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -790,21 +782,6 @@ export function PatchSupersededTab({ patchId, patchName }: PatchSupersededTabPro
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {/* Expand all / Collapse all */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => {
-                  if (allExpanded) { setCollapseKey((k) => k + 1); setAllExpanded(false); }
-                  else { setExpandKey((k) => k + 1); setAllExpanded(true); }
-                }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F5F7FA]"
-              >
-                {allExpanded ? <ChevronsDownUp size={15} className="text-[#6b7280]" /> : <ChevronsUpDown size={15} className="text-[#6b7280]" />}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{allExpanded ? 'Collapse all' : 'Expand all'}</TooltipContent>
-          </Tooltip>
           {/* Full screen */}
           <Tooltip>
             <TooltipTrigger asChild>

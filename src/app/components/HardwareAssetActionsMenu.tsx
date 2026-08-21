@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   MoreVertical, UserCheck, RefreshCw, ScanLine, Lock, RotateCcw, Power, Moon,
   Sunrise, Ban, Monitor, History, Repeat, Archive, Printer, Trash2, Barcode, XCircle, PackageCheck, MinusSquare,
-  Package, Download, X,
+  Package, Download, X, CopyPlus,
 } from 'lucide-react';
 
 interface HardwareAssetActionsMenuProps {
@@ -24,9 +24,11 @@ interface HardwareAssetActionsMenuProps {
   patchDeploy?: boolean;
   // Knowledge article menu: Ask for Approval, Print, Delete
   knowledge?: boolean;
+  /** Report detail page: Duplicate + Delete only. */
+  report?: boolean;
 }
 
-export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false, cmdb = false, patch = false, patchDeploy = false, knowledge = false }: HardwareAssetActionsMenuProps) {
+export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode, minimal = false, nonIt = false, contract = false, purchase = false, cmdb = false, patch = false, patchDeploy = false, knowledge = false, report = false }: HardwareAssetActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -107,6 +109,15 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
+      {open && report && (
+        <div className="absolute right-0 top-full mt-1 w-[190px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
+          <Item label="Duplicate" icon={<CopyPlus size={15} />} />
+          <Item label="View History" icon={<History size={15} />} />
+          <Divider />
+          <Item label="Delete" icon={<Trash2 size={15} />} danger />
+        </div>
+      )}
+
       {open && knowledge && (
         <div className="absolute right-0 top-full mt-1 w-[210px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
@@ -143,7 +154,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
         </div>
       )}
 
-      {open && !minimal && !nonIt && !contract && !purchase && !cmdb && !patch && !patchDeploy && !knowledge && (
+      {open && !minimal && !nonIt && !contract && !purchase && !cmdb && !patch && !patchDeploy && !knowledge && !report && (
         <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />

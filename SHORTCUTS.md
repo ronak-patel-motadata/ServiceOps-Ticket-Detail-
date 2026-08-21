@@ -86,17 +86,16 @@ The full list is also shown in the canvas's on-screen **keyboard-shortcuts popup
 
 Works when the Patch detail page's **Superseded** tab is active. Same single-key model as
 the Dependency Map (section 2), minus the features that map doesn't have (no minimap /
-legend / view modes) and plus `E` for expand/collapse-all.
+legend / view modes).
 
 Implemented in **`src/app/components/PatchSupersededTab.tsx`** (canvas keys need the canvas
-focused — click it once; `Ctrl+F` / `Ctrl+Shift+F` / `E` work tab-wide).
+focused — click it once; `Ctrl+F` / `Ctrl+Shift+F` work tab-wide).
 
 | Shortcut | Action |
 |---|---|
 | `↑ ↓ ← →` | Pan the canvas |
 | `+` / `−` | Zoom in / out |
 | `F` | Fit & center all nodes |
-| `E` | Expand / collapse all versions |
 | `R` | Reset layout (collapse all, re-fit) |
 | `Ctrl + Shift + F` | Toggle fullscreen |
 | `Ctrl + F` | Focus the node search |

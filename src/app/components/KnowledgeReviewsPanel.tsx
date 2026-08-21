@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, MessageSquare, Lock, Trash2, Pencil } from 'lucide-react';
+import { X, MessageSquare, Lock, Trash2, SquarePen } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
@@ -163,7 +163,7 @@ export function KnowledgeReviewsPanel({
             <div className="flex-shrink-0 border-t border-[#DFE5ED] p-4">
               {editingReviewId && (
                 <div className="mb-2 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
-                  <Pencil size={12} />
+                  <SquarePen size={12} />
                   Editing review
                   <button
                     onClick={() => {

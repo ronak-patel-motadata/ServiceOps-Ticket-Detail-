@@ -1,4 +1,4 @@
-import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown , Trash2 , Pencil, ChevronsUpDown } from 'lucide-react';
+import { X, Lock, ChevronDown, RefreshCw, TextCursorInput, Minimize2, Wand2, ChevronRight, Briefcase, Heart, Zap, FileText, SmilePlus, MessageSquare, Search, ArrowUpDown , Trash2 , SquarePen, ChevronsUpDown } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions } from './EditorToolbar';
 import { useState, useRef, useEffect, Fragment } from 'react';
@@ -353,7 +353,7 @@ export function CommentThreadPanel({ comments, onAddComment, onUpdateComment, on
           {/* Editing indicator — makes the mode obvious and gives a way back out */}
           {editingCommentId !== null && (
             <div className="mb-2 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
-              <Pencil size={12} />
+              <SquarePen size={12} />
               Editing comment
               <button
                 onClick={() => {
