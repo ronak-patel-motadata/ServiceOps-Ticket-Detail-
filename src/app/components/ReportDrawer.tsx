@@ -43,7 +43,8 @@ import type { Patch } from './PatchesListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, Cell, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { LineChart as LineChartIcon, BarChart3 as ColumnChartIcon, BarChartHorizontal as BarChartIcon, PieChart as PieChartIcon } from 'lucide-react';
 import { CopyableEmails } from './CopyableEmails';
 import { HeaderCopyButton } from './HeaderCopyButton';
 import { HeaderIdPill } from './HeaderIdPill';
@@ -703,6 +704,805 @@ function TfMonth({ base, start, end, onPick, nav, onNav }: { base: Date; start: 
   );
 }
 
+/* Tabular report view — requests handled per TECHNICIAN over the report's window (one line
+   each, legend at the foot), then the result grid whose assignees are those technicians. */
+const TAB_WEEKS = ['Jul 06', 'Jul 13', 'Jul 20', 'Jul 27', 'Aug 03'];
+const TAB_TECHS = [
+  { name: 'Sarah Johnson', color: '#3D8BD0', values: [12, 10, 14, 11, 13] },
+  { name: 'Rakesh Rathod', color: '#8B5CF6', values: [9, 11, 8, 12, 10] },
+  { name: 'Vikram Sethi', color: '#22A06B', values: [7, 8, 10, 9, 11] },
+  { name: 'Priya Nair', color: '#F59E0B', values: [8, 6, 9, 7, 8] },
+  { name: 'Neha Raje', color: '#EF4444', values: [5, 7, 6, 8, 6] },
+  { name: 'Karan Malhotra', color: '#0EA5E9', values: [6, 5, 7, 5, 7] },
+  { name: 'Rosy Fernandes', color: '#EC4899', values: [4, 6, 5, 6, 5] },
+  { name: 'Tabrez Khan', color: '#14B8A6', values: [5, 4, 4, 5, 6] },
+  { name: 'Michael Chen', color: '#64748B', values: [3, 4, 5, 4, 4] },
+];
+const TAB_CHART_DATA = TAB_WEEKS.map((week, i) => Object.fromEntries([['week', week], ...TAB_TECHS.map((t) => [t.name, t.values[i]])]));
+/* Query report view — a raw SLA-breach query over requests: one wide flat grid with
+   breach status, which SLA got breached and the breach durations. */
+interface QueryRow { id: string; category: string; requester: string; created: string; age: string; assignee: string; status: string; frt: string; rt: string; breach: string; which: string; bFR: string; bRes: string }
+const q = (id: string, category: string, requester: string, created: string, age: string, assignee: string, status: string, frt: string, rt: string, breach: string, which: string, bFR: string, bRes: string): QueryRow =>
+  ({ id, category, requester, created, age, assignee, status, frt, rt, breach, which, bFR, bRes });
+const NB = 'Not Breached';
+const RRB = 'Response & Resolution Breached';
+const QUERY_ROWS: QueryRow[] = [
+  q('INC-4221', '---', 'Jay Vegda', 'Thu, Aug 20, 2026 10:04 AM', '1 day(s) 8 hours 40 mins', 'Sarah Johnson', 'Open', '-', '-', NB, '-', '-', '-'),
+  q('REQ-4219', '---', 'Priya Mehta', 'Wed, Aug 19, 2026 07:07 PM', '1 day(s) 23 hours 36 mins', 'Rosy Fernandes', 'Open', '19:31:16', '-', NB, '-', '-', '-'),
+  q('INC-4217', 'Software', 'Kavit Gohel', 'Mon, Aug 17, 2026 12:30 PM', '4 day(s) 6 hours 13 mins', 'Michael Chen', 'Closed', '11:55:31', '3d 2hr 26min 54sec', NB, '-', '-', '-'),
+  q('INC-4214', '---', 'Dharti Panchal', 'Thu, Aug 13, 2026 01:46 PM', '8 day(s) 4 hours 57 mins', 'Navin Gadhvi', 'Open', '-', '-', RRB, 'Response & Resolution', '100:57:34', '76:57:34'),
+  q('INC-4211', '---', 'Ashini Perera', 'Wed, Aug 12, 2026 02:47 PM', '9 day(s) 3 hours 56 mins', '---', 'Open', '-', '-', RRB, 'Response & Resolution', '123:56:21', '99:56:21'),
+  q('INC-4208', 'Hardware', 'Kavit Gohel', 'Mon, Aug 10, 2026 02:07 AM', '11 day(s) 4 hours 37 mins', '---', 'Open', '-', '-', RRB, 'Response & Resolution', '268:22:12', '264:37:12'),
+  q('INC-4206', 'Windows', 'Kavit Gohel', 'Mon, Aug 10, 2026 02:04 AM', '11 day(s) 4 hours 39 mins', '---', 'Open', '-', '-', RRB, 'Response & Resolution', '268:24:47', '264:39:47'),
+  q('REQ-4203', '---', 'Jainam Shah', 'Sun, Aug 09, 2026 02:56 AM', '12 day(s) 3 hours 47 mins', '---', 'Open', '-', '-', RRB, 'Response & Resolution', '280:44:13', '240:44:13'),
+  q('INC-4198', '---', 'Tabrez Khan', 'Tue, Aug 04, 2026 04:43 AM', '17 day(s) 2 hours 0 mins', 'Karan Malhotra', 'Closed', '22:51:14', '23hr 38min 18sec', NB, '-', '-', '-'),
+  q('REQ-4196', '---', 'Uddhav Joshi', 'Tue, Aug 04, 2026 02:56 AM', '17 day(s) 3 hours 47 mins', 'Vikram Sethi', 'Closed', '-', '19hr 41min 26sec', NB, '-', '-', '-'),
+  q('INC-4191', '---', 'Jainam Shah', 'Mon, Aug 03, 2026 05:29 AM', '18 day(s) 1 hours 15 mins', 'Neha Raje', 'Closed', '-', '1d 22hr 52min 34sec', RRB, 'Response & Resolution', '433:0:1', '0:0:0'),
+  q('REQ-4188', '---', 'Darshak Modi', 'Fri, Jul 31, 2026 12:29 PM', '21 day(s) 6 hours 14 mins', 'Sarah Johnson', 'Closed', '-', '5d 3hr 52min 26sec', RRB, 'Response & Resolution', '414:14:53', '0:0:0'),
+  q('REQ-4186', '---', 'Thanushree', 'Fri, Jul 31, 2026 12:09 PM', '21 day(s) 6 hours 34 mins', 'Priya Nair', 'Closed', '-', '5d 4hr 12min 18sec', RRB, 'Response & Resolution', '414:34:46', '0:0:0'),
+  q('INC-4184', '---', 'Farhan Qureshi', 'Fri, Jul 31, 2026 11:41 AM', '21 day(s) 7 hours 3 mins', 'Rakesh Rathod', 'Closed', '-', '5d 4hr 40min 36sec', RRB, 'Response & Resolution', '415:3:4', '0:0:0'),
+  q('REQ-4182', '---', 'Samadhi Perera', 'Fri, Jul 31, 2026 11:04 AM', '21 day(s) 7 hours 39 mins', 'Michael Chen', 'Closed', '-', '5d 5hr 17min 21sec', RRB, 'Response & Resolution', '415:39:51', '0:0:0'),
+  q('REQ-4181', '---', 'Aman Rathod', 'Fri, Jul 31, 2026 10:11 AM', '21 day(s) 8 hours 32 mins', 'Rosy Fernandes', 'Closed', '-', '5d 6hr 10min 19sec', RRB, 'Response & Resolution', '416:32:50', '0:0:0'),
+  q('INC-4179', '---', 'No Reply', 'Fri, Jul 31, 2026 09:36 AM', '21 day(s) 9 hours 7 mins', 'Karan Malhotra', 'Closed', '-', '5d 6hr 45min 21sec', RRB, 'Response & Resolution', '417:7:51', '0:0:0'),
+  q('REQ-4178', '---', 'Rohit Kulkarni', 'Fri, Jul 31, 2026 06:22 AM', '21 day(s) 12 hours 21 mins', 'Neha Raje', 'Closed', '-', '5d 9hr 59min 20sec', RRB, 'Response & Resolution', '420:21:52', '0:0:0'),
+  q('INC-4177', '---', 'Meera Iyer', 'Fri, Jul 31, 2026 05:03 AM', '21 day(s) 13 hours 40 mins', 'Vikram Sethi', 'Closed', '-', '5d 11hr 18min 20sec', RRB, 'Response & Resolution', '421:40:53', '0:0:0'),
+  q('REQ-4175', '---', 'Adedayo Osilaja', 'Thu, Jul 30, 2026 04:56 PM', '22 day(s) 1 hours 47 mins', 'Sarah Johnson', 'Closed', '-', '5d 23hr 25min 15sec', RRB, 'Response & Resolution', '433:47:48', '0:0:0'),
+  q('INC-4174', '---', 'Hammed Babatunde', 'Thu, Jul 30, 2026 03:00 PM', '22 day(s) 3 hours 43 mins', 'Priya Nair', 'Closed', '-', '6d 1hr 21min 11sec', RRB, 'Response & Resolution', '435:43:44', '0:0:0'),
+  q('REQ-4172', '---', 'Samadhi Perera', 'Thu, Jul 30, 2026 11:53 AM', '22 day(s) 6 hours 50 mins', 'Michael Chen', 'Closed', '-', '6d 4hr 28min 16sec', RRB, 'Response & Resolution', '438:50:52', '0:0:0'),
+  q('INC-4170', 'Network', 'No Reply', 'Thu, Jul 30, 2026 09:36 AM', '22 day(s) 9 hours 7 mins', 'Tabrez Khan', 'Closed', '-', '6d 6hr 45min 16sec', RRB, 'Response & Resolution', '441:7:53', '0:0:0'),
+  q('INC-4168', '---', 'Ramkumar', 'Wed, Jul 29, 2026 10:30 AM', '23 day(s) 8 hours 13 mins', 'Rakesh Rathod', 'Closed', '0:3:47', '7d 5hr 51min 10sec', 'Resolution Breached', 'Resolution', '-', '29:51:10'),
+  q('REQ-4166', '---', 'Keertan Zala', 'Wed, Jul 29, 2026 07:21 AM', '23 day(s) 11 hours 23 mins', 'Neha Raje', 'Closed', '-', '7d 9hr 0min 16sec', RRB, 'Response & Resolution', '467:23:2', '0:0:0'),
+];
+
+function QueryReportView() {
+  const dim = (x: string) => (x === '-' || x === '---' || x === '0:0:0' ? 'text-[#B6C2D1]' : '');
+  const breachClr = (b: string) =>
+    b === NB ? 'text-[#22A06B]' : b === 'Resolution Breached' ? 'font-medium text-[#F59E0B]' : 'font-medium text-[#EF4444]';
+  const th = 'px-3 py-2 text-left text-[12px] font-medium text-[#64748B] whitespace-nowrap';
+  const td = 'px-3 py-2 text-[12px] text-[#364658] whitespace-nowrap';
+  return (
+    <div className="px-6 py-6 space-y-4">
+      <div>
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">Description</div>
+        <p className="text-[13px] leading-relaxed text-[#64748B]">Custom query over requests in the reporting window — request age, first response and resolution times, and which SLA (if any) was breached with the breach durations.</p>
+      </div>
+      <div className="rounded-lg border border-[#E5E7EB] bg-white">
+        <div className="border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[12px] font-semibold text-[#364658]">SLA Breach Query</div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[2080px] text-[12px]">
+            <thead>
+              <tr className="border-b border-[#EEF1F4]">
+                {['Ticket ID', 'Category', 'Requester', 'Created Date', 'Request Age', 'Assignee', 'Status', 'First Response Time', 'Resolution Time', 'SLA Breach Status', 'If Breached Then Status', 'Which SLA Got Breached', 'Breach Time First Response', 'Breach Time Resolution'].map((h) => <th key={h} className={th}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F3F5F8]">
+              {QUERY_ROWS.map((r) => (
+                <tr key={r.id} className="hover:bg-[#FAFBFC]">
+                  <td className={td}><span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{r.id}</span></td>
+                  <td className={`${td} ${dim(r.category)}`}>{r.category}</td>
+                  <td className={td}>{r.requester}</td>
+                  <td className={td}>{r.created}</td>
+                  <td className={td}>{r.age}</td>
+                  <td className={`${td} ${dim(r.assignee)}`}>{r.assignee}</td>
+                  <td className={td}><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: r.status === 'Open' ? '#3D8BD0' : '#94A3B8' }} />{r.status}</span></td>
+                  <td className={`${td} ${dim(r.frt)}`}>{r.frt}</td>
+                  <td className={`${td} ${dim(r.rt)}`}>{r.rt}</td>
+                  <td className={`${td} ${breachClr(r.breach)}`}>{r.breach}</td>
+                  <td className={`${td} ${r.breach === NB ? 'text-[#64748B]' : 'font-semibold text-[#EF4444]'}`}>{r.breach === NB ? 'No' : 'Yes'}</td>
+                  <td className={`${td} ${dim(r.which)}`}>{r.which}</td>
+                  <td className={`${td} ${dim(r.bFR)}`}>{r.bFR}</td>
+                  <td className={`${td} ${dim(r.bRes)}`}>{r.bRes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-[#E5E7EB] px-3 py-2.5 text-[12px] text-[#7B8FA5]">
+          <span>{QUERY_ROWS.length} requests · {QUERY_ROWS.filter((r) => r.breach !== NB).length} with an SLA breach</span>
+          <span>Query: requests created in the last 30 days</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+/* Plugin report view — the equipment-uptime plugin output: one flat grid of asset
+   categories with unit counts, downtime and the achieved SLA percentage. Time columns
+   are DERIVED (720 h per unit per month) so the arithmetic always holds up. */
+const PLUGIN_ROWS: { type: string; category: string; units: number; downtime: number }[] = [
+  { type: 'IT Assets', category: 'Rack Servers', units: 14, downtime: 6 },
+  { type: 'IT Assets', category: 'Blade Servers', units: 8, downtime: 0 },
+  { type: 'IT Assets', category: 'Storage Arrays', units: 4, downtime: 2 },
+  { type: 'IT Assets', category: 'Core Switches', units: 6, downtime: 0 },
+  { type: 'IT Assets', category: 'Access Switches', units: 32, downtime: 18 },
+  { type: 'IT Assets', category: 'Routers', units: 5, downtime: 3 },
+  { type: 'IT Assets', category: 'Firewalls', units: 4, downtime: 0 },
+  { type: 'IT Assets', category: 'Load Balancers', units: 2, downtime: 0 },
+  { type: 'IT Assets', category: 'Wireless Access Points', units: 46, downtime: 52 },
+  { type: 'IT Assets', category: 'Desktops', units: 120, downtime: 210 },
+  { type: 'IT Assets', category: 'Laptops', units: 185, downtime: 96 },
+  { type: 'IT Assets', category: 'Thin Clients', units: 24, downtime: 12 },
+  { type: 'IT Assets', category: 'Network Printers', units: 18, downtime: 74 },
+  { type: 'IT Assets', category: 'IP Phones', units: 96, downtime: 8 },
+  { type: 'IT Assets', category: 'CCTV NVR Servers', units: 3, downtime: 15 },
+  { type: 'Non IT Assets', category: 'UPS Systems', units: 6, downtime: 4 },
+  { type: 'Non IT Assets', category: 'Diesel Generators', units: 2, downtime: 0 },
+  { type: 'Non IT Assets', category: 'Precision AC Units', units: 8, downtime: 36 },
+  { type: 'Non IT Assets', category: 'CCTV Cameras', units: 64, downtime: 88 },
+  { type: 'Non IT Assets', category: 'Biometric Attendance Readers', units: 12, downtime: 9 },
+  { type: 'Non IT Assets', category: 'Access Control Doors', units: 22, downtime: 5 },
+  { type: 'Non IT Assets', category: 'Conference Room Projectors', units: 10, downtime: 26 },
+  { type: 'Non IT Assets', category: 'Digital Signage Displays', units: 7, downtime: 11 },
+];
+
+function PluginReportView() {
+  const HOURS_PER_UNIT = 720; // 30-day reporting month
+  const rows = PLUGIN_ROWS.map((r) => {
+    const avail = r.units * HOURS_PER_UNIT;
+    const achieved = avail - r.downtime;
+    const pct = (achieved / avail) * 100;
+    const nonFunctional = r.downtime > 0 ? Math.max(1, Math.round(r.downtime / HOURS_PER_UNIT)) : 0;
+    return { ...r, avail, achieved, pct, functional: r.units - nonFunctional, nonFunctional };
+  });
+  const pctClr = (p: number) => (p < 95 ? 'font-semibold text-[#EF4444]' : p < 99 ? 'font-semibold text-[#F59E0B]' : 'text-[#364658]');
+  const th = 'px-3 py-2 text-left text-[12px] font-medium text-[#64748B] whitespace-nowrap';
+  const td = 'px-3 py-2 text-[12px] text-[#364658] whitespace-nowrap';
+  return (
+    <div className="px-6 py-6 space-y-4">
+      <div>
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">Description</div>
+        <p className="text-[13px] leading-relaxed text-[#64748B]">Equipment availability for the reporting month — unit counts, functional state, downtime and the achieved uptime SLA per asset category.</p>
+      </div>
+      <div className="rounded-lg border border-[#E5E7EB] bg-white">
+        <div className="border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[12px] font-semibold text-[#364658]">Equipment Uptime</div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1280px] text-[12px]">
+            <thead>
+              <tr className="border-b border-[#EEF1F4]">
+                {['Sr No.', 'Equipment Type', 'Asset Category', 'Total Units', 'Functional', 'Non-Functional', 'Total Available Time (in hours)', 'Downtime (in hours)', 'Achieved Uptime (in hours)', 'SLA Percentage'].map((h) => <th key={h} className={th}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F3F5F8]">
+              {rows.map((r, i) => (
+                <tr key={r.category} className="hover:bg-[#FAFBFC]">
+                  <td className={td}>{i + 1}</td>
+                  <td className={td}>{r.type}</td>
+                  <td className={`${td} font-medium text-[#3D8BD0]`}>{r.category}</td>
+                  <td className={td}>{r.units}</td>
+                  <td className={td}>{r.functional}</td>
+                  <td className={`${td} ${r.nonFunctional > 0 ? 'font-semibold text-[#EF4444]' : 'text-[#B6C2D1]'}`}>{r.nonFunctional}</td>
+                  <td className={td}>{r.avail.toLocaleString()}</td>
+                  <td className={`${td} ${r.downtime > 0 ? '' : 'text-[#B6C2D1]'}`}>{r.downtime}</td>
+                  <td className={td}>{r.achieved.toLocaleString()}</td>
+                  <td className={`${td} ${pctClr(r.pct)}`}>{r.pct.toFixed(2)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-[#E5E7EB] px-3 py-2.5 text-[12px] text-[#7B8FA5]">
+          <span>{rows.length} asset categories · {rows.reduce((n, r) => n + r.units, 0).toLocaleString()} units</span>
+          <span>Reporting month: 720 hours per unit</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+/* Summary report view — per-REQUEST sections. The raw export repeats the request title for
+   every sub-table; here each request appears ONCE, holding its Task Details and SLA History
+   tables together. */
+interface SumTask { id: string; subject: string; assignee: string; status: string; desc: string; start: string; end: string; type: string; priority: string }
+interface SumSla { name: string; target: string; status: string; updatedBy: string; elapsed: string; pct: string; overdue: boolean; start: string; lastPause: string; stop: string; breached: string; updates: number }
+const SUMMARY_REQUESTS: { id: string; subject: string; tasks?: SumTask[]; sla?: SumSla[] }[] = [
+  {
+    id: 'INC-4176', subject: 'Suspicious phishing email reported by Finance users',
+    tasks: [{ id: 'TA-7650', subject: 'Phishing triage follow-up', assignee: '---', status: 'Open', desc: 'Quarantine review', start: 'Thu, Aug 20, 2026 05:10 PM', end: '---', type: 'Implementation', priority: 'Medium' }],
+    sla: [
+      { name: 'Copy of db', target: 'Resolution', status: 'achieved', updatedBy: 'Visnu24', elapsed: '3 d 02 h 26 min', pct: '62.04%', overdue: false, start: 'Mon, Aug 17, 2026', lastPause: 'Thu, Aug 20, 2026', stop: 'Thu, Aug 20, 2026', breached: '---', updates: 2 },
+      { name: 'Copy of db', target: 'First Response', status: 'achieved', updatedBy: 'Visnu24', elapsed: '11 h 55 min', pct: '12.42%', overdue: false, start: 'Mon, Aug 17, 2026', lastPause: 'Thu, Aug 20, 2026', stop: 'Tue, Aug 18, 2026', breached: '---', updates: 2 },
+    ],
+  },
+  {
+    id: 'INC-4183', subject: 'Outlook mailbox not syncing after tenant migration',
+    sla: [
+      { name: 'Copy of db', target: 'Resolution', status: 'achieved', updatedBy: 'motadatauser', elapsed: '23 h 38 min', pct: '19.7%', overdue: false, start: 'Tue, Aug 04, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '---', updates: 2 },
+      { name: 'Copy of db', target: 'First Response', status: 'achieved', updatedBy: 'motadatauser', elapsed: '22 h 05 min', pct: '23.01%', overdue: false, start: 'Tue, Aug 04, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '---', updates: 2 },
+    ],
+  },
+  {
+    id: 'REQ-4188', subject: 'UAT environment access for billing regression run',
+    tasks: [{ id: 'TA-7633', subject: 'Case repro script', assignee: '---', status: 'Open', desc: '---', start: 'Sat, Aug 01, 2026 10:30 AM', end: '---', type: 'Implementation', priority: 'Medium' }],
+    sla: [
+      { name: 'Copy of db', target: 'Resolution', status: 'achieved', updatedBy: 'Jay Vegda', elapsed: '19 h 41 min', pct: '16.41%', overdue: false, start: 'Tue, Aug 04, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '---', updates: 2 },
+      { name: 'Copy of db', target: 'First Response', status: 'achieved', updatedBy: 'Jay Vegda', elapsed: '19 h 41 min', pct: '20.51%', overdue: false, start: 'Tue, Aug 04, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '---', updates: 2 },
+    ],
+  },
+  {
+    id: 'INC-4191', subject: 'FW: Undeliverable: Invoice batch 2298 — delivery status notification (failure)',
+    sla: [
+      { name: 'Copy of db', target: 'Resolution', status: 'canceled', updatedBy: 'System', elapsed: '---', pct: '16.37%', overdue: false, start: 'Mon, Aug 03, 2026', lastPause: '---', stop: 'Tue, Aug 04, 2026', breached: '---', updates: 1 },
+      { name: 'Copy of db', target: 'First Response', status: 'canceled', updatedBy: 'System', elapsed: '---', pct: '20.47%', overdue: false, start: 'Mon, Aug 03, 2026', lastPause: '---', stop: 'Tue, Aug 04, 2026', breached: '---', updates: 1 },
+      { name: 'Urgent Priority SLA', target: 'Resolution', status: 'achieved', updatedBy: 'motadatauser', elapsed: '1 d 22 h 52 min', pct: '1171.91%', overdue: true, start: 'Mon, Aug 03, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '1 d 18 h 52 min', updates: 2 },
+      { name: 'Urgent Priority SLA', target: 'First Response', status: 'achieved', updatedBy: 'motadatauser', elapsed: '1 d 22 h 52 min', pct: '18750.54%', overdue: true, start: 'Mon, Aug 03, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '1 d 22 h 37 min', updates: 2 },
+    ],
+  },
+  {
+    id: 'REQ-4204', subject: 'Onboarding — IT setup for new hire (14 Aug batch)',
+    tasks: [
+      { id: 'TA-7288', subject: 'IT - Acquire Laptop', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 12:29 PM', end: 'Fri, Jul 31, 2026 04:29 PM', type: 'Install/Uninstall', priority: 'Medium' },
+      { id: 'TA-7289', subject: 'Admin - Inform Division Heads', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 12:29 PM', end: 'Fri, Jul 31, 2026 04:29 PM', type: 'Implementation', priority: 'Medium' },
+    ],
+  },
+  {
+    id: 'REQ-4212', subject: 'Employee onboarding checklist — Support & Delivery teams',
+    tasks: [
+      { id: 'TA-7254', subject: 'IT - Acquire Laptop', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: 'Fri, Jul 31, 2026 02:11 PM', type: 'Install/Uninstall', priority: 'Medium' },
+      { id: 'TA-7255', subject: 'Admin - Inform Division Heads', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: 'Fri, Jul 31, 2026 02:11 PM', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7256', subject: 'Admin - Followup with HR', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'High' },
+      { id: 'TA-7257', subject: 'Admin - Confirmation from Finance', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7258', subject: 'IT - Create Email ID and Accounts', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7259', subject: 'IT - Laptop Readiness', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7260', subject: 'Admin - Workstation Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7261', subject: 'Admin - Order Lunch', assignee: 'Ashish', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7262', subject: 'Admin - Documents Collection', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7263', subject: 'Admin - Joining Kit Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7264', subject: 'IT - Laptop Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'High' },
+      { id: 'TA-7265', subject: 'IT - Assets Availability', assignee: 'Mahak Goyal', status: 'Open', desc: 'Kindly, check the availability', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7266', subject: 'Regression sanity pass', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7267', subject: 'Hourly sync validation', assignee: '---', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7268', subject: 'Minute-level SLA check', assignee: '---', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7269', subject: 'Escalation dry run', assignee: '---', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: 'Fri, Jul 31, 2026 01:31 PM', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7270', subject: 'Test Task - API Capture', assignee: '---', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 10:11 AM', end: '---', type: 'Implementation', priority: 'High' },
+    ],
+    sla: [
+      { name: 'Copy of db', target: 'Resolution', status: 'achieved', updatedBy: 'motadatauser', elapsed: '5 d 06 h 10 min', pct: '105.14%', overdue: true, start: 'Fri, Jul 31, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '06 h 10 min', updates: 3 },
+      { name: 'Copy of db', target: 'First Response', status: 'achieved', updatedBy: 'motadatauser', elapsed: '5 d 06 h 10 min', pct: '131.43%', overdue: true, start: 'Fri, Jul 31, 2026', lastPause: 'Wed, Aug 05, 2026', stop: 'Wed, Aug 05, 2026', breached: '1 d 06 h 10 min', updates: 3 },
+    ],
+  },
+  {
+    id: 'REQ-4218', subject: 'Employee onboarding checklist — NOC shift hires',
+    tasks: [
+      { id: 'TA-7237', subject: 'IT - Acquire Laptop', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: 'Fri, Jul 31, 2026 01:36 PM', type: 'Install/Uninstall', priority: 'Medium' },
+      { id: 'TA-7238', subject: 'Admin - Inform Division Heads', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: 'Fri, Jul 31, 2026 01:36 PM', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7239', subject: 'Admin - Followup with HR', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: '---', type: 'Implementation', priority: 'High' },
+      { id: 'TA-7240', subject: 'Admin - Confirmation from Finance', assignee: 'Ashish', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7241', subject: 'IT - Create Email ID and Accounts', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7242', subject: 'IT - Laptop Readiness', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7243', subject: 'Admin - Workstation Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'P1' },
+      { id: 'TA-7244', subject: 'Admin - Order Lunch', assignee: 'Ashish', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7245', subject: 'Admin - Documents Collection', assignee: 'Mahak Goyal', status: 'Open', desc: '---', start: 'Fri, Jul 31, 2026 09:36 AM', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7246', subject: 'Admin - Joining Kit Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'Medium' },
+      { id: 'TA-7247', subject: 'IT - Laptop Allocation', assignee: 'Mahak Goyal', status: 'Not Started', desc: '---', start: '---', end: '---', type: 'Implementation', priority: 'High' },
+    ],
+  },
+];
+
+function SummaryReportView() {
+  const dim = (x: string | number) => (x === '---' || x === 0 ? 'text-[#B6C2D1]' : '');
+  const statusDot = (st: string) =>
+    /achieved/i.test(st) ? '#22A06B' : /open/i.test(st) ? '#3D8BD0' : /canceled/i.test(st) ? '#94A3B8' : '#CBD5E1';
+  const prioClr = (p: string) =>
+    p === 'P1' ? 'text-[#EF4444]' : p === 'High' ? 'text-[#F59E0B]' : 'text-[#364658]';
+  const th = 'px-3 py-2 text-left text-[12px] font-medium text-[#64748B] whitespace-nowrap';
+  const td = 'px-3 py-2 text-[12px] text-[#364658] whitespace-nowrap';
+  return (
+    <div className="px-6 py-6 space-y-4">
+      <div>
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">Description</div>
+        <p className="text-[13px] leading-relaxed text-[#64748B]">Task details and SLA history for every request in the reporting window — each request listed once, with both sections grouped under it.</p>
+      </div>
+      {SUMMARY_REQUESTS.map((req) => (
+        <div key={req.id} className="rounded-lg border border-[#E5E7EB] bg-white">
+          {/* ONE title per request — the export repeats it per sub-table; here the sections share it. */}
+          <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-4 py-3">
+            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0]">{req.id}</span>
+            <span className="truncate text-[14px] font-semibold text-[#364658]">{req.subject}</span>
+          </div>
+          {req.tasks && (
+            <div>
+              <div className="border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[12px] font-semibold text-[#364658]">Task Details</div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1560px] text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#EEF1F4]">
+                      {['Sr No.', 'Task Id', 'Task Subject', 'Task Assignee', 'Task Status', 'Task Description', 'Task Start Date', 'Task End Date', 'Task Type', 'Task Priority', 'New Datetime', 'Env', 'Test Date', 'Product Family', 'Qty'].map((h) => <th key={h} className={th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F3F5F8]">
+                    {req.tasks.map((t, i) => (
+                      <tr key={t.id} className="hover:bg-[#FAFBFC]">
+                        <td className={td}>{i + 1}</td>
+                        <td className={td}><span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span></td>
+                        <td className={td}>{t.subject}</td>
+                        <td className={`${td} ${dim(t.assignee)}`}>{t.assignee}</td>
+                        <td className={td}><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: statusDot(t.status) }} />{t.status}</span></td>
+                        <td className={`${td} ${dim(t.desc)}`}>{t.desc}</td>
+                        <td className={`${td} ${dim(t.start)}`}>{t.start}</td>
+                        <td className={`${td} ${dim(t.end)}`}>{t.end}</td>
+                        <td className={td}>{t.type}</td>
+                        <td className={`${td} ${prioClr(t.priority)}`}>{t.priority}</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} text-[#B6C2D1]`}>0</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {req.sla && (
+            <div className={req.tasks ? 'border-t border-[#EEF1F4]' : undefined}>
+              <div className="border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[12px] font-semibold text-[#364658]">SLA History</div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1920px] text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#EEF1F4]">
+                      {['Sr No.', 'Name', 'Type', 'Target', 'Status', 'Updated By', 'Elapsed Time', 'Due In', 'SLA Percentage', 'Overdue', 'Start Time', 'Last Pause Time', 'Stop Time', 'Pause Duration', 'Breached Duration', 'Technician Group', 'Operational Hours', 'Update Count', 'Penalty Amount'].map((h) => <th key={h} className={th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F3F5F8]">
+                    {req.sla.map((r, i) => (
+                      <tr key={i} className="hover:bg-[#FAFBFC]">
+                        <td className={td}>{i + 1}</td>
+                        <td className={`${td} font-medium text-[#3D8BD0]`}>{r.name}</td>
+                        <td className={td}>SLA</td>
+                        <td className={td}>{r.target}</td>
+                        <td className={td}><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ backgroundColor: statusDot(r.status) }} />{r.status}</span></td>
+                        <td className={td}>{r.updatedBy}</td>
+                        <td className={`${td} ${dim(r.elapsed)}`}>{r.elapsed}</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} ${parseFloat(r.pct) > 100 ? 'font-semibold text-[#EF4444]' : ''}`}>{r.pct}</td>
+                        <td className={`${td} ${r.overdue ? 'font-semibold text-[#EF4444]' : 'text-[#64748B]'}`}>{r.overdue ? 'Yes' : 'No'}</td>
+                        <td className={td}>{r.start}</td>
+                        <td className={`${td} ${dim(r.lastPause)}`}>{r.lastPause}</td>
+                        <td className={`${td} ${dim(r.stop)}`}>{r.stop}</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={`${td} ${dim(r.breached)}`}>{r.breached}</td>
+                        <td className={`${td} text-[#B6C2D1]`}>---</td>
+                        <td className={td}>Calendar Hours</td>
+                        <td className={td}>{r.updates}</td>
+                        <td className={`${td} text-[#B6C2D1]`}>0</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <div className="h-2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+/* Matrix report view — the 'Resolved Requests Summary by Technician' pivot: assignees as
+   rows, a grouped Status / Resolution Status / FCR / Resolution Time column band, a Total
+   row, and the small per-status Total trend the exported PDF leads with. */
+const MATRIX_STATUSES = ['Open', 'Out of Technical support', 'On Hold', 'Resolved', 'Closed', 'Pending with eBMS', 'Pending from Users', 'Resolved by eBMS', 'Resolved by ERP Team', 'Commercial Confirmation Pending', 'Approval Pending', 'Lassi', 'API', 'Rx from branch'];
+const mz = (name: string): { name: string; v: number[] } => ({ name, v: Array(18).fill(0) });
+const MATRIX_ROWS: { name: string; v: number[] }[] = [
+  { name: 'Kavit Gohel', v: [3, 0, 1, 4, 6, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 8, 5, 18.25] },
+  { name: 'vaibhav prajapati', v: [2, 0, 0, 3, 4, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 6, 3, 22.1] },
+  { name: 'Tabrez', v: [1, 0, 0, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 4, 9.8] },
+  { name: 'Udit', v: [0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 31.5] },
+  { name: 'Navin Gadhvi', v: [4, 0, 1, 5, 7, 0, 1, 0, 1, 0, 0, 0, 0, 0, 3, 10, 6, 15.75] },
+  mz('naitik'),
+  { name: 'Sridhar', v: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 6.4] },
+  { name: 'Abhishek Tiwari', v: [2, 1, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 2, 27.9] },
+  mz('Ryan'),
+  { name: 'Jay Vegda', v: [1, 0, 0, 2, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 2, 12.6] },
+  { name: 'Rakesh Rathod', v: [5, 0, 2, 6, 9, 1, 1, 0, 0, 1, 0, 0, 0, 0, 4, 12, 8, 19.35] },
+  { name: 'Cinta Viana Ramadanti', v: [1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 44.2] },
+  mz('Srinivasan Narayana'),
+  { name: 'Prashant', v: [2, 0, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 3, 25.1] },
+  { name: 'Samuel Githugu', v: [3, 0, 1, 4, 5, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5, 11.45] },
+  { name: 'Rajasekar R', v: [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 52] },
+  mz('sahil'),
+  { name: 'Hetal Mori', v: [2, 0, 0, 3, 5, 0, 1, 0, 0, 0, 0, 0, 0, 1, 2, 6, 4, 16.8] },
+  { name: 'Ajay Kumar Rai', v: [1, 0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 2, 29.6] },
+  { name: 'Darshak Modi', v: [2, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 8.9] },
+  { name: 'Dhaval Raval', v: [3, 1, 0, 4, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 8, 4, 21.3] },
+  { name: 'Ersin Sevinç', v: [1, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 4, 3, 13.7] },
+  { name: 'Nandini Patel', v: [0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 35.45] },
+  mz('Jainam'),
+  { name: 'George', v: [1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 7.2] },
+  { name: 'Ashish Garg', v: [2, 0, 1, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 3, 24.85] },
+  { name: 'Rohit Sharma', v: [1, 0, 0, 2, 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 4, 2, 41.15] },
+  mz('Praveen Kumar'),
+  { name: 'Imran Khan', v: [1, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 10.55] },
+  mz('Anwar'),
+  { name: 'Suraj Bakare', v: [2, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 4, 2, 33.7] },
+  { name: 'Arsh Kazi', v: [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 5.85] },
+  mz('Sunil Mundan'),
+  { name: 'Sairaj Mahadik', v: [1, 0, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 28.4] },
+  { name: 'Dinesh K', v: [1, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2, 14.95] },
+  { name: 'Al', v: [0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 2, 74.45] },
+  mz('Dhruv.Panpalia'),
+  { name: 'adlina', v: [1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 17.6] },
+  mz('syafiqah'),
+  { name: 'Unassigned', v: [6, 0, 1, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+];
+// Total row = column sums of the rows above, so grid, chart and donut always agree.
+const MATRIX_TOTAL: number[] = Array.from({ length: 18 }, (_, i) => Math.round(MATRIX_ROWS.reduce((n, r) => n + r.v[i], 0) * 100) / 100);
+// Resolution Time shows two decimals when set; every other column is a plain count.
+const fmtMatrixCell = (col: number, v: number) => (col === 17 && v > 0 ? v.toFixed(2) : String(v));
+
+function MatrixReportView() {
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'column' | 'pie'>('line');
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const CHART_TYPES = [
+    { id: 'line' as const, label: 'Line', icon: <LineChartIcon size={15} /> },
+    { id: 'bar' as const, label: 'Bar', icon: <BarChartIcon size={15} /> },
+    { id: 'column' as const, label: 'Column', icon: <ColumnChartIcon size={15} /> },
+    { id: 'pie' as const, label: 'Pie', icon: <PieChartIcon size={15} /> },
+  ];
+  const activeType = CHART_TYPES.find((t) => t.id === chartType)!;
+  const MATRIX_PALETTE = ['#3D8BD0', '#22A06B', '#F59E0B', '#EF4444', '#8B5CF6', '#0EA5E9', '#EC4899', '#14B8A6', '#64748B', '#F97316', '#84CC16', '#06B6D4', '#A855F7', '#E11D48'];
+  const rows = activeOnly ? MATRIX_ROWS.filter((r) => r.v.some((x) => x > 0)) : MATRIX_ROWS;
+  const chartData = MATRIX_STATUSES.map((st, i) => ({ status: st, Total: MATRIX_TOTAL[i] }));
+  const grand = chartData.reduce((n, d) => n + d.Total, 0);
+  const tipM = ({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) => {
+    if (!active || !payload?.length) return null;
+    const v = payload[0].value ?? 0;
+    return (
+      <div className="flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 shadow-md">
+        <span className="size-2 flex-shrink-0 rounded-full bg-[#14B8A6]" />
+        <span className="whitespace-nowrap text-[12px] text-[#364658]">{label}: <span className="font-semibold">{v}</span>{grand > 0 && <span className="text-[#94A3B8]"> ({Math.round((v / grand) * 1000) / 10}%)</span>}</span>
+      </div>
+    );
+  };
+  const tipP = ({ active, payload }: { active?: boolean; payload?: { payload?: { status?: string; color?: string }; value?: number }[] }) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0];
+    const v = p.value ?? 0;
+    return (
+      <div className="flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 shadow-md">
+        <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: p.payload?.color }} />
+        <span className="whitespace-nowrap text-[12px] text-[#364658]">{p.payload?.status}: <span className="font-semibold">{v}</span>{grand > 0 && <span className="text-[#94A3B8]"> ({Math.round((v / grand) * 1000) / 10}%)</span>}</span>
+      </div>
+    );
+  };
+  const pieData = chartData.filter((d) => d.Total > 0).map((d, i) => ({ ...d, color: MATRIX_PALETTE[MATRIX_STATUSES.indexOf(d.status) % MATRIX_PALETTE.length] ?? MATRIX_PALETTE[i] }));
+  const cell = (x: number) => (x > 0 ? 'font-semibold text-[#364658]' : 'text-[#B6C2D1]');
+  return (
+    <div className="px-6 py-6 space-y-4">
+      {/* Report description, above the chart card. */}
+      <div>
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">Description</div>
+        <p className="text-[13px] leading-relaxed text-[#64748B]">Statistics about on-time resolution, first contact resolution (requests which are resolved on first reply) and average resolved time for resolved requests by technician.</p>
+      </div>
+      {/* Report masthead + the per-status Total trend, as the exported report leads. */}
+      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-[15px] font-semibold text-[#364658]">Resolved Requests Summary by Technician Report</h3>
+          {/* Chart-type switcher — same recipe as the Tabular chart. */}
+          <div className="relative ml-auto">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowTypeMenu((v) => !v)}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${showTypeMenu ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA]'}`}
+                >
+                  {activeType.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Chart type</TooltipContent>
+            </Tooltip>
+            {showTypeMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowTypeMenu(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1 w-[150px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                  {CHART_TYPES.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setChartType(t.id); setShowTypeMenu(false); }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+                    >
+                      <span className="text-[#7B8FA5]">{t.icon}</span>
+                      <span className="flex-1">{t.label}</span>
+                      {chartType === t.id && <Check size={14} className="text-[#3D8BD0]" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="relative mt-3 h-[220px] w-full">
+          {/* Donut centre — the grand total. */}
+          {chartType === 'pie' && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[24px] font-bold leading-none text-[#364658]">{grand}</span>
+              <span className="mt-1 text-[12px] text-[#7B8FA5]">Total</span>
+            </div>
+          )}
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'line' ? (
+              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                <XAxis dataKey="status" interval={0} angle={-32} textAnchor="end" height={86} tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={{ stroke: '#E5E7EB' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RechartsTooltip content={tipM} cursor={{ stroke: '#CBD5E1', strokeDasharray: '3 3' }} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Total" stroke="#14B8A6" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: '#14B8A6' }} activeDot={{ r: 4 }} />
+              </LineChart>
+            ) : chartType === 'column' ? (
+              <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -16 }} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+                <XAxis dataKey="status" interval={0} angle={-32} textAnchor="end" height={86} tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={{ stroke: '#E5E7EB' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <RechartsTooltip content={tipM} cursor={{ fill: '#F5F7FA' }} isAnimationActive={false} />
+                <Bar dataKey="Total" fill="#14B8A6" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            ) : chartType === 'bar' ? (
+              <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 48 }} barCategoryGap="30%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#94A3B8' }} tickLine={false} axisLine={{ stroke: '#E5E7EB' }} allowDecimals={false} />
+                <YAxis type="category" dataKey="status" width={148} tick={{ fontSize: 10, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                <RechartsTooltip content={tipM} cursor={{ fill: '#F5F7FA' }} isAnimationActive={false} />
+                <Bar dataKey="Total" fill="#14B8A6" radius={[0, 3, 3, 0]} barSize={8} />
+              </BarChart>
+            ) : (
+              <PieChart margin={{ top: 4, right: 0, bottom: 4, left: 0 }}>
+                <RechartsTooltip content={tipP} isAnimationActive={false} />
+                <Pie
+                  data={pieData}
+                  dataKey="Total"
+                  nameKey="status"
+                  innerRadius={52}
+                  outerRadius={86}
+                  paddingAngle={2}
+                  strokeWidth={0}
+                  isAnimationActive={false}
+                >
+                  {pieData.map((d) => <Cell key={d.status} fill={d.color} />)}
+                </Pie>
+              </PieChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-t border-[#F0F2F5] pt-2">
+          {chartType === 'pie' ? (
+            pieData.map((d) => (
+              <span key={d.status} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]"><span className="h-[3px] w-4 rounded-full" style={{ backgroundColor: d.color }} />{d.status}</span>
+            ))
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]"><span className="h-[3px] w-4 rounded-full bg-[#14B8A6]" />Total</span>
+          )}
+        </div>
+      </div>
+      {/* The pivot itself */}
+      <div className="rounded-lg border border-[#E5E7EB] bg-white">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <h4 className="text-[13px] font-semibold text-[#364658]">Assignee summary</h4>
+          <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-[#64748B]">
+            <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} className="size-3.5 accent-[#3D8BD0]" />
+            Assignees with activity only
+          </label>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1720px] border-collapse text-[12px]">
+            <thead>
+              <tr className="bg-[#F8FAFC]">
+                <th rowSpan={2} className="sticky left-0 z-20 w-[190px] border border-[#EBEEF2] bg-[#F8FAFC] px-3 py-2 text-left font-semibold text-[#364658]">Assignee</th>
+                <th colSpan={14} className="border border-[#EBEEF2] px-3 py-2 text-center font-semibold text-[#364658]">Status</th>
+                <th colSpan={2} className="border border-[#EBEEF2] px-3 py-2 text-center font-semibold text-[#364658]">Resolution Status</th>
+                <th rowSpan={2} className="w-[96px] border border-[#EBEEF2] px-2 py-2 text-center font-medium text-[#64748B]">First Time Contact Resolution</th>
+                <th rowSpan={2} className="w-[96px] border border-[#EBEEF2] px-2 py-2 text-center font-medium text-[#64748B]">Resolution Time (Hrs)</th>
+              </tr>
+              <tr className="bg-[#F8FAFC]">
+                {MATRIX_STATUSES.map((st) => (
+                  <th key={st} className="min-w-[84px] border border-[#EBEEF2] px-2 py-2 text-center font-medium text-[#64748B]">{st}</th>
+                ))}
+                <th className="min-w-[84px] border border-[#EBEEF2] px-2 py-2 text-center font-medium text-[#64748B]">SLA Violated</th>
+                <th className="min-w-[84px] border border-[#EBEEF2] px-2 py-2 text-center font-medium text-[#64748B]">SLA Not Violated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.name} className="hover:bg-[#FAFBFC]">
+                  <td className="sticky left-0 z-10 border border-[#F0F2F5] bg-white px-3 py-1.5 font-medium text-[#364658]">{r.name}</td>
+                  {r.v.map((x, i) => (
+                    <td key={i} className={`border border-[#F0F2F5] px-2 py-1.5 text-center ${cell(x)}`}>{fmtMatrixCell(i, x)}</td>
+                  ))}
+                </tr>
+              ))}
+              <tr className="bg-[#F8FAFC]">
+                <td className="sticky left-0 z-10 border border-[#EBEEF2] bg-[#F8FAFC] px-3 py-2 font-semibold text-[#364658]">Total</td>
+                {MATRIX_TOTAL.map((x, i) => (
+                  <td key={i} className={`border border-[#EBEEF2] px-2 py-2 text-center font-semibold ${x > 0 ? 'text-[#364658]' : 'text-[#94A3B8]'}`}>{fmtMatrixCell(i, x)}</td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-[#E5E7EB] px-3 py-2.5 text-[12px] text-[#7B8FA5]">
+          <span>Showing {rows.length} of 412 assignees{activeOnly ? ' · zero-activity assignees hidden' : ''}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+function TabularTechChart() {
+  /* The chart type is switchable AFTER creation too — one icon button showing the ACTIVE
+     type; clicking lists the others (the create-flow options), a click swaps the view. */
+  const [chartType, setChartType] = useState<'line' | 'bar' | 'column' | 'pie'>('line');
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const CHART_TYPES = [
+    { id: 'line' as const, label: 'Line', icon: <LineChartIcon size={15} /> },
+    { id: 'bar' as const, label: 'Bar', icon: <BarChartIcon size={15} /> },
+    { id: 'column' as const, label: 'Column', icon: <ColumnChartIcon size={15} /> },
+    { id: 'pie' as const, label: 'Pie', icon: <PieChartIcon size={15} /> },
+  ];
+  const activeType = CHART_TYPES.find((t) => t.id === chartType)!;
+  const TOTALS = TAB_TECHS.map((t) => ({ name: t.name, Total: t.values.reduce((a, b) => a + b, 0), color: t.color }));
+  const tip = ({ active, payload, label }: { active?: boolean; payload?: { dataKey?: string | number; value?: number }[]; label?: string }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 shadow-md">
+        <div className="mb-1 text-[12px] font-semibold text-[#364658]">{label}</div>
+        <div className="space-y-0.5">
+          {TAB_TECHS.map((t) => {
+            const p = payload.find((x) => x.dataKey === t.name);
+            if (!p) return null;
+            return (
+              <div key={t.name} className="flex items-center gap-1.5 text-[12px]">
+                <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
+                <span className="text-[#64748B]">{t.name}:</span>
+                <span className="font-semibold text-[#364658]">{p.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  const tipTotal = ({ active, payload }: { active?: boolean; payload?: { payload?: { name?: string; color?: string }; value?: number }[] }) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0];
+    return (
+      <div className="flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 shadow-md">
+        <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: p.payload?.color }} />
+        <span className="whitespace-nowrap text-[12px] text-[#364658]">{p.payload?.name}: <span className="font-semibold">{p.value}</span></span>
+      </div>
+    );
+  };
+  const axis = { tick: { fontSize: 11, fill: '#94A3B8' }, tickLine: false } as const;
+  return (
+    <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="mb-2 flex items-center gap-2.5">
+        <h3 className="text-[14px] font-semibold text-[#364658]">Requests handled by technician</h3>
+        {/* Chart-type switcher — the button wears the ACTIVE type's icon. */}
+        <div className="relative ml-auto">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowTypeMenu((v) => !v)}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${showTypeMenu ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA]'}`}
+              >
+                {activeType.icon}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Chart type</TooltipContent>
+          </Tooltip>
+          {showTypeMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowTypeMenu(false)} />
+              <div className="absolute right-0 top-full z-50 mt-1 w-[150px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                {CHART_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setChartType(t.id); setShowTypeMenu(false); }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+                  >
+                    <span className="text-[#7B8FA5]">{t.icon}</span>
+                    <span className="flex-1">{t.label}</span>
+                    {chartType === t.id && <Check size={14} className="text-[#3D8BD0]" />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="relative h-[240px] w-full">
+        {/* Donut centre — the grand total, the dashboard treatment. */}
+        {chartType === 'pie' && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[26px] font-bold leading-none text-[#364658]">{TOTALS.reduce((n, t) => n + t.Total, 0)}</span>
+            <span className="mt-1 text-[12px] text-[#7B8FA5]">Total</span>
+          </div>
+        )}
+        <ResponsiveContainer width="100%" height="100%">
+          {chartType === 'line' ? (
+            <LineChart data={TAB_CHART_DATA} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+              <XAxis dataKey="week" {...axis} axisLine={{ stroke: '#E5E7EB' }} tickMargin={8} />
+              <YAxis {...axis} axisLine={false} allowDecimals={false} />
+              <RechartsTooltip content={tip} cursor={{ stroke: '#CBD5E1', strokeDasharray: '3 3' }} isAnimationActive={false} />
+              {TAB_TECHS.map((se) => (
+                <Line key={se.name} type="monotone" dataKey={se.name} stroke={se.color} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+              ))}
+            </LineChart>
+          ) : chartType === 'column' ? (
+            <BarChart data={TAB_CHART_DATA} margin={{ top: 8, right: 12, bottom: 0, left: -16 }} barCategoryGap="24%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" vertical={false} />
+              <XAxis dataKey="week" {...axis} axisLine={{ stroke: '#E5E7EB' }} tickMargin={8} />
+              <YAxis {...axis} axisLine={false} allowDecimals={false} />
+              <RechartsTooltip content={tip} cursor={{ fill: '#F5F7FA' }} isAnimationActive={false} />
+              {TAB_TECHS.map((se) => (
+                <Bar key={se.name} dataKey={se.name} fill={se.color} radius={[2, 2, 0, 0]} />
+              ))}
+            </BarChart>
+          ) : chartType === 'bar' ? (
+            <BarChart data={TOTALS} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 24 }} barCategoryGap="28%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F4" horizontal={false} />
+              <XAxis type="number" {...axis} axisLine={{ stroke: '#E5E7EB' }} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" width={104} {...axis} axisLine={false} />
+              <RechartsTooltip content={tipTotal} cursor={{ fill: '#F5F7FA' }} isAnimationActive={false} />
+              <Bar dataKey="Total" radius={[0, 3, 3, 0]} barSize={12}>
+                {TOTALS.map((t) => <Cell key={t.name} fill={t.color} />)}
+              </Bar>
+            </BarChart>
+          ) : (
+            <PieChart margin={{ top: 4, right: 0, bottom: 4, left: 0 }}>
+              <RechartsTooltip content={tipTotal} isAnimationActive={false} />
+              <Pie
+                data={TOTALS}
+                dataKey="Total"
+                nameKey="name"
+                innerRadius={58}
+                outerRadius={95}
+                paddingAngle={2}
+                strokeWidth={0}
+                isAnimationActive={false}
+              >
+                {TOTALS.map((t) => <Cell key={t.name} fill={t.color} />)}
+              </Pie>
+            </PieChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+      {/* Legend — at the foot; the horizontal Bar view names its rows on the axis instead. */}
+      {chartType !== 'bar' && (
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-t border-[#F0F2F5] pt-2.5">
+        {TAB_TECHS.map((se) => (
+          <span key={se.name} className="inline-flex items-center gap-1.5 text-[12px] text-[#64748B]">
+            <span className="h-[3px] w-4 rounded-full" style={{ backgroundColor: se.color }} />
+            {se.name}
+          </span>
+        ))}
+      </div>
+      )}
+    </div>
+  );
+}
+
+interface TabularRow { id: string; subject: string; requester: string; resolvedBy: string | null; created: string; source: string; assignee: string | null; group: string | null; impact: string }
+const TABULAR_GROUPS: { status: string; rows: TabularRow[] }[] = [
+  {
+    status: 'Open',
+    rows: [
+      { id: 'INC-4021', subject: 'VPN drops every hour after password rotation', requester: 'Jainam Shah', resolvedBy: null, created: 'Mon, Jul 06, 2026 09:12 AM', source: 'Email', assignee: 'Sarah Johnson', group: 'Network Operations', impact: 'On Users' },
+      { id: 'INC-4033', subject: 'Shared drive unreachable from Finance floor', requester: 'Kavit Gohel', resolvedBy: null, created: 'Wed, Jul 08, 2026 11:40 AM', source: 'Technician Portal', assignee: 'Vikram Sethi', group: 'IT Support Group', impact: 'On Department' },
+      { id: 'REQ-4102', subject: 'Adobe Creative Cloud licence for design team', requester: 'Hetal Mori', resolvedBy: null, created: 'Fri, Jul 10, 2026 02:25 PM', source: 'Support Portal', assignee: 'Priya Nair', group: 'Software Support Team', impact: 'Low' },
+      { id: 'INC-4118', subject: 'Outlook rules silently dropping customer mail', requester: 'Darshak Modi', resolvedBy: null, created: 'Tue, Jul 14, 2026 08:55 AM', source: 'Email', assignee: 'Neha Raje', group: null, impact: 'On Users' },
+      { id: 'INC-4171', subject: 'Meeting-room panel frozen on booking screen', requester: 'Ajay Kumar Rai', resolvedBy: null, created: 'Mon, Jul 20, 2026 04:10 PM', source: 'Walk-in', assignee: 'Karan Malhotra', group: 'Hardware Support Team', impact: 'Low' },
+      { id: 'REQ-4210', subject: 'Second monitor for onboarding batch — 6 units', requester: 'Navin Gadhvi', resolvedBy: null, created: 'Thu, Jul 23, 2026 10:05 AM', source: 'Support Portal', assignee: 'Michael Chen', group: 'Hardware Support Team', impact: 'On Department' },
+    ],
+  },
+  {
+    status: 'Closed',
+    rows: [
+      { id: 'INC-3987', subject: 'Printer queue stuck on 4th floor MFP', requester: 'Dhaval Raval', resolvedBy: 'Rakesh Rathod', created: 'Thu, Jul 09, 2026 03:30 PM', source: 'Technician Portal', assignee: 'Rakesh Rathod', group: 'IT Support Group', impact: 'On Users' },
+      { id: 'INC-4005', subject: 'Phishing mail reported by two departments', requester: 'Samuel Githugu', resolvedBy: 'Rosy Fernandes', created: 'Thu, Jul 16, 2026 09:48 AM', source: 'Email', assignee: 'Rosy Fernandes', group: 'Network Operations', impact: 'On Business' },
+      { id: 'REQ-4056', subject: 'Guest Wi-Fi access for vendor audit week', requester: 'Ersin Sevinç', resolvedBy: 'Tabrez Khan', created: 'Tue, Jul 28, 2026 01:15 PM', source: 'Support Portal', assignee: 'Tabrez Khan', group: 'Network Operations', impact: 'Low' },
+    ],
+  },
+];
+
 export function ReportDrawer({
   openAssets,
   activeAssetId,
@@ -944,8 +1744,7 @@ onStackMinimizedChange,
   const [showDlExport, setShowDlExport] = useState(false);
   /* Timeframe — the window the report runs over. */
   const [showTimeframe, setShowTimeframe] = useState(false);
-  const [timeframe, setTimeframe] = useState('Last 30 Days');
-  const [tfCustomOpen, setTfCustomOpen] = useState(false);
+  const [timeframe, setTimeframe] = useState('Last 15 Days');
   const [tfStart, setTfStart] = useState<Date | null>(null);
   const [tfEnd, setTfEnd] = useState<Date | null>(null);
   const [tfMonth, setTfMonth] = useState(() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth() - 1, 1); });
@@ -2842,7 +3641,7 @@ onStackMinimizedChange,
           {/* The Technician/Requester view switch lives in the right panel, under Knowledge
               Properties — it previews the page rather than acting on the article. */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Timeframe — preset rail; Custom slides out the two-month calendar. */}
+            {/* Timeframe — preset rail beside an always-open range calendar. */}
             <div className="relative">
               <button
                 onClick={() => setShowTimeframe((v) => !v)}
@@ -2861,20 +3660,14 @@ onStackMinimizedChange,
                       {TF_PRESETS.map((p) => (
                         <button
                           key={p}
-                          onClick={() => { setTimeframe(p); setTfCustomOpen(false); setShowTimeframe(false); }}
+                          onClick={() => { setTimeframe(p); setShowTimeframe(false); }}
                           className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-[13px] transition-colors ${timeframe === p ? 'bg-[#EAF2FB] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F5F7FA]'}`}
                         >
                           {p}
                           {timeframe === p && <Check size={14} className="text-[#3D8BD0]" />}
                         </button>
                       ))}
-                      <button
-                        onClick={() => setTfCustomOpen(true)}
-                        className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-[13px] transition-colors ${tfCustomOpen || !TF_PRESETS.includes(timeframe as any) ? 'bg-[#EAF2FB] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F5F7FA]'}`}
-                      >
-                        Custom
-                        {!TF_PRESETS.includes(timeframe as any) && <Check size={14} className="text-[#3D8BD0]" />}
-                      </button>
+
                     </div>
                     {(
                       <div className="w-[536px] flex-shrink-0 border-l border-[#E5E7EB] p-4">
@@ -3080,9 +3873,6 @@ onStackMinimizedChange,
                 );
               })()}
             </div>
-            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
-              <Edit size={16} className="text-[#6b7280]" />
-            </button>
             {/* Schedule Report — the delivery schedules that send this report out. */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -3095,6 +3885,9 @@ onStackMinimizedChange,
               </TooltipTrigger>
               <TooltipContent>Schedule Report</TooltipContent>
             </Tooltip>
+            <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
+              <Edit size={16} className="text-[#6b7280]" />
+            </button>
             {/* No Refresh here — an article has no live status to poll (that control belongs on
                 the deployment pages this file was cloned from). */}
             <HardwareAssetActionsMenu
@@ -3404,7 +4197,77 @@ onStackMinimizedChange,
               </div>
             </div>
 
-            {/* Content cleared for the report redesign — only the header row remains. */}
+            {/* Matrix view — the technician-summary pivot */}
+            {activePatchRecord?.category === 'Matrix Report' && <MatrixReportView />}
+
+            {/* Summary view — per-request Task Details + SLA History under ONE title each */}
+            {activePatchRecord?.category === 'Summary Report' && <SummaryReportView />}
+
+            {/* Plugin view — equipment-uptime grid */}
+            {activePatchRecord?.category === 'Plugin Report' && <PluginReportView />}
+
+            {/* Query view — SLA breach query grid */}
+            {activePatchRecord?.category === 'Query Report' && <QueryReportView />}
+
+            {/* Tabular view — trend chart + status-grouped grid. Plugin/Query keep an empty
+                stage until their own designs land. */}
+            {activePatchRecord?.category === 'Tabular Report' && (() => {
+              let sr = 0;
+              return (
+              <div className="px-6 py-6 space-y-4">
+                {/* Report description, above the chart card. */}
+                <div>
+                  <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-[#1E293B]">Description</div>
+                  <p className="text-[13px] leading-relaxed text-[#64748B]">Weekly count of requests handled by each technician across the reporting window, with the matching request list grouped by status below.</p>
+                </div>
+                {/* Trend over the reporting window */}
+                <TabularTechChart />
+                {/* Result grid, grouped by status */}
+                <div className="overflow-x-auto rounded-lg border border-[#E5E7EB] bg-white">
+                  <table className="w-full min-w-[1080px]">
+                    <thead className="border-b border-[#e5e7eb]">
+                      <tr>
+                        {['Sr No.', 'Request Id', 'Subject', 'Requester', 'Resolved By', 'Created Date', 'Source', 'Assignee', 'Technician Group', 'Impact'].map((h) => (
+                          <th key={h} className="whitespace-nowrap px-3 py-2.5 text-left text-[12px] font-semibold tracking-wider text-[#364658]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F0F2F5]">
+                      {TABULAR_GROUPS.map((g) => (
+                        <Fragment key={g.status}>
+                          <tr className="bg-[#F8FAFC]">
+                            <td colSpan={10} className="px-3 py-2 text-[12px] font-semibold text-[#364658]">Status: {g.status}</td>
+                          </tr>
+                          {g.rows.map((row) => {
+                            sr += 1;
+                            return (
+                              <tr key={row.id} className="transition-colors hover:bg-[#f9fafb]">
+                                <td className="px-3 py-2.5 text-[12px] text-[#64748B]">{sr}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5"><span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{row.id}</span></td>
+                                <td className="px-3 py-2.5 text-[12px] text-[#364658]"><span className="block max-w-[260px] truncate" title={row.subject}>{row.subject}</span></td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-[#364658]">{row.requester}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px]">{row.resolvedBy ? <span className="text-[#364658]">{row.resolvedBy}</span> : <span className="text-[#9CA3AF]">---</span>}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-[#364658]">{row.created}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-[#364658]">{row.source}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px]">{row.assignee ? <span className="text-[#364658]">{row.assignee}</span> : <span className="text-[#9CA3AF]">---</span>}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px]">{row.group ? <span className="text-[#364658]">{row.group}</span> : <span className="text-[#9CA3AF]">---</span>}</td>
+                                <td className="whitespace-nowrap px-3 py-2.5 text-[12px] text-[#364658]">{row.impact}</td>
+                              </tr>
+                            );
+                          })}
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                  {/* The grid shows the first page of everything the chart counts. */}
+                  <div className="flex items-center justify-between border-t border-[#E5E7EB] px-3 py-2.5 text-[12px] text-[#7B8FA5]">
+                    <span>Showing 1–9 of {TAB_TECHS.reduce((n, t) => n + t.values.reduce((a, b) => a + b, 0), 0)} records</span>
+                    <span>Grouped by Status</span>
+                  </div>
+                </div>
+              </div>
+              );
+            })()}
             {/* Technician-only: the requester gets the article, not an assessment of it. */}
             {/* Wrapper matches the article body's 860px cap + 24px gutters, so the summary and the
                 article share a left and right edge. */}
