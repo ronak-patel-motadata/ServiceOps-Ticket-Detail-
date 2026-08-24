@@ -925,9 +925,10 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     };
 
     // Tags (editable chip editor) — the one non-read-only row on this panel. Patch page: after
-    // "Refrence Url"; Endpoint page: after "OS Version"; CVE page: after the 6 summary fields
+    // "Refrence Url"; Endpoint page: after "OS Version"; Knowledge page: after "Author" (last
+    // field, like the ticket page); CVE page: after the 6 summary fields
     // (before the dates). The fallback keeps it findable when searching "tags".
-    const tagsAfter = endpointMode ? 'OS Version' : cveMode ? 'Patch Availability' : 'Refrence Url';
+    const tagsAfter = knowledgeInfo ? 'Author' : endpointMode ? 'OS Version' : cveMode ? 'Patch Availability' : 'Refrence Url';
     /* Task Key Information is EDITABLE, like the ticket page — a dropdown per option field
        (borderless trigger, chevron on hover) and an inline input for the date range. The
        other patch-family pages stay read-only. */
