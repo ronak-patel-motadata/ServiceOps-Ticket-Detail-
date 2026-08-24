@@ -20,6 +20,14 @@ export interface Ticket {
   };
   status: 'Open' | 'In Progress' | 'Completed' | 'Pending' | 'Closed' | 'Cancelled';
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  /** Unread conversation replies — drives the blue chip + bold subject on the listing. */
+  unread?: number;
+  lastMsg?: { from: string; snippet: string; time: string };
+  /** Task progress mirrored from the detail page (every request seeds 3-4; INC-35 = 13 staged). */
+  tasksDone?: number;
+  tasksTotal?: number;
+  /** A pending approval on the detail page — the amber chip on the listing. */
+  approval?: { approver: string; level: number; totalLevels: number; waiting: string };
 }
 
 // Mock data
@@ -59,20 +67,56 @@ export const generateMockTickets = (): Ticket[] => {
   const statuses: Ticket['status'][] = ['Open', 'In Progress', 'Completed', 'Pending', 'Closed'];
   const priorities: Ticket['priority'][] = ['Low', 'Medium', 'High', 'Urgent'];
   
-  return Array.from({ length: 65 }, (_, i) => ({
-    id: `INC-${String(i + 30).padStart(2, '0')}`,
-    subject: subjects[i % subjects.length],
-    requester: requesters[i % requesters.length],
-    dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
-    createdBy: new Date(2022, 3, 19 + (i % 8), 3 + (i % 12), 30),
-    assignedTo: assignees[i % assignees.length],
-    status: i === 9 ? 'Closed' : (i === 2 ? 'Open' : statuses[i % statuses.length]), // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
-    priority: priorities[i % priorities.length]
-  }));
+  const MSG_SNIPPETS = [
+    "I'm still seeing the same error after the restart — sharing a screenshot now.",
+    'This started happening again after the latest update. Can someone take a look today?',
+    'Thanks for the quick fix yesterday — unfortunately it is back again this morning.',
+    'Adding my manager here. We need this resolved before the client call at 4 PM.',
+    'Tried the steps you shared, but step 3 fails with "access denied".',
+  ];
+  const MSG_TIMES = ['8m ago', '24m ago', '1h ago', '2h ago', '4h ago'];
+  const APPROVERS = ['Rakesh Rathod', 'Priya Nair', 'Vikram Sethi', 'Sarah Johnson'];
+  const APPROVAL_WAITS = ['2d', '5h', '1d', '3d'];
+
+  return Array.from({ length: 65 }, (_, i) => {
+    const requester = requesters[i % requesters.length];
+    const assignee = assignees[i % assignees.length];
+    // New replies land on roughly a third of the rows; the sender is the requester
+    // (or the collaborator on manually-created tickets, which have no named requester).
+    const unread = i % 3 === 0 ? (i % 2 === 0 ? 2 : 3) : i % 7 === 4 ? 1 : 0;
+    // Task counts mirror the detail page seeding: 3-4 per request, 13 staged on INC-35.
+    const tasksTotal = i === 5 ? 13 : 3 + (i % 2);
+    const status = i === 9 ? ('Closed' as const) : i === 2 ? ('Open' as const) : statuses[i % statuses.length]; // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
+    // A pending approval blocks OPEN work only — settled rows never carry one.
+    const hasApproval =
+      i % 4 === 1 && status !== 'Closed' && status !== 'Completed';
+    return {
+      id: `INC-${String(i + 30).padStart(2, '0')}`,
+      subject: subjects[i % subjects.length],
+      requester,
+      dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
+      createdBy: new Date(2022, 3, 19 + (i % 8), 3 + (i % 12), 30),
+      assignedTo: assignee,
+      status,
+      priority: priorities[i % priorities.length],
+      unread,
+      lastMsg: unread > 0
+        ? { from: requester === 'Manual' ? assignee.name : requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
+        : undefined,
+      tasksTotal,
+      tasksDone: i === 5 ? 6 : i % (tasksTotal + 1),
+      approval: hasApproval
+        ? { approver: APPROVERS[i % APPROVERS.length], level: 1 + (i % 2), totalLevels: 2, waiting: APPROVAL_WAITS[i % APPROVAL_WAITS.length] }
+        : undefined,
+    };
+  });
 };
 
 export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
-  const [tickets] = useState<Ticket[]>(generateMockTickets());
+  const [tickets, setTickets] = useState<Ticket[]>(generateMockTickets());
+  // Assignee / Status / Priority are editable straight from the grid.
+  const updateTicket = (id: string, patch: Partial<Ticket>) =>
+    setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -256,6 +300,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               sortColumn={sortColumn}
               sortDirection={sortDirection}
               onTicketClick={handleOpenTicket}
+              onUpdateTicket={updateTicket}
             />
             
           </div>
