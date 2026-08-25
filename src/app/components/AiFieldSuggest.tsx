@@ -26,7 +26,7 @@ export function AiFieldSuggest({
   onApply: (picked: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [rect, setRect] = useState<{ left: number; bottom: number } | null>(null);
+  const [rect, setRect] = useState<{ right: number; bottom: number } | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set(single ? values.slice(0, 1) : values));
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +53,7 @@ export function AiFieldSuggest({
       <button
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
-          setRect({ left: r.left, bottom: r.bottom });
+          setRect({ right: r.right, bottom: r.bottom });
           setPicked(new Set(single ? values.slice(0, 1) : values));
           setOpen(true);
         }}
@@ -71,7 +71,7 @@ export function AiFieldSuggest({
           <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
           <div
             ref={panelRef}
-            style={{ position: 'fixed', top: rect.bottom + 6, left: Math.min(rect.left, window.innerWidth - W - 16), width: W }}
+            style={{ position: 'fixed', top: rect.bottom + 6, left: Math.max(8, rect.right - W), width: W }}
             className="z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
           >
             <div className="flex items-center gap-1.5 px-3 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
