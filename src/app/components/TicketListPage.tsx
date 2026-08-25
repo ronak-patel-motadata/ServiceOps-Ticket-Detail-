@@ -52,7 +52,7 @@ export const generateMockTickets = (): Ticket[] => {
     "WiFi is not working"
   ];
   
-  const requesters = ['Manual', 'Prashant Pandhe', 'Arnav Desai', 'Agnika Mir', 'Ashish'];
+  const requesters = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
   const assignees = [
     { name: 'Amou Desai', initials: 'AD' },
     { name: 'Keetion Dale', initials: 'KD' },
@@ -78,7 +78,7 @@ export const generateMockTickets = (): Ticket[] => {
   const APPROVERS = ['Rakesh Rathod', 'Priya Nair', 'Vikram Sethi', 'Sarah Johnson'];
   const APPROVAL_WAITS = ['2d', '5h', '1d', '3d'];
 
-  return Array.from({ length: 65 }, (_, i) => {
+  return Array.from({ length: 84 }, (_, i) => {
     const requester = requesters[i % requesters.length];
     const assignee = assignees[i % assignees.length];
     // New replies land on roughly a third of the rows; the sender is the requester
@@ -101,7 +101,7 @@ export const generateMockTickets = (): Ticket[] => {
       priority: priorities[i % priorities.length],
       unread,
       lastMsg: unread > 0
-        ? { from: requester === 'Manual' ? assignee.name : requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
+        ? { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
         : undefined,
       tasksTotal,
       tasksDone: i === 5 ? 6 : i % (tasksTotal + 1),
@@ -119,6 +119,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  // While the grid is grouped it pages per group — the outer bar becomes a pinned summary.
+  const [isGrouped, setIsGrouped] = useState(false);
+  const [groupInfo, setGroupInfo] = useState<{ label: string; groups: number; total: number } | null>(null);
+  const [clearGroupTick, setClearGroupTick] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [sortColumn, setSortColumn] = useState<keyof Ticket | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -214,7 +218,14 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     setSelectedTickets(newSelected);
   };
 
-  const handleSort = (column: keyof Ticket) => {
+  /* `dir` comes from the column header menu ("Sort A → Z" / "Z → A"); a bare click on a
+     sortable header still toggles. */
+  const handleSort = (column: keyof Ticket, dir?: "asc" | "desc") => {
+    if (dir) {
+      setSortColumn(column);
+      setSortDirection(dir);
+      return;
+    }
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -301,9 +312,13 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               sortDirection={sortDirection}
               onTicketClick={handleOpenTicket}
               onUpdateTicket={updateTicket}
+              allTickets={sortedTickets}
+              onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
+              clearGroupingSignal={clearGroupTick}
             />
             
           </div>
+            {!isGrouped && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -315,6 +330,26 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                 setCurrentPage(1);
               }}
             />
+            )}
+            {/* Grouped mode keeps a PINNED footer — paging lives inside the groups, so
+                this bar summarises the grouping instead of duplicating page controls. */}
+            {isGrouped && groupInfo && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
+                <span className="text-[12px] text-[#64748B] tabular-nums">
+                  Showing <span className="font-medium text-[#364658]">{groupInfo.total}</span> requests in{' '}
+                  <span className="font-medium text-[#364658]">{groupInfo.groups}</span> groups
+                </span>
+                <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
+                  Grouped by <span className="font-medium text-[#364658]">{groupInfo.label}</span>
+                  <button
+                    onClick={() => setClearGroupTick((t) => t + 1)}
+                    className="rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
+                  >
+                    Clear
+                  </button>
+                </span>
+              </div>
+            )}
         </main>
       </div>
       

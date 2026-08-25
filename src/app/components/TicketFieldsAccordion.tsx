@@ -1,4 +1,7 @@
 import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
+import { AiFieldSuggest } from './AiFieldSuggest';
+import { toast } from 'sonner';
 import { AssetFields } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -811,9 +814,22 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                 className="w-full pl-3 pr-8 py-2 text-[13px] text-[#364658] bg-transparent border-none rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left"
                 onClick={() => setShowTechGroupDropdown(!showTechGroupDropdown)}
               >
-                {selectedTechGroup}
+                {selectedTechGroup || <span className="text-[#9CA3AF]">Select group</span>}
               </button>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Blank select → the AI Suggest chip rides in the value area. */}
+              {!selectedTechGroup && (
+                <span className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <AiFieldSuggest
+                    single
+                    field="technician group"
+                    values={['IT Support Team', 'Network Operations', 'Hardware Support Team']}
+                    onApply={(p) => { if (p[0]) setSelectedTechGroup(p[0]); }}
+                  />
+                </span>
+              )}
+              {selectedTechGroup && (
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
               
               {/* Tech Group Dropdown Menu */}
               {showTechGroupDropdown && (
@@ -988,6 +1004,19 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                         Add tag
                       </button>
                     )}
+                    {/* Blank field → the AI Suggest icon at the value container's right edge. */}
+                    {tags.length === 0 && (
+                      <span className="ml-auto">
+                        <AiFieldSuggest
+                          field="tags"
+                          values={['network', 'vpn', 'connectivity']}
+                          onApply={(picked) => {
+                            setTags(picked);
+                            toast.success(`${picked.length} tag${picked.length === 1 ? '' : 's'} added`);
+                          }}
+                        />
+                      </span>
+                    )}
                   </div>
                 </div>
                 {showTagInput && (
@@ -1120,9 +1149,21 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                     className="w-full pl-3 pr-8 py-2 text-[13px] text-[#364658] bg-transparent border-none rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left"
                     onClick={() => setShowDepartmentDropdown(!showDepartmentDropdown)}
                   >
-                    {selectedDepartment}
+                    {selectedDepartment || <span className="text-[#9CA3AF]">Select department</span>}
                   </button>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {!selectedDepartment && (
+                    <span className="absolute right-0 top-1/2 -translate-y-1/2">
+                      <AiFieldSuggest
+                        single
+                        field="department"
+                        values={['IT', 'Finance', 'Operations']}
+                        onApply={(p) => { if (p[0]) setSelectedDepartment(p[0]); }}
+                      />
+                    </span>
+                  )}
+                  {selectedDepartment && (
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
                   
                   {showDepartmentDropdown && (
                     <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">

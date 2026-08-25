@@ -1,4 +1,6 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown , ArrowRight } from 'lucide-react';
+import { AiSparkle } from './AiSparkle';
+import { createPortal } from 'react-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { VipPill, isVipRequester } from './VipPill';
 import { isFirstResponseBreached } from './HeaderAlertPills';
@@ -652,6 +654,30 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
+  /* AI Property Suggestions (ticket page) — enrich the request from similar resolved
+     requests: pick which suggested values to take, Update applies them to the REAL
+     panel state so Key Information changes visibly. */
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestDismissed, setSuggestDismissed] = useState(false);
+  const [suggestApplied, setSuggestApplied] = useState(false);
+  const [suggestChecked, setSuggestChecked] = useState<Set<string>>(new Set(['status', 'priority', 'assignee', 'urgency']));
+  const [suggestRect, setSuggestRect] = useState<{ right: number; bottom: number } | null>(null);
+  useEffect(() => {
+    if (!suggestOpen) return;
+    const close = () => setSuggestOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [suggestOpen]);
+  useEffect(() => {
+    setSuggestOpen(false);
+    setSuggestDismissed(false);
+    setSuggestApplied(false);
+    setSuggestChecked(new Set(['status', 'priority', 'assignee', 'urgency']));
+  }, [ticketId]);
   // ServiceOps AI header controls. showChatHistory swaps the panel body for the history screen
   // (New chat just clears the thread). Leaving the AI group resets it, so reopening the panel
   // always lands on the chat rather than on history.
@@ -1918,6 +1944,167 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           togglePinField={togglePinField}
         />
         
+        {/* AI Property Suggestions — ticket page only. The pill opens an OVERLAY popup
+            (not an inline accordion) showing old value → suggested value per property;
+            rows whose current value already matches are filtered out. */}
+        {showIntegration && !suggestDismissed && !suggestApplied && (() => {
+          const SUGGESTIONS = [
+            {
+              key: 'status',
+              label: 'Status',
+              current: selectedStatus,
+              value: 'Pending',
+              node: (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                  <span className="size-2 rounded-full bg-[#fb923c]" />Pending
+                </span>
+              ),
+              apply: () => setSelectedStatus('Pending'),
+            },
+            {
+              key: 'priority',
+              label: 'Priority',
+              current: selectedPriority,
+              value: 'Urgent',
+              node: (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                  <span className="size-2 rounded-full bg-[#EF4444]" />Urgent
+                </span>
+              ),
+              apply: () => setSelectedPriority('Urgent'),
+            },
+            {
+              key: 'assignee',
+              label: 'Assignee',
+              current: selectedAssignee,
+              value: 'Michael Chen',
+              node: (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                  <span className="flex size-5 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">MC</span>
+                  Michael Chen
+                </span>
+              ),
+              apply: () => setSelectedAssignee('Michael Chen'),
+            },
+            {
+              key: 'urgency',
+              label: 'Urgency',
+              current: selectedUrgency,
+              value: 'High',
+              node: (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                  <span className="size-2 rounded-full bg-[#EF4444]" />High
+                </span>
+              ),
+              apply: () => setSelectedUrgency('High'),
+            },
+          ];
+          // Nothing to enrich when the ticket already matches every suggestion.
+          const ACTIVE = SUGGESTIONS.filter((sg) => sg.current !== sg.value);
+          if (!ACTIVE.length) return null;
+          const toggleSuggest = (key: string) =>
+            setSuggestChecked((p) => {
+              const n = new Set(p);
+              if (n.has(key)) n.delete(key);
+              else n.add(key);
+              return n;
+            });
+          const pickedCount = ACTIVE.filter((sg) => suggestChecked.has(sg.key)).length;
+          const applySuggestions = () => {
+            const picked = ACTIVE.filter((sg) => suggestChecked.has(sg.key));
+            picked.forEach((sg) => sg.apply());
+            setSuggestApplied(true);
+            toast.success(`${picked.length} propert${picked.length === 1 ? 'y' : 'ies'} updated from suggestions`);
+          };
+          return (
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  if (!suggestOpen) {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setSuggestRect({ right: r.right, bottom: r.bottom });
+                  }
+                  setSuggestOpen(!suggestOpen);
+                }}
+                className="relative flex w-full items-center gap-2 overflow-hidden rounded-lg border border-[#DFE5ED] px-4 py-3 text-left transition-shadow hover:shadow-[0_2px_10px_rgba(115,30,251,0.12)]"
+              >
+                {/* The AI Summary card's gradient wash, exactly. */}
+                <span
+                  className="pointer-events-none absolute inset-0"
+                  style={{ opacity: 0.03, background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)' }}
+                />
+                <AiSparkle size={16} />
+                <span className="flex-1 text-[13px] font-semibold text-[#364658]">Property Suggestions</span>
+                <span
+                  className="rounded-full px-1.5 py-px text-[10px] font-semibold text-[#364658]"
+                  style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                >
+                  {ACTIVE.length}
+                </span>
+                <ChevronDown size={16} className={`flex-shrink-0 text-[#7B8FA5] transition-transform ${suggestOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {suggestOpen && suggestRect && createPortal(
+                <>
+                  <div className="fixed inset-0 z-[9998]" onClick={() => setSuggestOpen(false)} />
+                  {/* Body portal — the panel and the content column are separate stacking
+                      contexts, so an in-panel popup could never paint above the left side. */}
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: suggestRect.bottom + 6,
+                      left: Math.max(8, suggestRect.right - Math.min(440, window.innerWidth - 32)),
+                      width: Math.min(440, window.innerWidth - 32),
+                    }}
+                    className="z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+                  >
+                    <div className="px-4 pb-1 pt-3">
+                      <div className="text-[13px] font-semibold text-[#364658]">Enrich request details</div>
+                      <p className="mt-0.5 text-[12px] leading-relaxed text-[#7B8FA5]">
+                        Based on similar resolved requests, these properties can be updated as below.
+                      </p>
+                      <div className="mt-3 space-y-2.5 pb-3">
+                        {ACTIVE.map((sg) => (
+                          <label key={sg.key} className="flex cursor-pointer items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={suggestChecked.has(sg.key)}
+                              onChange={() => toggleSuggest(sg.key)}
+                              className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
+                            />
+                            <span className="flex-shrink-0 whitespace-nowrap text-[12px] text-[#4A5568]">{sg.label}</span>
+                            {/* old (muted) → suggested (highlighted) */}
+                            <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                              <span className="min-w-0 truncate text-[12px] text-[#9CA3AF]">{sg.current}</span>
+                              <ArrowRight size={12} className="flex-shrink-0 text-[#94A3B8]" />
+                              <span className="flex-shrink-0">{sg.node}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 border-t border-[#E5E7EB] px-4 py-2.5">
+                      <button
+                        onClick={() => setSuggestDismissed(true)}
+                        className="h-8 rounded px-3 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658]"
+                      >
+                        Ignore
+                      </button>
+                      <button
+                        onClick={applySuggestions}
+                        disabled={pickedCount === 0}
+                        className="h-8 rounded bg-[#3D8BD0] px-4 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+                </>,
+                document.body,
+              )}
+            </div>
+          );
+        })()}
+
         {showSla && hasSLAMatch() && (
         <div className="border border-[#DFE5ED] rounded-lg" ref={slaStatusRef}>
           <div 

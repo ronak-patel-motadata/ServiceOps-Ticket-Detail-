@@ -608,11 +608,12 @@ onStackActiveGroupChange,
   const [selectedStatus, setSelectedStatus] = useState('Open');
   const [selectedPriority, setSelectedPriority] = useState('Medium');
   const [selectedAssignee, setSelectedAssignee] = useState('Sarah Johnson');
-  const [selectedTechGroup, setSelectedTechGroup] = useState('IT Support Team');
+  // Starts blank — the AI Suggest chip offers the value (fill-the-blanks demo).
+  const [selectedTechGroup, setSelectedTechGroup] = useState('');
   const [selectedUrgency, setSelectedUrgency] = useState('Medium');
   const [selectedImpact, setSelectedImpact] = useState('Affects Multiple Users');
   const [selectedCategory, setSelectedCategory] = useState('Hardware');
-  const [selectedDepartment, setSelectedDepartment] = useState('IT');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedSource, setSelectedSource] = useState('Email');
   const [selectedLocation, setSelectedLocation] = useState('New York, NY');
   const [selectedVendor, setSelectedVendor] = useState('Dell Inc.');

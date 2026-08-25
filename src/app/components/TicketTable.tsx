@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUpDown, Check, ChevronDown, Columns3, GripVertical, ListChecks, MessageSquare, Move, Search, UserCheck } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, GripVertical, Layers, ListChecks, MessageSquare, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -70,18 +71,18 @@ function InlineSelect({
     };
   }, [open]);
   return (
-    <div className="group/cell relative inline-flex max-w-full">
+    <div className="group/cell relative w-full">
       <button
         ref={btnRef}
         onClick={toggle}
-        className={`inline-flex h-7 max-w-full items-center rounded px-2 pr-6 text-left transition-colors ${open ? 'bg-[#EEF1F5]' : 'hover:bg-[#F3F4F6]'}`}
+        className={`flex h-12 w-full items-center gap-1.5 rounded-md border px-2 text-left transition-colors ${open ? 'border-[#DFE5ED] bg-white' : 'border-transparent hover:border-[#DFE5ED] hover:bg-[#F9FAFB]'}`}
       >
         <span className="min-w-0 truncate">{children}</span>
+        <ChevronDown
+          size={14}
+          className={`flex-shrink-0 text-[#7B8FA5] transition-opacity ${open ? 'opacity-100' : 'opacity-0 group-hover/cell:opacity-100'}`}
+        />
       </button>
-      <ChevronDown
-        size={14}
-        className={`pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[#7B8FA5] transition-opacity ${open ? 'opacity-100' : 'opacity-0 group-hover/cell:opacity-100'}`}
-      />
       {open && pos && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
@@ -216,7 +217,7 @@ const taskListFor = (subject: string): string[] => {
   if (s2.includes('laptop') || s2.includes('charger')) return ['Diagnose hardware fault', 'Arrange replacement unit', 'Transfer user data', 'Update asset record'];
   return ['Initial diagnosis', 'Apply resolution steps', 'Verify with requester', 'Close with resolution note'];
 };
-const REQUESTER_OPTIONS: CellOption[] = ['Manual', 'Prashant Pandhe', 'Arnav Desai', 'Agnika Mir', 'Ashish', 'Jainam Shah', 'Kavit Gohel', 'Hetal Mori', 'Darshak Modi'].map((n) => ({
+const REQUESTER_OPTIONS: CellOption[] = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç', 'Ajay Kumar Rai', 'Dhaval Raval', 'Priya Mehta', 'Farhan Qureshi'].map((n) => ({
   label: n,
   initials: requesterAvatar(n).initials,
 }));
@@ -291,9 +292,138 @@ const extraValue = (key: string, t: Ticket): string => {
   }
 };
 
-/* Manage-columns popup — active set on top (drag to reorder, untick to remove), then a
-   searchable list of everything addable; Apply commits. Body portal, anchored under the
-   trigger, which is sticky — so it never drifts while the grid scrolls. */
+/* Column header menu — the per-column actions (click the heading). No flyouts: "Change
+   Column" swaps the card IN PLACE for a searchable picker; Insert drops a placeholder
+   slot into the grid. Filter is a prototype stub that reports what it would do. */
+function HeaderMenu({
+  anchor,
+  col,
+  catalog,
+  visible,
+  groupedBy,
+  onGroup,
+  frozen,
+  freezeDisabled,
+  onFreeze,
+  onHide,
+  onInsertSlot,
+  onChange,
+  onClose,
+}: {
+  anchor: { left: number; bottom: number };
+  col: ColDef;
+  catalog: ColDef[];
+  visible: string[];
+  groupedBy: boolean;
+  onGroup: () => void;
+  frozen: boolean;
+  freezeDisabled: boolean;
+  onFreeze: () => void;
+  onHide: () => void;
+  onInsertSlot: (side: 'left' | 'right') => void;
+  onChange: (key: string) => void;
+  onClose: () => void;
+}) {
+  const [view, setView] = useState<'root' | 'change'>('root');
+  const [cq, setCq] = useState('');
+  const W = 214;
+  const left = Math.min(anchor.left, window.innerWidth - W - 24);
+  const top = anchor.bottom + 4;
+  const addable = catalog.filter((c) => !visible.includes(c.key) && c.label.toLowerCase().includes(cq.trim().toLowerCase()));
+  const row =
+    'flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F5F7FA]';
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+      <div
+        style={{ position: 'fixed', top, left, width: W }}
+        className="z-[9999] flex max-h-[420px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl"
+      >
+        {view === 'root' ? (
+          <>
+            <div className="px-3 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{col.label}</div>
+            <button className={row} onClick={() => { toast.success(`Filter added on ${col.label}`); onClose(); }}>
+              <Filter size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Filter
+            </button>
+            <button className={row} onClick={() => { onGroup(); onClose(); }}>
+              <Layers size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+              <span className="flex-1">{groupedBy ? 'Ungroup' : 'Group'}</span>
+              {groupedBy && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+            </button>
+            <div className="my-1 border-t border-[#F0F2F5]" />
+            <button className={row} onClick={() => { onHide(); onClose(); }}>
+              <EyeOff size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Hide
+            </button>
+            <button
+              className={`${row} ${freezeDisabled ? 'cursor-not-allowed opacity-45' : ''}`}
+              onClick={() => { onFreeze(); onClose(); }}
+            >
+              <Pin size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+              <span className="flex-1">{frozen ? 'Unfreeze Columns' : 'Freeze Up to Column'}</span>
+              {frozen && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
+            </button>
+            <div className="my-1 border-t border-[#F0F2F5]" />
+            <button className={row} onClick={() => { onInsertSlot('left'); onClose(); }}>
+              <ArrowLeftToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Left
+            </button>
+            <button className={row} onClick={() => { onInsertSlot('right'); onClose(); }}>
+              <ArrowRightToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Right
+            </button>
+            <button className={row} onClick={() => setView('change')}>
+              <ArrowLeftRight size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+              <span className="flex-1">Change Column</span>
+              <ChevronRight size={14} className="text-[#9CA3AF]" />
+            </button>
+          </>
+        ) : (
+          <>
+            {/* In-place picker — back chevron returns to the actions. */}
+            <div className="flex items-center gap-1 px-2 pb-1 pt-0.5">
+              <button onClick={() => { setView('root'); setCq(''); }} className="flex size-6 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658]">
+                <ChevronLeft size={15} />
+              </button>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Change column</span>
+            </div>
+            <div className="px-2.5 pb-2">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  autoFocus
+                  value={cq}
+                  onChange={(e) => setCq(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') { setView('root'); setCq(''); } }}
+                  placeholder="Search columns..."
+                  className="w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] py-1.5 pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                />
+              </div>
+            </div>
+            <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Available · {addable.length}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-0.5">
+              {addable.length ? (
+                addable.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => { onChange(c.key); onClose(); }}
+                    className="group/ch flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
+                    <ArrowLeftRight size={13} className="flex-shrink-0 text-[#3D8BD0] opacity-0 transition-opacity group-hover/ch:opacity-100" />
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-6 text-center text-[12px] text-[#94A3B8]">No columns found</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </>,
+    document.body,
+  );
+}
+/* Manage-columns popup — TWO PANES: everything addable on the left (click to move it
+   across), the columns shown in the table on the right (drag to reorder, ✕ to remove).
+   One search filters both sides. Draft state — Apply commits, Cancel/outside discards. */
 function ColumnManager({
   anchor,
   catalog,
@@ -311,24 +441,24 @@ function ColumnManager({
   const [q, setQ] = useState('');
   const [rowDrag, setRowDrag] = useState<string | null>(null);
   const [rowOver, setRowOver] = useState<string | null>(null);
-  /* A freshly ticked column appends at the END of the active list, which scrolls — so
-     auto-scroll it into view and flash it blue for a beat, or the add is invisible. */
   const [justAdded, setJustAdded] = useState<string | null>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const shownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!justAdded) return;
-    bodyRef.current
+    shownRef.current
       ?.querySelector(`[data-colrow="${justAdded}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    const t = window.setTimeout(() => setJustAdded(null), 1400);
+    const t = window.setTimeout(() => setJustAdded(null), 1200);
     return () => window.clearTimeout(t);
   }, [justAdded]);
-  const W = 292;
+  const W = 560;
   const left = Math.max(8, Math.min(anchor.right - W, window.innerWidth - W - 8));
   const top = anchor.bottom + 6;
-  const maxH = Math.min(580, window.innerHeight - top - 16);
+  const maxH = Math.min(560, window.innerHeight - top - 16);
+  const query = q.trim().toLowerCase();
   const activeDefs = draft.map((k) => catalog.find((c) => c.key === k)).filter(Boolean) as ColDef[];
-  const availDefs = catalog.filter((c) => !draft.includes(c.key) && c.label.toLowerCase().includes(q.trim().toLowerCase()));
+  const availDefs = catalog.filter((c) => !draft.includes(c.key) && c.label.toLowerCase().includes(query));
+  const shownDefs = query ? activeDefs.filter((c) => c.label.toLowerCase().includes(query)) : activeDefs;
   const dropRow = (target: string) => {
     if (rowDrag && rowDrag !== target) {
       setDraft((d) => {
@@ -347,70 +477,84 @@ function ColumnManager({
         style={{ position: 'fixed', top, left, width: W, maxHeight: maxH }}
         className="z-[9999] flex flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
       >
-        <div className="border-b border-[#F0F2F5] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Manage columns</div>
-        {/* Active columns — in grid order */}
-        {/* ONE scroll for both sections — on short screens the available list can use the
-            whole popup height instead of being squeezed to two rows by a fixed top box. */}
-        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="py-1">
-          {activeDefs.map((c) => (
-            <div
-              key={c.key}
-              data-colrow={c.key}
-              draggable
-              onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setRowDrag(c.key); }}
-              onDragOver={(e) => { e.preventDefault(); if (rowOver !== c.key) setRowOver(c.key); }}
-              onDragLeave={() => { if (rowOver === c.key) setRowOver(null); }}
-              onDrop={(e) => { e.preventDefault(); dropRow(c.key); }}
-              onDragEnd={() => { setRowDrag(null); setRowOver(null); }}
-              className={`relative flex cursor-grab select-none items-center gap-2.5 px-3 py-1.5 transition-colors duration-500 ${justAdded === c.key ? 'bg-[#EBF5FF]' : 'hover:bg-[#F9FAFB]'} ${rowDrag === c.key ? 'opacity-40' : ''}`}
-            >
-              {rowOver === c.key && rowDrag && rowDrag !== c.key && (
-                <span className="absolute inset-x-2 top-0 h-[2px] rounded bg-[#3D8BD0]" />
-              )}
-              <Move size={13} className="flex-shrink-0 text-[#9CA3AF]" />
-              <input
-                type="checkbox"
-                checked
-                onChange={() => setDraft((d) => d.filter((k) => k !== c.key))}
-                className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
-              />
-              <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
-            </div>
-          ))}
-        </div>
-        {/* Addable columns */}
-          <div className="sticky top-0 z-10 border-y border-[#E5E7EB] bg-white px-3 py-2">
-            <div className="relative">
+        {/* Title + one search across both panes */}
+        <div className="border-b border-[#F0F2F5] px-4 pb-3 pt-3">
+          <div className="mb-2.5 text-[13px] font-semibold text-[#364658]">Manage columns</div>
+          <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
             <input
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search"
+              placeholder="Search columns..."
               className="w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] py-2 pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
             />
           </div>
         </div>
-          <div className="py-1">
-          {availDefs.length ? (
-            availDefs.map((c) => (
-              <label key={c.key} className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 transition-colors hover:bg-[#F9FAFB]">
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={() => { setDraft((d) => [...d, c.key]); setJustAdded(c.key); }}
-                  className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
-                />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
-              </label>
-            ))
-          ) : (
-            <div className="px-3 py-6 text-center text-[12px] text-[#94A3B8]">No columns found</div>
-          )}
+        <div className="flex min-h-0 flex-1">
+          {/* LEFT — addable columns */}
+          <div className="flex min-w-0 flex-1 flex-col border-r border-[#F0F2F5]">
+            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Available</div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+              {availDefs.length ? (
+                availDefs.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => { setDraft((d) => [...d, c.key]); setJustAdded(c.key); }}
+                    className="group/av flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
+                    <Plus size={14} className="flex-shrink-0 text-[#3D8BD0] opacity-0 transition-opacity group-hover/av:opacity-100" />
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-8 text-center text-[12px] text-[#94A3B8]">{query ? 'No columns found' : 'All columns are shown'}</div>
+              )}
+            </div>
+          </div>
+          {/* RIGHT — shown in the table, in grid order */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Shown in table · {activeDefs.length}</div>
+            <div ref={shownRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+              {shownDefs.map((c) => (
+                <div
+                  key={c.key}
+                  data-colrow={c.key}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setRowDrag(c.key); }}
+                  onDragOver={(e) => { e.preventDefault(); if (rowOver !== c.key) setRowOver(c.key); }}
+                  onDragLeave={() => { if (rowOver === c.key) setRowOver(null); }}
+                  onDrop={(e) => { e.preventDefault(); dropRow(c.key); }}
+                  onDragEnd={() => { setRowDrag(null); setRowOver(null); }}
+                  className={`group/sh relative flex cursor-grab select-none items-center gap-2 rounded px-2 py-1.5 transition-colors duration-500 ${justAdded === c.key ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'} ${rowDrag === c.key ? 'opacity-40' : ''}`}
+                >
+                  {rowOver === c.key && rowDrag && rowDrag !== c.key && (
+                    <span className="absolute inset-x-2 top-0 h-[2px] rounded bg-[#3D8BD0]" />
+                  )}
+                  <GripVertical size={13} className="flex-shrink-0 text-[#B6C2D1]" />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
+                  <button
+                    onClick={() => draft.length > 1 && setDraft((d) => d.filter((k) => k !== c.key))}
+                    title={draft.length > 1 ? 'Remove from table' : 'At least one column must stay'}
+                    className={`flex size-5 flex-shrink-0 items-center justify-center rounded text-[#9CA3AF] opacity-0 transition-all group-hover/sh:opacity-100 ${draft.length > 1 ? 'hover:bg-[#FEE2E2] hover:text-[#EF4444]' : 'cursor-not-allowed'}`}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+              {query && !shownDefs.length && (
+                <div className="px-3 py-8 text-center text-[12px] text-[#94A3B8]">No columns found</div>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex justify-end border-t border-[#E5E7EB] px-3 py-2.5">
+        <div className="flex items-center justify-end gap-2 border-t border-[#E5E7EB] px-4 py-2.5">
+          <button
+            onClick={onClose}
+            className="h-8 rounded px-3 text-[13px] font-medium text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658]"
+          >
+            Cancel
+          </button>
           <button
             onClick={() => { onApply(draft); onClose(); }}
             className="h-8 rounded bg-[#3D8BD0] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
@@ -507,11 +651,16 @@ interface TicketTableProps {
   allSelected: boolean;
   onSelectAll: (checked: boolean) => void;
   onSelectTicket: (ticketId: string, checked: boolean) => void;
-  onSort: (column: keyof Ticket) => void;
+  onSort: (column: keyof Ticket, dir?: 'asc' | 'desc') => void;
   sortColumn: keyof Ticket | null;
   sortDirection: 'asc' | 'desc';
   onTicketClick: (ticket: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
+  /** Full sorted set — grouping spans ALL rows and pages within each group. */
+  allTickets?: Ticket[];
+  onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number }) => void;
+  /** Bump to clear grouping from outside (the pinned footer's Clear link). */
+  clearGroupingSignal?: number;
 }
 
 export function TicketTable({
@@ -524,7 +673,10 @@ export function TicketTable({
   sortColumn,
   sortDirection,
   onTicketClick,
-  onUpdateTicket
+  onUpdateTicket,
+  allTickets,
+  onGroupedChange,
+  clearGroupingSignal
 }: TicketTableProps) {
   const formatDateTime = (date: Date) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -558,10 +710,9 @@ export function TicketTable({
      leave slack the widths are scaled up to fit the container exactly — so the grid always
      fills the full width, with no dead strip on the right. Past the container width the
      scale stops at 1 and the table scrolls horizontally instead. */
-  const [colW, setColW] = useState<Record<string, number>>({
-    id: 96, subject: 340, requester: 150, assignee: 180, dueStatus: 130,
-    status: 130, priority: 120, created: 190,
-  });
+  // Only user-dragged widths live here — defaults come from each ColDef, so width tweaks
+  // in COL_DEFS actually take effect (a seeded map silently overrode them).
+  const [colW, setColW] = useState<Record<string, number>>({});
   const CHECK_W = 44;
   const ICON_W = 40; // manage-columns gutter at the right edge
   const MIN_W = 80;
@@ -615,18 +766,18 @@ export function TicketTable({
       <span className="h-4 w-px bg-[#E5E7EB] transition-colors group-hover/rz:h-full group-hover/rz:w-[2px] group-hover/rz:bg-[#3D8BD0]" />
     </span>
   );
-  const TH = 'group/th sticky top-0 z-30 cursor-grab select-none border-b border-[#e5e7eb] px-4 py-2.5 text-left text-[12px] font-semibold text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
+  const TH = 'group/th sticky top-0 z-30 cursor-grab select-none border-b border-[#EEF1F4] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
   /* Columns are drag-to-reorder from the header (tab-strip DnD recipe: dimmed source,
      blue left drop indicator); the order persists like the Customize Layout sections.
      `flex` columns share out leftover width; the rest hold the width they were given. */
   const COL_DEFS: ColDef[] = [
     { key: 'id', label: 'ID', w: 96 },
     { key: 'subject', label: 'Subject', flex: true, w: 340 },
-    { key: 'requester', label: 'Requester', flex: true, w: 150 },
-    { key: 'assignee', label: 'Assigned to', flex: true, w: 180 },
-    { key: 'dueStatus', label: 'Due By Status', w: 130 },
-    { key: 'status', label: 'Status', w: 130 },
-    { key: 'priority', label: 'Priority', w: 120 },
+    { key: 'requester', label: 'Requester', flex: true, w: 120 },
+    { key: 'assignee', label: 'Assigned to', flex: true, w: 148 },
+    { key: 'dueStatus', label: 'SLA Status', w: 142 },
+    { key: 'status', label: 'Status', w: 152 },
+    { key: 'priority', label: 'Priority', w: 132 },
     { key: 'created', label: 'Created Date', flex: true, w: 190 },
   ];
   const CATALOG: ColDef[] = [...COL_DEFS, ...EXTRA_COLS];
@@ -647,6 +798,70 @@ export function TicketTable({
     setColOrder(next);
     localStorage.setItem(COL_ORDER_KEY, JSON.stringify(next));
   };
+  const [menuCol, setMenuCol] = useState<{ key: string; left: number; bottom: number } | null>(null);
+  /* Freeze — Notion's model: everything from the left EDGE up to and including the chosen
+     column sticks in place while the grid scrolls horizontally. */
+  /* Insert Left/Right drops an EMPTY placeholder column at the slot; a picker card hangs
+     off it (search + everything addable). Choosing a column fills the slot; dismissing
+     removes it. */
+  const [insertAt, setInsertAt] = useState<{ index: number } | null>(null);
+  const [phQ, setPhQ] = useState('');
+  const [phRect, setPhRect] = useState<{ left: number; bottom: number } | null>(null);
+  const phPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!insertAt) { setPhRect(null); return; }
+    const el = document.getElementById('ph-col-th') ?? document.querySelector('[data-ph-col]');
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setPhRect({ left: r.left, bottom: r.bottom });
+    }
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null;
+      if (t && phPickerRef.current?.contains(t)) return;
+      setInsertAt(null);
+    };
+    const close = () => setInsertAt(null);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [insertAt]);
+  const commitInsert = (key: string) => {
+    if (!insertAt) return;
+    const next = colOrder.filter((k) => k !== key);
+    next.splice(Math.min(insertAt.index, next.length), 0, key);
+    applyColumns(next);
+    setInsertAt(null);
+    setPhQ('');
+  };
+  const MAX_FROZEN = 3;
+  const [frozenUpTo, setFrozenUpTo] = useState<string | null>(null);
+  // Grouping — toggled from any column header menu; every group band is collapsible.
+  const [groupBy, setGroupBy] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  // One rows-per-page setting for ALL groups — mixed per-group sizes would be chaos.
+  const [groupPageSize, setGroupPageSize] = useState(5);
+  useEffect(() => {
+    if (!clearGroupingSignal) return;
+    setGroupBy(null);
+    setCollapsed(new Set());
+    setGroupPages({});
+    onGroupedChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearGroupingSignal]);
+  /* Which Ticket field each column sorts on; the optional catalog columns have no backing
+     field, so their menu sorts by created date as a sensible stand-in. */
+  const SORT_FIELD: Record<string, keyof Ticket> = {
+    id: 'id', subject: 'subject', requester: 'requester', assignee: 'assignedTo',
+    dueStatus: 'dueBy', status: 'status', priority: 'priority', created: 'createdBy',
+  };
+  const hideColumn = (key: string) => applyColumns(colOrder.filter((k) => k !== key));
+
+  const changeColumn = (fromKey: string, toKey: string) =>
+    applyColumns(colOrder.map((k) => (k === fromKey ? toKey : k)));
   const [showColMgr, setShowColMgr] = useState(false);
   const [mgrRect, setMgrRect] = useState<{ right: number; bottom: number } | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
@@ -695,6 +910,19 @@ export function TicketTable({
     const lastFlex = cols.map((c) => !!c.flex).lastIndexOf(true);
     if (lastFlex >= 0) fitted[lastFlex] += avail - fitted.reduce((n, w) => n + w, 0);
   }
+  // Display list: the real columns with the placeholder slot woven in (ri = real index).
+  const PH_W = 200;
+  const displayCols: (ColDef | null)[] = insertAt
+    ? [...cols.slice(0, insertAt.index), null, ...cols.slice(insertAt.index)]
+    : (cols as (ColDef | null)[]);
+  let __ri = 0;
+  const displayMeta = displayCols.map((col) => ({ col, ri: col ? __ri++ : -1 }));
+  // Frozen-column geometry: each pinned cell sticks at the sum of the widths before it.
+  const frozenIdx = frozenUpTo ? cols.findIndex((c) => c.key === frozenUpTo) : -1;
+  const leftOf = (i: number) => CHECK_W + fitted.slice(0, i).reduce((n, w) => n + w, 0);
+  // The last frozen column carries the edge: a hairline + soft shadow over the scrolling side.
+  const frozenCellCls = (i: number, picked: boolean) =>
+    `sticky z-20 ${i === frozenIdx ? 'border-r border-[#EBEEF2] shadow-[2px_0_4px_rgba(15,42,68,0.05)] ' : ''}${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
 
   /* One renderer per column, so the body follows whatever order the header is dragged into. */
   const renderCell = (key: string, ticket: Ticket) => {
@@ -823,7 +1051,7 @@ export function TicketTable({
         );
       case 'requester':
         return (
-              <td className="px-2 py-2.5 text-[12px] text-[#364658] whitespace-nowrap">
+              <td className="px-2 py-0 text-[12px] text-[#364658] whitespace-nowrap">
                 <InlineSelect
                   user
                   accent="#E67E22"
@@ -844,7 +1072,7 @@ export function TicketTable({
         );
       case 'assignee':
         return (
-              <td className="px-2 py-2.5 whitespace-nowrap">
+              <td className="px-2 py-0 whitespace-nowrap">
                 <InlineSelect
                   user
                   options={ASSIGNEE_OPTIONS}
@@ -893,7 +1121,7 @@ export function TicketTable({
         );
       case 'status':
         return (
-              <td className="px-2 py-2.5 whitespace-nowrap">
+              <td className="px-2 py-0 whitespace-nowrap">
                 <InlineSelect options={STATUS_OPTIONS} value={ticket.status} onPick={(label) => onUpdateTicket?.(ticket.id, { status: label as Ticket['status'] })}>
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(ticket.status) }} />
@@ -904,7 +1132,7 @@ export function TicketTable({
         );
       case 'priority':
         return (
-              <td className="px-2 py-2.5">
+              <td className="px-2 py-0">
                 <InlineSelect options={PRIORITY_OPTIONS} value={ticket.priority} onPick={(label) => onUpdateTicket?.(ticket.id, { priority: label as Ticket['priority'] })}>
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: priorityColor(ticket.priority) }} />
@@ -930,6 +1158,141 @@ export function TicketTable({
       }
     }
   };
+  /* ---------- Grouping ---------- */
+  const SLA_GROUP: Record<SlaTone, string> = {
+    breached: 'SLA Breached', due: 'Due Soon', ok: 'On Track', done: 'Met',
+  };
+  const SLA_GROUP_COLOR: Record<string, string> = {
+    'SLA Breached': '#E74C3C', 'Due Soon': '#F39C12', 'On Track': '#27AE60', Met: '#64748B',
+  };
+  // What VALUE a row contributes when grouped by a column; catalog columns use their
+  // derived cell value, so grouping works for every column the same way.
+  const groupValueOf = (key: string, t: Ticket): string => {
+    switch (key) {
+      case 'id': return t.id;
+      case 'subject': return t.subject;
+      case 'requester': return t.requester;
+      case 'assignee': return t.assignedTo.name;
+      case 'status': return t.status;
+      case 'priority': return t.priority;
+      case 'dueStatus': return SLA_GROUP[dueBySla(t).tone];
+      case 'created': { const p = fmtDate(t.createdBy).split(' '); return `${p[0]} ${p[1]}`; }
+      default: return extraValue(key, t);
+    }
+  };
+  // Lifecycle-ordered where the values have a natural order; alphabetical otherwise.
+  const GROUP_ORDERS: Record<string, string[]> = {
+    status: ['Open', 'In Progress', 'Pending', 'Completed', 'Closed', 'Cancelled'],
+    priority: ['Urgent', 'High', 'Medium', 'Low'],
+    dueStatus: ['SLA Breached', 'Due Soon', 'On Track', 'Met'],
+  };
+  // The band shows the value in its column's own visual language.
+  const groupBand = (colKey: string, value: string) => {
+    const label = value === '---' ? 'No value' : value;
+    const text = 'text-[12px] font-semibold text-[#364658]';
+    if (colKey === 'status') {
+      return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: statusColor(value) }} />{label}</span>;
+    }
+    if (colKey === 'priority' || colKey === 'urgency') {
+      return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: priorityColor(value) }} />{label}</span>;
+    }
+    if (colKey === 'assignee' || colKey === 'requester' || colKey === 'closedBy' || colKey === 'resolvedBy' || colKey === 'lastUpdatedBy' || colKey === 'createdByUser') {
+      const accent = colKey === 'requester' ? '#E67E22' : '#3D8BD0';
+      return (
+        <span className={`inline-flex items-center gap-1.5 ${text}`}>
+          <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-medium text-white" style={{ backgroundColor: accent }}>
+            {requesterAvatar(label).initials}
+          </span>
+          {label}
+        </span>
+      );
+    }
+    if (colKey === 'dueStatus') {
+      return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: SLA_GROUP_COLOR[value] ?? '#94A3B8' }} />{label}</span>;
+    }
+    return <span className={text}>{label}</span>;
+  };
+  // The tbody renders this flat list: band rows interleaved with their tickets.
+  /* Grouped rendering = ONE TABLE PER GROUP, each preceded by a sticky title; the title +
+     that group's header stick while its rows scroll and are pushed out when the group ends
+     (sticky is constrained to the group block). */
+  interface GroupBlock { key: string; colKey: string; all: Ticket[]; slice: Ticket[]; page: number; pages: number; start: number; end: number }
+  const groupBlocks: GroupBlock[] = [];
+  if (groupBy) {
+    const source = allTickets ?? tickets;
+    const buckets = new Map<string, Ticket[]>();
+    for (const t of source) {
+      const v = groupValueOf(groupBy, t);
+      if (!buckets.has(v)) buckets.set(v, []);
+      buckets.get(v)!.push(t);
+    }
+    const order = GROUP_ORDERS[groupBy];
+    const keys = [...buckets.keys()].sort((a, b) => (order ? order.indexOf(a) - order.indexOf(b) : a.localeCompare(b)));
+    for (const k of keys) {
+      const arr = buckets.get(k)!;
+      const pages = Math.ceil(arr.length / groupPageSize);
+      const page = Math.min(groupPages[k] ?? 1, pages);
+      const start = (page - 1) * groupPageSize;
+      const slice = arr.slice(start, start + groupPageSize);
+      groupBlocks.push({ key: k, colKey: groupBy, all: arr, slice, page, pages, start: start + 1, end: start + slice.length });
+    }
+  }
+  const groupArrowBtn = 'flex h-8 w-8 items-center justify-center rounded-md text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#64748B]';
+  const colGroupJSX = (
+    <colgroup>
+      <col style={{ width: CHECK_W }} />
+      {displayMeta.map((m) =>
+        m.col ? (
+          <col key={m.col.key} style={{ width: fitted[m.ri], backgroundColor: dragCol === m.col.key ? '#F5F7FA' : undefined }} />
+        ) : (
+          <col key="__ph" style={{ width: PH_W }} />
+        ),
+      )}
+      <col style={{ width: ICON_W }} />
+    </colgroup>
+  );
+  const renderTicketRow = (ticket: Ticket) => {
+    const picked = selectedTickets.has(ticket.id);
+    return (
+            <tr
+              key={ticket.id}
+              className={`group cursor-pointer border-b border-[#F1F5F9] transition-colors ${picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
+              onClick={() => onTicketClick(ticket)}
+            >
+              <td className={`relative px-4 py-3 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
+                {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
+                {picked && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#DFE5ED]" />}
+                <input
+                  type="checkbox"
+                  checked={picked}
+                  onChange={(e) => onSelectTicket(ticket.id, e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                />
+              </td>
+              {displayMeta.map((m) => {
+                if (!m.col) return <td key="__ph" className="bg-[#FAFBFC]" />;
+                const c = m.col;
+                const ci = m.ri;
+                const el = renderCell(c.key, ticket);
+                if (ci <= frozenIdx && isValidElement(el)) {
+                  const props = el.props as { className?: string; style?: React.CSSProperties };
+                  return (
+                    <Fragment key={c.key}>
+                      {cloneElement(el as React.ReactElement<{ className?: string; style?: React.CSSProperties }>, {
+                        className: `${props.className ?? ''} ${frozenCellCls(ci, picked)}`,
+                        style: { ...(props.style ?? {}), left: leftOf(ci) },
+                      })}
+                    </Fragment>
+                  );
+                }
+                return <Fragment key={c.key}>{el}</Fragment>;
+              })}
+              <td />
+            </tr>
+    );
+  };
+
   return (
     <div className="relative" ref={wrapRef}>
       {/* Full-height insertion line — lands exactly where the drop will place the column. */}
@@ -946,25 +1309,32 @@ export function TicketTable({
           />
         );
       })()}
-      <table className="w-full table-fixed" style={{ minWidth: baseTotal }}>
-        <colgroup>
-          <col style={{ width: CHECK_W }} />
-          {cols.map((c, i) => (
-            <col key={c.key} style={{ width: fitted[i], backgroundColor: dragCol === c.key ? '#F5F7FA' : undefined }} />
-          ))}
-          <col style={{ width: ICON_W }} />
-        </colgroup>
-        <thead className="border-b border-[#e5e7eb]">
+      {!groupBy ? (
+      <table className="w-full table-fixed" style={{ minWidth: baseTotal + (insertAt ? PH_W : 0) }}>
+        {colGroupJSX}
+        {/* Grouped view: each group repeats the headings, so the common header hides. */}
+        {!groupBy && (
+        <thead>
           <tr className="bg-white">
-            <th className="sticky top-0 z-30 border-b border-[#e5e7eb] bg-white px-4 py-2.5 text-left">
+            <th className={`sticky top-0 z-30 border-b border-[#EEF1F4] bg-white px-4 py-2.5 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={(e) => onSelectAll(e.target.checked)}
-                className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
               />
             </th>
-            {cols.map((c) => (
+            {displayMeta.map((m) => {
+              if (!m.col) {
+                return (
+                  <th key="__ph" id="ph-col-th" className="sticky top-0 z-30 border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2.5 text-left">
+                    <span className="text-[12px] font-medium italic text-[#94A3B8]">New column</span>
+                  </th>
+                );
+              }
+              const c = m.col;
+              const ci = m.ri;
+              return (
               <th
                 key={c.key}
                 draggable
@@ -979,16 +1349,39 @@ export function TicketTable({
                 onDragLeave={() => { if (dragOver?.key === c.key) setDragOver(null); }}
                 onDrop={(e) => { e.preventDefault(); dropColumn(); }}
                 onDragEnd={() => { setDragCol(null); setDragOver(null); }}
-                className={`${TH} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  setMenuCol({ key: c.key, left: r.left, bottom: r.bottom });
+                }}
+                style={ci <= frozenIdx ? { left: leftOf(ci) } : undefined}
+                className={`${TH} ${ci <= frozenIdx ? `z-[35] ${ci === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
               >
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
                 <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
-                <span className="block truncate">{c.label}</span>
+                <span className="flex items-center gap-0.5">
+                  <span className="truncate">{c.label}</span>
+                  {/* One-click sort toggle — the most-used action lives on the header
+                      itself; the menu keeps the rest. */}
+                  {SORT_FIELD[c.key] && (() => {
+                    const active = sortColumn === SORT_FIELD[c.key];
+                    return (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSort(SORT_FIELD[c.key]); }}
+                        title={active ? (sortDirection === 'asc' ? 'Sorted ascending — click to reverse' : 'Sorted descending — click to reverse') : 'Sort'}
+                        className={`flex size-5 flex-shrink-0 items-center justify-center rounded transition-all hover:bg-[#E8ECF1] ${active ? '' : 'opacity-0 group-hover/th:opacity-100'}`}
+                      >
+                        {active ? (sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />) : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
+                      </button>
+                    );
+                  })()}
+                  <ChevronDown size={12} className={`flex-shrink-0 text-[#9CA3AF] transition-opacity ${menuCol?.key === c.key ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-100'}`} />
+                </span>
                 {resizer(c.key)}
               </th>
-            ))}
+              );
+            })}
             {/* Manage columns — pinned at the right edge of the header. */}
-            <th className="sticky right-0 top-0 z-40 border-b border-[#e5e7eb] bg-white p-0">
+            <th className="sticky right-0 top-0 z-40 border-b border-[#EEF1F4] bg-white p-0">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -1007,31 +1400,268 @@ export function TicketTable({
             </th>
           </tr>
         </thead>
-        {/* No tbody background — it would paint over the <col> tint of the dragged column. */}
-        <tbody className="divide-y divide-[#e5e7eb]">
-          {tickets.map((ticket) => (
-            <tr
-              key={ticket.id}
-              className="group hover:bg-[#f9fafb] transition-colors cursor-pointer"
-              onClick={() => onTicketClick(ticket)}
-            >
-              <td className="px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={selectedTickets.has(ticket.id)}
-                  onChange={(e) => onSelectTicket(ticket.id, e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-                />
-              </td>
-              {cols.map((c) => (
-                <Fragment key={c.key}>{renderCell(c.key, ticket)}</Fragment>
-              ))}
-              <td />
-            </tr>
-          ))}
+        )}
+        {/* No tbody background — it would paint over the <col> tint of the dragged column.
+            No divide either: ticket rows carry their own light border, so group headers
+            and pagers stay line-free. */}
+        <tbody>
+          {tickets.map((ticket) => renderTicketRow(ticket))}
         </tbody>
       </table>
+      ) : (
+      <div className="pb-1">
+        {groupBlocks.map((g) => {
+          const isCollapsed = collapsed.has(g.key);
+          const allSel = g.all.every((t) => selectedTickets.has(t.id));
+          const go = (p: number) => setGroupPages((gp) => ({ ...gp, [g.key]: Math.min(Math.max(1, p), g.pages) }));
+          return (
+            <div key={g.key} className="mb-3">
+              {/* Sticky group title — pinned while its rows scroll, pushed out at the end. */}
+              <div className="sticky left-0 top-0 z-40 flex h-12 items-center bg-white px-3">
+                <button
+                  onClick={() =>
+                    setCollapsed((p) => {
+                      const n = new Set(p);
+                      if (n.has(g.key)) n.delete(g.key);
+                      else n.add(g.key);
+                      return n;
+                    })
+                  }
+                  className="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown size={14} className={`flex-shrink-0 text-[#9CA3AF] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                  {groupBand(g.colKey, g.key)}
+                  <span className="text-[12px] font-medium text-[#94A3B8]">{g.all.length}</span>
+                </button>
+              </div>
+              {!isCollapsed && (
+                <table className="w-full table-fixed" style={{ minWidth: baseTotal + (insertAt ? PH_W : 0) }}>
+                  {colGroupJSX}
+                  {/* The group header sticks just under the title (h-12 = 48px). */}
+                  <thead>
+                    <tr className="border-b border-[#F1F5F9]">
+                      <th className={`sticky top-[48px] bg-white px-4 py-1.5 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
+                        <input
+                          type="checkbox"
+                          checked={allSel}
+                          onChange={(e) => g.all.forEach((t) => onSelectTicket(t.id, e.target.checked))}
+                          onClick={(e) => e.stopPropagation()}
+                          title="Select all in this group"
+                          className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
+                        />
+                      </th>
+                      {displayMeta.map((m) =>
+                        m.col ? (
+                          <th
+                            key={m.col.key}
+                            draggable
+                            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, m.col!.label); setDragCol(m.col!.key); }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const after = e.clientX > r.left + r.width / 2;
+                              if (!dragOver || dragOver.key !== m.col!.key || dragOver.after !== after) setDragOver({ key: m.col!.key, after });
+                            }}
+                            onDragLeave={() => { if (dragOver?.key === m.col!.key) setDragOver(null); }}
+                            onDrop={(e) => { e.preventDefault(); dropColumn(); }}
+                            onDragEnd={() => { setDragCol(null); setDragOver(null); }}
+                            style={m.ri >= 0 && m.ri <= frozenIdx ? { left: leftOf(m.ri) } : undefined}
+                            onClick={(e) => {
+                              const r = e.currentTarget.getBoundingClientRect();
+                              setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
+                            }}
+                            className={`group/gh sticky top-[48px] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? `z-30 ${m.ri === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                          >
+                            <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
+                            <span className="flex items-center gap-0.5">
+                              <span className="truncate">{m.col.label}</span>
+                              {SORT_FIELD[m.col.key] && (() => {
+                                const active = sortColumn === SORT_FIELD[m.col!.key];
+                                return (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onSort(SORT_FIELD[m.col!.key]); }}
+                                    title={active ? (sortDirection === 'asc' ? 'Sorted ascending — click to reverse' : 'Sorted descending — click to reverse') : 'Sort'}
+                                    className={`flex size-5 flex-shrink-0 items-center justify-center rounded transition-all hover:bg-[#E8ECF1] ${active ? '' : 'opacity-0 group-hover/gh:opacity-100'}`}
+                                  >
+                                    {active ? (sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />) : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
+                                  </button>
+                                );
+                              })()}
+                              <ChevronDown size={12} className={`flex-shrink-0 text-[#9CA3AF] transition-opacity ${menuCol?.key === m.col.key ? 'opacity-100' : 'opacity-0 group-hover/gh:opacity-100'}`} />
+                            </span>
+                          </th>
+                        ) : (
+                          <th key="__ph" data-ph-col className="sticky top-[48px] z-20 whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">
+                            New column
+                          </th>
+                        ),
+                      )}
+                      <th className="sticky top-[48px] z-20 bg-white" />
+                    </tr>
+                  </thead>
+                  <tbody>{g.slice.map((t) => renderTicketRow(t))}</tbody>
+                </table>
+              )}
+              {!isCollapsed && g.pages > 1 && (
+                <div className="px-4 pb-2 pt-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-1 pl-7">
+                    <span className="text-[12px] text-[#64748B] tabular-nums">
+                      Showing <span className="font-medium text-[#364658]">{g.start}–{g.end}</span> of{' '}
+                      <span className="font-medium text-[#364658]">{g.all.length}</span>
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="whitespace-nowrap text-[12px] text-[#64748B]">Rows per page</span>
+                        <select
+                          value={groupPageSize}
+                          onChange={(e) => { setGroupPageSize(Number(e.target.value)); setGroupPages({}); }}
+                          className="app-select h-8 cursor-pointer rounded border border-transparent bg-[#F7F9FB] pl-2.5 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F1F5F9] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                        >
+                          {[5, 10, 15, 25].map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => go(g.page - 1)} disabled={g.page === 1} title="Previous page" className={groupArrowBtn}>
+                          <ChevronLeft size={16} />
+                        </button>
+                        {g.pages <= 7 ? (
+                          Array.from({ length: g.pages }, (_, p) => p + 1).map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => go(p)}
+                              aria-current={g.page === p ? 'page' : undefined}
+                              className={`flex h-8 min-w-8 items-center justify-center rounded px-2 text-[12px] tabular-nums transition-colors ${g.page === p ? 'bg-[#EBF5FF] font-semibold text-[#3D8BD0]' : 'font-medium text-[#64748B] hover:bg-[#F3F4F6] hover:text-[#364658]'}`}
+                            >
+                              {p}
+                            </button>
+                          ))
+                        ) : (
+                          <span className="px-1 text-[12px] text-[#64748B]">Page {g.page} of {g.pages}</span>
+                        )}
+                        <button onClick={() => go(g.page + 1)} disabled={g.page === g.pages} title="Next page" className={groupArrowBtn}>
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      )}
+      {menuCol && (() => {
+        const c = CATALOG.find((x) => x.key === menuCol.key);
+        if (!c) return null;
+        return (
+          <HeaderMenu
+            anchor={{ left: menuCol.left, bottom: menuCol.bottom }}
+            col={c}
+            catalog={CATALOG}
+            visible={colOrder}
+            groupedBy={groupBy === c.key}
+            frozen={(() => {
+              const i2 = colOrder.indexOf(c.key);
+              const fi = frozenUpTo ? colOrder.indexOf(frozenUpTo) : -1;
+              return fi >= 0 && i2 >= 0 && i2 <= fi;
+            })()}
+            freezeDisabled={(() => {
+              const i2 = colOrder.indexOf(c.key);
+              const fi = frozenUpTo ? colOrder.indexOf(frozenUpTo) : -1;
+              const within = fi >= 0 && i2 <= fi;
+              return !within && i2 >= MAX_FROZEN;
+            })()}
+            onFreeze={() => {
+              const i2 = colOrder.indexOf(c.key);
+              const fi = frozenUpTo ? colOrder.indexOf(frozenUpTo) : -1;
+              if (fi >= 0 && i2 <= fi) {
+                setFrozenUpTo(null);
+                return;
+              }
+              // Freezing "up to" this column pins i2 + 1 columns — cap at MAX_FROZEN.
+              if (i2 >= MAX_FROZEN) {
+                toast.error(`You can freeze up to ${MAX_FROZEN} columns`);
+                return;
+              }
+              setFrozenUpTo(c.key);
+            }}
+            onGroup={() => {
+              const next = groupBy === c.key ? null : c.key;
+              setGroupBy(next);
+              setCollapsed(new Set());
+              setGroupPages({});
+              if (next) {
+                const src = allTickets ?? tickets;
+                const vals = new Set(src.map((t) => groupValueOf(next, t)));
+                onGroupedChange?.(true, { label: c.label, groups: vals.size, total: src.length });
+              } else {
+                onGroupedChange?.(false);
+              }
+            }}
+            onHide={() => hideColumn(c.key)}
+            onInsertSlot={(side) => {
+              const i2 = colOrder.indexOf(c.key);
+              setInsertAt({ index: i2 + (side === 'right' ? 1 : 0) });
+              setPhQ('');
+            }}
+            onChange={(key) => changeColumn(c.key, key)}
+            onClose={() => setMenuCol(null)}
+          />
+        );
+      })()}
+      {insertAt && phRect && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setInsertAt(null)} />
+          <div
+            ref={phPickerRef}
+            style={{ position: 'fixed', top: phRect.bottom + 4, left: Math.min(phRect.left, window.innerWidth - 272), width: 264 }}
+            className="z-[9999] flex max-h-[340px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+          >
+            <div className="border-b border-[#F0F2F5] px-3 pb-2 pt-2.5">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  autoFocus
+                  value={phQ}
+                  onChange={(e) => setPhQ(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setInsertAt(null); }}
+                  placeholder="Search columns..."
+                  className="w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] py-2 pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                />
+              </div>
+            </div>
+            {(() => {
+              const avail = CATALOG.filter((cc) => !colOrder.includes(cc.key) && cc.label.toLowerCase().includes(phQ.trim().toLowerCase()));
+              return (
+                <>
+                  <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Available · {avail.length}</div>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+                    {avail.length ? (
+                      avail.map((cc) => (
+                        <button
+                          key={cc.key}
+                          onClick={() => commitInsert(cc.key)}
+                          className="group/ph flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                        >
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{cc.label}</span>
+                          <Plus size={14} className="flex-shrink-0 text-[#3D8BD0] opacity-0 transition-opacity group-hover/ph:opacity-100" />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-6 text-center text-[12px] text-[#94A3B8]">No columns found</div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </>,
+        document.body,
+      )}
       {showColMgr && mgrRect && (
         <ColumnManager
           anchor={mgrRect}
