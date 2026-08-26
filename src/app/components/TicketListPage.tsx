@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
+import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
@@ -300,6 +301,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
         <Header selectedCount={selectedTickets.size} />
         <Toolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <main className="flex-1 overflow-hidden flex flex-col">
+          <TicketGroupSuggestions />
           <div className="flex-1 overflow-auto bg-white min-h-0">
             <TicketTable
               tickets={paginatedTickets}

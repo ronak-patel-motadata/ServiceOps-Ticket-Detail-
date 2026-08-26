@@ -766,7 +766,7 @@ export function TicketTable({
       <span className="h-4 w-px bg-[#E5E7EB] transition-colors group-hover/rz:h-full group-hover/rz:w-[2px] group-hover/rz:bg-[#3D8BD0]" />
     </span>
   );
-  const TH = 'group/th sticky top-0 z-30 cursor-grab select-none border-b border-[#EEF1F4] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
+  const TH = 'group/th sticky top-0 z-30 cursor-grab select-none shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
   /* Columns are drag-to-reorder from the header (tab-strip DnD recipe: dimmed source,
      blue left drop indicator); the order persists like the Customize Layout sections.
      `flex` columns share out leftover width; the rest hold the width they were given. */
@@ -1316,7 +1316,7 @@ export function TicketTable({
         {!groupBy && (
         <thead>
           <tr className="bg-white">
-            <th className={`sticky top-0 z-30 border-b border-[#EEF1F4] bg-white px-4 py-2.5 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
+            <th className={`sticky top-0 z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white px-4 py-2.5 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -1327,7 +1327,7 @@ export function TicketTable({
             {displayMeta.map((m) => {
               if (!m.col) {
                 return (
-                  <th key="__ph" id="ph-col-th" className="sticky top-0 z-30 border-b border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2.5 text-left">
+                  <th key="__ph" id="ph-col-th" className="sticky top-0 z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-[#F8FAFC] px-4 py-2.5 text-left">
                     <span className="text-[12px] font-medium italic text-[#94A3B8]">New column</span>
                   </th>
                 );
@@ -1381,7 +1381,7 @@ export function TicketTable({
               );
             })}
             {/* Manage columns — pinned at the right edge of the header. */}
-            <th className="sticky right-0 top-0 z-40 border-b border-[#EEF1F4] bg-white p-0">
+            <th className="sticky right-0 top-0 z-40 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white p-0">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -1439,8 +1439,8 @@ export function TicketTable({
                   {colGroupJSX}
                   {/* The group header sticks just under the title (h-12 = 48px). */}
                   <thead>
-                    <tr className="border-b border-[#F1F5F9]">
-                      <th className={`sticky top-[48px] bg-white px-4 py-1.5 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
+                    <tr>
+                      <th className={`sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white px-4 py-1.5 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
                         <input
                           type="checkbox"
                           checked={allSel}
@@ -1471,7 +1471,7 @@ export function TicketTable({
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
-                            className={`group/gh sticky top-[48px] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? `z-30 ${m.ri === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            className={`group/gh sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? `z-30 ${m.ri === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
                             <span className="flex items-center gap-0.5">
@@ -1492,12 +1492,12 @@ export function TicketTable({
                             </span>
                           </th>
                         ) : (
-                          <th key="__ph" data-ph-col className="sticky top-[48px] z-20 whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">
+                          <th key="__ph" data-ph-col className="sticky top-[48px] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">
                             New column
                           </th>
                         ),
                       )}
-                      <th className="sticky top-[48px] z-20 bg-white" />
+                      <th className="sticky top-[48px] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white" />
                     </tr>
                   </thead>
                   <tbody>{g.slice.map((t) => renderTicketRow(t))}</tbody>

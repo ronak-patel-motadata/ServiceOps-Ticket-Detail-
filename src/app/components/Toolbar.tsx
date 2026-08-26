@@ -1,4 +1,4 @@
-import { ChevronDown, X, Download, Upload, Calendar, LayoutGrid, Star, Search } from 'lucide-react';
+import { ChevronDown, Download, Upload, Calendar, LayoutGrid, Star } from 'lucide-react';
 
 interface ToolbarProps {
   searchQuery: string;
@@ -51,28 +51,6 @@ export function Toolbar({ searchQuery, setSearchQuery }: ToolbarProps) {
         </div>
       </div>
 
-      {/* Second Row: Full-width Search */}
-      <div className="px-6 pb-3">
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Select field or enter a keyword to search..."
-            className="h-[36px] w-full rounded border border-[#d1d5db] bg-white pl-3 pr-10 text-[13px] text-[#364658] placeholder:text-[#9ca3af] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
-          />
-          {searchQuery ? (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658] transition-colors"
-            >
-              <X size={16} />
-            </button>
-          ) : (
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" size={16} />
-          )}
-        </div>
-      </div>
     </div>
   );
 }
