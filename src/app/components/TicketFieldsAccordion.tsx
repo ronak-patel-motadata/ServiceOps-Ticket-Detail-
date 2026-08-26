@@ -1,6 +1,5 @@
-import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft, Tag } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
-import { AiFieldSuggest } from './AiFieldSuggest';
 import { toast } from 'sonner';
 import { AssetFields } from './AssetFields';
 import type { AssetFieldState } from './AssetFields';
@@ -211,6 +210,87 @@ function ProblemFieldRow({
   );
 }
 
+/* AI suggestions now live INSIDE the field's own dropdown: a "Suggested" section on top,
+   then a divider, then the normal option list. The sparkle beside a blank field is purely
+   a hint that the dropdown holds suggestions — it is not clickable. */
+const AI_SUGGESTED: Record<string, string[]> = {
+  techGroup: ['IT Support Team'],
+  department: ['IT'],
+  tags: ['network', 'vpn', 'connectivity'],
+};
+/* Tags already used on other requests — typed input autocompletes from these. Distinct
+   from AI_SUGGESTED: these are history, not intelligence, so they render plain. */
+const USED_TAGS = [
+  'network', 'vpn', 'connectivity', 'hardware', 'laptop', 'printer', 'wifi',
+  'urgent', 'onboarding', 'access', 'email', 'outlook', 'password-reset',
+  'server', 'production', 'critical',
+];
+
+/** Hint sparkle shown in a blank field whose dropdown carries AI suggestions. */
+function AiSuggestHint({ label }: { label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className="pointer-events-auto flex size-5 cursor-default items-center justify-center rounded"
+          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.10) 0%, rgba(115, 30, 251, 0.10) 41.49%, rgba(249, 17, 227, 0.10) 100%), #FFF' }}
+        >
+          <AiSparkle size={12} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>AI has suggestions for {label} — open the list</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** The "Suggested" block that sits at the top of a field dropdown. */
+function SuggestedSection({
+  values,
+  onPick,
+  onAddAll,
+}: {
+  values: string[];
+  onPick: (v: string) => void;
+  /** Multi-value fields can take every suggestion at once. */
+  onAddAll?: () => void;
+}) {
+  if (!values.length) return null;
+  return (
+    <>
+      {/* Tinted band — the AI Summary gradient behind the whole suggested block. */}
+      <div
+        className="-mt-2 border-b border-[#EFE9FA] px-3 pb-2.5 pt-2.5"
+        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
+      >
+        <div className="flex items-center gap-1.5 pb-1.5">
+          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">AI Suggested</span>
+          {onAddAll && values.length > 1 && (
+            <button
+              onMouseDown={(e) => { e.preventDefault(); onAddAll(); }}
+              className="text-[11px] font-semibold text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+            >
+              Add all
+            </button>
+          )}
+        </div>
+        {values.map((v) => (
+          <button
+            key={`ai-${v}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(v)}
+            className="group/ai -mx-1 flex w-[calc(100%+8px)] items-center justify-between gap-2 rounded px-1 py-2 text-left transition-colors hover:bg-white/70"
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <AiSparkle size={12} />
+              <span className="truncate text-[13px] font-medium text-[#364658]">{v}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="px-4 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">All options</div>
+    </>
+  );
+}
 export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
   const {
     fieldsTitle = 'Key Information',
@@ -816,15 +896,10 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               >
                 {selectedTechGroup || <span className="text-[#9CA3AF]">Select group</span>}
               </button>
-              {/* Blank select → the AI Suggest chip rides in the value area. */}
+              {/* Blank select → a sparkle HINT; the suggestions live in the dropdown. */}
               {!selectedTechGroup && (
-                <span className="absolute right-0 top-1/2 -translate-y-1/2">
-                  <AiFieldSuggest
-                    single
-                    field="technician group"
-                    values={['IT Support Team', 'Network Operations', 'Hardware Support Team']}
-                    onApply={(p) => { if (p[0]) setSelectedTechGroup(p[0]); }}
-                  />
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                  <AiSuggestHint label="technician group" />
                 </span>
               )}
               {selectedTechGroup && (
@@ -833,8 +908,16 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               
               {/* Tech Group Dropdown Menu */}
               {showTechGroupDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
-                  {techGroupOptions.map((option) => (
+                <div className="absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                  {!selectedTechGroup && (
+                    <SuggestedSection
+                      values={AI_SUGGESTED.techGroup}
+                      onPick={(v) => { setSelectedTechGroup(v); setShowTechGroupDropdown(false); }}
+                    />
+                  )}
+                  {techGroupOptions
+                    .filter((option) => selectedTechGroup || !AI_SUGGESTED.techGroup.includes(option.label))
+                    .map((option) => (
                     <button
                       key={option.label}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"
@@ -980,7 +1063,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
 
               {/* Tags */}
               {(!propertiesSearchQuery || 'tags'.includes(propertiesSearchQuery.toLowerCase())) && (
-              <div className="space-y-2">
+              <div className="relative space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-[12px] text-[#4A5568] flex-shrink-0 w-[120px] pt-1">Tags</div>
                   <div className="flex flex-wrap gap-2 flex-1">
@@ -1004,47 +1087,123 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                         Add tag
                       </button>
                     )}
-                    {/* Blank field → the AI Suggest icon at the value container's right edge. */}
+                    {/* Blank field → a sparkle HINT; the suggestions sit with the input. */}
                     {tags.length === 0 && (
-                      <span className="ml-auto">
-                        <AiFieldSuggest
-                          field="tags"
-                          values={['network', 'vpn', 'connectivity']}
-                          onApply={(picked) => {
-                            setTags(picked);
-                            toast.success(`${picked.length} tag${picked.length === 1 ? '' : 's'} added`);
-                          }}
-                        />
+                      <span className="ml-auto mr-2">
+                        <AiSuggestHint label="tags" />
                       </span>
                     )}
                   </div>
                 </div>
+                {/* Add-tag DROPDOWN — input + AI suggestions OVERLAY the fields below
+                    instead of pushing them down. onMouseDown on the suggestion rows beats
+                    the input's blur-close, so a tap lands before the popup dismisses. */}
                 {showTagInput && (
-                  <input
-                    type="text"
-                    placeholder="Add tags..."
-                    value={tagInputValue}
-                    onChange={(e) => setTagInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && tagInputValue.trim()) {
-                        setTags([...tags, tagInputValue.trim()]);
-                        setTagInputValue('');
-                        setShowTagInput(false);
-                      } else if (e.key === 'Escape') {
-                        setTagInputValue('');
-                        setShowTagInput(false);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (tagInputValue.trim()) {
-                        setTags([...tags, tagInputValue.trim()]);
-                      }
-                      setTagInputValue('');
-                      setShowTagInput(false);
-                    }}
-                    autoFocus
-                    className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F3F4F6] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
-                  />
+                  <div className="absolute right-0 top-full z-50 mt-1 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        placeholder="Add tags..."
+                        value={tagInputValue}
+                        onChange={(e) => setTagInputValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && tagInputValue.trim()) {
+                            // Add and STAY open — dropdowns invite adding several.
+                            setTags([...tags, tagInputValue.trim()]);
+                            setTagInputValue('');
+                          } else if (e.key === 'Escape') {
+                            setTagInputValue('');
+                            setShowTagInput(false);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (tagInputValue.trim()) {
+                            setTags([...tags, tagInputValue.trim()]);
+                          }
+                          setTagInputValue('');
+                          setShowTagInput(false);
+                        }}
+                        autoFocus
+                        className="w-full px-3 py-2 text-[13px] text-[#364658] bg-[#F3F4F6] border border-[#E5E7EB] rounded placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#3D8BD0] focus:border-transparent"
+                      />
+                    </div>
+                    {/* Already-added suggestions drop out; band hides once all are in. */}
+                    {!tagInputValue.trim() && AI_SUGGESTED.tags.some((t) => !tags.includes(t)) && (
+                      <div
+                        className="border-t border-[#EFE9FA] px-3 pb-2.5 pt-2"
+                        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
+                      >
+                        <div className="flex items-center gap-1.5 pb-1.5">
+                          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">AI Suggested</span>
+                          <button
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setTags((prev) => [...prev, ...AI_SUGGESTED.tags.filter((t) => !prev.includes(t))]);
+                            }}
+                            className="text-[11px] font-semibold text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+                          >
+                            Add all
+                          </button>
+                        </div>
+                        {/* One per row, with a gradient-tinted + badge as the add cue. */}
+                        <div className="-mx-1.5">
+                          {AI_SUGGESTED.tags.filter((t) => !tags.includes(t)).map((t) => (
+                            <button
+                              key={t}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setTags((prev) => (prev.includes(t) ? prev : [...prev, t]));
+                              }}
+                              className="group/tag flex w-full items-center gap-1.5 rounded px-1.5 py-1.5 text-left transition-colors hover:bg-white/70"
+                            >
+                              <AiSparkle size={12} />
+                              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#364658]">{t}</span>
+                              <span
+                                className="flex size-5 flex-shrink-0 items-center justify-center rounded transition-shadow group-hover/tag:shadow-[0_1px_5px_rgba(115,30,251,0.20)]"
+                                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                              >
+                                <Plus size={12} className="text-[#731EFB]" />
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Typing → autocomplete from tags used on OTHER requests. Plain
+                        styling (no sparkle, neutral + badge): history, not AI. */}
+                    {tagInputValue.trim() && (() => {
+                      const q = tagInputValue.trim().toLowerCase();
+                      const matches = USED_TAGS.filter((t) => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 6);
+                      return (
+                        <div className="border-t border-[#F0F2F5] px-3 pb-2.5 pt-2">
+                          <div className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Previously used</div>
+                          {matches.length ? (
+                            <div className="-mx-1.5">
+                              {matches.map((t) => (
+                                <button
+                                  key={t}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setTags((prev) => (prev.includes(t) ? prev : [...prev, t]));
+                                    setTagInputValue('');
+                                  }}
+                                  className="group/used flex w-full items-center gap-1.5 rounded px-1.5 py-1.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                                >
+                                  <Tag size={12} className="flex-shrink-0 text-[#9CA3AF]" />
+                                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#364658]">{t}</span>
+                                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#F1F5F9] transition-colors group-hover/used:bg-[#E8EEF5]">
+                                    <Plus size={12} className="text-[#64748B]" />
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="px-1.5 py-2 text-[12px] text-[#94A3B8]">No matching tags — press Enter to create "{tagInputValue.trim()}"</div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
               </div>
               )}
@@ -1152,13 +1311,8 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                     {selectedDepartment || <span className="text-[#9CA3AF]">Select department</span>}
                   </button>
                   {!selectedDepartment && (
-                    <span className="absolute right-0 top-1/2 -translate-y-1/2">
-                      <AiFieldSuggest
-                        single
-                        field="department"
-                        values={['IT', 'Finance', 'Operations']}
-                        onApply={(p) => { if (p[0]) setSelectedDepartment(p[0]); }}
-                      />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                      <AiSuggestHint label="department" />
                     </span>
                   )}
                   {selectedDepartment && (
@@ -1166,8 +1320,16 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   )}
                   
                   {showDepartmentDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
-                      {departmentOptions.map((option) => (
+                    <div className="absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                      {!selectedDepartment && (
+                        <SuggestedSection
+                          values={AI_SUGGESTED.department}
+                          onPick={(v) => { setSelectedDepartment(v); setShowDepartmentDropdown(false); }}
+                        />
+                      )}
+                      {departmentOptions
+                        .filter((option) => selectedDepartment || !AI_SUGGESTED.department.includes(option.label))
+                        .map((option) => (
                         <button
                           key={option.label}
                           className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors"

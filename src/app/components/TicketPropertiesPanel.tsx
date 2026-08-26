@@ -1,4 +1,4 @@
-import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown , ArrowRight } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight, ChevronUp, Clock, CalendarDays, FileText, User, Tag, Folder, Activity, Sparkles, Pin as PinIcon, PinOff, Plus, Check, Play, Pause, Square, Paperclip, Download, Trash2, Edit, Link, Ticket as TicketIcon, Lightbulb, MoreVertical, Copy, CornerUpRight, Mail, StickyNote, Users, Forward, RefreshCw, Search as SearchIcon, Zap, MessageSquare, Brain, Loader2, Library, BookOpen, Settings, Pencil, GripVertical, ChevronUp as ArrowUp, ChevronDown as ArrowDown, Blocks, Keyboard, Layers, Monitor, AppWindow, Files, CheckCircle, SquarePen, History, ChevronLeft , Lock, ThumbsUp, ThumbsDown , ArrowRight, Info } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -654,13 +654,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Local state for chatbot
   const [chatInput, setChatInput] = useState('');
-  /* AI Property Suggestions (ticket page) — enrich the request from similar resolved
+  /* AI Fields Suggestion (ticket page) — enrich the request from similar resolved
      requests: pick which suggested values to take, Update applies them to the REAL
      panel state so Key Information changes visibly. */
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestDismissed, setSuggestDismissed] = useState(false);
   const [suggestApplied, setSuggestApplied] = useState(false);
-  const [suggestChecked, setSuggestChecked] = useState<Set<string>>(new Set(['status', 'priority', 'assignee', 'urgency']));
+  const [suggestChecked, setSuggestChecked] = useState<Set<string>>(new Set(['priority', 'assignee', 'urgency']));
   const [suggestRect, setSuggestRect] = useState<{ right: number; bottom: number } | null>(null);
   useEffect(() => {
     if (!suggestOpen) return;
@@ -676,7 +676,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     setSuggestOpen(false);
     setSuggestDismissed(false);
     setSuggestApplied(false);
-    setSuggestChecked(new Set(['status', 'priority', 'assignee', 'urgency']));
+    setSuggestChecked(new Set(['priority', 'assignee', 'urgency']));
   }, [ticketId]);
   // ServiceOps AI header controls. showChatHistory swaps the panel body for the history screen
   // (New chat just clears the thread). Leaving the AI group resets it, so reopening the panel
@@ -1944,30 +1944,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           togglePinField={togglePinField}
         />
         
-        {/* AI Property Suggestions — ticket page only. The pill opens an OVERLAY popup
+        {/* AI Fields Suggestion — ticket page only. The pill opens an OVERLAY popup
             (not an inline accordion) showing old value → suggested value per property;
             rows whose current value already matches are filtered out. */}
         {showIntegration && !suggestDismissed && !suggestApplied && (() => {
           const SUGGESTIONS = [
-            {
-              key: 'status',
-              label: 'Status',
-              current: selectedStatus,
-              value: 'Pending',
-              node: (
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
-                  <span className="size-2 rounded-full bg-[#fb923c]" />Pending
-                </span>
-              ),
-              apply: () => setSelectedStatus('Pending'),
-            },
             {
               key: 'priority',
               label: 'Priority',
               current: selectedPriority,
               value: 'Urgent',
               node: (
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold leading-none text-[#364658]">
                   <span className="size-2 rounded-full bg-[#EF4444]" />Urgent
                 </span>
               ),
@@ -1979,12 +1967,13 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               current: selectedAssignee,
               value: 'Michael Chen',
               node: (
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold leading-none text-[#364658]">
                   <span className="flex size-5 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">MC</span>
                   Michael Chen
                 </span>
               ),
               apply: () => setSelectedAssignee('Michael Chen'),
+              why: 'Michael Chen has resolved 12 similar connectivity requests, on average 40% faster than the team. Sarah Johnson currently has 8 requests in progress.',
             },
             {
               key: 'urgency',
@@ -1992,7 +1981,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               current: selectedUrgency,
               value: 'High',
               node: (
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold leading-none text-[#364658]">
                   <span className="size-2 rounded-full bg-[#EF4444]" />High
                 </span>
               ),
@@ -2034,7 +2023,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   style={{ opacity: 0.03, background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)' }}
                 />
                 <AiSparkle size={16} />
-                <span className="flex-1 text-[13px] font-semibold text-[#364658]">Property Suggestions</span>
+                <span className="flex-1 text-[13px] font-semibold text-[#364658]">Fields Suggestion</span>
                 <span
                   className="rounded-full px-1.5 py-px text-[10px] font-semibold text-[#364658]"
                   style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
@@ -2058,9 +2047,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     className="z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
                   >
                     <div className="px-4 pb-1 pt-3">
-                      <div className="text-[13px] font-semibold text-[#364658]">Enrich request details</div>
+                      <div className="text-[13px] font-semibold text-[#364658]">Suggested field updates</div>
                       <p className="mt-0.5 text-[12px] leading-relaxed text-[#7B8FA5]">
-                        Based on similar resolved requests, these properties can be updated as below.
+                        Based on similar resolved requests, these fields can be updated as below.
                       </p>
                       <div className="mt-3 space-y-2.5 pb-3">
                         {ACTIVE.map((sg) => (
@@ -2071,12 +2060,28 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                               onChange={() => toggleSuggest(sg.key)}
                               className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
                             />
-                            <span className="flex-shrink-0 whitespace-nowrap text-[12px] text-[#4A5568]">{sg.label}</span>
+                            <span className="flex flex-shrink-0 items-center gap-1 whitespace-nowrap text-[12px] text-[#4A5568]">
+                              {sg.label}
+                              {/* Why this is suggested — explainable AI, on hover. */}
+                              {sg.why && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="flex cursor-help items-center text-[#B6C2D1] transition-colors hover:text-[#3D8BD0]">
+                                      <Info size={13} />
+                                    </span>
+                                  </TooltipTrigger>
+                                  {/* text-wrap overrides the shared tooltip's text-balance. */}
+                                  <TooltipContent className="z-[10000] max-w-[260px] text-wrap leading-relaxed">
+                                    {sg.why}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </span>
                             {/* old (muted) → suggested (highlighted) */}
                             <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-                              <span className="min-w-0 truncate text-[12px] text-[#9CA3AF]">{sg.current}</span>
+                              <span className="min-w-0 truncate text-[12px] leading-none text-[#9CA3AF]">{sg.current}</span>
                               <ArrowRight size={12} className="flex-shrink-0 text-[#94A3B8]" />
-                              <span className="flex-shrink-0">{sg.node}</span>
+                              <span className="flex-shrink-0 flex items-center">{sg.node}</span>
                             </span>
                           </label>
                         ))}
