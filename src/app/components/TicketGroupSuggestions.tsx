@@ -184,14 +184,17 @@ function AddRecordButton({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [openUp, setOpenUp] = useState(false);
   const query = q.trim().toLowerCase();
   const rows = candidates.filter(
     (t) => !exclude.has(t.id) && (!query || t.id.toLowerCase().includes(query) || t.subject.toLowerCase().includes(query)),
   );
   return (
-    <div className="relative mt-2">
+    <div className="relative mt-3">
       <button
-        onClick={() => {
+        onClick={(e) => {
+          // Flip upward when the popup would run past the viewport bottom.
+          setOpenUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 340);
           setOpen((v) => !v);
           setQ('');
         }}
@@ -201,7 +204,7 @@ function AddRecordButton({
         {label}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+        <div className={`absolute left-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           <div className="p-2">
             <input
               autoFocus
@@ -258,6 +261,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
+  const [addOpenUp, setAddOpenUp] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [itemTypeFilter, setItemTypeFilter] = useState('All');
 
@@ -543,7 +547,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                       );
                       return (
                         <>
-                          <div className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                          <div className="pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
                             Affected Items ({v2Assets.length})
                           </div>
                           <div>{v2Assets.map(renderItem)}</div>
@@ -554,7 +558,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                             exclude={new Set(openGroup.tickets.map((t) => t.id))}
                             onAdd={(t) => addTicket(openGroup.id, t)}
                           />
-                          <div className="mt-5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                          <div className="mt-6 border-t border-[#F0F2F5] pt-5 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
                             Impacted requests ({v2Requests.length})
                           </div>
                           <div>{v2Requests.map(renderItem)}</div>
@@ -634,9 +638,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                     </div>
                     </>)}
                     {/* Manual escape hatch: the AI seeds the group, the technician curates it. */}
-                    <div className="relative mt-2">
+                    <div className="relative mt-3">
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          setAddOpenUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 340);
                           setAddOpen((v) => !v);
                           setAddQuery('');
                         }}
@@ -646,7 +651,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                         Add {addNoun}
                       </button>
                       {addOpen && (
-                        <div className="absolute left-0 top-full z-50 mt-1 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+                        <div className={`absolute left-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${addOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
                           <div className="p-2">
                             <input
                               autoFocus

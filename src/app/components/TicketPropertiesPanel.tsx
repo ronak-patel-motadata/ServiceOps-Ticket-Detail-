@@ -3045,72 +3045,52 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
           {attachmentsExpanded && (
           <div className="px-4 pb-4">
-            <div className="divide-y divide-[#F0F1F3]">
+            {/* Chip grid — the SAME component recipe as the description attachments
+                (FileTypeBadge chip, size sub-line, hover-reveal actions). One column in
+                the narrow rail, more if the panel ever widens. */}
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))' }}>
               {(showAllAttachments ? attachments : attachments.slice(0, 4)).map((attachment) => (
-                <div 
+                <div
                   key={attachment.id}
-                  className={`py-3 transition-all px-2 -mx-2 rounded group ${
-                    highlightAttachments 
-                      ? 'bg-[#EBF5FF] border border-[#3D8BD0] shadow-sm' 
-                      : 'hover:bg-[#F9FAFB]'
+                  className={`group/file relative flex items-center gap-2 rounded border px-2.5 py-1 transition-all ${
+                    highlightAttachments
+                      ? 'border-[#3D8BD0] bg-[#EBF5FF] shadow-sm'
+                      : 'border-[#DFE5ED] bg-[#F5F7FA] hover:border-[#CBD5E1] hover:bg-white hover:shadow-sm'
                   }`}
-                  onMouseEnter={() => setHoveredAttachmentId(attachment.id)}
-                  onMouseLeave={() => setHoveredAttachmentId(null)}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Type badge instead of the identical grey page icon every row used to
-                          show — same marker as the description attachments. */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <FileTypeBadge name={attachment.name} size="sm" />
-                        <span className="text-[13px] font-medium text-[#364658] truncate">
-                          {attachment.name}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-[#7B8FA5] ml-[34px]">
-                        {attachment.size} • Uploaded by {attachment.uploadedBy}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPreviewAttachment(attachment);
-                        }}
-                        className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors"
-                        title="Preview"
-                      >
-                        <Eye size={14} className="text-[#64748B]" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle download
-                        }}
-                        className="p-1.5 rounded hover:bg-[#EBF5FF] transition-colors"
-                        title="Download"
-                      >
-                        <Download size={14} className="text-[#3D8BD0]" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteAttachment(attachment.id);
-                        }}
-                        className={`p-1.5 rounded hover:bg-[#EBF5FF] transition-all ${
-                          hoveredAttachmentId === attachment.id ? 'opacity-100' : 'opacity-0'
-                        }`}
-                        title="Delete"
-                      >
-                        <Trash2 size={14} className="text-[#E74C3C]" />
-                      </button>
-                    </div>
+                  <button
+                    onClick={() => setPreviewAttachment(attachment)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <FileTypeBadge name={attachment.name} />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-xs font-medium text-[#364658]" title={attachment.name}>{attachment.name}</span>
+                      <span className="truncate text-[10px] leading-tight text-[#7B8FA5]">{attachment.size} • {attachment.uploadedBy}</span>
+                    </span>
+                  </button>
+                  <div
+                    className="absolute inset-y-px right-px flex items-center gap-0.5 rounded-r pl-8 pr-1.5 opacity-0 transition-opacity group-hover/file:opacity-100"
+                    style={{ background: `linear-gradient(to right, ${highlightAttachments ? 'rgba(235,245,255,0)' : 'rgba(255,255,255,0)'} 0%, ${highlightAttachments ? '#EBF5FF' : '#FFFFFF'} 42%)` }}
+                  >
+                    <button
+                      onClick={() => toast.success(`Downloading ${attachment.name}`)}
+                      className="flex size-6 items-center justify-center rounded hover:bg-[#EEF2F6]"
+                      title="Download"
+                    >
+                      <Download className="size-3.5 text-[#7B8FA5]" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAttachment(attachment.id)}
+                      className="flex size-6 items-center justify-center rounded hover:bg-[#FEF3F2]"
+                      title="Delete"
+                    >
+                      <Trash2 className="size-3.5 text-[#EF4444]" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-            
-            {/* Show all / Show less button */}
+                        {/* Show all / Show less button */}
             {attachments.length > 4 && (
               <div className="mt-3 pt-3 border-t border-[#F0F1F3]">
                 <button
@@ -3373,7 +3353,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               <span>Supported Languages: <span className="font-medium text-[#364658]">all</span></span>
             </div>
             {PATCH_AFFECTED_PRODUCTS.map((p) => (
-              <div key={p.name} className="flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
+              <div key={p.name} className="flex items-center gap-3 rounded-[10px] bg-[#F9FAFB] px-3 py-2.5">
                 <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]">
                   {p.type === 'Application' ? <AppWindow size={18} /> : <Monitor size={18} />}
                 </span>
@@ -3396,7 +3376,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <span className="font-medium text-[#364658]">{patchFiles.length}</span> {patchFiles.length === 1 ? 'file' : 'files'}
                 </div>
                 {patchFiles.map((f) => (
-                  <div key={f.name} className="group flex items-center gap-3 bg-white rounded-[10px] border border-[#DFE5ED] p-3 hover:border-[#3D8BD0] transition-colors">
+                  <div key={f.name} className="group flex items-center gap-3 rounded-[10px] bg-[#F9FAFB] px-3 py-2.5">
                     <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><FileText size={18} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium text-[#364658] break-words">{f.name}</div>
@@ -3492,11 +3472,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             </div>
 {/* Similar tickets list */}
             {(
-            <div className="divide-y divide-[#F0F1F3] max-h-[400px] overflow-y-auto">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {availableSimilarTickets.filter((t) => similarFilter === 'All' || t.type === similarFilter).map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer relative group"
+                  className="rounded-[10px] bg-[#F9FAFB] px-3 py-2.5 hover:bg-[#F3F5F8] transition-colors cursor-pointer relative group"
                   onMouseEnter={() => setHoveredTicketId(ticket.id)}
                   onMouseLeave={() => setHoveredTicketId(null)}
                   onClick={() => onOpenRelation?.({ id: ticket.id, type: ticket.type ?? 'Request', ticketId: ticket.id, subject: ticket.title, status: ticket.status, priority: 'Medium', assignedTo: { name: ticket.assignee } })}
@@ -3574,9 +3554,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           {suggestedKnowledgeExpanded && (
           <div className="px-4 pb-4">
             {/* Knowledge Cards */}
-            <div className="divide-y divide-[#F0F1F3]">
+            <div className="space-y-2">
               {/* Card 1 */}
-              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+              <div className="rounded-[10px] bg-[#F9FAFB] px-3 py-2.5 hover:bg-[#F3F5F8] transition-colors cursor-pointer">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1">
                     <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
@@ -3597,7 +3577,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </div>
 
               {/* Card 2 */}
-              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+              <div className="rounded-[10px] bg-[#F9FAFB] px-3 py-2.5 hover:bg-[#F3F5F8] transition-colors cursor-pointer">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1">
                     <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
@@ -3618,7 +3598,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </div>
 
               {/* Card 3 */}
-              <div className="py-3 hover:bg-[#F9FAFB] transition-colors cursor-pointer">
+              <div className="rounded-[10px] bg-[#F9FAFB] px-3 py-2.5 hover:bg-[#F3F5F8] transition-colors cursor-pointer">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1">
                     <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-[#EBF5FF] text-[#3D8BD0] mb-1">
