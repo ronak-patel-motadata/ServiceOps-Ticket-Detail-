@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
+import { ChevronUp } from 'lucide-react';
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
@@ -122,7 +123,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const [currentPage, setCurrentPage] = useState(1);
   // While the grid is grouped it pages per group — the outer bar becomes a pinned summary.
   const [isGrouped, setIsGrouped] = useState(false);
-  const [groupInfo, setGroupInfo] = useState<{ label: string; groups: number; total: number } | null>(null);
+  const [groupInfo, setGroupInfo] = useState<{ label: string; groups: number; total: number; list?: { key: string; count: number }[] } | null>(null);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpQuery, setJumpQuery] = useState('');
   const [clearGroupTick, setClearGroupTick] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [sortColumn, setSortColumn] = useState<keyof Ticket | null>(null);
@@ -342,6 +345,59 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                   <span className="font-medium text-[#364658]">{groupInfo.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
+                  {(groupInfo.list?.length ?? 0) > 1 && (
+                    <span className="relative mr-1">
+                      <button
+                        onClick={() => {
+                          setJumpOpen((v) => !v);
+                          setJumpQuery('');
+                        }}
+                        className="inline-flex h-7 items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2.5 text-[12px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5FAFF]"
+                      >
+                        Jump to group
+                        <ChevronUp size={13} className={`text-[#9CA3AF] transition-transform ${jumpOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {jumpOpen && (
+                        <div className="absolute bottom-full right-0 z-50 mb-1.5 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl">
+                          <div className="p-2">
+                            <input
+                              autoFocus
+                              value={jumpQuery}
+                              onChange={(e) => setJumpQuery(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') setJumpOpen(false);
+                              }}
+                              onBlur={() => setJumpOpen(false)}
+                              placeholder={'Search ' + groupInfo.label.toLowerCase() + '...'}
+                              className="h-8 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 text-[12px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
+                            />
+                          </div>
+                          {/* onMouseDown beats the input blur so the pick lands. */}
+                          <div className="max-h-[300px] overflow-y-auto pb-1">
+                            {(() => {
+                              const q = jumpQuery.trim().toLowerCase();
+                              const rows = (groupInfo.list ?? []).filter((g) => !q || g.key.toLowerCase().includes(q));
+                              if (!rows.length) return <div className="px-3 py-2.5 text-[12px] text-[#94A3B8]">No matching groups</div>;
+                              return rows.map((g) => (
+                                <button
+                                  key={g.key}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    window.dispatchEvent(new CustomEvent('jump-to-group', { detail: g.key }));
+                                    setJumpOpen(false);
+                                  }}
+                                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-[#F9FAFB]"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{g.key}</span>
+                                  <span className="flex-shrink-0 rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[#64748B]">{g.count}</span>
+                                </button>
+                              ));
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  )}
                   Grouped by <span className="font-medium text-[#364658]">{groupInfo.label}</span>
                   <button
                     onClick={() => setClearGroupTick((t) => t + 1)}

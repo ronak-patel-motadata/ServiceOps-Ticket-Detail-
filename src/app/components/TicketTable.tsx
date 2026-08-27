@@ -658,7 +658,7 @@ interface TicketTableProps {
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
-  onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number }) => void;
+  onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
   /** Bump to clear grouping from outside (the pinned footer's Clear link). */
   clearGroupingSignal?: number;
 }
@@ -729,6 +729,42 @@ export function TicketTable({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // Frozen-edge shade appears only while the grid is horizontally scrolled —
+  // at rest the edge is just a hairline, scrolled it reads as depth (Notion-style).
+  const [hScrolled, setHScrolled] = useState(false);
+  useEffect(() => {
+    const el = wrapRef.current?.parentElement;
+    if (!el) return;
+    const onScroll = () => setHScrolled(el.scrollLeft > 0);
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+  // Shared frozen-edge shadow pieces.
+  const EDGE_HAIR = 'inset -1px 0 0 #E5E7EB';
+  const EDGE_SHADE = '10px 0 16px -6px rgba(16,24,40,0.22)';
+  const frozenEdgeShadow = hScrolled ? EDGE_HAIR + ', ' + EDGE_SHADE : EDGE_HAIR;
+  // "Jump to group": the pinned footer dispatches a group key — expand it if
+  // collapsed, smooth-scroll its block to the top, and flash its title briefly.
+  const [flashGroup, setFlashGroup] = useState<string | null>(null);
+  useEffect(() => {
+    const onJump = (e: Event) => {
+      const key = String((e as CustomEvent).detail ?? '');
+      const el = wrapRef.current?.querySelector(`[data-group-block="${CSS.escape(key)}"]`) as HTMLElement | null;
+      if (!el) return;
+      setCollapsed((p) => {
+        if (!p.has(key)) return p;
+        const n = new Set(p);
+        n.delete(key);
+        return n;
+      });
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setFlashGroup(key);
+      window.setTimeout(() => setFlashGroup((cur) => (cur === key ? null : cur)), 1800);
+    };
+    window.addEventListener('jump-to-group', onJump as EventListener);
+    return () => window.removeEventListener('jump-to-group', onJump as EventListener);
+  }, []);
   const startResize = (key: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -772,9 +808,9 @@ export function TicketTable({
      `flex` columns share out leftover width; the rest hold the width they were given. */
   const COL_DEFS: ColDef[] = [
     { key: 'id', label: 'ID', w: 96 },
-    { key: 'subject', label: 'Subject', flex: true, w: 340 },
-    { key: 'requester', label: 'Requester', flex: true, w: 120 },
-    { key: 'assignee', label: 'Assigned to', flex: true, w: 148 },
+    { key: 'subject', label: 'Subject', flex: true, w: 460 },
+    { key: 'requester', label: 'Requester', flex: true, w: 170 },
+    { key: 'assignee', label: 'Assigned to', flex: true, w: 170 },
     { key: 'dueStatus', label: 'SLA Status', w: 142 },
     { key: 'status', label: 'Status', w: 152 },
     { key: 'priority', label: 'Priority', w: 132 },
@@ -922,7 +958,7 @@ export function TicketTable({
   const leftOf = (i: number) => CHECK_W + fitted.slice(0, i).reduce((n, w) => n + w, 0);
   // The last frozen column carries the edge: a hairline + soft shadow over the scrolling side.
   const frozenCellCls = (i: number, picked: boolean) =>
-    `sticky z-20 ${i === frozenIdx ? 'border-r border-[#EBEEF2] shadow-[2px_0_4px_rgba(15,42,68,0.05)] ' : ''}${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
+    `sticky z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
 
   /* One renderer per column, so the body follows whatever order the header is dragged into. */
   const renderCell = (key: string, ticket: Ticket) => {
@@ -1281,7 +1317,7 @@ export function TicketTable({
                     <Fragment key={c.key}>
                       {cloneElement(el as React.ReactElement<{ className?: string; style?: React.CSSProperties }>, {
                         className: `${props.className ?? ''} ${frozenCellCls(ci, picked)}`,
-                        style: { ...(props.style ?? {}), left: leftOf(ci) },
+                        style: { ...(props.style ?? {}), left: leftOf(ci), ...(ci === frozenIdx ? { boxShadow: frozenEdgeShadow } : {}) },
                       })}
                     </Fragment>
                   );
@@ -1353,8 +1389,17 @@ export function TicketTable({
                   const r = e.currentTarget.getBoundingClientRect();
                   setMenuCol({ key: c.key, left: r.left, bottom: r.bottom });
                 }}
-                style={ci <= frozenIdx ? { left: leftOf(ci) } : undefined}
-                className={`${TH} ${ci <= frozenIdx ? `z-[35] ${ci === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                style={
+                  ci <= frozenIdx
+                    ? {
+                        left: leftOf(ci),
+                        ...(ci === frozenIdx
+                          ? { boxShadow: frozenEdgeShadow + ', inset 0 -1px 0 #E5E7EB, 0 2px 3px rgba(16,24,40,0.04)' }
+                          : {}),
+                      }
+                    : undefined
+                }
+                className={`${TH} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
               >
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
                 <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
@@ -1415,9 +1460,9 @@ export function TicketTable({
           const allSel = g.all.every((t) => selectedTickets.has(t.id));
           const go = (p: number) => setGroupPages((gp) => ({ ...gp, [g.key]: Math.min(Math.max(1, p), g.pages) }));
           return (
-            <div key={g.key} className="mb-3">
+            <div key={g.key} data-group-block={g.key} className="mb-3">
               {/* Sticky group title — pinned while its rows scroll, pushed out at the end. */}
-              <div className="sticky left-0 top-0 z-40 flex h-12 items-center bg-white px-3">
+              <div className={`sticky left-0 top-0 z-40 flex h-12 items-center px-3 transition-colors duration-500 ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}>
                 <button
                   onClick={() =>
                     setCollapsed((p) => {
@@ -1466,12 +1511,21 @@ export function TicketTable({
                             onDragLeave={() => { if (dragOver?.key === m.col!.key) setDragOver(null); }}
                             onDrop={(e) => { e.preventDefault(); dropColumn(); }}
                             onDragEnd={() => { setDragCol(null); setDragOver(null); }}
-                            style={m.ri >= 0 && m.ri <= frozenIdx ? { left: leftOf(m.ri) } : undefined}
+                            style={
+                              m.ri >= 0 && m.ri <= frozenIdx
+                                ? {
+                                    left: leftOf(m.ri),
+                                    ...(m.ri === frozenIdx
+                                      ? { boxShadow: frozenEdgeShadow + ', inset 0 -1px 0 #E5E7EB, 0 2px 4px rgba(16,24,40,0.06)' }
+                                      : {}),
+                                  }
+                                : undefined
+                            }
                             onClick={(e) => {
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
-                            className={`group/gh sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? `z-30 ${m.ri === frozenIdx ? 'border-r border-[#EBEEF2] ' : ''}` : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            className={`group/gh sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
                             <span className="flex items-center gap-0.5">
@@ -1596,8 +1650,19 @@ export function TicketTable({
               setGroupPages({});
               if (next) {
                 const src = allTickets ?? tickets;
-                const vals = new Set(src.map((t) => groupValueOf(next, t)));
-                onGroupedChange?.(true, { label: c.label, groups: vals.size, total: src.length });
+                const counts = new Map<string, number>();
+                for (const t of src) {
+                  const v = groupValueOf(next, t);
+                  counts.set(v, (counts.get(v) ?? 0) + 1);
+                }
+                const ord = GROUP_ORDERS[next];
+                const ks = [...counts.keys()].sort((a, b) => (ord ? ord.indexOf(a) - ord.indexOf(b) : a.localeCompare(b)));
+                onGroupedChange?.(true, {
+                  label: c.label,
+                  groups: counts.size,
+                  total: src.length,
+                  list: ks.map((k) => ({ key: k, count: counts.get(k)! })),
+                });
               } else {
                 onGroupedChange?.(false);
               }
