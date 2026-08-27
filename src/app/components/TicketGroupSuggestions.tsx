@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronUp, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronUp, Clock, Info, Plus, Shield, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -111,6 +111,10 @@ const CANDIDATE_POOL: GroupTicket[] = [
   { id: 'INC-48', subject: 'Cannot connect to office Wi-Fi', status: 'Open', priority: 'Low', assignee: 'Kaison Potai', requester: 'Jainam Shah' },
   { id: 'INC-49', subject: 'New joiner laptop setup', status: 'In Progress', priority: 'Medium', assignee: 'Keetion Dale', requester: 'Nandini Patel' },
   { id: 'INC-50', subject: 'Docking station not detected', status: 'Open', priority: 'Low', assignee: 'Novak Potai', requester: 'Darshak Modi' },
+  { id: 'AST-4106', subject: 'Dell Latitude 5440 — hot spare', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Nandini Patel', itemType: 'Asset' },
+  { id: 'AST-3988', subject: 'HP EliteBook 840 G9 — imaging bench', status: 'In Use', priority: '', assignee: 'Novak Potai', requester: 'Hetal Mori', itemType: 'Asset' },
+  { id: 'CI-208', subject: 'AD-DC-02 — Secondary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI' },
+  { id: 'CI-341', subject: 'Okta Identity Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Meera Iyer', itemType: 'CI' },
 ];
 
 const STATUS_DOT: Record<string, string> = {
@@ -120,6 +124,7 @@ const STATUS_DOT: Record<string, string> = {
   Completed: '#22C55E',
   Closed: '#94A3B8',
   'In Stock': '#22C55E',
+  'In Use': '#3D8BD0',
   Operational: '#94A3B8',
 };
 
@@ -170,7 +175,8 @@ export function TicketGroupSuggestions() {
   const [itemTypeFilter, setItemTypeFilter] = useState('All');
 
   const openGroup = groups.find((g) => g.id === openGroupId) ?? null;
-  const strongest = groups[0];
+  const coveredRequests = groups.reduce((n, g) => n + requestItems(g).length, 0);
+  const triagePct = coveredRequests > 0 ? Math.round((1 - groups.length / coveredRequests) * 100) : 0;
 
   const typeOfItem = (t: GroupTicket) => t.itemType ?? 'Request';
   const groupTypes = openGroup ? Array.from(new Set(openGroup.tickets.map(typeOfItem))) : [];
@@ -180,6 +186,10 @@ export function TicketGroupSuggestions() {
       ? openGroup.tickets.filter((t) => typeOfItem(t) === itemTypeFilter)
       : openGroup.tickets
     : [];
+  // What the Add button adds — follows the active type pill in mixed groups.
+  const addType = mixedTypes ? itemTypeFilter : 'Request';
+  const addNoun = addType === 'CI' ? 'CI' : addType.toLowerCase();
+  const addNounPlural = addType === 'CI' ? 'CIs' : addType.toLowerCase() + 's';
 
   // Esc steps back: detail → list → closed.
   useEffect(() => {
@@ -398,7 +408,7 @@ export function TicketGroupSuggestions() {
                         className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-[#DFE5ED] bg-white px-2.5 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
                       >
                         <Plus size={16} />
-                        Add request
+                        Add {addNoun}
                       </button>
                       {addOpen && (
                         <div className="absolute left-0 top-full z-50 mt-1 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
@@ -414,7 +424,7 @@ export function TicketGroupSuggestions() {
                                 }
                               }}
                               onBlur={() => setAddOpen(false)}
-                              placeholder="Search requests by ID or subject..."
+                              placeholder={'Search ' + addNounPlural + ' by ID or subject...'}
                               className="h-9 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
                             />
                           </div>
@@ -424,10 +434,13 @@ export function TicketGroupSuggestions() {
                               const q = addQuery.trim().toLowerCase();
                               const inGroup = new Set(openGroup.tickets.map((t) => t.id));
                               const candidates = CANDIDATE_POOL.filter(
-                                (t) => !inGroup.has(t.id) && (!q || t.id.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)),
+                                (t) =>
+                                  (t.itemType ?? 'Request') === addType &&
+                                  !inGroup.has(t.id) &&
+                                  (!q || t.id.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)),
                               );
                               if (!candidates.length) {
-                                return <div className="px-3 py-3 text-[12px] text-[#94A3B8]">No matching requests</div>;
+                                return <div className="px-3 py-3 text-[12px] text-[#94A3B8]">No matching {addNounPlural}</div>;
                               }
                               return candidates.map((t) => (
                                 <button
@@ -497,16 +510,12 @@ export function TicketGroupSuggestions() {
                     onClick={() => setOpenGroupId(g.id)}
                     className="cursor-pointer rounded-lg border border-[#DFE5ED] bg-white p-4 transition-all hover:border-[#C9D4E0] hover:shadow-sm"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <AiSparkle size={11} />
-                      <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                        Suggested group · {g.age}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#1E293B]">{g.name}</div>
                       <ConfidencePill confidence={g.confidence} />
                     </div>
-                    <div className="mt-1.5 text-[14px] font-semibold text-[#1E293B]">{g.name}</div>
                     <div className="mt-1 text-[12px] text-[#64748B]">
-                      {requestItems(g).length} requests · {uniqueRequesters(g)} requesters · {g.window}
+                      {requestItems(g).length} requests · {uniqueRequesters(g)} requesters · {g.window} · {g.age}
                     </div>
                     <p className="mt-2 border-l-2 border-[#DFE5ED] pl-2.5 text-[12px] leading-relaxed text-[#64748B]">{g.summary}</p>
                   </div>
@@ -521,40 +530,94 @@ export function TicketGroupSuggestions() {
 
   return (
     <div className="px-6 pb-3">
-      {/* Banner — AI Summary chrome: neutral border + faint gradient wash */}
+      {/* Banner — bare gradient sparkle + title row; description, triage stat and actions share row 2. */}
       <div
-        className="flex items-center gap-3 rounded-lg border border-[#DFE5ED] px-4 py-3"
+        className="rounded-lg border border-[#DFE5ED] px-4 py-3"
         style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.04) 0%, rgba(115, 30, 251, 0.04) 41.49%, rgba(249, 17, 227, 0.04) 100%), #FFF' }}
       >
-        <span
-          className="flex size-8 flex-shrink-0 items-center justify-center rounded"
-          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
-        >
-          <AiSparkle size={16} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium text-[#364658]">
-            ServiceOps found {groups.length} {groups.length === 1 ? 'group' : 'groups'} of requests that look like one underlying issue.
-          </div>
-          {strongest && (
-            <div className="mt-0.5 truncate text-[12px] text-[#64748B]">
-              Strongest: <span className="font-medium text-[#475569]">{strongest.name}</span> — {requestItems(strongest).length} requests ·{' '}
-              {strongest.confidence.level} confidence · {strongest.age}
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <AiSparkle size={16} className="flex-shrink-0" />
+          <span className="text-[14px] font-semibold text-[#1E293B]">
+            Grouped by AI: {groups.length} {groups.length === 1 ? 'group' : 'groups'} ready to review
+          </span>
+          <span
+            className="rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#731EFB]"
+            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+          >
+            Beta
+          </span>
+          {/* How-it-works explainer — white tooltip card (DrawerTabStrip recipe). */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="flex size-5 cursor-default items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-white/70 hover:text-[#64748B]">
+                <Info size={13} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              align="start"
+              sideOffset={6}
+              hideArrow
+              className="z-[10000] max-w-none border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-xl"
+            >
+              <div className="w-[360px] px-4 py-3.5">
+                <div className="text-[13px] font-semibold text-[#1E293B]">How ServiceOps groups requests</div>
+                <p className="mt-1 text-[12px] leading-relaxed text-[#64748B]">
+                  Open requests are compared on five signals. A group forms when enough of them line up.
+                </p>
+                <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                  {['Symptom text', 'Site', 'Workflow step', 'Affected asset', 'Time window'].map((sig) => (
+                    <span key={sig} className="inline-flex items-center gap-2 text-[12px] font-medium text-[#364658]">
+                      <span className="size-1.5 flex-shrink-0 rounded-full bg-[#731EFB]" />
+                      {sig}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3 space-y-1.5 border-t border-[#F1F5F9] pt-2.5">
+                  <div className="flex items-start gap-2 text-[12px] leading-relaxed text-[#64748B]">
+                    <Clock size={13} className="mt-0.5 flex-shrink-0 text-[#9CA3AF]" />
+                    Runs every 15 minutes on open requests.
+                  </div>
+                  <div className="flex items-start gap-2 text-[12px] leading-relaxed text-[#64748B]">
+                    <Shield size={13} className="mt-0.5 flex-shrink-0 text-[#9CA3AF]" />
+                    Nothing is merged or closed until you confirm it.
+                  </div>
+                  <div className="flex items-start gap-2 text-[12px] leading-relaxed text-[#64748B]">
+                    <User size={13} className="mt-0.5 flex-shrink-0 text-[#9CA3AF]" />
+                    You only see groups containing requests you have access to.
+                  </div>
+                </div>
+                <div className="mt-2.5 text-[12px] font-medium text-[#3D8BD0]">How grouping works →</div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="h-8 flex-shrink-0 rounded px-2.5 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-white/70 hover:text-[#364658]"
-        >
-          Not now
-        </button>
-        <button
-          onClick={() => setPanelOpen(true)}
-          className="h-8 flex-shrink-0 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
-        >
-          Review groups ({groups.length})
-        </button>
+        {/* pl-6 = icon (16) + gap (8): row 2 aligns under the title text. */}
+        <div className="mt-1 flex items-center gap-4 pl-6">
+          <p className="min-w-0 max-w-[680px] text-[12px] leading-relaxed text-[#64748B]">
+            ServiceOps watches your open requests for repeats and groups the ones that share a cause, so you triage the pattern
+            instead of the tickets.
+          </p>
+          <span className="h-8 w-px flex-shrink-0 bg-[#E5E7EB]" />
+          <div className="flex-shrink-0">
+            <div className="text-[16px] font-semibold leading-5 text-[#3D8BD0]">{triagePct}%</div>
+            <div className="text-[11px] text-[#7B8FA5]">Fewer items to triage</div>
+          </div>
+          <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+            <button
+              onClick={() => setDismissed(true)}
+              className="h-8 rounded px-2.5 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-white/70 hover:text-[#364658]"
+            >
+              Not now
+            </button>
+            <button
+              onClick={() => setPanelOpen(true)}
+              className="h-8 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+            >
+              Review groups ({groups.length})
+            </button>
+          </div>
+        </div>
       </div>
       {panel}
     </div>
