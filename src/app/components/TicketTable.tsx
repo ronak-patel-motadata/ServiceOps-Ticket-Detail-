@@ -643,6 +643,8 @@ const dueBySla = (t: Ticket): SlaInfo => {
   }
   return { tone: 'ok', label: ['18h 1m', '2d 3h', '1w 2d', '5d 6h'][n % 4], name, target, when };
 };
+/** Exposed for the listing KPI strip so its SLA numbers match the grid's pills exactly. */
+export const slaToneOf = (t: Ticket): SlaTone => dueBySla(t).tone;
 const priorityColor = (v: string) => PRIORITY_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
 
 interface TicketTableProps {
@@ -654,6 +656,8 @@ interface TicketTableProps {
   onSort: (column: keyof Ticket, dir?: 'asc' | 'desc') => void;
   sortColumn: keyof Ticket | null;
   sortDirection: 'asc' | 'desc';
+  /** Full multi-column sort chain — index drives the priority badge. */
+  sorts?: { column: keyof Ticket; dir: 'asc' | 'desc' }[];
   onTicketClick: (ticket: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
@@ -672,6 +676,7 @@ export function TicketTable({
   onSort,
   sortColumn,
   sortDirection,
+  sorts,
   onTicketClick,
   onUpdateTicket,
   allTickets,
@@ -713,7 +718,7 @@ export function TicketTable({
   // Only user-dragged widths live here — defaults come from each ColDef, so width tweaks
   // in COL_DEFS actually take effect (a seeded map silently overrode them).
   const [colW, setColW] = useState<Record<string, number>>({});
-  const CHECK_W = 44;
+  const CHECK_W = 52;
   const ICON_W = 40; // manage-columns gutter at the right edge
   const MIN_W = 80;
   const wOf = (c: ColDef) => colW[c.key] ?? c.w ?? 150;
@@ -802,7 +807,7 @@ export function TicketTable({
       <span className="h-4 w-px bg-[#E5E7EB] transition-colors group-hover/rz:h-full group-hover/rz:w-[2px] group-hover/rz:bg-[#3D8BD0]" />
     </span>
   );
-  const TH = 'group/th sticky top-0 z-30 cursor-grab select-none shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
+  const TH = 'group/th sticky top-[var(--tb,0px)] z-30 cursor-grab select-none shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
   /* Columns are drag-to-reorder from the header (tab-strip DnD recipe: dimmed source,
      blue left drop indicator); the order persists like the Customize Layout sections.
      `flex` columns share out leftover width; the rest hold the width they were given. */
@@ -890,6 +895,34 @@ export function TicketTable({
   }, [clearGroupingSignal]);
   /* Which Ticket field each column sorts on; the optional catalog columns have no backing
      field, so their menu sorts by created date as a sensible stand-in. */
+  /* Sort control: unsorted → asc → desc → off, with a rank badge once more than one
+     column is in play, so the tie-break order is never a guess. */
+  const sortChain = sorts ?? (sortColumn ? [{ column: sortColumn, dir: sortDirection }] : []);
+  const sortButton = (field: keyof Ticket, hoverGroup: string) => {
+    const idx = sortChain.findIndex((s) => s.column === field);
+    const entry = idx >= 0 ? sortChain[idx] : null;
+    const rank = sortChain.length > 1 && idx >= 0 ? idx + 1 : null;
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); onSort(field); }}
+        title={
+          entry
+            ? `Sorted ${entry.dir === 'asc' ? 'ascending' : 'descending'}${rank ? ` (${rank} of ${sortChain.length})` : ''} — click to ${entry.dir === 'asc' ? 'reverse' : 'remove'}`
+            : sortChain.length
+              ? 'Add to sort'
+              : 'Sort'
+        }
+        className={`flex h-5 flex-shrink-0 items-center justify-center gap-0.5 rounded px-0.5 transition-all hover:bg-[#E8ECF1] ${entry ? '' : `opacity-0 ${hoverGroup}`}`}
+      >
+        {entry ? (entry.dir === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />) : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
+        {rank && (
+          <span className="flex size-3.5 items-center justify-center rounded-sm bg-[#EBF5FF] text-[9px] font-semibold leading-none text-[#3D8BD0]">
+            {rank}
+          </span>
+        )}
+      </button>
+    );
+  };
   const SORT_FIELD: Record<string, keyof Ticket> = {
     id: 'id', subject: 'subject', requester: 'requester', assignee: 'assignedTo',
     dueStatus: 'dueBy', status: 'status', priority: 'priority', created: 'createdBy',
@@ -899,6 +932,20 @@ export function TicketTable({
   const changeColumn = (fromKey: string, toKey: string) =>
     applyColumns(colOrder.map((k) => (k === fromKey ? toKey : k)));
   const [showColMgr, setShowColMgr] = useState(false);
+  /* The grid toolbar's Settings menu asks for the column manager; anchor it to the
+     header gutter icon so it opens exactly where a direct click would put it. */
+  useEffect(() => {
+    const onOpen = () => {
+      const el = document.querySelector('[data-col-mgr-anchor]');
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setMgrRect({ right: r.right, bottom: r.bottom });
+      }
+      setShowColMgr(true);
+    };
+    window.addEventListener('open-column-manager', onOpen);
+    return () => window.removeEventListener('open-column-manager', onOpen);
+  }, []);
   const [mgrRect, setMgrRect] = useState<{ right: number; bottom: number } | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
   /* The drop target carries WHICH SIDE of the hovered column the pointer is on, so a
@@ -1295,7 +1342,7 @@ export function TicketTable({
               className={`group cursor-pointer border-b border-[#F1F5F9] transition-colors ${picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
               onClick={() => onTicketClick(ticket)}
             >
-              <td className={`relative px-4 py-3 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
+              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
                 {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
                 {picked && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#DFE5ED]" />}
                 <input
@@ -1352,7 +1399,7 @@ export function TicketTable({
         {!groupBy && (
         <thead>
           <tr className="bg-white">
-            <th className={`sticky top-0 z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white px-4 py-2.5 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
+            <th className={`sticky top-[var(--tb,0px)] z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-2.5 pl-6 pr-4 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -1363,7 +1410,7 @@ export function TicketTable({
             {displayMeta.map((m) => {
               if (!m.col) {
                 return (
-                  <th key="__ph" id="ph-col-th" className="sticky top-0 z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-[#F8FAFC] px-4 py-2.5 text-left">
+                  <th key="__ph" id="ph-col-th" className="sticky top-[var(--tb,0px)] z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-[#F8FAFC] px-4 py-2.5 text-left">
                     <span className="text-[12px] font-medium italic text-[#94A3B8]">New column</span>
                   </th>
                 );
@@ -1407,26 +1454,14 @@ export function TicketTable({
                   <span className="truncate">{c.label}</span>
                   {/* One-click sort toggle — the most-used action lives on the header
                       itself; the menu keeps the rest. */}
-                  {SORT_FIELD[c.key] && (() => {
-                    const active = sortColumn === SORT_FIELD[c.key];
-                    return (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onSort(SORT_FIELD[c.key]); }}
-                        title={active ? (sortDirection === 'asc' ? 'Sorted ascending — click to reverse' : 'Sorted descending — click to reverse') : 'Sort'}
-                        className={`flex size-5 flex-shrink-0 items-center justify-center rounded transition-all hover:bg-[#E8ECF1] ${active ? '' : 'opacity-0 group-hover/th:opacity-100'}`}
-                      >
-                        {active ? (sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />) : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
-                      </button>
-                    );
-                  })()}
-                  <ChevronDown size={12} className={`flex-shrink-0 text-[#9CA3AF] transition-opacity ${menuCol?.key === c.key ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-100'}`} />
+                  {SORT_FIELD[c.key] && sortButton(SORT_FIELD[c.key], 'group-hover/th:opacity-100')}
                 </span>
                 {resizer(c.key)}
               </th>
               );
             })}
             {/* Manage columns — pinned at the right edge of the header. */}
-            <th className="sticky right-0 top-0 z-40 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white p-0">
+            <th className="sticky right-0 top-[var(--tb,0px)] z-40 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white p-0">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -1437,7 +1472,7 @@ export function TicketTable({
                     }}
                     className="flex h-full w-full items-center justify-center py-2.5 text-[#7B8FA5] transition-colors hover:bg-[#F7F9FB] hover:text-[#3D8BD0]"
                   >
-                    <Columns3 size={15} />
+                    <Columns3 size={15} data-col-mgr-anchor />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Manage columns</TooltipContent>
@@ -1462,7 +1497,7 @@ export function TicketTable({
           return (
             <div key={g.key} data-group-block={g.key} className="mb-3">
               {/* Sticky group title — pinned while its rows scroll, pushed out at the end. */}
-              <div className={`sticky left-0 top-0 z-40 flex h-12 items-center px-3 transition-colors duration-500 ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}>
+              <div className={`sticky left-0 top-[var(--tb,0px)] z-40 flex h-12 items-center px-6 transition-colors duration-500 ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}>
                 <button
                   onClick={() =>
                     setCollapsed((p) => {
@@ -1485,7 +1520,7 @@ export function TicketTable({
                   {/* The group header sticks just under the title (h-12 = 48px). */}
                   <thead>
                     <tr>
-                      <th className={`sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white px-4 py-1.5 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
+                      <th className={`sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-1.5 pl-6 pr-4 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
                         <input
                           type="checkbox"
                           checked={allSel}
@@ -1525,33 +1560,21 @@ export function TicketTable({
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
-                            className={`group/gh sticky top-[48px] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
                             <span className="flex items-center gap-0.5">
                               <span className="truncate">{m.col.label}</span>
-                              {SORT_FIELD[m.col.key] && (() => {
-                                const active = sortColumn === SORT_FIELD[m.col!.key];
-                                return (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); onSort(SORT_FIELD[m.col!.key]); }}
-                                    title={active ? (sortDirection === 'asc' ? 'Sorted ascending — click to reverse' : 'Sorted descending — click to reverse') : 'Sort'}
-                                    className={`flex size-5 flex-shrink-0 items-center justify-center rounded transition-all hover:bg-[#E8ECF1] ${active ? '' : 'opacity-0 group-hover/gh:opacity-100'}`}
-                                  >
-                                    {active ? (sortDirection === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />) : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
-                                  </button>
-                                );
-                              })()}
-                              <ChevronDown size={12} className={`flex-shrink-0 text-[#9CA3AF] transition-opacity ${menuCol?.key === m.col.key ? 'opacity-100' : 'opacity-0 group-hover/gh:opacity-100'}`} />
+                              {SORT_FIELD[m.col.key] && sortButton(SORT_FIELD[m.col.key], 'group-hover/gh:opacity-100')}
                             </span>
                           </th>
                         ) : (
-                          <th key="__ph" data-ph-col className="sticky top-[48px] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">
+                          <th key="__ph" data-ph-col className="sticky top-[calc(var(--tb,0px)+48px)] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">
                             New column
                           </th>
                         ),
                       )}
-                      <th className="sticky top-[48px] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white" />
+                      <th className="sticky top-[calc(var(--tb,0px)+48px)] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white" />
                     </tr>
                   </thead>
                   <tbody>{g.slice.map((t) => renderTicketRow(t))}</tbody>

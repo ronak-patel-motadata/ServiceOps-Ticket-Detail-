@@ -810,7 +810,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
   if (dismissed || groups.length === 0) return <>{panel}</>;
 
   return (
-    <div className="px-6 pb-3">
+    <div className="pb-3 pl-6 pr-4">
       {/* Banner — bare gradient sparkle + title row; description, triage stat and actions share row 2. */}
       <div
         className="rounded-lg border border-[#DFE5ED] px-4 py-3"
