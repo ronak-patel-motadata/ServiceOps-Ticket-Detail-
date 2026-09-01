@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AppWindow, ChevronDown, ChevronLeft, ChevronUp, Clock, Info, Laptop, Plus, Server, Shield, User, X } from 'lucide-react';
+import { AppWindow, ChevronDown, ChevronLeft, ChevronUp, Clock, GitMerge, Info, Laptop, Plus, Server, Shield, TriangleAlert, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -352,6 +352,8 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
     : [];
   // Option-2 layout demo (group 2 only): Why band leads and carries the actions.
   const detailV2 = openGroup?.id === 'grp-2';
+  // Option-3 layout demo (group 3): the footer actions become self-explaining choice cards.
+  const detailV3 = openGroup?.id === 'grp-3';
   const v2Assets = openGroup ? openGroup.tickets.filter((t) => t.itemType && t.itemType !== 'Request') : [];
   const v2Requests = openGroup ? openGroup.tickets.filter((t) => !t.itemType || t.itemType === 'Request') : [];
 
@@ -476,7 +478,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                   <span className="rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-semibold text-[#64748B]">{groups.length}</span>
                 </>
               )}
-              {openGroup && detailV2 && (
+              {openGroup && (detailV2 || detailV3) && (
                 <button
                   onClick={() => {
                     toast(`Group "${openGroup.name}" ignored`);
@@ -655,9 +657,59 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                 {/* Footer actions */}
                 {!detailV2 && (
                 <div className="border-t border-[#E5E7EB] px-5 py-3">
-                  {!detailV2 && <div className="pb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Suggested action</div>}
+                  {!detailV2 && !detailV3 && <div className="pb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Suggested action</div>}
+                  {detailV3 ? (
+                    /* Decision cards: each action explains WHAT it does, and the AI marks
+                       the one its reasoning points to — no more "which button?" moment. */
+                    <div className="flex gap-3">
+                      {!panelOnly && (
+                        <button
+                          onClick={() => {
+                            toast.success(`${openGroup.tickets.length} requests merged into ${openGroup.tickets[0]?.id ?? 'one request'}`);
+                            consumeGroup(openGroup.id);
+                          }}
+                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                          className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                        >
+                          <span className="flex items-center gap-2 text-[13px] font-semibold text-[#1E293B]">
+                            <GitMerge size={15} className="text-[#3D8BD0]" />
+                            Merge Requests
+                          </span>
+                          <span className="text-[12px] leading-relaxed text-[#64748B]">
+                            Combine all {openGroup.tickets.length} requests into one and resolve them together.
+                          </span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
+                          consumeGroup(openGroup.id);
+                        }}
+                        className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                        style={{
+                          background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
+                          border: '1px solid transparent',
+                        }}
+                      >
+                        <span className="flex w-full items-center gap-2 text-[13px] font-semibold text-[#1E293B]">
+                          <TriangleAlert size={15} className="text-[#731EFB]" />
+                          Create Problem
+                          <span
+                            className="ml-auto inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold text-[#731EFB]"
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                          >
+                            <AiSparkle size={10} />
+                            Recommended
+                          </span>
+                        </span>
+                        <span className="text-[12px] leading-relaxed text-[#64748B]">
+                          Raise one Problem to investigate the shared root cause — a batch-level hardware fault.
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
                   <div className="flex items-center gap-2">
-{!panelOnly && !detailV2 && (
+                  {!panelOnly && !detailV2 && (
                   <button
                     onClick={() => {
                       toast.success(`${openGroup.tickets.length} requests merged into ${openGroup.tickets[0]?.id ?? 'one request'}`);
@@ -694,6 +746,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                     Ignore
                   </button>
                   </div>
+                  )}
                 </div>
                 )}
               </>
