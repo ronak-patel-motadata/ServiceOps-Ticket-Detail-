@@ -187,10 +187,192 @@ const DEMO_STAGED_TASKS: any[] = [
 // Individual (non-staged) task pool — every ticket EXCEPT the Service Request INC-35 seeds a
 // small themed slice matching the request SUBJECT (no `stage`, so the Tasks tab renders a flat
 // list). Each theme lists resolution steps that read naturally for that kind of request.
+/* Description text keyed off the SUBJECT, so every request detail page reads like the
+   request it belongs to rather than a shared placeholder. `short` is what shows
+   collapsed; `more` are the paragraphs revealed by View more. */
+const SUBJECT_DESCRIPTIONS: { match: RegExp; short: string; more: string[] }[] = [
+  {
+    match: /vpn/i,
+    short: 'The corporate VPN drops roughly every fifteen minutes while I am working from home, and I have to reconnect manually each time to get back into our internal tools.',
+    more: [
+      'The disconnects happen on both my home Wi-Fi and a mobile hotspot, so I do not think it is my broadband. The client logs show a timeout against the gateway rather than an authentication failure.',
+      'Every drop signs me out of the internal portals and interrupts file transfers, which is making longer pieces of work very difficult to finish. Please advise whether my VPN profile needs to be reissued.',
+    ],
+  },
+  {
+    match: /internet|wi-?fi|network|website not loading|shared drive|connect/i,
+    short: 'I am unable to get a working connection from my desk. The network shows as connected, but internal sites and cloud applications either time out or fail to load entirely.',
+    more: [
+      'I have already restarted the machine, toggled the wireless adapter, and rejoined the corporate network. None of these steps made a difference, and the behaviour is identical on the guest network.',
+      'Colleagues sitting nearby are online without any trouble, which suggests the problem is specific to my device or profile. I am blocked from email, the CRM and our shared drives until this is fixed.',
+    ],
+  },
+  {
+    match: /charger|power adapter|battery|keyboard|monitor|projector|printer|hardware|not responding|burnt/i,
+    short: 'The device is not working correctly and is affecting my ability to do everyday work. The fault is consistent rather than intermittent, and it has not improved after a restart.',
+    more: [
+      'I have checked the obvious things — cables reseated, a different power outlet, and a different port where that applies — and the behaviour is the same each time, so this looks like a hardware fault rather than a configuration issue.',
+      'Please could someone check the warranty status and arrange a replacement or a bench repair. I am happy to drop the device at the IT desk if that is quicker than a visit.',
+    ],
+  },
+  {
+    match: /outlook|email|mailbox|mail/i,
+    short: 'My mailbox is not behaving correctly. Messages are not moving as expected and the client shows errors when I try to work with them, which is holding up several conversations with customers.',
+    more: [
+      'I have tried restarting the client and signing out and back in. Webmail behaves the same way, so the problem does not appear to be limited to the desktop application.',
+      'Could someone check the mailbox from the server side — I am concerned that either the profile or the quota is at fault. I can be available for a remote session at any point today.',
+    ],
+  },
+  {
+    match: /onboarding|offboarding|new laptop setup|enrollment|bulk user/i,
+    short: 'Please set up the accounts, access and equipment required for this joiner so that everything is ready and tested before their first working day.',
+    more: [
+      'This covers the Active Directory account and mailbox, membership of the relevant team groups, access to the shared drives and business applications for the role, and a prepared laptop with the standard image.',
+      'The start date is confirmed, so please flag early if any part of this cannot be completed in time — particularly the account creation, since the device build depends on it.',
+    ],
+  },
+  {
+    match: /log ?in|login|password|authentication|access|two-factor|2fa|account|sso|sap|salesforce/i,
+    short: 'I am unable to sign in to the application and cannot get past the authentication step, so I have no access to the records I need for my current work.',
+    more: [
+      'The credentials are the ones I use every day and they work elsewhere, so I do not believe this is a typing error. I have cleared the browser cache and tried a private window with the same result.',
+      'Please could the account be checked for a lock or an expired permission, and reset if required. This is currently blocking work that is due this week.',
+    ],
+  },
+  {
+    match: /license|upgrade|storage|request additional|request access|request for/i,
+    short: 'I would like to request this for my role. My current allocation is no longer sufficient for the work I am doing, and it is starting to slow down day-to-day delivery.',
+    more: [
+      'The request is for standard business use and would be covered by my department budget. I have confirmed with my manager that the spend is expected and approved on their side.',
+      'Please let me know if any additional justification or a cost centre code is required, and I will provide it straight away.',
+    ],
+  },
+  {
+    match: /slow|performance|blue screen|crash|freez/i,
+    short: 'The machine has become unreliable — it is noticeably slower than it was and fails during normal use, which is costing me time throughout the day.',
+    more: [
+      'The behaviour started after the most recent round of updates. A restart helps briefly, but the problem returns within an hour or two of normal work.',
+      'I have not installed anything new or changed any settings. Please could someone review the event logs and the update history to see what changed.',
+    ],
+  },
+  {
+    match: /teams|zoom|audio|meeting|conference/i,
+    short: 'Audio is not working correctly during meetings. Other participants cannot hear me, or I cannot hear them, and the problem happens across different meetings and rooms.',
+    more: [
+      'I have checked that the correct input and output devices are selected and that nothing is muted at the operating-system level. Other applications play sound normally.',
+      'This is affecting customer calls, so a quick look would be appreciated. I am free to test with someone from the service desk whenever suits.',
+    ],
+  },
+  {
+    match: /backup|restore|data/i,
+    short: 'I need files restored from backup. They were removed in error and are not recoverable from the recycle bin or from local version history.',
+    more: [
+      'The files were last known good earlier in the week, and they sit in our team folder on the shared drive rather than on my local machine.',
+      'Please restore the most recent clean version available. Let me know if you need the exact path and timestamps and I will send them over.',
+    ],
+  },
+];
+
+const GENERIC_DESCRIPTION = {
+  short: 'I have raised this request because the issue is affecting my normal work and I have not been able to resolve it myself.',
+  more: [
+    'I have tried the usual first steps — restarting the machine and signing out and back in — without any change in behaviour.',
+    'Please could someone from the service desk take a look and advise on the next steps. I am available for a remote session at short notice.',
+  ],
+};
+
+/** The description body for a request, chosen by its subject. */
+const describeSubject = (subject?: string) =>
+  SUBJECT_DESCRIPTIONS.find((d) => d.match.test(subject ?? '')) ?? GENERIC_DESCRIPTION;
+
 const TASK_THEMES: { match: RegExp; group: string; type: string; tasks: string[] }[] = [
   {
+    // Leaver — access has to come off in a controlled order
+    match: /offboard|revocation|revoke|leaver/i,
+    group: 'IT Support', type: 'Deprovisioning',
+    tasks: [
+      'Confirm the last working day with the line manager',
+      'Disable the Active Directory account and revoke SSO access',
+      'Remove application and shared-drive permissions',
+      'Convert the mailbox and forward to the manager',
+      'Collect the laptop and peripherals, and update the asset record',
+    ],
+  },
+  {
+    // Licensing / capacity — a commercial request rather than a fault
+    match: /license|renewal|upgrade|storage/i,
+    group: 'Asset & Licensing', type: 'Procurement',
+    tasks: [
+      'Confirm the entitlement required and the cost centre',
+      'Check the current license pool for a spare seat',
+      'Obtain budget approval from the department owner',
+      'Raise the purchase or capacity request with the vendor',
+      'Assign the license and confirm access with the requester',
+    ],
+  },
+  {
+    // Identity and access — sign-in, credentials, permissions
+    match: /log ?in|login|password|authentication|two-factor|2fa|sso|sap|salesforce|request access|account|enrollment|bulk user/i,
+      group: 'Identity & Access', type: 'Access Management',
+    tasks: [
+      'Verify the requester identity against the HR record',
+      'Check the account for a lock, expiry or failed sign-ins',
+      'Confirm the role-based permissions required',
+      'Reset credentials or grant the requested access',
+      'Confirm successful sign-in with the requester',
+    ],
+  },
+  {
+    // Messaging — mailbox, sync and quota problems
+    match: /outlook|mailbox|email|mail/i,
+    group: 'Messaging Team', type: 'Investigation',
+    tasks: [
+      'Reproduce the issue in webmail to isolate the client',
+      'Check mailbox size, quota and archive policy',
+      'Review the Exchange logs for sync or delivery errors',
+      'Rebuild the local mail profile if required',
+      'Confirm mail flow is restored with the requester',
+    ],
+  },
+  {
+    // Data recovery
+    match: /backup|restore/i,
+    group: 'Infrastructure', type: 'Data Recovery',
+    tasks: [
+      'Confirm the exact paths and the last known good date',
+      'Locate the nearest clean restore point',
+      'Restore the data to a staging location',
+      'Have the requester verify the restored files',
+      'Move the data back into place and close the request',
+    ],
+  },
+  {
+    // Device performance and stability
+    match: /slow|performance|blue screen|crash|freez/i,
+    group: 'IT Support', type: 'Investigation',
+    tasks: [
+      'Collect the event logs and recent update history',
+      'Review startup items, disk health and memory usage',
+      'Roll back or reapply the suspect update',
+      'Run a full malware and disk check',
+      'Monitor for 48 hours and confirm stability',
+    ],
+  },
+  {
+    // Meeting rooms and collaboration audio/video
+    match: /teams|zoom|audio|projector|conference/i,
+    group: 'Collaboration Support', type: 'Investigation',
+    tasks: [
+      'Confirm the input and output devices in use',
+      'Update the audio/video drivers and the client',
+      'Test a call with the requester end to end',
+      'Check the room hardware and cabling where applicable',
+      'Confirm the fix on the next scheduled meeting',
+    ],
+  },
+  {
     // Connectivity — Internet down / Wi-Fi not working
-    match: /internet|wi-?fi|network|connect|vpn|dns/i,
+    match: /internet|wi-?fi|network|connect|vpn|dns|shared drive/i,
     group: 'Network Team', type: 'Investigation',
     tasks: [
       'Run network diagnostics on the affected device',
@@ -199,18 +381,6 @@ const TASK_THEMES: { match: RegExp; group: string; type: string; tasks: string[]
       'Schedule a remote session with the requester',
       'Escalate to the network team if unresolved',
       'Confirm connectivity is restored with the requester',
-    ],
-  },
-  {
-    // Hardware fault — laptop charger / device not working
-    match: /charger|laptop|hardware|monitor|keyboard|mouse|printer|battery|broken|not working|damage/i,
-    group: 'IT Support', type: 'Provisioning',
-    tasks: [
-      'Inspect the reported hardware fault',
-      'Check warranty / AMC coverage for the device',
-      'Arrange a replacement unit from inventory',
-      'Coordinate device pickup and delivery with the requester',
-      'Update the asset record after replacement',
     ],
   },
   {
@@ -223,6 +393,18 @@ const TASK_THEMES: { match: RegExp; group: string; type: string; tasks: string[]
       'Raise a purchase order for the requested item',
       'Configure and image the new device',
       'Hand over the device and collect acknowledgement',
+    ],
+  },
+  {
+    // Hardware fault — laptop charger / device not working
+    match: /charger|power adapter|adapter|smell|laptop|hardware|monitor|keyboard|mouse|printer|battery|broken|not working|damage/i,
+    group: 'IT Support', type: 'Provisioning',
+    tasks: [
+      'Inspect the reported hardware fault',
+      'Check warranty / AMC coverage for the device',
+      'Arrange a replacement unit from inventory',
+      'Coordinate device pickup and delivery with the requester',
+      'Update the asset record after replacement',
     ],
   },
   {
@@ -2792,29 +2974,29 @@ onStackActiveGroupChange,
                         </>
                       )
                     ) : (
-                      // Default description for other tickets
-                      isDescriptionExpanded ? (
-                        <>
-                          To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.
-                          <br /><br />
-                          Additionally, this comprehensive network refresh will re-establish secure connections to corporate resources,
-                          ensuring proper authentication with domain controllers and restoring access to shared network drives. The
-                          process includes verification of network adapter settings, validation of proxy configurations, and testing
-                          connectivity to critical business applications. This automated workflow minimizes downtime and ensures all
-                          network-dependent services are functioning optimally after the refresh is complete.
-                        </>
-                      ) : (
-                        <>
-                          To resolve connectivity issues, initiate a remote workflow designed to refresh your laptop's network settings. This procedure effectively clears the DNS cache, releases outdated entries, renews DHCP leases, and it also resets the IP stack and rebuilds the routing table.{' '}
-                          <button
-                            onClick={() => setIsDescriptionExpanded(true)}
-                            className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
-                          >
-                            View more
-                            <ChevronDown size={14} />
-                          </button>
-                        </>
-                      )
+                      // Every other request: a body written for ITS subject.
+                      (() => {
+                        const d = describeSubject(activeTicket?.subject);
+                        return isDescriptionExpanded ? (
+                          <>
+                            {d.short}
+                            {d.more.map((p, i) => (
+                              <span key={i} className="mt-3 block">{p}</span>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            {d.short}{' '}
+                            <button
+                              onClick={() => setIsDescriptionExpanded(true)}
+                              className="text-[14px] text-[#3D8BD0] hover:text-[#2E6BA4] font-medium inline-flex items-center gap-1"
+                            >
+                              View more
+                              <ChevronDown size={14} />
+                            </button>
+                          </>
+                        );
+                      })()
                     )}
                   </p>
                   {/* Attachments */}

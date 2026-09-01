@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight, ChevronUp, FileText, Pin as PinIcon, Plus, X, Check, Search, ArrowLeft, CornerUpLeft, Tag } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { AiSparkle } from './AiSparkle';
 import { toast } from 'sonner';
 import { AssetFields } from './AssetFields';
@@ -227,17 +228,96 @@ const USED_TAGS = [
 ];
 
 /** Hint sparkle shown in a blank field whose dropdown carries AI suggestions. */
-function AiSuggestHint({ label }: { label: string }) {
+function AiSuggestHint({ label, coach }: { label: string; coach?: boolean }) {
+  /* First-visit coach mark: the FIRST suggested field (coach prop) explains the sparkle
+     once, then never again — persisted in localStorage. Any outside interaction counts
+     as "understood", so the mark never nags. */
+  const [showCoach, setShowCoach] = useState(false);
+  const [coachPos, setCoachPos] = useState<{ top: number; right: number } | null>(null);
+  const coachRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!coach) return;
+    try {
+      if (localStorage.getItem('hasSeenAiFieldHint')) return;
+    } catch {
+      return;
+    }
+    const t = window.setTimeout(() => {
+      const r = iconRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setCoachPos({ top: r.bottom + 10, right: Math.max(8, window.innerWidth - r.right) });
+      setShowCoach(true);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [coach]);
+  const dismissCoach = () => {
+    setShowCoach(false);
+    try {
+      localStorage.setItem('hasSeenAiFieldHint', '1');
+    } catch {}
+  };
+  useEffect(() => {
+    if (!showCoach) return;
+    const onDown = (e: MouseEvent) => {
+      if (coachRef.current && !coachRef.current.contains(e.target as Node)) dismissCoach();
+    };
+    const close = () => dismissCoach();
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [showCoach]);
+  const icon = (
+    <span
+      ref={iconRef}
+      className="pointer-events-auto relative flex size-5 cursor-default items-center justify-center rounded"
+      style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.10) 0%, rgba(115, 30, 251, 0.10) 41.49%, rgba(249, 17, 227, 0.10) 100%), #FFF' }}
+    >
+      {/* Soft pulse draws the eye to the sparkle while the coach is up. */}
+      {showCoach && <span className="absolute inset-0 animate-ping rounded bg-[#731EFB]/20" />}
+      <AiSparkle size={12} />
+    </span>
+  );
+  if (showCoach) {
+    return (
+      <span className="inline-flex">
+        {icon}
+        {coachPos &&
+          createPortal(
+        <div
+          ref={coachRef}
+          style={{ position: 'fixed', top: coachPos.top, right: coachPos.right }}
+          className="z-[9999] w-[250px] whitespace-normal rounded-lg border border-[#DFE5ED] bg-white p-3 text-left shadow-xl"
+        >
+          <span className="absolute -top-1 right-2 size-2 rotate-45 border-l border-t border-[#DFE5ED] bg-white" />
+          <div className="flex items-start gap-2">
+            <AiSparkle size={13} className="mt-0.5 flex-shrink-0" />
+            <p className="text-[12px] font-normal leading-relaxed text-[#475569]">
+              AI suggests values for empty fields. Open the dropdown — the suggestion sits at the top, one click applies it.
+            </p>
+          </div>
+          <div className="mt-2.5 flex justify-end">
+            <button
+              onClick={dismissCoach}
+              className="h-7 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+            >
+              Got it
+            </button>
+          </div>
+        </div>,
+            document.body,
+          )}
+      </span>
+    );
+  }
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className="pointer-events-auto flex size-5 cursor-default items-center justify-center rounded"
-          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.10) 0%, rgba(115, 30, 251, 0.10) 41.49%, rgba(249, 17, 227, 0.10) 100%), #FFF' }}
-        >
-          <AiSparkle size={12} />
-        </span>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{icon}</TooltipTrigger>
       <TooltipContent>AI has suggestions for {label} — open the list</TooltipContent>
     </Tooltip>
   );
@@ -899,7 +979,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               {/* Blank select → a sparkle HINT; the suggestions live in the dropdown. */}
               {!selectedTechGroup && (
                 <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-                  <AiSuggestHint label="technician group" />
+                  <AiSuggestHint label="technician group" coach />
                 </span>
               )}
               {selectedTechGroup && (

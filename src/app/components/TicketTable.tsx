@@ -359,14 +359,13 @@ function HeaderMenu({
             <button className={row} onClick={() => { onHide(); onClose(); }}>
               <EyeOff size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Hide
             </button>
-            <button
-              className={`${row} ${freezeDisabled ? 'cursor-not-allowed opacity-45' : ''}`}
-              onClick={() => { onFreeze(); onClose(); }}
-            >
+            {(!freezeDisabled || frozen) && (
+            <button className={row} onClick={() => { onFreeze(); onClose(); }}>
               <Pin size={14} className="flex-shrink-0 text-[#7B8FA5]" />
               <span className="flex-1">{frozen ? 'Unfreeze Columns' : 'Freeze Up to Column'}</span>
               {frozen && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
             </button>
+            )}
             <div className="my-1 border-t border-[#F0F2F5]" />
             <button className={row} onClick={() => { onInsertSlot('left'); onClose(); }}>
               <ArrowLeftToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Left
@@ -651,6 +650,28 @@ const dueBySla = (t: Ticket): SlaInfo => {
 };
 /** Exposed for the listing KPI strip so its SLA numbers match the grid's pills exactly. */
 export const slaToneOf = (t: Ticket): SlaTone => dueBySla(t).tone;
+/** The SLA pill WITH its hover detail (due/met date · total time · SLA name).
+ *  Used by the grid cell and the Kanban cards. */
+export function SlaPill({ ticket }: { ticket: Ticket }) {
+  const sla = dueBySla(ticket);
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
+          <DueByPill tone={sla.tone} label={sla.label} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="min-w-[180px] divide-y divide-white/15 text-left text-wrap">
+          <div className="pb-1.5">{sla.when}</div>
+          <div className="py-1.5"><span className="opacity-60">Total time:</span> {sla.target}</div>
+          <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> {sla.name}</div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Tone + label for the Kanban cards, straight from the grid's own SLA rule. */
 export const slaInfoOf = (t: Ticket): { tone: SlaTone; label: string } => {
   const i = dueBySla(t);
@@ -1208,25 +1229,7 @@ export function TicketTable({
       case 'dueStatus':
         return (
               <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
-                {(() => {
-                  const sla = dueBySla(ticket);
-                  return (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <DueByPill tone={sla.tone} label={sla.label} />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="min-w-[180px] divide-y divide-white/15 text-left text-wrap">
-                          <div className="pb-1.5">{sla.when}</div>
-                          <div className="py-1.5"><span className="opacity-60">Total time:</span> {sla.target}</div>
-                          <div className="pt-1.5"><span className="opacity-60">SLA Name:</span> {sla.name}</div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })()}
+                <SlaPill ticket={ticket} />
               </td>
         );
       case 'status':

@@ -50,24 +50,50 @@ export interface Ticket {
 
 // Mock data
 export const generateMockTickets = (): Ticket[] => {
+  /* Indices 0–16 are fixed: they are the members of the AI suggested groups and the
+     three requests with bespoke detail-page content (INC-32/33/35). The rest are a
+     realistic spread of service-desk work so the queue never reads as one repeated row. */
   const subjects = [
-    "Don't you hate me too? it name it that...",
+    "Outlook keeps crashing when opening attachments",
     "Employee Onboarding",
     "My Internet Down",
     "WiFi is not working",
     "Employee Onboarding",
     "Request for Apple MacBook Pro Allocation",
     "Employee Onboarding",
-    "help",
+    "Unable to log in to the HR portal",
     "Employee Onboarding",
     "Laptop charger not working",
     "WiFi is not working",
+    "Internet dropping every few minutes",
+    "Charger stopped charging the laptop",
+    "Cannot open shared drive from Floor 3",
+    "Password reset for Active Directory account",
     "Employee Onboarding",
-    "help",
-    "Employee Onboarding",
-    "My Internet Down",
-    "Employee Onboarding",
-    "WiFi is not working"
+    "Burnt smell from power adapter",
+    "VPN disconnects when working from home",
+    "Request access to Salesforce CRM",
+    "Printer on 2nd floor not responding",
+    "Outlook not syncing emails since morning",
+    "New laptop setup for marketing hire",
+    "Software license renewal — Adobe Creative Cloud",
+    "Blue screen error on Windows startup",
+    "Microsoft Teams audio not working in meetings",
+    "Request for an additional monitor",
+    "Shared mailbox access for finance team",
+    "SAP login fails with authentication error",
+    "Slow system performance after latest update",
+    "Mobile device enrollment for new phone",
+    "Request for Zoom license upgrade",
+    "Email quota exceeded — unable to send mail",
+    "Data restore request from last week's backup",
+    "Employee Offboarding — access revocation",
+    "Website not loading on corporate network",
+    "Request for additional OneDrive storage",
+    "Keyboard keys not responding on laptop",
+    "Two-factor authentication device replacement",
+    "Conference room projector not connecting",
+    "Bulk user creation for new department"
   ];
   
   const requesters = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
@@ -346,7 +372,11 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
           <div className="sticky left-0 bg-white pt-0.5">
-          <TicketStatsRow tickets={tickets} />
+          <TicketStatsRow
+            tickets={tickets}
+            rules={filterRules}
+            onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
+          />
           <TicketGroupSuggestions />
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">

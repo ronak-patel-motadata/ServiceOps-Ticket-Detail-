@@ -363,3 +363,23 @@ button:not(:disabled),
 [data-sonner-toast][data-type='error'] [data-icon] svg {
   color: #dc2626;
 }
+/* Animated AI gradient border — the brand gradient slowly circling the control.
+   Falls back to a static gradient border where @property is unsupported. */
+@property --ai-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ai-border-spin {
+  to { --ai-border-angle: 360deg; }
+}
+.ai-animated-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(from var(--ai-border-angle), #4CB1FE, #731EFB, #F911E3, #4CB1FE) border-box;
+  animation: ai-border-spin 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-animated-border { animation: none; }
+}

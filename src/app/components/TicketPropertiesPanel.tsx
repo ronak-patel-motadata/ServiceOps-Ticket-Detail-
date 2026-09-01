@@ -660,23 +660,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestDismissed, setSuggestDismissed] = useState(false);
   const [suggestApplied, setSuggestApplied] = useState(false);
-  const [suggestChecked, setSuggestChecked] = useState<Set<string>>(new Set(['priority', 'assignee', 'urgency']));
-  const [suggestRect, setSuggestRect] = useState<{ right: number; bottom: number } | null>(null);
+  const [suggestChecked, setSuggestChecked] = useState<Set<string>>(new Set(['priority', 'assignee', 'urgency', 'impact', 'category', 'techGroup', 'department', 'supportLevel', 'location', 'source']));
   useEffect(() => {
     if (!suggestOpen) return;
-    const close = () => setSuggestOpen(false);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSuggestOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [suggestOpen]);
   useEffect(() => {
     setSuggestOpen(false);
     setSuggestDismissed(false);
     setSuggestApplied(false);
-    setSuggestChecked(new Set(['priority', 'assignee', 'urgency']));
+    setSuggestChecked(new Set(['priority', 'assignee', 'urgency', 'impact', 'category', 'techGroup', 'department', 'supportLevel', 'location', 'source']));
   }, [ticketId]);
   // ServiceOps AI header controls. showChatHistory swaps the panel body for the history screen
   // (New chat just clears the thread). Leaving the AI group resets it, so reopening the panel
@@ -1987,6 +1982,81 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               ),
               apply: () => setSelectedUrgency('High'),
             },
+            {
+              key: 'impact',
+              label: 'Impact',
+              current: selectedImpact,
+              value: 'On Department',
+              node: (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold leading-none text-[#364658]">
+                  <span className="size-2 rounded-full bg-[#F59E0B]" />On Department
+                </span>
+              ),
+              apply: () => setSelectedImpact('On Department'),
+              why: 'Five similar requests from the same floor suggest the outage reaches beyond a single user.',
+            },
+            {
+              key: 'category',
+              label: 'Category',
+              current: selectedCategory,
+              value: 'Network',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">Network</span>
+              ),
+              apply: () => setSelectedCategory('Network'),
+            },
+            {
+              key: 'techGroup',
+              label: 'Technician Group',
+              current: selectedTechGroup,
+              value: 'IT Support Team',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">IT Support Team</span>
+              ),
+              apply: () => setSelectedTechGroup('IT Support Team'),
+            },
+            {
+              key: 'department',
+              label: 'Department',
+              current: selectedDepartment,
+              value: 'IT',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">IT</span>
+              ),
+              apply: () => setSelectedDepartment('IT'),
+            },
+            {
+              key: 'supportLevel',
+              label: 'Support Level',
+              current: selectedSupportLevel,
+              value: 'Level 3',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">Level 3</span>
+              ),
+              apply: () => setSelectedSupportLevel('Level 3'),
+              why: 'Similar requests needed network-team involvement — Level 2 resolved only 2 of the last 14.',
+            },
+            {
+              key: 'location',
+              label: 'Location',
+              current: selectedLocation,
+              value: 'Ahmedabad HQ — Floor 3',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">Ahmedabad HQ — Floor 3</span>
+              ),
+              apply: () => setSelectedLocation('Ahmedabad HQ — Floor 3'),
+            },
+            {
+              key: 'source',
+              label: 'Source',
+              current: selectedSource,
+              value: 'Support Portal',
+              node: (
+                <span className="text-[12px] font-semibold leading-none text-[#364658]">Support Portal</span>
+              ),
+              apply: () => setSelectedSource('Support Portal'),
+              why: 'The request was submitted through the self-service portal but logged under a different channel.',
+            },
           ];
           // Nothing to enrich when the ticket already matches every suggestion.
           const ACTIVE = SUGGESTIONS.filter((sg) => sg.current !== sg.value);
@@ -2008,14 +2078,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           return (
             <div className="relative">
               <button
-                onClick={(e) => {
-                  if (!suggestOpen) {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    setSuggestRect({ right: r.right, bottom: r.bottom });
-                  }
-                  setSuggestOpen(!suggestOpen);
-                }}
-                className="relative flex w-full items-center gap-2 overflow-hidden rounded-lg border border-[#DFE5ED] px-4 py-3 text-left transition-shadow hover:shadow-[0_2px_10px_rgba(115,30,251,0.12)]"
+                onClick={() => setSuggestOpen(true)}
+                className="ai-animated-border relative flex w-full items-center gap-2 overflow-hidden rounded-lg px-4 py-3 text-left transition-shadow hover:shadow-[0_2px_10px_rgba(115,30,251,0.12)]"
               >
                 {/* The AI Summary card's gradient wash, exactly. */}
                 <span
@@ -2030,30 +2094,56 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 >
                   {ACTIVE.length}
                 </span>
-                <ChevronDown size={16} className={`flex-shrink-0 text-[#7B8FA5] transition-transform ${suggestOpen ? 'rotate-180' : ''}`} />
+                <ChevronRight size={16} className="flex-shrink-0 text-[#7B8FA5]" />
               </button>
-              {suggestOpen && suggestRect && createPortal(
-                <>
-                  <div className="fixed inset-0 z-[9998]" onClick={() => setSuggestOpen(false)} />
-                  {/* Body portal — the panel and the content column are separate stacking
-                      contexts, so an in-panel popup could never paint above the left side. */}
-                  <div
-                    style={{
-                      position: 'fixed',
-                      top: suggestRect.bottom + 6,
-                      left: Math.max(8, suggestRect.right - Math.min(440, window.innerWidth - 32)),
-                      width: Math.min(440, window.innerWidth - 32),
-                    }}
-                    className="z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
-                  >
-                    <div className="px-4 pb-1 pt-3">
-                      <div className="text-[13px] font-semibold text-[#364658]">Suggested field updates</div>
-                      <p className="mt-0.5 text-[12px] leading-relaxed text-[#7B8FA5]">
-                        Based on similar resolved requests, these fields can be updated as below.
-                      </p>
-                      <div className="mt-3 space-y-2.5 pb-3">
+              {suggestOpen && createPortal(
+                <div className="fixed inset-0 z-[9998]">
+                  <div className="absolute inset-0 bg-black/20" onClick={() => setSuggestOpen(false)} />
+                  <div className="absolute right-0 top-0 flex h-full w-[480px] max-w-full flex-col bg-white shadow-2xl">
+                    <span
+                      className="pointer-events-none absolute inset-y-0 left-0 w-[2px]"
+                      style={{ background: 'linear-gradient(180deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)' }}
+                    />
+                    {/* Header */}
+                    <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-5 py-3.5">
+                      <AiSparkle size={16} className="flex-shrink-0" />
+                      <h2 className="flex-1 text-[15px] font-semibold text-[#1E293B]">Suggested field updates</h2>
+                      <span
+                        className="rounded-full px-1.5 py-px text-[10px] font-semibold text-[#364658]"
+                        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                      >
+                        {ACTIVE.length}
+                      </span>
+                      <button
+                        onClick={() => setSuggestOpen(false)}
+                        className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]"
+                      >
+                        <X size={18} className="text-[#64748B]" />
+                      </button>
+                    </div>
+                    <p className="px-5 pt-3 text-[12px] leading-relaxed text-[#7B8FA5]">
+                      Based on similar resolved requests, these fields can be updated as below.
+                    </p>
+                    {/* Select all — a banded control ABOVE the list, not a row of it. */}
+                    <div className="mt-3 flex items-center justify-between border-y border-[#F0F2F5] bg-[#F8FAFC] px-5 py-2.5">
+                      <label className="flex cursor-pointer items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={pickedCount === ACTIVE.length}
+                          onChange={() =>
+                            setSuggestChecked(pickedCount === ACTIVE.length ? new Set() : new Set(ACTIVE.map((sg) => sg.key)))
+                          }
+                          className="h-3.5 w-3.5 flex-shrink-0 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
+                        />
+                        <span className="text-[12px] font-medium text-[#364658]">Select all</span>
+                      </label>
+                      <span className="text-[12px] tabular-nums text-[#94A3B8]">{pickedCount} of {ACTIVE.length} selected</span>
+                    </div>
+                    {/* Rows */}
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1">
+                      <div className="divide-y divide-[#F1F5F9]">
                         {ACTIVE.map((sg) => (
-                          <label key={sg.key} className="flex cursor-pointer items-center gap-2.5">
+                          <label key={sg.key} className="flex cursor-pointer items-center gap-2.5 py-3">
                             <input
                               type="checkbox"
                               checked={suggestChecked.has(sg.key)}
@@ -2077,33 +2167,34 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                                 </Tooltip>
                               )}
                             </span>
-                            {/* old (muted) → suggested (highlighted) */}
+                            {/* old (muted) → suggested (highlighted); blank fields show a quiet dash */}
                             <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-                              <span className="min-w-0 truncate text-[12px] leading-none text-[#9CA3AF]">{sg.current}</span>
+                              <span className="min-w-0 truncate text-[12px] leading-none text-[#9CA3AF]">{sg.current || '—'}</span>
                               <ArrowRight size={12} className="flex-shrink-0 text-[#94A3B8]" />
-                              <span className="flex-shrink-0 flex items-center">{sg.node}</span>
+                              <span className="flex flex-shrink-0 items-center">{sg.node}</span>
                             </span>
                           </label>
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center justify-end gap-2 border-t border-[#E5E7EB] px-4 py-2.5">
+                    {/* Footer */}
+                    <div className="flex items-center justify-end gap-2 border-t border-[#E5E7EB] px-5 py-3">
                       <button
                         onClick={() => setSuggestDismissed(true)}
-                        className="h-8 rounded px-3 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658]"
+                        className="h-9 rounded px-3 text-[13px] font-medium text-[#64748B] transition-colors hover:bg-[#F3F4F6] hover:text-[#364658]"
                       >
                         Ignore
                       </button>
                       <button
                         onClick={applySuggestions}
                         disabled={pickedCount === 0}
-                        className="h-8 rounded bg-[#3D8BD0] px-4 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-9 rounded bg-[#3D8BD0] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Update
                       </button>
                     </div>
                   </div>
-                </>,
+                </div>,
                 document.body,
               )}
             </div>

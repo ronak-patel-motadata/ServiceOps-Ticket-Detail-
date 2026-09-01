@@ -286,6 +286,8 @@ export function TicketGridToolbar({
                     <ChevronRight size={14} className="text-[#9CA3AF]" />
                   </button>
                   )}
+                  {view === 'list' && (
+                    <>
                   <div className="border-t border-[#F0F2F5]" />
                   <button
                     onClick={() => {
@@ -297,6 +299,8 @@ export function TicketGridToolbar({
                   >
                     Reset grid layout
                   </button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>

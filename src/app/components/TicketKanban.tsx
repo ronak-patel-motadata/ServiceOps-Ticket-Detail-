@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { MessageSquare, ListChecks, UserCheck } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
-import { DueByPill, slaInfoOf } from './TicketTable';
+import { slaInfoOf, SlaPill } from './TicketTable';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* Kanban view of the same requests the grid shows. Columns come from the chosen group
    field; a card can be dragged to another column to change that field, which is the whole
@@ -43,6 +44,30 @@ const slaLabelOf = (t: Ticket) => {
 };
 
 const PEOPLE_GROUP = (g: KanbanGroup) => g === 'assignedTo' || g === 'requester';
+
+/** Tinted value chip — one shape for status and priority so slots stay interchangeable. */
+/** Wraps any card element with the standard tooltip. */
+function Tip({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{text}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function ValueChip({ label, color, big, tip }: { label: string; color: string; big?: boolean; tip?: string }) {
+  const chip = (
+    <span
+      className={`inline-flex flex-shrink-0 items-center gap-1 font-medium ${big ? 'rounded px-2 py-0.5 text-[12px]' : 'rounded-sm px-1.5 py-0.5 text-[11px]'}`}
+      style={{ background: `${color}1A`, color }}
+    >
+      <span className={big ? 'size-2 rounded-full' : 'size-1.5 rounded-full'} style={{ background: color }} />
+      {label}
+    </span>
+  );
+  return tip ? <Tip text={tip}>{chip}</Tip> : chip;
+}
 const AVATAR_BG = (g: KanbanGroup) => (g === 'requester' ? '#E67E22' : '#3D8BD0');
 
 const groupValue = (t: Ticket, g: KanbanGroup) =>
@@ -91,7 +116,7 @@ export function TicketKanban({
   };
 
   return (
-    <div className="flex min-h-full gap-5 bg-[#F7F9FC] px-6 pb-6">
+    <div className="flex min-h-full gap-5 bg-[#FAFBFC] px-6 pb-6">
       {columns.map((col) => {
         const cards = tickets.filter((t) => groupValue(t, group) === col);
         const isOver = overCol === col && canDrop;
@@ -108,7 +133,7 @@ export function TicketKanban({
             className="flex w-[388px] flex-shrink-0 flex-col"
           >
             {/* Column header — the value, its count, and nothing else. */}
-            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#F7F9FC] pb-2.5 pt-4">
+            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#FAFBFC] pb-2.5 pt-4">
               {PEOPLE_GROUP(group) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -134,7 +159,6 @@ export function TicketKanban({
               }`}
             >
               {cards.map((t) => {
-                const sla = slaInfoOf(t);
                 const done = t.tasksDone ?? 0;
                 const total = t.tasksTotal ?? 0;
                 return (
@@ -152,9 +176,15 @@ export function TicketKanban({
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                      <Tip text={`${t.id} · raised by ${t.requester}`}>
+                        <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                      </Tip>
                       <span className="ml-auto">
-                        <DueByPill tone={sla.tone} label={sla.label} />
+                        {group === 'sla' ? (
+                          <ValueChip label={t.status} color={DOT[t.status] ?? '#94A3B8'} big tip={`Status: ${t.status}`} />
+                        ) : (
+                          <SlaPill ticket={t} />
+                        )}
                       </span>
                     </div>
 
@@ -166,53 +196,63 @@ export function TicketKanban({
                     {((t.unread ?? 0) > 0 || t.approval || total > 0) && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {(t.unread ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-sm bg-[#EBF5FF] px-1.5 py-0.5 text-[11px] font-medium text-[#3D8BD0]">
-                            <MessageSquare size={11} />
-                            {t.unread} new
-                          </span>
+                          <Tip text={`${t.unread} unread ${t.unread === 1 ? 'reply' : 'replies'}${t.lastMsg ? ` from ${t.lastMsg.from}` : ''}`}>
+                            <span className="inline-flex items-center gap-1 rounded-sm bg-[#EBF5FF] px-1.5 py-0.5 text-[11px] font-medium text-[#3D8BD0]">
+                              <MessageSquare size={11} />
+                              {t.unread} new
+                            </span>
+                          </Tip>
                         )}
                         {t.approval && (
-                          <span className="inline-flex items-center gap-1 rounded-sm bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-medium text-[#B45309]">
-                            <UserCheck size={11} />
-                            Approval
-                          </span>
+                          <Tip
+                            text={`Waiting on ${t.approval.approver} · Level ${t.approval.level} of ${t.approval.totalLevels} · ${t.approval.waiting}`}
+                          >
+                            <span className="inline-flex items-center gap-1 rounded-sm bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-medium text-[#B45309]">
+                              <UserCheck size={11} />
+                              Approval
+                            </span>
+                          </Tip>
                         )}
                         {total > 0 && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
-                              done === total ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#F1F5F9] text-[#64748B]'
-                            }`}
-                          >
-                            <ListChecks size={11} />
-                            {done}/{total}
-                          </span>
+                          <Tip text={`${done} of ${total} tasks completed`}>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
+                                done === total ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#F1F5F9] text-[#64748B]'
+                              }`}
+                            >
+                              <ListChecks size={11} />
+                              {done}/{total}
+                            </span>
+                          </Tip>
                         )}
                       </div>
                     )}
 
                     <div className="mt-2.5 flex items-center gap-2 border-t border-[#F1F5F9] pt-2">
                       {group === 'assignedTo' ? (
-                        <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
-                          <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[t.status] }} />
-                          <span className="truncate text-[12px] text-[#64748B]">{t.status}</span>
-                        </span>
-                      ) : (
-                        <>
-                          <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                            {t.assignedTo.initials}
+                        <Tip text={`Status: ${t.status}`}>
+                          <span className="inline-flex min-w-0 items-center gap-1.5">
+                            <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[t.status] }} />
+                            <span className="truncate text-[12px] text-[#64748B]">{t.status}</span>
                           </span>
-                          <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">{t.assignedTo.name}</span>
-                        </>
+                        </Tip>
+                      ) : (
+                        <Tip text={`Assigned to ${t.assignedTo.name}`}>
+                          <span className="inline-flex min-w-0 items-center gap-2">
+                            <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                              {t.assignedTo.initials}
+                            </span>
+                            <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assignedTo.name}</span>
+                          </span>
+                        </Tip>
                       )}
-                      {group !== 'priority' && (
-                        <span
-                          className="inline-flex flex-shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
-                          style={{ background: `${DOT[t.priority]}1A`, color: DOT[t.priority] }}
-                        >
-                          <span className="size-1.5 rounded-full" style={{ background: DOT[t.priority] }} />
-                          {t.priority}
-                        </span>
-                      )}
+                      <span className="ml-auto flex flex-shrink-0 items-center">
+                        {group === 'priority' ? (
+                          <ValueChip label={t.status} color={DOT[t.status] ?? '#94A3B8'} tip={`Status: ${t.status}`} />
+                        ) : (
+                          <ValueChip label={t.priority} color={DOT[t.priority]} tip={`Priority: ${t.priority}`} />
+                        )}
+                      </span>
                     </div>
                   </div>
                 );

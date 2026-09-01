@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronUp, Clock, Info, Plus, Shield, User, X } from 'lucide-react';
+import { AppWindow, ChevronDown, ChevronLeft, ChevronUp, Clock, Info, Laptop, Plus, Server, Shield, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -21,6 +21,8 @@ interface GroupTicket {
   requester: string;
   /** Request (default) | Asset | CI | Problem | Change — a MIXED group gets Relations-style type pills. */
   itemType?: string;
+  /** Asset/CI rows only — the type shown where requests show their assignee. */
+  assetType?: string;
 }
 
 interface SuggestedGroup {
@@ -81,8 +83,8 @@ const GROUP_SEEDS: SuggestedGroup[] = [
       { id: 'INC-36', subject: 'Employee Onboarding', status: 'In Progress', priority: 'High', assignee: 'Keetion Dale', requester: 'Hetal Mori' },
       { id: 'INC-38', subject: 'Employee Onboarding', status: 'Pending', priority: 'Low', assignee: 'Amou Desai', requester: 'Ersin Sevinç' },
       { id: 'INC-45', subject: 'Employee Onboarding', status: 'Open', priority: 'Urgent', assignee: 'Pratik Patial', requester: 'Hetal Mori' },
-      { id: 'AST-4102', subject: 'Dell Latitude 5440 — staged for new joiners', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Nandini Patel', itemType: 'Asset' },
-      { id: 'CI-214', subject: 'AD-DC-01 — Primary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI' },
+      { id: 'AST-4102', subject: 'Dell Latitude 5440 — staged for new joiners', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Nandini Patel', itemType: 'Asset', assetType: 'Windows Laptop' },
+      { id: 'CI-214', subject: 'AD-DC-01 — Primary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI', assetType: 'Server' },
     ],
   },
   {
@@ -115,10 +117,10 @@ const CANDIDATE_POOL: GroupTicket[] = [
   { id: 'INC-48', subject: 'Cannot connect to office Wi-Fi', status: 'Open', priority: 'Low', assignee: 'Kaison Potai', requester: 'Jainam Shah' },
   { id: 'INC-49', subject: 'New joiner laptop setup', status: 'In Progress', priority: 'Medium', assignee: 'Keetion Dale', requester: 'Nandini Patel' },
   { id: 'INC-50', subject: 'Docking station not detected', status: 'Open', priority: 'Low', assignee: 'Novak Potai', requester: 'Darshak Modi' },
-  { id: 'AST-4106', subject: 'Dell Latitude 5440 — hot spare', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Nandini Patel', itemType: 'Asset' },
-  { id: 'AST-3988', subject: 'HP EliteBook 840 G9 — imaging bench', status: 'In Use', priority: '', assignee: 'Novak Potai', requester: 'Hetal Mori', itemType: 'Asset' },
-  { id: 'CI-208', subject: 'AD-DC-02 — Secondary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI' },
-  { id: 'CI-341', subject: 'Okta Identity Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Meera Iyer', itemType: 'CI' },
+  { id: 'AST-4106', subject: 'Dell Latitude 5440 — hot spare', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Nandini Patel', itemType: 'Asset', assetType: 'Windows Laptop' },
+  { id: 'AST-3988', subject: 'HP EliteBook 840 G9 — imaging bench', status: 'In Use', priority: '', assignee: 'Novak Potai', requester: 'Hetal Mori', itemType: 'Asset', assetType: 'Windows Laptop' },
+  { id: 'CI-208', subject: 'AD-DC-02 — Secondary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI', assetType: 'Server' },
+  { id: 'CI-341', subject: 'Okta Identity Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Meera Iyer', itemType: 'CI', assetType: 'Application' },
 ];
 
 const STATUS_DOT: Record<string, string> = {
@@ -139,6 +141,13 @@ const PRIORITY_DOT: Record<string, string> = {
   Urgent: '#DC2626',
 };
 
+/** CMDB-style type icons for the Affected Items rows. */
+const ASSET_TYPE_ICON: Record<string, typeof Laptop> = {
+  'Windows Laptop': Laptop,
+  Server: Server,
+  Application: AppWindow,
+};
+
 const CONFIDENCE_TINT: Record<string, string> = {
   High: 'bg-[#DCFCE7] text-[#15803D]',
   Medium: 'bg-[#FEF3C7] text-[#B45309]',
@@ -154,6 +163,74 @@ const initialsOf = (name: string) => {
 const requestItems = (g: SuggestedGroup) => g.tickets.filter((t) => !t.itemType || t.itemType === 'Request');
 
 const uniqueRequesters = (g: SuggestedGroup) => new Set(requestItems(g).map((t) => t.requester)).size;
+
+/** Assignee · status · priority for a group-detail row — quiet, tooltip-named. */
+function RowMeta({ t }: { t: GroupTicket }) {
+  const sc = STATUS_DOT[t.status] ?? '#94A3B8';
+  const pc = PRIORITY_DOT[t.priority] ?? '#94A3B8';
+  return (
+    <div className="flex flex-shrink-0 items-center gap-2">
+      {!t.itemType || t.itemType === 'Request' ? (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <span className="inline-flex w-[128px] items-center gap-1.5">
+            <span className="flex size-[18px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[8px] font-medium text-white">
+              {initialsOf(t.assignee)}
+            </span>
+            <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assignee}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="z-[10000]">Assigned to {t.assignee}</TooltipContent>
+      </Tooltip>
+      ) : (
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <span className="inline-flex w-[128px] items-center gap-1.5">
+              {(() => {
+                const Icon = ASSET_TYPE_ICON[t.assetType ?? ''] ?? AppWindow;
+                return <Icon size={13} className="flex-shrink-0 text-[#7B8FA5]" />;
+              })()}
+              <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assetType ?? t.itemType}</span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="z-[10000]">Asset Type: {t.assetType ?? t.itemType}</TooltipContent>
+        </Tooltip>
+      )}
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <span className="flex w-[92px]">
+            <span
+              className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
+              style={{ background: `${sc}1A`, color: sc }}
+            >
+              <span className="size-1.5 rounded-full" style={{ background: sc }} />
+              {t.status}
+            </span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="z-[10000]">Status: {t.status}</TooltipContent>
+      </Tooltip>
+      {t.priority ? (
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <span className="flex w-[72px]">
+              <span
+                className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium"
+                style={{ background: `${pc}1A`, color: pc }}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: pc }} />
+                {t.priority}
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="z-[10000]">Priority: {t.priority}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <span className="w-[72px]" />
+      )}
+    </div>
+  );
+}
 
 function ConfidencePill({ confidence }: { confidence: SuggestedGroup['confidence'] }) {
   return (
@@ -190,7 +267,7 @@ function AddRecordButton({
     (t) => !exclude.has(t.id) && (!query || t.id.toLowerCase().includes(query) || t.subject.toLowerCase().includes(query)),
   );
   return (
-    <div className="relative mt-3">
+    <div className="relative flex-shrink-0">
       <button
         onClick={(e) => {
           // Flip upward when the popup would run past the viewport bottom.
@@ -198,13 +275,13 @@ function AddRecordButton({
           setOpen((v) => !v);
           setQ('');
         }}
-        className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-[#DFE5ED] bg-white px-2.5 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
+        className="inline-flex items-center gap-1 whitespace-nowrap rounded px-1 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
       >
-        <Plus size={16} />
+        <Plus size={13} />
         {label}
       </button>
       {open && (
-        <div className={`absolute left-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+        <div className={`absolute right-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           <div className="p-2">
             <input
               autoFocus
@@ -259,10 +336,6 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
   const [dismissed, setDismissed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [addQuery, setAddQuery] = useState('');
-  const [addOpenUp, setAddOpenUp] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
   const [itemTypeFilter, setItemTypeFilter] = useState('All');
 
   const openGroup = groups.find((g) => g.id === openGroupId) ?? null;
@@ -277,14 +350,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
       ? openGroup.tickets.filter((t) => typeOfItem(t) === itemTypeFilter)
       : openGroup.tickets
     : [];
-  // What the Add button adds — follows the active type pill in mixed groups.
   // Option-2 layout demo (group 2 only): Why band leads and carries the actions.
   const detailV2 = openGroup?.id === 'grp-2';
   const v2Assets = openGroup ? openGroup.tickets.filter((t) => t.itemType && t.itemType !== 'Request') : [];
   const v2Requests = openGroup ? openGroup.tickets.filter((t) => !t.itemType || t.itemType === 'Request') : [];
-  const addType = detailV2 ? 'Request' : mixedTypes ? itemTypeFilter : 'Request';
-  const addNoun = addType === 'CI' ? 'CI' : addType.toLowerCase();
-  const addNounPlural = addType === 'CI' ? 'CIs' : addType.toLowerCase() + 's';
 
   // Esc steps back: detail → list → closed.
   useEffect(() => {
@@ -324,9 +393,6 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
 
   // Fresh picker per group.
   useEffect(() => {
-    setAddOpen(false);
-    setAddQuery('');
-    setDescExpanded(false);
     setItemTypeFilter(() => {
       const g = groups.find((gr) => gr.id === openGroupId);
       if (!g) return 'All';
@@ -434,22 +500,9 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                 {/* ── Group detail ── */}
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                   {(() => {
-                    const descriptionBlock = (
-                      <div className={detailV2 ? 'mt-4' : ''}>
-                        <div className="pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Description</div>
-                        <p className={`text-[13px] leading-relaxed text-[#475569] ${descExpanded ? '' : 'line-clamp-3'}`}>{openGroup.description}</p>
-                        <button
-                          onClick={() => setDescExpanded((v) => !v)}
-                          className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-medium text-[#3D8BD0] hover:text-[#2E6BA4]"
-                        >
-                          {descExpanded ? 'View less' : 'View more'}
-                          {descExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                      </div>
-                    );
                     const whyBand = (
                       <div
-                        className={`rounded-lg border border-[#EFE9FA] px-3.5 py-3 ${detailV2 ? '' : 'mt-4'}`}
+                        className="rounded-lg border border-[#EFE9FA] px-3.5 py-3"
                         style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
                       >
                         <div className="flex items-center gap-1.5 pb-1">
@@ -489,77 +542,54 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                         )}
                       </div>
                     );
-                    return detailV2 ? (
-                      <>
-                        {whyBand}
-                        {descriptionBlock}
-                      </>
-                    ) : (
-                      <>
-                        {descriptionBlock}
-                        {whyBand}
-                      </>
-                    );
+                    return whyBand;
                   })()}
 
                   <div className="mt-5">
                     {detailV2 && (() => {
                       {/* Same row recipe as the filtered list — labelled, hover-remove. */}
                       const renderItem = (t: GroupTicket) => (
-                        <div key={t.id} className="group border-b border-[#F1F5F9] py-3 last:border-0">
-                          <div className="flex items-center gap-3">
-                            <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#364658]">{t.subject}</span>
-                            <button
-                              onClick={() => removeTicket(openGroup.id, t.id)}
-                              className="flex-shrink-0 rounded p-1.5 opacity-0 transition-colors hover:bg-[#FEE2E2] group-hover:opacity-100"
-                              title="Remove from group"
-                            >
-                              <X size={16} className="text-[#EF4444]" />
-                            </button>
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-8 gap-y-1.5">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Assignee:</span>
-                              <span className="flex size-[18px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[8px] font-medium text-white">
-                                {initialsOf(t.assignee)}
-                              </span>
-                              <span className="truncate text-[13px] font-medium text-[#364658]">{t.assignee}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Status:</span>
-                              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
-                                <span className="size-2 rounded-full" style={{ background: STATUS_DOT[t.status] ?? '#94A3B8' }} />
-                                {t.status}
-                              </span>
-                            </div>
-                            {t.priority && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Priority:</span>
-                                <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
-                                  <span className="size-2 rounded-full" style={{ background: PRIORITY_DOT[t.priority] ?? '#94A3B8' }} />
-                                  {t.priority}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                        <div key={t.id} className="group flex items-center gap-3 border-b border-[#F1F5F9] py-3 last:border-0">
+                          <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#364658]">{t.subject}</span>
+                          <RowMeta t={t} />
+                          <button
+                            onClick={() => removeTicket(openGroup.id, t.id)}
+                            className="flex-shrink-0 rounded p-1.5 opacity-0 transition-colors hover:bg-[#FEE2E2] group-hover:opacity-100"
+                            title="Remove from group"
+                          >
+                            <X size={16} className="text-[#EF4444]" />
+                          </button>
                         </div>
                       );
                       return (
                         <>
-                          <div className="pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                            Affected Items ({v2Assets.length})
+                          <div className="relative overflow-hidden rounded-lg border border-[#E8F0F8] bg-[#FAFCFE] px-4 pb-1 pt-3">
+                          <div className="flex items-center justify-between pb-1.5">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                              Affected Items ({v2Assets.length})
+                            </div>
+                            <AddRecordButton
+                              label="Add Items"
+                              placeholder="Search assets and CIs by ID or subject..."
+                              candidates={CANDIDATE_POOL.filter((t) => t.itemType && t.itemType !== 'Request')}
+                              exclude={new Set(openGroup.tickets.map((t) => t.id))}
+                              onAdd={(t) => addTicket(openGroup.id, t)}
+                            />
                           </div>
                           <div>{v2Assets.map(renderItem)}</div>
-                          <AddRecordButton
-                            label="Add Items"
-                            placeholder="Search assets and CIs by ID or subject..."
-                            candidates={CANDIDATE_POOL.filter((t) => t.itemType && t.itemType !== 'Request')}
-                            exclude={new Set(openGroup.tickets.map((t) => t.id))}
-                            onAdd={(t) => addTicket(openGroup.id, t)}
-                          />
-                          <div className="mt-6 border-t border-[#F0F2F5] pt-5 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                            Impacted requests ({v2Requests.length})
+                          </div>
+                          <div className="mt-5 flex items-center justify-between pb-1.5">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                              Impacted requests ({v2Requests.length})
+                            </div>
+                            <AddRecordButton
+                              label="Add request"
+                              placeholder="Search requests by ID or subject..."
+                              candidates={CANDIDATE_POOL.filter((t) => !t.itemType || t.itemType === 'Request')}
+                              exclude={new Set(openGroup.tickets.map((t) => t.id))}
+                              onAdd={(t) => addTicket(openGroup.id, t)}
+                            />
                           </div>
                           <div>{v2Requests.map(renderItem)}</div>
                         </>
@@ -567,8 +597,17 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                     })()}
                     {!detailV2 && (<>
                     <div className="pb-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                        {mixedTypes ? 'Relation' : 'Similar requests'} ({openGroup.tickets.length})
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                          {mixedTypes ? 'Relation' : 'Similar requests'} ({openGroup.tickets.length})
+                        </div>
+                        <AddRecordButton
+                          label="Add request"
+                          placeholder="Search requests by ID or subject..."
+                          candidates={CANDIDATE_POOL.filter((t) => !t.itemType || t.itemType === 'Request')}
+                          exclude={new Set(openGroup.tickets.map((t) => t.id))}
+                          onAdd={(t) => addTicket(openGroup.id, t)}
+                        />
                       </div>
                       {/* Mixed groups: the Relations-tab pill recipe, live counts. */}
                       {mixedTypes && (
@@ -595,118 +634,21 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                     </div>
                     <div>
                       {visibleTickets.map((t) => (
-                        <div key={t.id} className="group border-b border-[#F1F5F9] py-3 last:border-0">
-                          <div className="flex items-center gap-3">
-                            <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#364658]">{t.subject}</span>
-                            <button
-                              onClick={() => removeTicket(openGroup.id, t.id)}
-                              className="flex-shrink-0 rounded p-1.5 opacity-0 transition-colors hover:bg-[#FEE2E2] group-hover:opacity-100"
-                              title="Remove from group"
-                            >
-                              <X size={16} className="text-[#EF4444]" />
-                            </button>
-                          </div>
-                          {/* Relations-tab recipe: muted 12px labels, 13px medium values. */}
-                          <div className="mt-1 flex flex-wrap items-center gap-x-8 gap-y-1.5">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Assignee:</span>
-                              <span className="flex size-[18px] flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[8px] font-medium text-white">
-                                {initialsOf(t.assignee)}
-                              </span>
-                              <span className="truncate text-[13px] font-medium text-[#364658]">{t.assignee}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Status:</span>
-                              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
-                                <span className="size-2 rounded-full" style={{ background: STATUS_DOT[t.status] ?? '#94A3B8' }} />
-                                {t.status}
-                              </span>
-                            </div>
-                            {t.priority && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="flex-shrink-0 text-[12px] font-medium text-[#7B8FA5]">Priority:</span>
-                                <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#364658]">
-                                  <span className="size-2 rounded-full" style={{ background: PRIORITY_DOT[t.priority] ?? '#94A3B8' }} />
-                                  {t.priority}
-                                </span>
-                              </div>
-                            )}
-                          </div>
+                        <div key={t.id} className="group flex items-center gap-3 border-b border-[#F1F5F9] py-3 last:border-0">
+                          <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#364658]">{t.subject}</span>
+                          <RowMeta t={t} />
+                          <button
+                            onClick={() => removeTicket(openGroup.id, t.id)}
+                            className="flex-shrink-0 rounded p-1.5 opacity-0 transition-colors hover:bg-[#FEE2E2] group-hover:opacity-100"
+                            title="Remove from group"
+                          >
+                            <X size={16} className="text-[#EF4444]" />
+                          </button>
                         </div>
                       ))}
                     </div>
                     </>)}
-                    {/* Manual escape hatch: the AI seeds the group, the technician curates it. */}
-                    <div className="relative mt-3">
-                      <button
-                        onClick={(e) => {
-                          setAddOpenUp(window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 340);
-                          setAddOpen((v) => !v);
-                          setAddQuery('');
-                        }}
-                        className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-[#DFE5ED] bg-white px-2.5 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
-                      >
-                        <Plus size={16} />
-                        Add {addNoun}
-                      </button>
-                      {addOpen && (
-                        <div className={`absolute left-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${addOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
-                          <div className="p-2">
-                            <input
-                              autoFocus
-                              value={addQuery}
-                              onChange={(e) => setAddQuery(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Escape') {
-                                  e.stopPropagation();
-                                  setAddOpen(false);
-                                }
-                              }}
-                              onBlur={() => setAddOpen(false)}
-                              placeholder={'Search ' + addNounPlural + ' by ID or subject...'}
-                              className="h-9 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
-                            />
-                          </div>
-                          {/* onMouseDown beats the input blur, so the picker stays open for multi-add. */}
-                          <div className="max-h-[240px] overflow-y-auto pb-1">
-                            {(() => {
-                              const q = addQuery.trim().toLowerCase();
-                              const inGroup = new Set(openGroup.tickets.map((t) => t.id));
-                              const candidates = CANDIDATE_POOL.filter(
-                                (t) =>
-                                  (t.itemType ?? 'Request') === addType &&
-                                  !inGroup.has(t.id) &&
-                                  (!q || t.id.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)),
-                              );
-                              if (!candidates.length) {
-                                return <div className="px-3 py-3 text-[12px] text-[#94A3B8]">No matching {addNounPlural}</div>;
-                              }
-                              return candidates.map((t) => (
-                                <button
-                                  key={t.id}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    addTicket(openGroup.id, t);
-                                  }}
-                                  className="group/cand flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[#F9FAFB]"
-                                >
-                                  <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
-                                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{t.subject}</span>
-                                  <span className="flex flex-shrink-0 items-center gap-1.5">
-                                    <span className="size-2 rounded-full" style={{ background: STATUS_DOT[t.status] ?? '#94A3B8' }} />
-                                    <span className="text-[12px] text-[#64748B]">{t.status}</span>
-                                  </span>
-                                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#F1F5F9] transition-colors group-hover/cand:bg-[#E8EEF5]">
-                                    <Plus size={12} className="text-[#64748B]" />
-                                  </span>
-                                </button>
-                              ));
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
 

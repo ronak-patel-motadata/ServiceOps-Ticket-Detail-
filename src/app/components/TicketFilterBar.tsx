@@ -8,6 +8,7 @@ import {
   Flag,
   Hash,
   Hourglass,
+  ListChecks,
   MessageSquare,
   MoreVertical,
   Plus,
@@ -95,6 +96,7 @@ export const FILTER_ATTRS: Attr[] = [
   { key: 'createdBy', label: 'Created Date', icon: CalendarDays, type: 'date', options: DATE_OPTS },
   { key: 'approval', label: 'Approval', icon: UserCheck, type: 'select', options: [{ label: 'Pending approval', color: '#f59e0b' }, { label: 'No approval', color: '#94a3b8' }] },
   { key: 'unread', label: 'Unread updates', icon: MessageSquare, type: 'select', options: [{ label: 'Has unread', color: '#3D8BD0' }, { label: 'All read', color: '#94a3b8' }] },
+  { key: 'openTasks', label: 'Tasks', icon: ListChecks, type: 'select', options: [{ label: 'Has open tasks', color: '#f59e0b' }, { label: 'All tasks done', color: '#22c55e' }] },
   /* The optional columns from Manage columns — same values the grid derives. */
   { key: 'createdByUser', label: 'Created By', icon: UserRound, type: 'select', people: 'technician', options: opts([...ASSIGNEES, ...REQUESTERS, 'System']) },
   { key: 'dueByDate', label: 'Due By', icon: CalendarDays, type: 'text' },
@@ -151,6 +153,8 @@ const valueFor = (t: Ticket, field: string): string => {
       return t.approval ? 'Pending approval' : 'No approval';
     case 'unread':
       return (t.unread ?? 0) > 0 ? 'Has unread' : 'All read';
+    case 'openTasks':
+      return (t.tasksTotal ?? 0) - (t.tasksDone ?? 0) > 0 ? 'Has open tasks' : 'All tasks done';
     default:
       if (field in t) return String((t as any)[field] ?? '');
       return extraValue(field, t);
