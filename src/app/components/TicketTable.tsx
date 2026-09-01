@@ -262,7 +262,7 @@ const hx = (id: string, salt: number) => {
   for (const ch of id) n = (n * 31 + ch.charCodeAt(0)) % 997;
   return n;
 };
-const extraValue = (key: string, t: Ticket): string => {
+export const extraValue = (key: string, t: Ticket): string => {
   const closed = t.status === 'Closed' || t.status === 'Completed';
   const h = (salt: number, mod: number) => hx(t.id, salt) % mod;
   switch (key) {
@@ -294,7 +294,7 @@ const extraValue = (key: string, t: Ticket): string => {
 
 /* Column header menu — the per-column actions (click the heading). No flyouts: "Change
    Column" swaps the card IN PLACE for a searchable picker; Insert drops a placeholder
-   slot into the grid. Filter is a prototype stub that reports what it would do. */
+   slot into the grid. Filter hands the column to the toolbar filter bar. */
 function HeaderMenu({
   anchor,
   col,
@@ -342,7 +342,7 @@ function HeaderMenu({
         {view === 'root' ? (
           <>
             <div className="px-3 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{col.label}</div>
-            <button className={row} onClick={() => { toast.success(`Filter added on ${col.label}`); onClose(); }}>
+            <button className={row} onClick={() => { window.dispatchEvent(new CustomEvent('add-column-filter', { detail: col.key })); onClose(); }}>
               <Filter size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Filter
             </button>
             <button className={row} onClick={() => { onGroup(); onClose(); }}>
@@ -581,7 +581,8 @@ const SLA_TONE: Record<SlaTone, { bg: string; fg: string; flip?: boolean }> = {
   ok: { bg: '#E8F5E9', fg: '#27AE60' },
   done: { bg: '#F1F5F9', fg: '#64748B' },
 };
-function DueByPill({ tone, label }: { tone: SlaTone; label: string }) {
+/** The grid's SLA pill (flipped hourglass when breached) — also used by the Kanban cards. */
+export function DueByPill({ tone, label }: { tone: SlaTone; label: string }) {
   const t = SLA_TONE[tone];
   return (
     <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5" style={{ backgroundColor: t.bg }}>
@@ -645,6 +646,17 @@ const dueBySla = (t: Ticket): SlaInfo => {
 };
 /** Exposed for the listing KPI strip so its SLA numbers match the grid's pills exactly. */
 export const slaToneOf = (t: Ticket): SlaTone => dueBySla(t).tone;
+/** Tone + label for the Kanban cards, straight from the grid's own SLA rule. */
+export const slaInfoOf = (t: Ticket): { tone: SlaTone; label: string } => {
+  const i = dueBySla(t);
+  return { tone: i.tone, label: i.label };
+};
+export const SLA_PILL_TONE: Record<string, string> = {
+  breached: 'bg-[#FEE2E2] text-[#B91C1C]',
+  due: 'bg-[#FEF3C7] text-[#B45309]',
+  ok: 'bg-[#DCFCE7] text-[#15803D]',
+  done: 'bg-[#F1F5F9] text-[#64748B]',
+};
 const priorityColor = (v: string) => PRIORITY_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
 
 interface TicketTableProps {

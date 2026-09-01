@@ -1,30 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Filter, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, Columns3, Filter, LayoutList, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
+import { TicketFilterBar, type FilterRule } from './TicketFilterBar';
+import { KANBAN_GROUPS, type KanbanGroup } from './TicketKanban';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
 
-export interface GridFilters {
-  status: string[];
-  priority: string[];
-}
-
-const STATUSES = [
-  { label: 'Open', color: '#3D8BD0' },
-  { label: 'In Progress', color: '#3D8BD0' },
-  { label: 'Pending', color: '#fb923c' },
-  { label: 'Completed', color: '#22c55e' },
-  { label: 'Closed', color: '#6b7280' },
-  { label: 'Cancelled', color: '#ef4444' },
-];
-const PRIORITIES = [
-  { label: 'Low', color: '#22c55e' },
-  { label: 'Medium', color: '#fb923c' },
-  { label: 'High', color: '#ef4444' },
-  { label: 'Urgent', color: '#dc2626' },
-];
 const SORTABLE: { field: keyof Ticket; label: string }[] = [
   { field: 'id', label: 'ID' },
   { field: 'subject', label: 'Subject' },
@@ -57,38 +40,39 @@ function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
 export function TicketGridToolbar({
   searchQuery,
   setSearchQuery,
-  filters,
-  setFilters,
+  rules,
+  setRules,
   sorts,
   onSort,
   onClearSorts,
+  view,
+  setView,
+  kanbanGroup,
+  setKanbanGroup,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
-  filters: GridFilters;
-  setFilters: (f: GridFilters) => void;
+  rules: FilterRule[];
+  setRules: (r: FilterRule[]) => void;
   sorts: { column: keyof Ticket; dir: 'asc' | 'desc' }[];
   onSort: (column: keyof Ticket) => void;
   onClearSorts: () => void;
+  view: 'list' | 'kanban';
+  setView: (v: 'list' | 'kanban') => void;
+  kanbanGroup: KanbanGroup;
+  setKanbanGroup: (g: KanbanGroup) => void;
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
   const [searchOpen, setSearchOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [gearOpen, setGearOpen] = useState(false);
+  // The gear opens as the view switcher; "Group by" swaps the card in place.
+  const [gearView, setGearView] = useState<'main' | 'group'>('main');
   const [spinning, setSpinning] = useState(false);
 
-  const filterRef = useOutside<HTMLDivElement>(filterOpen, () => setFilterOpen(false));
   const sortRef = useOutside<HTMLDivElement>(sortOpen, () => setSortOpen(false));
   const gearRef = useOutside<HTMLDivElement>(gearOpen, () => setGearOpen(false));
-
-  const activeFilters = filters.status.length + filters.priority.length;
-
-  const toggle = (key: keyof GridFilters, value: string) => {
-    const list = filters[key];
-    setFilters({ ...filters, [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value] });
-  };
 
   const refresh = () => {
     setSpinning(true);
@@ -96,31 +80,8 @@ export function TicketGridToolbar({
     toast.success('Requests refreshed');
   };
 
-  const FilterGroup = ({ title, k, options }: { title: string; k: keyof GridFilters; options: typeof STATUSES }) => (
-    <div className="px-3 py-2.5">
-      <div className="pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{title}</div>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((o) => {
-          const on = filters[k].includes(o.label);
-          return (
-            <button
-              key={o.label}
-              onClick={() => toggle(k, o.label)}
-              className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-[12px] transition-colors ${
-                on ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#64748B] hover:bg-[#F5F7FA]'
-              }`}
-            >
-              <span className="size-2 flex-shrink-0 rounded-full" style={{ background: o.color }} />
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="flex items-center gap-2 pb-2.5 pl-6 pr-4">
+    <div className="flex flex-wrap items-center gap-2 pb-2.5 pl-6 pr-4">
       {/* ── Left: find and narrow ── */}
       {searchOpen || searchQuery ? (
         <div className="relative">
@@ -157,43 +118,7 @@ export function TicketGridToolbar({
         </button>
       )}
 
-      <div className="relative" ref={filterRef}>
-        <button
-          onClick={() => setFilterOpen((v) => !v)}
-          className={`inline-flex h-8 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${
-            activeFilters ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#364658] hover:bg-[#F5F7FA]'
-          }`}
-        >
-          <Filter size={14} />
-          Filters
-          {activeFilters > 0 && (
-            <span className="flex size-4 items-center justify-center rounded-sm bg-[#3D8BD0] text-[10px] font-semibold text-white">
-              {activeFilters}
-            </span>
-          )}
-        </button>
-        {filterOpen && (
-          <div className={`${POPUP} left-0 w-[300px]`}>
-            <FilterGroup title="Status" k="status" options={STATUSES} />
-            <div className="border-t border-[#F0F2F5]" />
-            <FilterGroup title="Priority" k="priority" options={PRIORITIES} />
-            <div className="flex items-center justify-between border-t border-[#F0F2F5] px-3 py-2">
-              <button
-                onClick={() => setFilters({ status: [], priority: [] })}
-                className="text-[12px] font-medium text-[#64748B] transition-colors hover:text-[#364658]"
-              >
-                Clear all
-              </button>
-              <button
-                onClick={() => setFilterOpen(false)}
-                className="h-7 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <TicketFilterBar rules={rules} setRules={setRules} />
 
       {/* ── Right: refresh, sort, display ── */}
       <div className="ml-auto flex items-center gap-2">
@@ -265,33 +190,106 @@ export function TicketGridToolbar({
         </div>
 
         <div className="relative" ref={gearRef}>
-          <button onClick={() => setGearOpen((v) => !v)} className={ICON_BTN} title="Settings">
+          <button
+            onClick={() => {
+              setGearOpen((v) => !v);
+              setGearView('main');
+            }}
+            className={ICON_BTN}
+            title="View settings"
+          >
             <Settings2 size={16} />
           </button>
           {gearOpen && (
-            <div className={`${POPUP} w-[220px] py-1`}>
-              <button
-                onClick={() => {
-                  // The grid owns the column manager; the toolbar just asks for it.
-                  window.dispatchEvent(new CustomEvent('open-column-manager'));
-                  setGearOpen(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
-              >
-                <Settings2 size={14} className="text-[#7B8FA5]" />
-                Manage columns
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('ticketListColumnsV2');
-                  toast.success('Grid layout reset — reloading');
-                  window.setTimeout(() => window.location.reload(), 600);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
-              >
-                <Check size={14} className="text-[#7B8FA5]" />
-                Reset grid layout
-              </button>
+            <div className={`${POPUP} w-[280px]`}>
+              {gearView === 'main' ? (
+                <>
+                  {/* View switcher — the two layouts of the same requests. */}
+                  <div className="flex gap-1 p-2">
+                    {([
+                      { key: 'list' as const, label: 'List', Icon: LayoutList },
+                      { key: 'kanban' as const, label: 'Kanban', Icon: SquareKanban },
+                    ]).map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => setView(key)}
+                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 text-[12px] font-medium transition-colors ${
+                          view === key
+                            ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                            : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9]'
+                        }`}
+                      >
+                        <Icon size={17} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="border-t border-[#F0F2F5]" />
+                  {view === 'kanban' && (
+                    <button
+                      onClick={() => setGearView('group')}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                    >
+                      <Columns3 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                      <span className="flex-1 text-[13px] text-[#364658]">Group by</span>
+                      <span className="text-[13px] font-medium text-[#3D8BD0]">
+                        {KANBAN_GROUPS.find((g) => g.key === kanbanGroup)?.label}
+                      </span>
+                      <ChevronRight size={14} className="text-[#9CA3AF]" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      // The grid owns the column manager; the toolbar just asks for it.
+                      window.dispatchEvent(new CustomEvent('open-column-manager'));
+                      setGearOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                  >
+                    <Settings2 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                    <span className="flex-1 text-[13px] text-[#364658]">Columns</span>
+                    <ChevronRight size={14} className="text-[#9CA3AF]" />
+                  </button>
+                  <div className="border-t border-[#F0F2F5]" />
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('ticketListColumnsV2');
+                      toast.success('Grid layout reset — reloading');
+                      window.setTimeout(() => window.location.reload(), 600);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-[#64748B] transition-colors hover:bg-[#F9FAFB] hover:text-[#364658]"
+                  >
+                    Reset grid layout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 border-b border-[#F0F2F5] px-2 py-2">
+                    <button
+                      onClick={() => setGearView('main')}
+                      className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span className="text-[13px] font-semibold text-[#1E293B]">Group by</span>
+                  </div>
+                  <div className="py-1">
+                    {KANBAN_GROUPS.map((g) => (
+                      <button
+                        key={g.key}
+                        onClick={() => {
+                          setKanbanGroup(g.key);
+                          setGearView('main');
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                      >
+                        <span className="flex-1">{g.label}</span>
+                        {kanbanGroup === g.key && <Check size={14} className="text-[#3D8BD0]" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -18,7 +18,9 @@ const SORT_LABELS: Record<string, string> = {
 };
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { TicketStatsRow } from './TicketStatsRow';
-import { TicketGridToolbar, type GridFilters } from './TicketGridToolbar';
+import { TicketGridToolbar } from './TicketGridToolbar';
+import { applyFilters, type FilterRule } from './TicketFilterBar';
+import { TicketKanban, type KanbanGroup } from './TicketKanban';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
@@ -146,7 +148,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const [filters, setFilters] = useState<GridFilters>({ status: [], priority: [] });
+  const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+  const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
   useEffect(() => {
@@ -297,8 +301,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     });
   }
 
-  if (filters.status.length) filteredTickets = filteredTickets.filter((t) => filters.status.includes(t.status));
-  if (filters.priority.length) filteredTickets = filteredTickets.filter((t) => filters.priority.includes(t.priority));
+  filteredTickets = applyFilters(filteredTickets, filterRules);
 
   // Sort tickets
   let sortedTickets = [...filteredTickets];
@@ -350,11 +353,15 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
           <TicketGridToolbar
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
-            filters={filters}
-            setFilters={(f) => { setFilters(f); setCurrentPage(1); }}
+            rules={filterRules}
+            setRules={(r) => { setFilterRules(r); setCurrentPage(1); }}
             sorts={sorts}
             onSort={handleSort}
             onClearSorts={() => setSorts([])}
+            view={view}
+            setView={setView}
+            kanbanGroup={kanbanGroup}
+            setKanbanGroup={setKanbanGroup}
           />
           {sorts.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 pb-2.5 pl-6 pr-4">
@@ -390,6 +397,14 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             </div>
           )}
           </div>
+          {view === 'kanban' ? (
+            <TicketKanban
+              tickets={sortedTickets}
+              group={kanbanGroup}
+              onTicketClick={handleOpenTicket}
+              onUpdateTicket={updateTicket}
+            />
+          ) : (
             <TicketTable
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
@@ -406,9 +421,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
               clearGroupingSignal={clearGroupTick}
             />
+          )}
             
           </div>
-            {!isGrouped && (
+            {!isGrouped && view === 'list' && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
