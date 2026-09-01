@@ -8,6 +8,7 @@ import { KANBAN_GROUPS, type KanbanGroup } from './TicketKanban';
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
 
+
 const SORTABLE: { field: keyof Ticket; label: string }[] = [
   { field: 'id', label: 'ID' },
   { field: 'subject', label: 'Subject' },
@@ -45,6 +46,7 @@ export function TicketGridToolbar({
   sorts,
   onSort,
   onClearSorts,
+  listGroupLabel,
   view,
   setView,
   kanbanGroup,
@@ -57,6 +59,8 @@ export function TicketGridToolbar({
   sorts: { column: keyof Ticket; dir: 'asc' | 'desc' }[];
   onSort: (column: keyof Ticket) => void;
   onClearSorts: () => void;
+  /** Current list grouping label, or null when ungrouped. */
+  listGroupLabel?: string | null;
   view: 'list' | 'kanban';
   setView: (v: 'list' | 'kanban') => void;
   kanbanGroup: KanbanGroup;
@@ -69,6 +73,15 @@ export function TicketGridToolbar({
   const [gearOpen, setGearOpen] = useState(false);
   // The gear opens as the view switcher; "Group by" swaps the card in place.
   const [gearView, setGearView] = useState<'main' | 'group'>('main');
+  // Mirrors the grid's visible-column set so the row states what it opens onto.
+  const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
+  useEffect(() => {
+    const onCols = (e: Event) => setGridCols(((e as CustomEvent).detail as { key: string; label: string }[]) ?? []);
+    window.addEventListener('grid-columns', onCols as EventListener);
+    return () => window.removeEventListener('grid-columns', onCols as EventListener);
+  }, []);
+  // The group list mirrors the grid, so it needs a search once many columns are shown.
+  const [groupQuery, setGroupQuery] = useState('');
   const [spinning, setSpinning] = useState(false);
 
   const sortRef = useOutside<HTMLDivElement>(sortOpen, () => setSortOpen(false));
@@ -238,6 +251,25 @@ export function TicketGridToolbar({
                       <ChevronRight size={14} className="text-[#9CA3AF]" />
                     </button>
                   )}
+                  {view === 'list' && (
+                    <button
+                      onClick={() => {
+                        setGroupQuery('');
+                        setGearView('group');
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                    >
+                      <Columns3 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                      <span className="flex-1 text-[13px] text-[#364658]">Group by</span>
+                      {listGroupLabel ? (
+                        <span className="text-[13px] font-medium text-[#3D8BD0]">{listGroupLabel}</span>
+                      ) : (
+                        <span className="text-[13px] text-[#9CA3AF]">None</span>
+                      )}
+                      <ChevronRight size={14} className="text-[#9CA3AF]" />
+                    </button>
+                  )}
+                  {view === 'list' && (
                   <button
                     onClick={() => {
                       // The grid owns the column manager; the toolbar just asks for it.
@@ -248,8 +280,12 @@ export function TicketGridToolbar({
                   >
                     <Settings2 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
                     <span className="flex-1 text-[13px] text-[#364658]">Columns</span>
+                    {gridCols.length > 0 && (
+                      <span className="text-[13px] font-medium text-[#3D8BD0]">{gridCols.length} selected</span>
+                    )}
                     <ChevronRight size={14} className="text-[#9CA3AF]" />
                   </button>
+                  )}
                   <div className="border-t border-[#F0F2F5]" />
                   <button
                     onClick={() => {
@@ -273,20 +309,64 @@ export function TicketGridToolbar({
                     </button>
                     <span className="text-[13px] font-semibold text-[#1E293B]">Group by</span>
                   </div>
-                  <div className="py-1">
-                    {KANBAN_GROUPS.map((g) => (
-                      <button
-                        key={g.key}
-                        onClick={() => {
-                          setKanbanGroup(g.key);
-                          setGearView('main');
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
-                      >
-                        <span className="flex-1">{g.label}</span>
-                        {kanbanGroup === g.key && <Check size={14} className="text-[#3D8BD0]" />}
-                      </button>
-                    ))}
+                  {view === 'list' && gridCols.length > 7 && (
+                    <div className="border-b border-[#F0F2F5] p-2">
+                      <input
+                        autoFocus
+                        value={groupQuery}
+                        onChange={(e) => setGroupQuery(e.target.value)}
+                        placeholder="Search columns..."
+                        className="h-8 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
+                      />
+                    </div>
+                  )}
+                  <div className="max-h-[300px] overflow-y-auto py-1">
+                    {view === 'list' ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('set-group-by', { detail: null }));
+                            setGearView('main');
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                        >
+                          <span className="flex-1">None</span>
+                          {!listGroupLabel && <Check size={14} className="text-[#3D8BD0]" />}
+                        </button>
+                        {/* Group by any column currently in the grid. */}
+                        {gridCols
+                          // ID and Subject are unique per request — never groupable.
+                          .filter((c) => c.key !== 'id' && c.key !== 'subject')
+                          .filter((c) => c.label.toLowerCase().includes(groupQuery.trim().toLowerCase()))
+                          .map((c) => (
+                            <button
+                              key={c.key}
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('set-group-by', { detail: c.key }));
+                                setGearView('main');
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                            >
+                              <span className="flex-1 truncate">{c.label}</span>
+                              {listGroupLabel === c.label && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
+                            </button>
+                          ))}
+                      </>
+                    ) : (
+                      KANBAN_GROUPS.map((g) => (
+                        <button
+                          key={g.key}
+                          onClick={() => {
+                            setKanbanGroup(g.key);
+                            setGearView('main');
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                        >
+                          <span className="flex-1">{g.label}</span>
+                          {kanbanGroup === g.key && <Check size={14} className="text-[#3D8BD0]" />}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </>
               )}

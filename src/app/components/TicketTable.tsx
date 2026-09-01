@@ -292,6 +292,9 @@ export const extraValue = (key: string, t: Ticket): string => {
   }
 };
 
+/** Columns whose values are unique per request — grouping them yields one row per group. */
+const NO_GROUP = new Set(['id', 'subject']);
+
 /* Column header menu — the per-column actions (click the heading). No flyouts: "Change
    Column" swaps the card IN PLACE for a searchable picker; Insert drops a placeholder
    slot into the grid. Filter hands the column to the toolbar filter bar. */
@@ -345,11 +348,13 @@ function HeaderMenu({
             <button className={row} onClick={() => { window.dispatchEvent(new CustomEvent('add-column-filter', { detail: col.key })); onClose(); }}>
               <Filter size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Filter
             </button>
+            {!NO_GROUP.has(col.key) && (
             <button className={row} onClick={() => { onGroup(); onClose(); }}>
               <Layers size={14} className="flex-shrink-0 text-[#7B8FA5]" />
               <span className="flex-1">{groupedBy ? 'Ungroup' : 'Group'}</span>
               {groupedBy && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
             </button>
+            )}
             <div className="my-1 border-t border-[#F0F2F5]" />
             <button className={row} onClick={() => { onHide(); onClose(); }}>
               <EyeOff size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Hide
@@ -944,6 +949,10 @@ export function TicketTable({
   const changeColumn = (fromKey: string, toKey: string) =>
     applyColumns(colOrder.map((k) => (k === fromKey ? toKey : k)));
   const [showColMgr, setShowColMgr] = useState(false);
+  useEffect(() => {
+    const cols = colOrder.map((k) => ({ key: k, label: CATALOG.find((c) => c.key === k)?.label ?? k }));
+    window.dispatchEvent(new CustomEvent('grid-columns', { detail: cols }));
+  }, [colOrder]);
   /* The grid toolbar's Settings menu asks for the column manager; anchor it to the
      header gutter icon so it opens exactly where a direct click would put it. */
   useEffect(() => {
@@ -956,7 +965,13 @@ export function TicketTable({
       setShowColMgr(true);
     };
     window.addEventListener('open-column-manager', onOpen);
-    return () => window.removeEventListener('open-column-manager', onOpen);
+    const onGroupReq = (e: Event) => applyGroup(((e as CustomEvent).detail as string) || null);
+    window.addEventListener('set-group-by', onGroupReq as EventListener);
+    window.addEventListener('open-column-manager', onOpen);
+    return () => {
+      window.removeEventListener('open-column-manager', onOpen);
+      window.removeEventListener('set-group-by', onGroupReq as EventListener);
+    };
   }, []);
   const [mgrRect, setMgrRect] = useState<{ right: number; bottom: number } | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
@@ -1262,6 +1277,32 @@ export function TicketTable({
   };
   // What VALUE a row contributes when grouped by a column; catalog columns use their
   // derived cell value, so grouping works for every column the same way.
+  /** Apply (or clear) grouping and report it upward — shared by the column menu and
+   *  the toolbar's Group by row, so the two can never disagree. */
+  const applyGroup = (key: string | null) => {
+    setGroupBy(key);
+    setCollapsed(new Set());
+    setGroupPages({});
+    if (!key) {
+      onGroupedChange?.(false);
+      return;
+    }
+    const src = allTickets ?? tickets;
+    const counts = new Map<string, number>();
+    for (const t of src) {
+      const v = groupValueOf(key, t);
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const ord = GROUP_ORDERS[key];
+    const ks = [...counts.keys()].sort((a, b) => (ord ? ord.indexOf(a) - ord.indexOf(b) : a.localeCompare(b)));
+    onGroupedChange?.(true, {
+      label: CATALOG.find((c) => c.key === key)?.label ?? key,
+      groups: counts.size,
+      total: src.length,
+      list: ks.map((k) => ({ key: k, count: counts.get(k)! })),
+    });
+  };
+
   const groupValueOf = (key: string, t: Ticket): string => {
     switch (key) {
       case 'id': return t.id;
@@ -1678,30 +1719,7 @@ export function TicketTable({
               }
               setFrozenUpTo(c.key);
             }}
-            onGroup={() => {
-              const next = groupBy === c.key ? null : c.key;
-              setGroupBy(next);
-              setCollapsed(new Set());
-              setGroupPages({});
-              if (next) {
-                const src = allTickets ?? tickets;
-                const counts = new Map<string, number>();
-                for (const t of src) {
-                  const v = groupValueOf(next, t);
-                  counts.set(v, (counts.get(v) ?? 0) + 1);
-                }
-                const ord = GROUP_ORDERS[next];
-                const ks = [...counts.keys()].sort((a, b) => (ord ? ord.indexOf(a) - ord.indexOf(b) : a.localeCompare(b)));
-                onGroupedChange?.(true, {
-                  label: c.label,
-                  groups: counts.size,
-                  total: src.length,
-                  list: ks.map((k) => ({ key: k, count: counts.get(k)! })),
-                });
-              } else {
-                onGroupedChange?.(false);
-              }
-            }}
+            onGroup={() => applyGroup(groupBy === c.key ? null : c.key)}
             onHide={() => hideColumn(c.key)}
             onInsertSlot={(side) => {
               const i2 = colOrder.indexOf(c.key);

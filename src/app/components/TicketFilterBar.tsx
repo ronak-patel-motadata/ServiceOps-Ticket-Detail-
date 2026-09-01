@@ -39,6 +39,8 @@ interface Attr {
   icon: typeof Hash;
   type: 'text' | 'select' | 'date';
   options?: { label: string; color?: string }[];
+  /** Person-valued: options show an avatar in the listing's role colour. */
+  people?: 'requester' | 'technician';
 }
 
 const STATUS_OPTS = [
@@ -73,6 +75,11 @@ const TIERS = ['Tier 1', 'Tier 2', 'Tier 3'];
 const SIGNATURES = ['Not Required', 'Signed', 'Pending'];
 const APPROVAL_STATES = ['Pending', 'Approved', '---'];
 const opts = (list: string[]) => list.map((label) => ({ label }));
+const AVATAR_BG = { requester: '#E67E22', technician: '#3D8BD0' } as const;
+const initialsOf = (name: string) => {
+  const p = name.split(' ').filter(Boolean);
+  return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase();
+};
 
 const DATE_OPTS = [{ label: 'Today' }, { label: 'Last 7 days' }, { label: 'Last 30 days' }, { label: 'Last 90 days' }, { label: 'Older than 90 days' }];
 
@@ -80,8 +87,8 @@ const DATE_OPTS = [{ label: 'Today' }, { label: 'Last 7 days' }, { label: 'Last 
 export const FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Subject', icon: AlignLeft, type: 'text' },
-  { key: 'requester', label: 'Requester', icon: UserRound, type: 'select', options: REQUESTERS.map((label) => ({ label })) },
-  { key: 'assignedTo', label: 'Assigned to', icon: UserCheck, type: 'select', options: ASSIGNEES.map((label) => ({ label })) },
+  { key: 'requester', label: 'Requester', icon: UserRound, type: 'select', people: 'requester', options: REQUESTERS.map((label) => ({ label })) },
+  { key: 'assignedTo', label: 'Assigned to', icon: UserCheck, type: 'select', people: 'technician', options: ASSIGNEES.map((label) => ({ label })) },
   { key: 'sla', label: 'SLA Status', icon: Hourglass, type: 'select', options: SLA_OPTS },
   { key: 'status', label: 'Status', icon: CircleDot, type: 'select', options: STATUS_OPTS },
   { key: 'priority', label: 'Priority', icon: Flag, type: 'select', options: PRIORITY_OPTS },
@@ -89,7 +96,7 @@ export const FILTER_ATTRS: Attr[] = [
   { key: 'approval', label: 'Approval', icon: UserCheck, type: 'select', options: [{ label: 'Pending approval', color: '#f59e0b' }, { label: 'No approval', color: '#94a3b8' }] },
   { key: 'unread', label: 'Unread updates', icon: MessageSquare, type: 'select', options: [{ label: 'Has unread', color: '#3D8BD0' }, { label: 'All read', color: '#94a3b8' }] },
   /* The optional columns from Manage columns — same values the grid derives. */
-  { key: 'createdByUser', label: 'Created By', icon: UserRound, type: 'select', options: opts([...ASSIGNEES, ...REQUESTERS, 'System']) },
+  { key: 'createdByUser', label: 'Created By', icon: UserRound, type: 'select', people: 'technician', options: opts([...ASSIGNEES, ...REQUESTERS, 'System']) },
   { key: 'dueByDate', label: 'Due By', icon: CalendarDays, type: 'text' },
   { key: 'techGroup', label: 'Technician Group', icon: UserCheck, type: 'select', options: opts(TECH_GROUPS) },
   { key: 'urgency', label: 'Urgency', icon: Flag, type: 'select', options: PRIORITY_OPTS },
@@ -100,10 +107,10 @@ export const FILTER_ATTRS: Attr[] = [
   { key: 'tags', label: 'Tags', icon: AlignLeft, type: 'select', options: opts(TAGS) },
   { key: 'supportLevel', label: 'Support Level', icon: CircleDot, type: 'select', options: opts(TIERS) },
   { key: 'lastUpdatedDate', label: 'Last Updated Date', icon: CalendarDays, type: 'text' },
-  { key: 'lastUpdatedBy', label: 'Last Updated By', icon: UserCheck, type: 'select', options: opts(ASSIGNEES) },
+  { key: 'lastUpdatedBy', label: 'Last Updated By', icon: UserCheck, type: 'select', people: 'technician', options: opts(ASSIGNEES) },
   { key: 'firstResponseDueBy', label: 'First Response Due By', icon: CalendarDays, type: 'text' },
-  { key: 'closedBy', label: 'Closed By', icon: UserCheck, type: 'select', options: opts(ASSIGNEES) },
-  { key: 'resolvedBy', label: 'Resolved By', icon: UserCheck, type: 'select', options: opts(ASSIGNEES) },
+  { key: 'closedBy', label: 'Closed By', icon: UserCheck, type: 'select', people: 'technician', options: opts(ASSIGNEES) },
+  { key: 'resolvedBy', label: 'Resolved By', icon: UserCheck, type: 'select', people: 'technician', options: opts(ASSIGNEES) },
   { key: 'requestAge', label: 'Request Age', icon: Hourglass, type: 'text' },
   { key: 'approvalStatus', label: 'Approval Status', icon: UserCheck, type: 'select', options: opts(APPROVAL_STATES) },
   { key: 'lastApprovedDate', label: 'Last Approved Date', icon: CalendarDays, type: 'text' },
@@ -371,13 +378,25 @@ function Chip({
                             onClick={() => toggleValue(o.label)}
                             className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[#F9FAFB]"
                           >
-                            <span
-                              className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[12px] font-medium text-[#364658]"
-                              style={{ background: o.color ? `${o.color}1A` : '#F1F5F9' }}
-                            >
-                              {o.color && <span className="size-2 rounded-full" style={{ background: o.color }} />}
-                              {o.label}
-                            </span>
+                            {attr.people ? (
+                              <span className="inline-flex min-w-0 items-center gap-2">
+                                <span
+                                  className="flex size-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-semibold text-white"
+                                  style={{ background: AVATAR_BG[attr.people] }}
+                                >
+                                  {initialsOf(o.label)}
+                                </span>
+                                <span className="truncate text-[13px] text-[#364658]">{o.label}</span>
+                              </span>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[12px] font-medium text-[#364658]"
+                                style={{ background: o.color ? `${o.color}1A` : '#F1F5F9' }}
+                              >
+                                {o.color && <span className="size-2 rounded-full" style={{ background: o.color }} />}
+                                {o.label}
+                              </span>
+                            )}
                             {on && <Check size={13} className="ml-auto flex-shrink-0 text-[#3D8BD0]" />}
                           </button>
                         );

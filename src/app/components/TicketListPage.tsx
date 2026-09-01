@@ -358,6 +358,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             sorts={sorts}
             onSort={handleSort}
             onClearSorts={() => setSorts([])}
+            listGroupLabel={isGrouped ? groupInfo?.label ?? null : null}
             view={view}
             setView={setView}
             kanbanGroup={kanbanGroup}

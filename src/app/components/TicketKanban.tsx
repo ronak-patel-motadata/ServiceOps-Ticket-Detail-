@@ -91,7 +91,7 @@ export function TicketKanban({
   };
 
   return (
-    <div className="flex h-full gap-5 overflow-x-auto bg-[#F7F9FC] px-6 pb-4 pt-4">
+    <div className="flex min-h-full gap-5 bg-[#F7F9FC] px-6 pb-6">
       {columns.map((col) => {
         const cards = tickets.filter((t) => groupValue(t, group) === col);
         const isOver = overCol === col && canDrop;
@@ -108,7 +108,7 @@ export function TicketKanban({
             className="flex w-[388px] flex-shrink-0 flex-col"
           >
             {/* Column header — the value, its count, and nothing else. */}
-            <div className="flex items-center gap-2 pb-2.5">
+            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#F7F9FC] pb-2.5 pt-4">
               {PEOPLE_GROUP(group) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -120,19 +120,16 @@ export function TicketKanban({
                   <span className="max-w-[240px] truncate text-[12px] font-semibold text-[#364658]">{col}</span>
                 </span>
               ) : (
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-[12px] font-semibold"
-                  style={{ background: `${DOT[col] ?? '#94A3B8'}1A`, color: '#364658' }}
-                >
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
                   <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[col] ?? '#94A3B8' }} />
-                  <span className="max-w-[220px] truncate">{col}</span>
+                  <span className="max-w-[240px] truncate">{col}</span>
                 </span>
               )}
               <span className="text-[12px] font-medium tabular-nums text-[#94A3B8]">{cards.length}</span>
             </div>
 
             <div
-              className={`flex-1 space-y-2.5 overflow-y-auto rounded-lg border-2 border-dashed p-1 transition-colors ${
+              className={`flex-1 space-y-2.5 rounded-lg border-2 border-dashed p-1 transition-colors ${
                 isOver ? 'border-[#3D8BD0] bg-[#EBF5FF]/60' : 'border-transparent'
               }`}
             >
