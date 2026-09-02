@@ -2460,25 +2460,27 @@ onStackMinimizedChange,
                               ))}
                             </div>
                           </div>
-                          {/* Password Protected toggle */}
-                          <div className="mb-3">
-                            <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Password Protected</label>
-                            <button onClick={() => setRelDlPwProtected((v) => !v)} role="switch" aria-checked={relDlPwProtected} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${relDlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}>
-                              <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${relDlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
-                            </button>
-                          </div>
-                          {/* Attachment password */}
-                          {relDlPwProtected && (
-                            <div className="mb-1">
-                              <label className="text-[13px] text-[#7B8FA5] mb-1.5 block">Attachment Password <span className="text-[#EF4444]">*</span></label>
-                              <div className="relative">
+                          {/* Password Protected — compact row in a full-width band, the
+                              shared recipe from the listing + report download popups. */}
+                          <div className="-mx-4 border-t border-[#F0F1F3] px-4 py-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="inline-flex items-center gap-1.5 text-[13px] text-[#364658]">
+                                <Lock size={13} className="text-[#7B8FA5]" />
+                                Password Protected
+                              </span>
+                              <button onClick={() => setRelDlPwProtected((v) => !v)} role="switch" aria-checked={relDlPwProtected} className={`relative inline-flex h-[22px] w-10 flex-shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${relDlPwProtected ? 'bg-[#22C55E]' : 'bg-[#D1D5DB] hover:bg-[#C4C9D0]'}`}>
+                                <span className={`inline-block size-[18px] rounded-full bg-white shadow-sm ring-1 ring-black/[0.04] transition-transform duration-200 ease-in-out ${relDlPwProtected ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
+                              </button>
+                            </div>
+                            {relDlPwProtected && (
+                              <div className="relative mt-2">
                                 <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
                                 <input type={relDlShowPw ? 'text' : 'password'} value={relDlPassword} onChange={(e) => setRelDlPassword(e.target.value)} placeholder="Attachment Password" className="w-full pl-9 pr-9 py-2 border border-[#DFE5ED] rounded text-[13px] text-[#364658] placeholder:text-[#9CA3AF] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]" />
                                 <button onClick={() => setRelDlShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#364658]">{relDlShowPw ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                               </div>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[#F0F1F3]">
+                            )}
+                          </div>
+                          <div className="-mx-4 -mb-4 flex items-center justify-end gap-2 border-t border-[#F0F1F3] px-4 py-3">
                             <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3D8BD0] rounded hover:bg-[#2F7AB8] transition-colors">Download</button>
                             <button onClick={() => setShowRelDownload(false)} className="px-3 py-1.5 text-[13px] font-medium text-[#364658] border border-[#DFE5ED] rounded hover:bg-[#F5F7FA] transition-colors">Cancel</button>
                           </div>

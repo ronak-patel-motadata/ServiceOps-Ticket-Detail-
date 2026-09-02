@@ -370,7 +370,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
           />
           <TicketGroupSuggestions />
           </div>
-          <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
+          <div ref={stickyRef} className="sticky left-0 top-0 z-[60] bg-white pt-0.5">
           <TicketGridToolbar
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
@@ -379,6 +379,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             sorts={sorts}
             onSort={handleSort}
             onClearSorts={() => setSorts([])}
+            onRemoveSort={(column) => setSorts((prev) => prev.filter((s) => s.column !== column))}
+            onReorderSorts={(order) =>
+              setSorts((prev) => order.map((c) => prev.find((s) => s.column === c)!).filter(Boolean))
+            }
             listGroupLabel={isGrouped ? groupInfo?.label ?? null : null}
             view={view}
             setView={setView}

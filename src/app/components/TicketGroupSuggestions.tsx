@@ -216,7 +216,7 @@ function TimelineStep({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`relative pl-9 last:pb-0 ${ai ? 'pb-7' : 'pb-6'}`}>
+    <div className={`relative pl-10 last:pb-0 ${ai ? 'pb-9' : 'pb-8'}`}>
       {/* Connector runs from under the icon to the next step. */}
       {!last && (
         <span
@@ -234,7 +234,7 @@ function TimelineStep({
       {/* Gradient wash (AI Summary recipe): tint only, no border. */}
       {ai && (
         <span
-          className={`pointer-events-none absolute -left-2.5 -top-2 right-0 rounded-lg ${last ? '-bottom-3' : 'bottom-3'}`}
+          className={`pointer-events-none absolute -left-3 -top-3 right-0 rounded-lg ${last ? '-bottom-4' : 'bottom-4'}`}
           style={{
             opacity: 0.045,
             background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)',
@@ -245,7 +245,7 @@ function TimelineStep({
         <h3 className="text-[13px] font-semibold text-[#1E293B]">{title}</h3>
         {action}
       </div>
-      <div className={ai ? 'relative mt-2' : 'mt-2'}>{children}</div>
+      <div className={ai ? 'relative mt-2.5' : 'mt-2.5'}>{children}</div>
     </div>
   );
 }
