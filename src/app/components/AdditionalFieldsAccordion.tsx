@@ -718,7 +718,6 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
               {/* Key Info first — the fields a technician changes most, ahead of the form fields. */}
               {shownKeyFields.length > 0 && (
                 <div className="mb-5">
-                  <div className="mb-3 text-[14px] font-semibold uppercase tracking-[0.08em] text-[#1E293B]">Key Information</div>
                   <div className="grid grid-cols-2 gap-x-5 gap-y-4">
                     {shownKeyFields.map((f) => {
                       const value = draftFields[f.label] ?? f.value;

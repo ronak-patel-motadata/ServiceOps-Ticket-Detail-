@@ -292,19 +292,19 @@ function AiSuggestHint({ label, coach }: { label: string; coach?: boolean }) {
         <div
           ref={coachRef}
           style={{ position: 'fixed', top: coachPos.top, right: coachPos.right }}
-          className="z-[9999] w-[250px] whitespace-normal rounded-lg border border-[#DFE5ED] bg-white p-3 text-left shadow-xl"
+          className="z-[9999] w-[250px] whitespace-normal rounded-lg bg-[#1F2937] p-3 text-left shadow-2xl"
         >
-          <span className="absolute -top-1 right-2 size-2 rotate-45 border-l border-t border-[#DFE5ED] bg-white" />
+          <span className="absolute -top-1 right-2 size-2 rotate-45 bg-[#1F2937]" />
           <div className="flex items-start gap-2">
             <AiSparkle size={13} className="mt-0.5 flex-shrink-0" />
-            <p className="text-[12px] font-normal leading-relaxed text-[#475569]">
+            <p className="text-[12px] font-normal leading-relaxed text-white/85">
               AI suggests values for empty fields. Open the dropdown — the suggestion sits at the top, one click applies it.
             </p>
           </div>
           <div className="mt-2.5 flex justify-end">
             <button
               onClick={dismissCoach}
-              className="h-7 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+              className="h-7 rounded bg-white px-3 text-[12px] font-semibold text-[#1F2937] transition-colors hover:bg-white/90"
             >
               Got it
             </button>

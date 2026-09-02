@@ -2188,7 +2188,10 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       <button
                         onClick={applySuggestions}
                         disabled={pickedCount === 0}
-                        className="h-9 rounded bg-[#3D8BD0] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{
+                          background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
+                        }}
+                        className="h-9 rounded px-4 text-[13px] font-medium text-white transition-all duration-200 hover:brightness-[0.92] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Update
                       </button>

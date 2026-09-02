@@ -511,20 +511,19 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                           <AiSparkle size={12} />
                           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Why ServiceOps grouped these</span>
                         </div>
-                        <p className="text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
+                        <p className="pl-[20px] text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
                         {/* V2: the suggested actions live right on the AI reasoning card. */}
                         {detailV2 && (
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 pl-[20px]">
                             <button
                               onClick={() => {
                                 toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                                 consumeGroup(openGroup.id);
                               }}
                               style={{
-                                background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                                border: '1px solid transparent',
+                                background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                               }}
-                              className="h-8 rounded px-3 text-[12px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
+                              className="h-8 rounded px-3 text-[12px] font-medium text-white transition-all duration-200 hover:brightness-[0.92] hover:shadow-md"
                             >
                               Create Problem
                             </button>
@@ -534,7 +533,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                                   toast.success(`${openGroup.tickets.length} requests merged into ${openGroup.tickets[0]?.id ?? 'one request'}`);
                                   consumeGroup(openGroup.id);
                                 }}
-                                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                                style={{
+                                  background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                                  border: '1px solid transparent',
+                                }}
                                 className="h-8 rounded px-3 text-[12px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
                               >
                                 Merge Requests
@@ -550,6 +552,31 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                   <div className="mt-5">
                     {detailV2 && (() => {
                       {/* Same row recipe as the filtered list — labelled, hover-remove. */}
+                      const renderAssetCard = (t: GroupTicket) => {
+                        const Icon = ASSET_TYPE_ICON[t.assetType ?? ''] ?? AppWindow;
+                        return (
+                          <div key={t.id} className="group relative flex items-center gap-3 rounded-lg border border-[#D8E6F3] bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-[#A9C8E4] hover:shadow-md">
+                            <span className="flex size-9 flex-shrink-0 items-center justify-center rounded border border-[#EEF2F7] bg-[#F8FAFC]">
+                              <Icon size={16} className="text-[#64748B]" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-1.5 pr-5">
+                                <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                                <span className="text-[12px] text-[#9CA3AF]">·</span>
+                                <span className="truncate text-[12px] text-[#64748B]">{t.assetType ?? t.itemType}</span>
+                              </span>
+                              <span className="mt-1 block truncate text-[13px] font-semibold text-[#364658]">{t.subject}</span>
+                            </span>
+                            <button
+                              onClick={() => removeTicket(openGroup.id, t.id)}
+                              className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded opacity-0 transition-all hover:bg-[#FEE2E2] group-hover:opacity-100"
+                              title="Remove from group"
+                            >
+                              <X size={14} className="text-[#EF4444]" />
+                            </button>
+                          </div>
+                        );
+                      };
                       const renderItem = (t: GroupTicket) => (
                         <div key={t.id} className="group flex items-center gap-3 border-b border-[#F1F5F9] py-3 last:border-0">
                           <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
@@ -566,10 +593,11 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                       );
                       return (
                         <>
-                          <div className="relative overflow-hidden rounded-lg border border-[#E8F0F8] bg-[#FAFCFE] px-4 pb-1 pt-3">
+                          <div className="relative overflow-hidden rounded-lg border border-[#D8E6F3] bg-[#F6FAFE] px-4 pb-1 pt-3">
                           <div className="flex items-center justify-between pb-1.5">
-                            <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                              Affected Items ({v2Assets.length})
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#475569]">
+                              Affected Items
+                              <span className="rounded-full bg-[#3D8BD0]/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#3D8BD0]">{v2Assets.length}</span>
                             </div>
                             <AddRecordButton
                               label="Add Items"
@@ -579,7 +607,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                               onAdd={(t) => addTicket(openGroup.id, t)}
                             />
                           </div>
-                          <div>{v2Assets.map(renderItem)}</div>
+                          <div className="grid grid-cols-2 gap-2.5 pb-2.5 pt-1">{v2Assets.map(renderAssetCard)}</div>
                           </div>
                           <div className="mt-5 flex items-center justify-between pb-1.5">
                             <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
@@ -668,14 +696,17 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                             toast.success(`${openGroup.tickets.length} requests merged into ${openGroup.tickets[0]?.id ?? 'one request'}`);
                             consumeGroup(openGroup.id);
                           }}
-                          style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
-                          className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                          style={{
+                            background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                            border: '1px solid transparent',
+                          }}
+                          className="order-2 flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                         >
                           <span className="flex items-center gap-2 text-[13px] font-semibold text-[#1E293B]">
                             <GitMerge size={15} className="text-[#3D8BD0]" />
                             Merge Requests
                           </span>
-                          <span className="text-[12px] leading-relaxed text-[#64748B]">
+                          <span className="pl-[23px] text-[12px] leading-relaxed text-[#64748B]">
                             Combine all {openGroup.tickets.length} requests into one and resolve them together.
                           </span>
                         </button>
@@ -685,24 +716,20 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                           toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                           consumeGroup(openGroup.id);
                         }}
-                        className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                        className="order-1 flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
                         style={{
-                          background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                          border: '1px solid transparent',
+                          background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                         }}
                       >
-                        <span className="flex w-full items-center gap-2 text-[13px] font-semibold text-[#1E293B]">
-                          <TriangleAlert size={15} className="text-[#731EFB]" />
+                        <span className="flex w-full items-center gap-2 text-[13px] font-semibold text-white">
+                          <TriangleAlert size={15} className="text-white" />
                           Create Problem
-                          <span
-                            className="ml-auto inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold text-[#731EFB]"
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
-                          >
+                          <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#731EFB]">
                             <AiSparkle size={10} />
                             Recommended
                           </span>
                         </span>
-                        <span className="text-[12px] leading-relaxed text-[#64748B]">
+                        <span className="pl-[23px] text-[12px] leading-relaxed text-white/90">
                           Raise one Problem to investigate the shared root cause — a batch-level hardware fault.
                         </span>
                       </button>
@@ -716,10 +743,9 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                       consumeGroup(openGroup.id);
                     }}
                     style={{
-                      background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
-                      border: '1px solid transparent',
+                      background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                     }}
-                    className="h-9 rounded px-4 text-[13px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
+                    className="h-9 rounded px-4 text-[13px] font-medium text-white transition-all duration-200 hover:brightness-[0.92] hover:shadow-md"
                   >
                     Merge Requests
                   </button>
@@ -730,7 +756,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                       toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                       consumeGroup(openGroup.id);
                     }}
-                    style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
+                    style={{
+                      background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                      border: '1px solid transparent',
+                    }}
                     className="h-9 rounded px-4 text-[13px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
                   >
                     Create Problem
