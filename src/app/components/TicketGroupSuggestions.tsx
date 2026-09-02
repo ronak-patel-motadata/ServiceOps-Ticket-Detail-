@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AppWindow, ChevronDown, ChevronLeft, ChevronUp, Clock, GitMerge, Info, Laptop, Plus, Server, Shield, TriangleAlert, User, X } from 'lucide-react';
+import { AlignLeft, AppWindow, ChevronDown, ChevronLeft, ChevronUp, Clock, GitMerge, Info, Laptop, Layers, Plus, Server, Shield, Target, TicketCheck, TriangleAlert, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -105,6 +105,28 @@ const GROUP_SEEDS: SuggestedGroup[] = [
       { id: 'INC-46', subject: 'Burnt smell from power adapter', status: 'Open', priority: 'High', assignee: 'Pratik Patial', requester: 'Rohit Kulkarni' },
     ],
   },
+  {
+    id: 'grp-4',
+    name: 'VPN drops after firewall firmware update',
+    window: 'since 06:00 today',
+    age: '3h ago',
+    isNew: true,
+    confidence: { level: 'High', pct: 88 },
+    summary:
+      'Four remote-access complaints started within an hour of the FortiGate firmware update on the Ahmedabad VPN gateway.',
+    description:
+      'Four requests describe the same remote-access failure — the VPN client connects, then drops after a few minutes, or refuses to re-authenticate. Every affected user routes through the Ahmedabad VPN gateway, which was updated to FortiOS 7.4.4 during the 05:30 maintenance window. The first request arrived at 06:12, roughly forty minutes after the update completed, and no similar request was raised in the preceding two weeks. Session logs on the gateway show IKE re-key failures against the RADIUS host, which is consistent with a known regression in this firmware build. Rolling back the gateway (or applying the vendor hotfix) would clear all four requests at once.',
+    reason:
+      'Same gateway, same failure mode, and all four requests began within an hour of a firmware change on that device. A configuration change that immediately precedes a burst of identical requests is the strongest root-cause signal available.',
+    tickets: [
+      { id: 'INC-51', subject: 'VPN disconnects every few minutes', status: 'Open', priority: 'Urgent', assignee: 'Shreyak Dalal', requester: 'Darshak Modi' },
+      { id: 'INC-52', subject: 'Cannot reconnect to VPN after drop', status: 'In Progress', priority: 'High', assignee: 'Kaison Potai', requester: 'Meera Iyer' },
+      { id: 'INC-53', subject: 'Remote access keeps asking for credentials', status: 'Open', priority: 'High', assignee: 'Shreyak Dalal', requester: 'Samuel Githugu' },
+      { id: 'INC-54', subject: 'VPN client times out from home', status: 'Pending', priority: 'Medium', assignee: 'Rahul Shukla', requester: 'Rohit Kulkarni' },
+      { id: 'CI-176', subject: 'FW-AMD-01 — Ahmedabad VPN Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Darshak Modi', itemType: 'CI', assetType: 'Server' },
+      { id: 'CI-289', subject: 'RADIUS Authentication Service', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Meera Iyer', itemType: 'CI', assetType: 'Application' },
+    ],
+  },
 ];
 
 /* Requests OUTSIDE every suggested group — the manual "Add request" picker
@@ -122,6 +144,15 @@ const CANDIDATE_POOL: GroupTicket[] = [
   { id: 'CI-208', subject: 'AD-DC-02 — Secondary Domain Controller', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Nandini Patel', itemType: 'CI', assetType: 'Server' },
   { id: 'CI-341', subject: 'Okta Identity Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Meera Iyer', itemType: 'CI', assetType: 'Application' },
 ];
+
+/** What the AI recommends doing about each group — the closing step of the timeline. */
+const GROUP_SOLUTIONS: Record<string, string> = {
+  'grp-4':
+    'This is one fault, not four tickets — the FortiOS 7.4.4 update on FW-AMD-01 broke IKE re-key against the RADIUS host. Raise a Problem on the gateway and apply the vendor hotfix (or roll back to 7.4.3) in tonight\u2019s change window. Link these four requests to it, verify one user reconnects, and all four close together.',
+};
+
+const SOLUTION_FALLBACK =
+  'The evidence points to a single underlying fault rather than separate incidents. Raise a Problem to own the fix, link these requests to it, and every requester is updated from one thread \u2014 resolving the Problem closes them together.';
 
 const STATUS_DOT: Record<string, string> = {
   Open: '#3D8BD0',
@@ -163,6 +194,61 @@ const initialsOf = (name: string) => {
 const requestItems = (g: SuggestedGroup) => g.tickets.filter((t) => !t.itemType || t.itemType === 'Request');
 
 const uniqueRequesters = (g: SuggestedGroup) => new Set(requestItems(g).map((t) => t.requester)).size;
+
+/** One step of the option-4 timeline: rail + icon, blue title, body below. */
+function TimelineStep({
+  icon: Icon,
+  title,
+  action,
+  last,
+  ai,
+  sparkle,
+  children,
+}: {
+  icon: typeof Layers;
+  title: string;
+  action?: React.ReactNode;
+  last?: boolean;
+  /** AI-authored step — gradient title + gradient rail. */
+  ai?: boolean;
+  /** Render the gradient AI sparkle as this step’s rail icon. */
+  sparkle?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`relative pl-9 last:pb-0 ${ai ? 'pb-7' : 'pb-6'}`}>
+      {/* Connector runs from under the icon to the next step. */}
+      {!last && (
+        <span
+          className="absolute bottom-0 left-[11px] top-7 w-px"
+          style={{
+            background: ai
+              ? 'linear-gradient(180deg, rgba(115, 30, 251, 0.45) 0%, #E5E9F0 100%)'
+              : '#E5E9F0',
+          }}
+        />
+      )}
+      <span className="absolute -left-0.5 top-px flex size-[26px] items-center justify-center bg-white text-[#64748B]">
+        {sparkle ? <AiSparkle size={17} /> : <Icon size={17} />}
+      </span>
+      {/* Gradient wash (AI Summary recipe): tint only, no border. */}
+      {ai && (
+        <span
+          className={`pointer-events-none absolute -left-2.5 -top-2 right-0 rounded-lg ${last ? '-bottom-3' : 'bottom-3'}`}
+          style={{
+            opacity: 0.045,
+            background: 'linear-gradient(90deg, #4CB1FE 0%, #731EFB 24.52%, #F911E3 100%)',
+          }}
+        />
+      )}
+      <div className="relative flex min-h-[22px] items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-[#1E293B]">{title}</h3>
+        {action}
+      </div>
+      <div className={ai ? 'relative mt-2' : 'mt-2'}>{children}</div>
+    </div>
+  );
+}
 
 /** Assignee · status · priority for a group-detail row — quiet, tooltip-named. */
 function RowMeta({ t }: { t: GroupTicket }) {
@@ -350,8 +436,9 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
       ? openGroup.tickets.filter((t) => typeOfItem(t) === itemTypeFilter)
       : openGroup.tickets
     : [];
-  // Option-2 layout demo (group 2 only): Why band leads and carries the actions.
-  const detailV2 = openGroup?.id === 'grp-2';
+  // Option-2 layout (group 2, and group 4 which clones it): Why band leads and carries the actions.
+  const detailV4 = openGroup?.id === 'grp-4';
+  const detailV2 = openGroup?.id === 'grp-2' || detailV4;
   // Option-3 layout demo (group 3): the footer actions become self-explaining choice cards.
   const detailV3 = openGroup?.id === 'grp-3';
   const v2Assets = openGroup ? openGroup.tickets.filter((t) => t.itemType && t.itemType !== 'Request') : [];
@@ -504,8 +591,8 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                   {(() => {
                     const whyBand = (
                       <div
-                        className="rounded-lg border border-[#EFE9FA] px-3.5 py-3"
-                        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
+                        className={detailV4 ? '' : 'rounded-lg border border-[#EFE9FA] px-3.5 py-3'}
+                        style={detailV4 ? undefined : { background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
                       >
                         <div className="flex items-center gap-1.5 pb-1">
                           <AiSparkle size={12} />
@@ -513,7 +600,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                         </div>
                         <p className="pl-[20px] text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
                         {/* V2: the suggested actions live right on the AI reasoning card. */}
-                        {detailV2 && (
+                        {detailV2 && !detailV4 && (
                           <div className="mt-3 flex flex-wrap items-center gap-2 pl-[20px]">
                             <button
                               onClick={() => {
@@ -546,10 +633,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                         )}
                       </div>
                     );
-                    return whyBand;
+                    return detailV4 ? null : whyBand;
                   })()}
 
-                  <div className="mt-5">
+                  <div className={detailV4 ? '' : 'mt-5'}>
                     {detailV2 && (() => {
                       {/* Same row recipe as the filtered list — labelled, hover-remove. */}
                       const renderAssetCard = (t: GroupTicket) => {
@@ -591,6 +678,93 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                           </button>
                         </div>
                       );
+                      const addItemsBtn = (
+                        <AddRecordButton
+                          label="Add Items"
+                          placeholder="Search assets and CIs by ID or subject..."
+                          candidates={CANDIDATE_POOL.filter((t) => t.itemType && t.itemType !== 'Request')}
+                          exclude={new Set(openGroup.tickets.map((t) => t.id))}
+                          onAdd={(t) => addTicket(openGroup.id, t)}
+                        />
+                      );
+                      const addRequestBtn = (
+                        <AddRecordButton
+                          label="Add request"
+                          placeholder="Search requests by ID or subject..."
+                          candidates={CANDIDATE_POOL.filter((t) => !t.itemType || t.itemType === 'Request')}
+                          exclude={new Set(openGroup.tickets.map((t) => t.id))}
+                          onAdd={(t) => addTicket(openGroup.id, t)}
+                        />
+                      );
+                      const assetGrid = <div className="grid grid-cols-2 gap-2.5">{v2Assets.map(renderAssetCard)}</div>;
+                      const requestList = <div className="-mt-2">{v2Requests.map(renderItem)}</div>;
+
+                      /* ── Option 4: one AI narrative read top to bottom ── */
+                      if (detailV4) {
+                        return (
+                          <div className="pt-1">
+                            <TimelineStep icon={AlignLeft} title="Why ServiceOps grouped these" ai>
+                              <p className="text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
+                            </TimelineStep>
+                            <TimelineStep icon={Layers} title={`Affected items (${v2Assets.length})`} action={addItemsBtn}>
+                              {assetGrid}
+                            </TimelineStep>
+                            <TimelineStep icon={TicketCheck} title={`Impacted requests (${v2Requests.length})`} action={addRequestBtn}>
+                              {requestList}
+                            </TimelineStep>
+                            <TimelineStep icon={Target} title="Suggested solution" ai sparkle last>
+                              <p className="text-[13px] leading-relaxed text-[#475569]">{GROUP_SOLUTIONS[openGroup.id] ?? SOLUTION_FALLBACK}</p>
+                              {/* The whole page builds to this decision, so it closes on the
+                                  self-explaining choice cards rather than bare buttons. */}
+                              <div className="mt-3.5 flex gap-3">
+                                <button
+                                  onClick={() => {
+                                    toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
+                                    consumeGroup(openGroup.id);
+                                  }}
+                                  className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
+                                  style={{
+                                    background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
+                                  }}
+                                >
+                                  <span className="flex w-full items-center gap-2 text-[13px] font-semibold leading-none text-white">
+                                    <TriangleAlert size={15} className="text-white" />
+                                    Create Problem
+                                    <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-white px-1.5 py-1 text-[10px] font-semibold leading-none text-[#731EFB]">
+                                      Recommended
+                                    </span>
+                                  </span>
+                                  <span className="pl-[23px] text-[12px] leading-relaxed text-white/90">
+                                    Raise one Problem to fix the shared root cause — a firmware regression on the VPN gateway.
+                                  </span>
+                                </button>
+                                {!panelOnly && (
+                                  <button
+                                    onClick={() => {
+                                      toast.success(`${v2Requests.length} requests merged into ${v2Requests[0]?.id ?? 'one request'}`);
+                                      consumeGroup(openGroup.id);
+                                    }}
+                                    style={{
+                                      background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                                      border: '1px solid transparent',
+                                    }}
+                                    className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                                  >
+                                    <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
+                                      <GitMerge size={15} className="text-[#3D8BD0]" />
+                                      Merge Requests
+                                    </span>
+                                    <span className="pl-[23px] text-[12px] leading-relaxed text-[#64748B]">
+                                      Combine all {v2Requests.length} requests into one and resolve them together.
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+                            </TimelineStep>
+                          </div>
+                        );
+                      }
+
                       return (
                         <>
                           <div className="relative overflow-hidden rounded-lg border border-[#D8E6F3] bg-[#F6FAFE] px-4 pb-1 pt-3">
@@ -599,13 +773,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                               Affected Items
                               <span className="rounded-full bg-[#3D8BD0]/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#3D8BD0]">{v2Assets.length}</span>
                             </div>
-                            <AddRecordButton
-                              label="Add Items"
-                              placeholder="Search assets and CIs by ID or subject..."
-                              candidates={CANDIDATE_POOL.filter((t) => t.itemType && t.itemType !== 'Request')}
-                              exclude={new Set(openGroup.tickets.map((t) => t.id))}
-                              onAdd={(t) => addTicket(openGroup.id, t)}
-                            />
+                            {addItemsBtn}
                           </div>
                           <div className="grid grid-cols-2 gap-2.5 pb-2.5 pt-1">{v2Assets.map(renderAssetCard)}</div>
                           </div>
@@ -613,13 +781,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                             <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
                               Impacted requests ({v2Requests.length})
                             </div>
-                            <AddRecordButton
-                              label="Add request"
-                              placeholder="Search requests by ID or subject..."
-                              candidates={CANDIDATE_POOL.filter((t) => !t.itemType || t.itemType === 'Request')}
-                              exclude={new Set(openGroup.tickets.map((t) => t.id))}
-                              onAdd={(t) => addTicket(openGroup.id, t)}
-                            />
+                            {addRequestBtn}
                           </div>
                           <div>{v2Requests.map(renderItem)}</div>
                         </>
@@ -702,7 +864,7 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                           }}
                           className="order-2 flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                         >
-                          <span className="flex items-center gap-2 text-[13px] font-semibold text-[#1E293B]">
+                          <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
                             <GitMerge size={15} className="text-[#3D8BD0]" />
                             Merge Requests
                           </span>
@@ -721,11 +883,10 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
                           background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                         }}
                       >
-                        <span className="flex w-full items-center gap-2 text-[13px] font-semibold text-white">
+                        <span className="flex w-full items-center gap-2 text-[13px] font-semibold leading-none text-white">
                           <TriangleAlert size={15} className="text-white" />
                           Create Problem
-                          <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#731EFB]">
-                            <AiSparkle size={10} />
+                          <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-white px-1.5 py-1 text-[10px] font-semibold leading-none text-[#731EFB]">
                             Recommended
                           </span>
                         </span>

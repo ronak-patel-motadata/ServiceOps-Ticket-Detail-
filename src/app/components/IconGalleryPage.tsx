@@ -68,9 +68,10 @@ const CUSTOM_ICONS: { name: string; use: string; Comp: (p: { size?: number; clas
 /* The SLA pill's hourglass — 12×16 artwork, so it scales by HEIGHT to keep its aspect. */
 function SlaHourglass({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="-3 -1 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <path
         fill="currentColor"
+        transform="matrix(2.5 0 0 2.5 9 4)"
         d="M5.59375 6.29063C5.6875 6.42188 5.8375 6.5 6 6.5C6.1625 6.5 6.34062 6.42188 6.43437 6.29063L8.90688 2.79063C9.01563 2.63813 9.03031 2.43781 8.94469 2.27125C8.85938 2.10469 8.6875 2 8.52813 2L3.5 2C3.34062 2 3.14062 2.10469 3.05625 2.27125C2.99688 2.43781 2.98438 2.63813 3.09375 2.79063L5.59375 6.29063ZM11.5 15L11 15L11 13.6031C11 12.6156 10.6747 11.6281 10.0747 10.8719L7.87813 8L10.0747 5.12813C10.6747 4.34375 11 3.38438 11 2.39594L11 1L11.5 1C11.7761 1 12 0.77625 12 0.5C12 0.223875 11.7761 1.95718e-08 11.5 4.37114e-08L0.5 1.00536e-06C0.224999 1.0294e-06 1.95718e-08 0.223876 4.37114e-08 0.500001C6.78619e-08 0.776251 0.225 1 0.5 1L1 1L1 2.39594C1 3.38438 1.325 4.34375 1.925 5.12813L4.12188 8L1.925 10.8719C1.325 11.6281 1 12.6156 1 13.6031L1 15L0.500001 15C0.225001 15 1.33101e-06 15.225 1.35505e-06 15.5C1.37909e-06 15.775 0.225001 16 0.500001 16L11.5 16C11.7761 16 12 15.775 12 15.5C12 15.225 11.7761 15 11.5 15ZM10 15L2 15L2 13.6031C2 12.8344 2.25313 12.0875 2.74687 11.4781L5.14688 8.30313C5.28438 8.09688 5.28438 7.875 5.14688 7.69688L2.74687 4.52188C2.25312 3.9125 2 3.16563 2 2.39594L2 1L10 1L10 2.39594C10 3.16563 9.74719 3.9125 9.28031 4.52188L6.85313 7.69688C6.71563 7.875 6.71563 8.09688 6.85313 8.30313L9.28031 11.4781C9.74719 12.0875 10 12.8344 10 13.6031L10 15Z"
       />
     </svg>
@@ -124,9 +125,13 @@ function shapeToPathD(el: Element): string {
   }
 }
 
-/** Serialize an icon as a SINGLE-path SVG (defs like gradients are preserved). */
+/** Serialize an icon as a SINGLE-path SVG on the product-standard viewBox="0 0 48 48":
+ *  the glyph is measured live (getBBox, stroke included), then scaled + centred into a
+ *  40-unit content area — 4 units of breathing room per side, like the dev icon set.
+ *  One matrix on the single <path> does the mapping, so stroke weight scales with the
+ *  glyph and a developer recolours with a single rule. Defs (gradients) are preserved. */
 function toSinglePathSvg(svg: SVGSVGElement): string {
-  const KEEP = ['xmlns', 'width', 'height', 'viewBox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'class'];
+  const KEEP = ['xmlns', 'width', 'height', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'class'];
   const attrs = KEEP
     .map((a) => {
       const v = a === 'xmlns' ? 'http://www.w3.org/2000/svg' : svg.getAttribute(a);
@@ -137,13 +142,40 @@ function toSinglePathSvg(svg: SVGSVGElement): string {
   let defs = '';
   let d = '';
   let pathAttrs = '';
+  let shapeT = '';
   svg.querySelectorAll('defs').forEach((el) => (defs += el.outerHTML));
   svg.querySelectorAll('path, line, polyline, polygon, circle, ellipse, rect').forEach((el) => {
     d += shapeToPathD(el);
     // A fill on the shape itself (custom icons, the gradient sparkle) rides along once.
     if (!pathAttrs && el.getAttribute('fill')) pathAttrs = ` fill="${el.getAttribute('fill')}"`;
+    if (!shapeT && el.getAttribute('transform')) shapeT = el.getAttribute('transform') ?? '';
   });
-  return `<svg ${attrs}>${defs}<path${pathAttrs} d="${d}"/></svg>`;
+  // Map each icon's own DESIGN BOX 1:1 onto the standard 48-box — every library keeps
+  // its canonical proportions (a chevron stays small, stroke weights stay uniform), and
+  // icons drawn on the 48 grid keep their designed margins. The merged d carries raw
+  // geometry, so a shape-level matrix (a component's own standardisation) is composed in.
+  const vb = (svg.getAttribute('viewBox') ?? '0 0 24 24').trim().split(/[\s,]+/).map(Number);
+  const vbX = vb[0] || 0;
+  const vbY = vb[1] || 0;
+  const vbW = vb[2] || 24;
+  const vbH = vb[3] || 24;
+  const k = 48 / Math.max(vbW, vbH);
+  let sa = 1;
+  let se = 0;
+  let sf = 0;
+  const tm = /matrix\(([^)]+)\)/.exec(shapeT);
+  if (tm) {
+    const p = tm[1].trim().split(/[\s,]+/).map(Number);
+    sa = p[0] || 1;
+    se = p[4] || 0;
+    sf = p[5] || 0;
+  }
+  const r4 = (n: number) => Math.round(n * 10000) / 10000;
+  const S = r4(k * sa);
+  const TX = r4(k * se + (48 - vbW * k) / 2 - vbX * k);
+  const TY = r4(k * sf + (48 - vbH * k) / 2 - vbY * k);
+  const transform = S === 1 && TX === 0 && TY === 0 ? '' : ` transform="matrix(${S} 0 0 ${S} ${TX} ${TY})"`;
+  return `<svg ${attrs} viewBox="0 0 48 48">${defs}<path${pathAttrs}${transform} d="${d}"/></svg>`;
 }
 
 /* One gallery tile. Clicking it copies the icon's REAL SVG markup — read straight off the
