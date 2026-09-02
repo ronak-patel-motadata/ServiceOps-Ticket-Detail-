@@ -285,6 +285,8 @@ function Chip({
 }) {
   const [condOpen, setCondOpen] = useState(false);
   const [valOpen, setValOpen] = useState(!!autoOpen);
+  /** Selection as of popup-open — drives the selected-first ordering for this open. */
+  const openOrderRef = useRef<Set<string>>(new Set());
   const [menuOpen, setMenuOpen] = useState(false);
   const [q, setQ] = useState('');
   const condRef = useOutside<HTMLDivElement>(condOpen, () => setCondOpen(false));
@@ -296,7 +298,9 @@ function Chip({
   const Icon = attr.icon;
   const needsValue = NEEDS_VALUE(rule.condition);
   const options = attr.options ?? [];
-  const shown = options.filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase()));
+  const shown = [...options]
+    .sort((a, b) => Number(openOrderRef.current.has(b.label)) - Number(openOrderRef.current.has(a.label)))
+    .filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase()));
 
   const toggleValue = (v: string) =>
     onChange({ ...rule, values: rule.values.includes(v) ? rule.values.filter((x) => x !== v) : [...rule.values, v] });
@@ -337,7 +341,13 @@ function Chip({
       {/* Value */}
       {needsValue && (
         <div className="relative flex" ref={valRef}>
-          <button onClick={() => setValOpen((v) => !v)} className={`${seg} gap-1 border-r border-[#EEF1F4]`}>
+          <button
+            onClick={() => {
+              if (!valOpen) openOrderRef.current = new Set(rule.values);
+              setValOpen(!valOpen);
+            }}
+            className={`${seg} gap-1 border-r border-[#EEF1F4]`}
+          >
             {rule.values.length === 0 ? (
               <span className="text-[#9CA3AF]">Select option...</span>
             ) : (
@@ -380,8 +390,9 @@ function Chip({
                           <button
                             key={o.label}
                             onClick={() => toggleValue(o.label)}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                            className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-[#F9FAFB]"
                           >
+                            <input type="checkbox" readOnly checked={on} tabIndex={-1} className="pointer-events-none" />
                             {attr.people ? (
                               <span className="inline-flex min-w-0 items-center gap-2">
                                 <span
@@ -393,15 +404,11 @@ function Chip({
                                 <span className="truncate text-[13px] text-[#364658]">{o.label}</span>
                               </span>
                             ) : (
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-[12px] font-medium text-[#364658]"
-                                style={{ background: o.color ? `${o.color}1A` : '#F1F5F9' }}
-                              >
-                                {o.color && <span className="size-2 rounded-full" style={{ background: o.color }} />}
+                              <span className="inline-flex items-center gap-1.5 text-[13px] text-[#364658]">
+                                {o.color && <span className="size-2 flex-shrink-0 rounded-full" style={{ background: o.color }} />}
                                 {o.label}
                               </span>
                             )}
-                            {on && <Check size={13} className="ml-auto flex-shrink-0 text-[#3D8BD0]" />}
                           </button>
                         );
                       })

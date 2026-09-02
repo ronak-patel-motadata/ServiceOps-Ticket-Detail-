@@ -5,17 +5,6 @@ import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
 import { ArrowDown, ArrowUp, ChevronUp, X } from 'lucide-react';
 
-/** Column labels for the sort summary chips. */
-const SORT_LABELS: Record<string, string> = {
-  id: 'ID',
-  subject: 'Subject',
-  requester: 'Requester',
-  assignedTo: 'Assigned to',
-  status: 'Status',
-  priority: 'Priority',
-  createdBy: 'Created Date',
-  dueBy: 'SLA Status',
-};
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { TicketStatsRow } from './TicketStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
@@ -38,6 +27,8 @@ export interface Ticket {
   };
   status: 'Open' | 'In Progress' | 'Completed' | 'Pending' | 'Closed' | 'Cancelled';
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  /** Optional-column value; unset rows derive it deterministically in the grid. */
+  impact?: string;
   /** Unread conversation replies — drives the blue chip + bold subject on the listing. */
   unread?: number;
   lastMsg?: { from: string; snippet: string; time: string };
@@ -394,39 +385,6 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             kanbanGroup={kanbanGroup}
             setKanbanGroup={setKanbanGroup}
           />
-          {sorts.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pb-2.5 pl-6 pr-4">
-              <span className="text-[12px] text-[#64748B]">Sorted by</span>
-              {sorts.map((s, i) => (
-                <span
-                  key={String(s.column)}
-                  className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white py-1 pl-1.5 pr-1 text-[12px] text-[#364658]"
-                >
-                  {/* Priority badge — which column breaks ties first. */}
-                  <span className="flex size-4 items-center justify-center rounded-sm bg-[#EBF5FF] text-[10px] font-semibold text-[#3D8BD0]">
-                    {i + 1}
-                  </span>
-                  <span className="font-medium">{SORT_LABELS[String(s.column)] ?? String(s.column)}</span>
-                  {s.dir === 'asc' ? <ArrowUp size={12} className="text-[#64748B]" /> : <ArrowDown size={12} className="text-[#64748B]" />}
-                  <button
-                    onClick={() => setSorts((prev) => prev.filter((x) => x.column !== s.column))}
-                    className="flex size-4 items-center justify-center rounded-sm text-[#9CA3AF] transition-colors hover:bg-[#F1F5F9] hover:text-[#364658]"
-                    title="Remove this sort"
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
-              {sorts.length > 1 && (
-                <button
-                  onClick={() => setSorts([])}
-                  className="rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-          )}
           </div>
           {view === 'kanban' ? (
             <TicketKanban

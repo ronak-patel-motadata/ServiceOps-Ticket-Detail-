@@ -191,6 +191,12 @@ const PRIORITY_OPTIONS: CellOption[] = [
   { label: 'High', color: '#ef4444' },
   { label: 'Urgent', color: '#dc2626' },
 ];
+const IMPACT_OPTIONS: CellOption[] = [
+  { label: 'Low', color: '#22c55e' },
+  { label: 'On Users', color: '#fb923c' },
+  { label: 'On Department', color: '#ef4444' },
+  { label: 'On Business', color: '#dc2626' },
+];
 const ASSIGNEE_OPTIONS: CellOption[] = [
   { label: 'Amou Desai', initials: 'AD', color: '#3D8BD0', statusColor: '#10B981' },
   { label: 'Keetion Dale', initials: 'KD', color: '#8B5CF6', statusColor: '#10B981' },
@@ -270,7 +276,7 @@ export const extraValue = (key: string, t: Ticket): string => {
     case 'dueByDate': return fmtDate(t.dueBy);
     case 'techGroup': return ['IT Support Group', 'Network Operations', 'Hardware Support Team', 'Software Support Team'][h(2, 4)];
     case 'urgency': return t.priority;
-    case 'impact': return ['On Users', 'On Department', 'Low', 'On Business'][h(3, 4)];
+    case 'impact': return t.impact ?? ['On Users', 'On Department', 'Low', 'On Business'][h(3, 4)];
     case 'department': return ['Finance', 'Human Resources', 'Engineering', 'Sales', 'Operations'][h(4, 5)];
     case 'source': return ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'][h(5, 4)];
     case 'location': return ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru DC', 'Pune Office'][h(6, 4)];
@@ -684,6 +690,7 @@ export const SLA_PILL_TONE: Record<string, string> = {
   done: 'bg-[#F1F5F9] text-[#64748B]',
 };
 const priorityColor = (v: string) => PRIORITY_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
+const impactColor = (v: string) => IMPACT_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
 
 interface TicketTableProps {
   tickets: Ticket[];
@@ -1260,6 +1267,19 @@ export function TicketTable({
                 <span className="text-[12px] text-[#364658]">{formatDateTime(ticket.createdBy)}</span>
               </td>
         );
+      case 'impact': {
+        const iv = extraValue('impact', ticket);
+        return (
+              <td className="px-2 py-0">
+                <InlineSelect options={IMPACT_OPTIONS} value={iv} onPick={(label) => onUpdateTicket?.(ticket.id, { impact: label } as Partial<Ticket>)}>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: impactColor(iv) }} />
+                    <span className="truncate text-[12px] text-[#4A5568]">{iv}</span>
+                  </span>
+                </InlineSelect>
+              </td>
+        );
+      }
       default: {
         // Optional catalog columns — plain text, dashes dimmed.
         const v = extraValue(key, ticket);
@@ -1324,6 +1344,7 @@ export function TicketTable({
     status: ['Open', 'In Progress', 'Pending', 'Completed', 'Closed', 'Cancelled'],
     priority: ['Urgent', 'High', 'Medium', 'Low'],
     dueStatus: ['SLA Breached', 'Due Soon', 'On Track', 'Met'],
+    impact: ['On Business', 'On Department', 'On Users', 'Low'],
   };
   // The band shows the value in its column's own visual language.
   const groupBand = (colKey: string, value: string) => {
@@ -1331,6 +1352,9 @@ export function TicketTable({
     const text = 'text-[12px] font-semibold text-[#364658]';
     if (colKey === 'status') {
       return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: statusColor(value) }} />{label}</span>;
+    }
+    if (colKey === 'impact') {
+      return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: impactColor(value) }} />{label}</span>;
     }
     if (colKey === 'priority' || colKey === 'urgency') {
       return <span className={`inline-flex items-center gap-1.5 ${text}`}><span className="size-2 rounded-full" style={{ backgroundColor: priorityColor(value) }} />{label}</span>;

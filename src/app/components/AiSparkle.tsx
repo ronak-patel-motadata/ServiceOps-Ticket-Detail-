@@ -5,7 +5,7 @@
  */
 export function AiSparkle({ size = 14, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className={className} style={{ flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="-1.5 -1.5 23 23" xmlns="http://www.w3.org/2000/svg" className={className} style={{ flexShrink: 0 }}>
       <defs>
         <linearGradient id="ai-sparkle-grad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#4CB1FE" />

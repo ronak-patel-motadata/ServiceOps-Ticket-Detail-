@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaToneOf } from './TicketTable';
@@ -74,6 +75,27 @@ export function TicketStatsRow({
   rules: FilterRule[];
   onApplyFilter: (rules: FilterRule[]) => void;
 }) {
+  /* Edge fades: a soft white gradient at whichever side still hides cards — the
+     scroll hint that replaced the scrollbar. Recomputed on scroll and resize. */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [fadeL, setFadeL] = useState(false);
+  const [fadeR, setFadeR] = useState(false);
+  const updateFades = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setFadeL(el.scrollLeft > 2);
+    setFadeR(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+  useEffect(() => {
+    updateFades();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateFades);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const open = tickets.filter(isOpen);
   const openOnly = tickets.filter((t) => t.status === 'Open');
   const closed = tickets.length - open.length;
@@ -194,7 +216,8 @@ export function TicketStatsRow({
   ];
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-3 pl-6 pr-4">
+    <div className="relative">
+      <div ref={scrollRef} onScroll={updateFades} className="no-scrollbar-ever flex gap-3 overflow-x-auto pb-3 pl-6 pr-4">
       {cards.map((c) => {
         const on = isApplied(rules, c.label, c.filter);
         return (
@@ -234,6 +257,13 @@ export function TicketStatsRow({
         </div>
         );
       })}
+      </div>
+      {fadeL && (
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-white to-transparent" />
+      )}
+      {fadeR && (
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />
+      )}
     </div>
   );
 }

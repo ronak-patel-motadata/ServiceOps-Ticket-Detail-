@@ -383,3 +383,46 @@ button:not(:disabled),
 @media (prefers-reduced-motion: reduce) {
   .ai-animated-border { animation: none; }
 }
+
+/* Scrollable but bar-less, INCLUDING on hover — placed last and !important so the
+   auto-hide scrollbar rules above can never resurrect the bar. */
+.no-scrollbar-ever {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+.no-scrollbar-ever::-webkit-scrollbar,
+.no-scrollbar-ever:hover::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Global checkbox restyle — light border, product-blue fill, white tick. ONE size
+   everywhere: 16px, enforced over per-site utility classes. */
+input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px !important;
+  height: 16px !important;
+  border: 1px solid #C9D4E0;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+input[type='checkbox']:hover {
+  border-color: #A9BCCE;
+}
+input[type='checkbox']:checked {
+  border-color: #3D8BD0;
+  background-color: #3D8BD0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 8.5L7 11.5L12 5.5' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 90%;
+}
+input[type='checkbox']:focus-visible {
+  outline: 2px solid rgba(61, 139, 208, 0.35);
+  outline-offset: 1px;
+}
