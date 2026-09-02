@@ -2104,7 +2104,8 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* Endpoint KPIs — System Health · Missing Patches · Reboot Required · Last Scan */}
+            {/* Endpoint KPIs — System Health · OS Name · IP Address · Missing Patches ·
+                Reboot Required · Last Scan: what the machine IS, then what it NEEDS. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
               const p = activePatchRecord;
@@ -2119,6 +2120,26 @@ onStackMinimizedChange,
                   <span className={`text-[12px] font-medium ${health ? 'text-[#364658]' : 'text-[#9CA3AF]'}`}>{health ?? '---'}</span>
                 </span>
               ) });
+
+              const os = ep?.osName ?? '';
+              if (os) {
+                items.push({ key: 'os', tip: `Operating System: ${os}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">OS Name</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{os}</span>
+                  </span>
+                ) });
+              }
+
+              const ip = ep?.ipAddress ?? '';
+              if (ip) {
+                items.push({ key: 'ip', tip: `IP Address: ${ip}`, node: (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[11px] text-[#7B8FA5]">IP Address</span>
+                    <span className="text-[12px] font-medium text-[#364658]">{ip}</span>
+                  </span>
+                ) });
+              }
 
               // Live count from the Patches tab — drops as patches get installed there.
               const missing = endpointPatches.filter((x) => x.bucket === 'Missing').length;

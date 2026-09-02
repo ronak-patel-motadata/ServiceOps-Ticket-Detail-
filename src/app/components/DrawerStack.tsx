@@ -170,7 +170,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       push({ label: 'Install After', value: data.deployment.installAfter });
     } else if (module === 'endpoints' && data.endpoint) {
       push({ value: data.endpoint.agentOnline ? 'Agent Online' : 'Agent Offline', dot: data.endpoint.agentOnline ? '#22C55E' : '#F59E0B' });
-      push({ label: 'Health', value: data.endpoint.systemHealth, dot: data.endpoint.systemHealth === 'Healthy' ? '#22C55E' : data.endpoint.systemHealth === 'Warning' ? '#F59E0B' : '#EF4444' });
+      push({ label: 'IP', value: data.endpoint.ipAddress });
       push({ label: 'OS', value: data.endpoint.osName });
     } else if (module === 'detected-cves' && data.cve) {
       const c = data.cve;

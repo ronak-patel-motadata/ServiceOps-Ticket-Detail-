@@ -816,9 +816,9 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'CWE ID', value: 'CWE-367' },
       { label: 'Status', value: 'Modified' },
       { label: 'Severity', value: 'High', kind: 'severity' },
-      { label: 'Approval Status', value: 'Approved', kind: 'approval', info: 'Shows whether a patch for this CVE is available in Patch Management.' },
+      { label: 'Approval Status', value: 'Approved', kind: 'approval' },
       { label: 'Exploit Status', value: 'No' },
-      { label: 'Patch Availability', value: 'Yes' },
+      { label: 'Patch Availability', value: 'Yes', info: 'Shows whether a patch for this CVE is available in Patch Management.' },
       { label: 'Published Date', value: 'Tue, Jun 11, 2024 10:45 PM' },
       { label: 'Last Updated Date', value: 'Mon, Jul 27, 2026 11:26 AM' },
     ];

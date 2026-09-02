@@ -2156,12 +2156,23 @@ onStackMinimizedChange,
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
             </h1>
-            {/* CVE KPIs — Severity · CVSS 3.1 Score · Exploit · Patch · Impacted Endpoints ·
-                Published. The pro vulnerability triage metrics: how bad, how exploitable, is it
-                weaponized, can it be fixed, and how much of the fleet is exposed. */}
+            {/* CVE KPIs — Status · Severity · CVSS 3.1 Score · Exploit · Patch · Impacted
+                Endpoints · Published. The pro vulnerability triage metrics: how current the NVD
+                record is, how bad, how exploitable, is it weaponized, can it be fixed, and how
+                much of the fleet is exposed. */}
             {(() => {
               const items: HeaderKpiItem[] = [];
               const c = activePatchRecord?.cve;
+
+              /* NVD record state — Analyzed means the entry is scored and final, Modified/
+                 Awaiting Analysis mean the facts below it can still change, so it leads. */
+              const nvd = c?.nvdStatus ?? 'Analyzed';
+              items.push({ key: 'nvd', tip: `NVD Status: ${nvd}`, node: (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">Status</span>
+                  <span className="text-[12px] font-medium text-[#364658]">{nvd}</span>
+                </span>
+              ) });
 
               // Severity — colored dot (Critical red / High orange / Medium amber / Low neutral).
               const sev = c?.severity ?? 'Medium';
