@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { AiSparkle } from './AiSparkle';
 
 interface ToolbarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  /** Name of the applied listing view — doubles as the page title. */
+  activeView: string;
+  viewsOpen: boolean;
+  onToggleViews: () => void;
 }
 
-export function Toolbar({ searchQuery, setSearchQuery }: ToolbarProps) {
+export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews }: ToolbarProps) {
   // Mirrors the AI grouping banner: when the user hits "Not now", this compact
   // AI pill appears here so the suggestions stay one click away.
   const [aiGroups, setAiGroups] = useState<{ hidden: boolean; count: number }>({ hidden: false, count: 0 });
@@ -19,8 +24,16 @@ export function Toolbar({ searchQuery, setSearchQuery }: ToolbarProps) {
     <div className="bg-white">
       {/* First Row: Title, Filters, and Actions */}
       <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[17px] font-semibold text-[#1E293B]">Requests</h1>
+        <div className="relative flex items-center gap-3">
+          {/* Listing views — the Dashboard sidebar pattern brought to the listing. */}
+          <button
+            onClick={onToggleViews}
+            title={viewsOpen ? 'Hide views' : 'Request views'}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${viewsOpen ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA] hover:text-[#364658]'}`}
+          >
+            {viewsOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          </button>
+          <h1 className="text-[17px] font-semibold text-[#1E293B]">{activeView}</h1>
         </div>
         
         <div className="flex items-center gap-2">

@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, ChevronUp, X } from 'lucide-react';
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { TicketStatsRow } from './TicketStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
+import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { TicketKanban, type KanbanGroup } from './TicketKanban';
 import { Pagination } from './Pagination';
@@ -116,15 +117,15 @@ export const generateMockTickets = (): Ticket[] => {
   return Array.from({ length: 84 }, (_, i) => {
     const requester = requesters[i % requesters.length];
     const assignee = assignees[i % assignees.length];
-    // New replies land on roughly a third of the rows; the sender is the requester
-    // (or the collaborator on manually-created tickets, which have no named requester).
-    const unread = i % 3 === 0 ? (i % 2 === 0 ? 2 : 3) : i % 7 === 4 ? 1 : 0;
+    // New replies on a handful of rows per page — badges should be the exception a
+    // technician scans FOR, not row furniture.
+    const unread = i % 7 === 0 ? (i % 14 === 0 ? 3 : 2) : 0;
     // Task counts mirror the detail page seeding: 3-4 per request, 13 staged on INC-35.
     const tasksTotal = i === 5 ? 13 : 3 + (i % 2);
     const status = i === 9 ? ('Closed' as const) : i === 2 ? ('Open' as const) : statuses[i % statuses.length]; // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
     // A pending approval blocks OPEN work only — settled rows never carry one.
     const hasApproval =
-      i % 4 === 1 && status !== 'Closed' && status !== 'Completed';
+      i % 11 === 3 && status !== 'Closed' && status !== 'Completed';
     return {
       id: `INC-${String(i + 30).padStart(2, '0')}`,
       subject: subjects[i % subjects.length],
@@ -165,7 +166,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+  const startView = getDefaultView();
+  const [filterRules, setFilterRules] = useState<FilterRule[]>(
+    () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
+  );
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const stickyRef = useRef<HTMLDivElement>(null);
@@ -183,6 +187,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const sortDirection = sorts[0]?.dir ?? 'asc';
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState(startView?.name ?? 'All Requests');
+  const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Reset to first page when search query changes
@@ -356,7 +362,25 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
       <Sidebar activePage="request" onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
-        <Toolbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {viewsOpen && (
+            <TicketViewsSidebar
+              active={activeView}
+              onSelect={(v: TicketView) => {
+                setActiveView(v.name);
+                setFilterRules(v.rules.map((r, i) => ({ ...r, id: `view-${v.name}-${i}` })));
+                setCurrentPage(1);
+              }}
+            />
+          )}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Toolbar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          activeView={activeView}
+          viewsOpen={viewsOpen}
+          onToggleViews={() => setViewsOpen((v) => !v)}
+        />
         <main className="flex-1 overflow-hidden flex flex-col">
           <div
             className="flex-1 overflow-auto bg-white min-h-0 [scrollbar-gutter:stable]"
@@ -379,6 +403,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             sorts={sorts}
             onSort={handleSort}
             onClearSorts={() => setSorts([])}
+            activeView={activeView}
+            onViewSaved={(v: TicketView) => setActiveView(v.name)}
             onRemoveSort={(column) => setSorts((prev) => prev.filter((s) => s.column !== column))}
             onReorderSorts={(order) =>
               setSorts((prev) => order.map((c) => prev.find((s) => s.column === c)!).filter(Boolean))
@@ -503,8 +529,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               </div>
             )}
         </main>
+          </div>
+        </div>
       </div>
-      
+
       <TicketDrawer
         openTickets={openTickets}
         activeTicketId={activeTicketId}

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutList, Lock, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutList, Lock, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
-import { TicketFilterBar, type FilterRule } from './TicketFilterBar';
+import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
 import { KANBAN_GROUPS, type KanbanGroup } from './TicketKanban';
+import { CURRENT_USER, isMyCustomView, upsertCustomView, type TicketView } from './TicketViewsPanel';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
@@ -36,6 +37,11 @@ const ICON_BTN =
   'inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#6b7280] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]';
 const POPUP = 'absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
 
+const AUTO_REF_OPTS = ['Off', '5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'];
+const AUTO_REF_MS: Record<string, number> = {
+  '5s': 5e3, '10s': 1e4, '30s': 3e4, '1m': 6e4, '5m': 3e5, '15m': 9e5, '30m': 1.8e6, '1h': 3.6e6, '2h': 7.2e6, '1d': 8.64e7,
+};
+
 /** Closes a popup on any outside click — shared by the three right-hand menus. */
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
   const ref = useRef<T>(null);
@@ -57,6 +63,8 @@ export function TicketGridToolbar({
   setRules,
   sorts,
   onSort,
+  activeView,
+  onViewSaved,
   onRemoveSort,
   onReorderSorts,
   onClearSorts,
@@ -73,6 +81,9 @@ export function TicketGridToolbar({
   sorts: { column: keyof Ticket; dir: 'asc' | 'desc' }[];
   onSort: (column: keyof Ticket, dir?: 'asc' | 'desc') => void;
   onRemoveSort: (column: keyof Ticket) => void;
+  /** Name of the applied view — a save can overwrite it when the user owns it. */
+  activeView: string;
+  onViewSaved: (view: TicketView) => void;
   onReorderSorts: (order: (keyof Ticket)[]) => void;
   onClearSorts: () => void;
   /** Current list grouping label, or null when ungrouped. */
@@ -121,6 +132,49 @@ export function TicketGridToolbar({
       window.removeEventListener('scroll', fit, true);
     };
   }, [expOpen, expTab]);
+  // Save view — appears once the grid has been narrowed, mirroring Save Search.
+  const saveBtnRef = useRef<HTMLButtonElement>(null);
+  const savePopRef = useRef<HTMLDivElement>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveVis, setSaveVis] = useState<'My Self' | 'All Technician' | 'Technician In Group'>('My Self');
+  const [saveGroup, setSaveGroup] = useState('');
+  const [savePos, setSavePos] = useState({ top: 0, left: 0 });
+  const canUpdate = isMyCustomView(activeView);
+  useEffect(() => {
+    if (!saveOpen) return;
+    setSaveName(canUpdate ? activeView : '');
+    const r = saveBtnRef.current?.getBoundingClientRect();
+    if (r) setSavePos({ top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 372) });
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (saveBtnRef.current?.contains(t) || savePopRef.current?.contains(t)) return;
+      setSaveOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveOpen]);
+
+  /** Persist the CURRENT filters as a view — new when saving as, in place when updating. */
+  const commitView = (mode: 'saveAs' | 'update') => {
+    const name = mode === 'update' ? activeView : saveName.trim();
+    if (saveVis === 'Technician In Group' && !saveGroup) return;
+    if (!name) return;
+    const view: TicketView = {
+      name,
+      rules: rules.map(({ field, condition, values }) => ({ field, condition, values })),
+      custom: true,
+      owner: CURRENT_USER,
+      visibility: saveVis,
+      ...(saveVis === 'Technician In Group' ? { group: saveGroup } : {}),
+    };
+    upsertCustomView(view);
+    onViewSaved(view);
+    setSaveOpen(false);
+    toast.success(mode === 'update' ? `“${name}” updated` : `“${name}” saved`);
+  };
+
   const [sortQuery, setSortQuery] = useState('');
   const [sortDrag, setSortDrag] = useState<string | null>(null);
   const [sortOver, setSortOver] = useState<string | null>(null);
@@ -141,6 +195,9 @@ export function TicketGridToolbar({
   const sortRef = useOutside<HTMLDivElement>(sortOpen, () => setSortOpen(false));
   const gearRef = useOutside<HTMLDivElement>(gearOpen, () => setGearOpen(false));
   const moreRef = useOutside<HTMLDivElement>(moreOpen, () => setMoreOpen(false));
+  const [autoRef, setAutoRef] = useState('5m');
+  const [autoRefOpen, setAutoRefOpen] = useState(false);
+  const autoRefRef = useOutside<HTMLDivElement>(autoRefOpen, () => setAutoRefOpen(false));
   useEffect(() => {
     if (!expOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -158,9 +215,19 @@ export function TicketGridToolbar({
     toast.success('Requests refreshed');
   };
 
+  useEffect(() => {
+    if (autoRef === 'Off') return;
+    const t = window.setInterval(() => {
+      setSpinning(true);
+      window.setTimeout(() => setSpinning(false), 700);
+    }, AUTO_REF_MS[autoRef]);
+    return () => window.clearInterval(t);
+  }, [autoRef]);
+
   return (
-    <div className="flex flex-wrap items-center gap-2 pb-2.5 pl-6 pr-4">
-      {/* ── Left: find and narrow ── */}
+    <div className="flex items-start gap-2 pb-2.5 pl-6 pr-4">
+      {/* ── Left: find and narrow. Search sits OUTSIDE the wrapping group so the second
+           row of chips starts under the first chip, not under the search. ── */}
       {searchOpen || searchQuery ? (
         <div className="relative">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
@@ -196,10 +263,108 @@ export function TicketGridToolbar({
         </button>
       )}
 
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-11">
       <TicketFilterBar rules={rules} setRules={setRules} />
 
-      {/* ── Right: refresh, sort, display ── */}
-      <div className="ml-auto flex items-center gap-2">
+      {/* Save view — only once the grid is actually narrowed; nothing to save otherwise. */}
+      {(rules.length > 0 || sorts.length > 0) && (
+        <button
+          ref={saveBtnRef}
+          onClick={() => setSaveOpen((v) => !v)}
+          className={`inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${saveOpen ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
+        >
+          <Bookmark size={14} />
+          Save view
+        </button>
+      )}
+      {saveOpen &&
+        createPortal(
+          <div
+            ref={savePopRef}
+            style={{ top: savePos.top, left: savePos.left }}
+            className="fixed z-[9999] w-[360px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white p-4 shadow-xl"
+          >
+            <label className="mb-1.5 block text-[13px] text-[#7B8FA5]">
+              Save view <span className="text-[#EF4444]">*</span>
+            </label>
+            <input
+              autoFocus
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveName.trim() && commitView('saveAs')}
+              placeholder="Name"
+              className="mb-4 h-9 w-full rounded border border-[#DFE5ED] px-2.5 text-[13px] text-[#364658] outline-none placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+            />
+            <label className="mb-1.5 block text-[13px] text-[#7B8FA5]">Visibility</label>
+            <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+              {(['My Self', 'All Technician', 'Technician In Group'] as const).map((o) => (
+                <button
+                  key={o}
+                  onClick={() => {
+                    setSaveVis(o);
+                    if (o !== 'Technician In Group') setSaveGroup('');
+                  }}
+                  className="inline-flex items-center gap-2"
+                >
+                  <span className={`flex size-4 items-center justify-center rounded-full border-2 transition-colors ${saveVis === o ? 'border-[#3D8BD0]' : 'border-[#CBD5E1]'}`}>
+                    {saveVis === o && <span className="size-2 rounded-full bg-[#3D8BD0]" />}
+                  </span>
+                  <span className="text-[13px] text-[#364658]">{o}</span>
+                </button>
+              ))}
+            </div>
+            {saveVis === 'Technician In Group' && (
+              <div className="mb-4">
+                <label className="mb-1.5 block text-[13px] text-[#7B8FA5]">
+                  Group <span className="text-[#EF4444]">*</span>
+                </label>
+                <select
+                  value={saveGroup}
+                  onChange={(e) => setSaveGroup(e.target.value)}
+                  className="app-select h-9 w-full rounded border border-[#DFE5ED] bg-white pl-2.5 text-[13px] text-[#364658] outline-none focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
+                >
+                  <option value="">Select group</option>
+                  {TECH_GROUPS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 border-t border-[#F0F1F3] pt-3">
+              <button
+                disabled={!saveName.trim() || (saveVis === 'Technician In Group' && !saveGroup)}
+                onClick={() => commitView('saveAs')}
+                className="rounded bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save As
+              </button>
+              {/* Update only exists for a saved view of mine that is currently applied. */}
+              {canUpdate && (
+                <button
+                  disabled={saveVis === 'Technician In Group' && !saveGroup}
+                  onClick={() => commitView('update')}
+                  className="rounded border border-[#DFE5ED] px-3 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Update
+                </button>
+              )}
+              <button
+                onClick={() => setSaveOpen(false)}
+                className="rounded border border-[#DFE5ED] px-3 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      </div>
+
+      {/* ── Right: refresh, sort, display — never pushed to a second row ── */}
+      <div className="flex flex-shrink-0 items-center gap-2">
         {/* Export + Download — merged into ONE control (the Report page pattern): two tabs in
             one popup instead of two near-identical icons the user has to choose between. */}
         <div className="relative" ref={expWrapRef}>
@@ -363,9 +528,53 @@ export function TicketGridToolbar({
           )}
         </div>
 
-        <button onClick={refresh} className={ICON_BTN} title="Refresh">
-          <RefreshCw size={16} className={spinning ? 'animate-spin' : ''} />
-        </button>
+        {/* Refresh + auto-refresh interval merged into one split control (Dashboard pattern). */}
+        <div className="relative" ref={autoRefRef}>
+          <div className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#DFE5ED] bg-white">
+            <button
+              onClick={refresh}
+              className="inline-flex w-8 items-center justify-center text-[#6b7280] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]"
+              title="Refresh"
+            >
+              <RefreshCw size={16} className={spinning ? 'animate-spin' : ''} />
+            </button>
+            <span className="w-px flex-shrink-0 bg-[#E5E7EB]" />
+            <button
+              onClick={() => setAutoRefOpen((v) => !v)}
+              className={`inline-flex items-center gap-0.5 pl-2 pr-1.5 text-[12px] font-medium transition-colors hover:bg-[#F5F7FA] ${
+                autoRef !== 'Off' || autoRefOpen ? 'text-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'
+              }`}
+              title="Auto refresh interval"
+            >
+              {autoRef}
+              <ChevronDown size={13} className={`transition-transform ${autoRefOpen ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+          {autoRefOpen && (
+            <div className={`${POPUP} w-[124px] py-1`}>
+              <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Auto refresh</div>
+              {AUTO_REF_OPTS.map((o) => {
+                const on = o === autoRef;
+                return (
+                  <button
+                    key={o}
+                    onClick={() => {
+                      setAutoRef(o);
+                      setAutoRefOpen(false);
+                      toast.success(o === 'Off' ? 'Auto refresh turned off' : `Auto refresh every ${o}`);
+                    }}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition-colors ${
+                      on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                    }`}
+                  >
+                    {o}
+                    {on && <Check size={13} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="relative" ref={sortRef}>
           <button
@@ -589,12 +798,12 @@ export function TicketGridToolbar({
                   <button
                     onClick={() => {
                       localStorage.removeItem('ticketListColumnsV2');
-                      toast.success('Grid layout reset — reloading');
+                      toast.success('Columns reset to default — reloading');
                       window.setTimeout(() => window.location.reload(), 600);
                     }}
                     className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-[#64748B] transition-colors hover:bg-[#F9FAFB] hover:text-[#364658]"
                   >
-                    Reset grid layout
+                    Reset columns to default
                   </button>
                     </>
                   )}
@@ -688,7 +897,6 @@ export function TicketGridToolbar({
               {[
                 { key: 'import-incident', label: 'Import Incident', icon: Import },
                 { key: 'import-sr', label: 'Import Service Request', icon: Import },
-                { key: 'auto-refresh', label: 'Auto Refresh Interval', icon: RefreshCw },
               ].map((a) => (
                 <button
                   key={a.key}

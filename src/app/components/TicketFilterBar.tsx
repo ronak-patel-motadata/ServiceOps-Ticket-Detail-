@@ -66,7 +66,7 @@ const SLA_OPTS = [
 ];
 const REQUESTERS = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
 const ASSIGNEES = ['Amou Desai', 'Keetion Dale', 'Shreyak Dalal', 'Kaison Potai', 'Novak Potai', 'Rahul Shukla', 'Pratik Patial'];
-const TECH_GROUPS = ['IT Support Group', 'Network Operations', 'Hardware Support Team', 'Software Support Team'];
+export const TECH_GROUPS = ['IT Support Group', 'Network Operations', 'Hardware Support Team', 'Software Support Team'];
 const IMPACTS = ['On Users', 'On Department', 'Low', 'On Business'];
 const DEPARTMENTS = ['Finance', 'Human Resources', 'Engineering', 'Sales', 'Operations'];
 const SOURCES = ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'];
@@ -231,10 +231,21 @@ function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
 }
 
 /** Attribute picker — the list of columns you can filter on. */
-function AttrPicker({ onPick, onClose, align = 'left' }: { onPick: (key: string) => void; onClose: () => void; align?: 'left' | 'right' }) {
+function AttrPicker({
+  onPick,
+  onClose,
+  align = 'left',
+  used = [],
+}: {
+  onPick: (key: string) => void;
+  onClose: () => void;
+  align?: 'left' | 'right';
+  /** Attribute keys already filtered — hidden so a column is never listed twice. */
+  used?: string[];
+}) {
   const [q, setQ] = useState('');
   const ref = useOutside<HTMLDivElement>(true, onClose);
-  const rows = FILTER_ATTRS.filter((a) => a.label.toLowerCase().includes(q.trim().toLowerCase()));
+  const rows = FILTER_ATTRS.filter((a) => !used.includes(a.key) && a.label.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div ref={ref} className={`${POPUP} top-full mt-1 w-[280px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
       <div className="border-b border-[#F0F2F5] p-2">
@@ -514,7 +525,7 @@ export function TicketFilterBar({ rules, setRules }: { rules: FilterRule[]; setR
             <Plus size={15} />
           </button>
         )}
-        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} />}
+        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} />}
       </div>
 
       {rules.length > 0 && (

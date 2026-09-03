@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, GripVertical, Layers, ListChecks, MessageSquare, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -256,11 +256,10 @@ const EXTRA_COLS: ColDef[] = [
 ];
 
 const DAYS3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONS3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDate = (d: Date) => {
   const h12 = d.getHours() % 12 || 12;
   const ap = d.getHours() < 12 ? 'AM' : 'PM';
-  return `${DAYS3[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${MONS3[d.getMonth()]}/${d.getFullYear()} ${String(h12).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
+  return `${DAYS3[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(h12).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
 };
 // Deterministic per-ticket hash so every optional column shows stable, believable values.
 const hx = (id: string, salt: number) => {
@@ -1068,122 +1067,42 @@ export function TicketTable({
       case 'id':
         return (
               <td className="overflow-hidden px-4 py-3">
-                <span 
-                  className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTicketClick(ticket);
-                  }}
-                >
-                  {ticket.id}
+                <span className="relative inline-block">
+                  <span
+                    className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketClick(ticket);
+                    }}
+                  >
+                    {ticket.id}
+                  </span>
+                  <RowAttention ticket={ticket} />
                 </span>
               </td>
         );
       case 'subject':
         return (
-              <td className="overflow-hidden px-4 py-3 text-[12px] text-[#364658]">
+              <td
+                className="relative cursor-pointer overflow-hidden px-4 py-3 text-[12px] text-[#364658]"
+                onClick={() => onTicketClick(ticket)}
+              >
                 <span className="flex min-w-0 items-center gap-2">
                   {/* Unread rows read bold, Gmail-style. */}
-                  <span className={`min-w-0 flex-1 truncate ${ticket.unread ? 'font-semibold text-[#1E293B]' : 'font-medium'}`}>{ticket.subject}</span>
-                  {/* New-message chip → hover card previews the latest reply. */}
-                  {!!ticket.unread && ticket.lastMsg && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex h-5 flex-shrink-0 items-center gap-1 rounded-full bg-[#EBF5FF] px-2 text-[11px] font-semibold text-[#3D8BD0]">
-                          <MessageSquare size={11} className="flex-shrink-0" />
-                          {ticket.unread} new
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="end" sideOffset={4} hideArrow className="w-[268px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
-                        <div className="px-3 py-2.5 text-left">
-                          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
-                            {ticket.unread} new message{ticket.unread === 1 ? '' : 's'}
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
-                              {requesterAvatar(ticket.lastMsg.from).initials}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className="truncate text-[12px] font-semibold">{ticket.lastMsg.from}</span>
-                                <span className="flex-shrink-0 text-[11px] text-[#94A3B8]">{ticket.lastMsg.time}</span>
-                              </div>
-                              <p className="mt-0.5 text-[12px] leading-snug text-[#64748B] line-clamp-2 text-wrap">{ticket.lastMsg.snippet}</p>
-                            </div>
-                          </div>
-                          <div className="mt-2 border-t border-[#F0F2F5] pt-1.5 text-[11px] font-medium text-[#3D8BD0]">Open the request to reply</div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  {/* Pending-approval chip → amber, hover card names the approver + level. */}
-                  {ticket.approval && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex h-5 flex-shrink-0 items-center gap-1 rounded-full bg-[#FFF3E0] px-2 text-[11px] font-semibold text-[#F39C12]">
-                          <UserCheck size={11} className="flex-shrink-0" />
-                          Approval
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="end" sideOffset={4} hideArrow className="w-[248px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
-                        <div className="px-3 py-2.5 text-left">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Pending approval</span>
-                            <span className="rounded-sm bg-[#FFF3E0] px-1.5 py-0.5 text-[10px] font-semibold text-[#F39C12]">Level {ticket.approval.level} of {ticket.approval.totalLevels}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
-                              {requesterAvatar(ticket.approval.approver).initials}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[12px] font-semibold">{ticket.approval.approver}</div>
-                              <div className="text-[11px] text-[#94A3B8]">Waiting for {ticket.approval.waiting}</div>
-                            </div>
-                          </div>
-                          <div className="mt-2 border-t border-[#F0F2F5] pt-1.5 text-[11px] font-medium text-[#3D8BD0]">Open the request to review</div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                  {/* Task-progress chip → hover card with a progress bar + first tasks. */}
-                  {!!ticket.tasksTotal && (() => {
-                    const total = ticket.tasksTotal!;
-                    const done = ticket.tasksDone ?? 0;
-                    const allDone = done >= total;
-                    const names = taskListFor(ticket.subject);
-                    return (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className={`inline-flex h-5 flex-shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium ${allDone ? 'bg-[#E8F5E9] text-[#27AE60]' : 'bg-[#F1F5F9] text-[#64748B]'}`}>
-                            <ListChecks size={11} className="flex-shrink-0" />
-                            {done}/{total}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="end" sideOffset={4} hideArrow className="w-[248px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
-                          <div className="px-3 py-2.5 text-left">
-                            <div className="mb-1.5 flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Tasks</span>
-                              <span className="text-[11px] font-semibold">{done} of {total} done</span>
-                            </div>
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-[#EEF1F4]">
-                              <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-                            </div>
-                            <div className="mt-2 space-y-1">
-                              {names.slice(0, 3).map((n, k) => (
-                                <div key={n} className="flex items-center gap-1.5 text-[12px]">
-                                  <span className="flex size-3 flex-shrink-0 items-center justify-center">
-                                    {k < done ? <Check size={12} className="text-[#22A06B]" /> : <span className="size-1.5 rounded-full bg-[#CBD5E1]" />}
-                                  </span>
-                                  <span className={`truncate ${k < done ? 'text-[#94A3B8] line-through' : 'text-[#4A5568]'}`}>{n}</span>
-                                </div>
-                              ))}
-                              {total > 3 && <div className="pl-[18px] text-[11px] text-[#94A3B8]">+{total - 3} more task{total - 3 === 1 ? '' : 's'}</div>}
-                            </div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })()}
+                  <span className={`min-w-0 flex-1 truncate decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline ${ticket.unread ? 'font-semibold text-[#1E293B]' : 'font-medium'}`}>{ticket.subject}</span>
+                </span>
+                {/* Row hover: an explicit way in, so "click the row" is never the only clue. */}
+                <span className="pointer-events-none absolute inset-y-0 right-0 hidden items-center bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent pl-10 pr-4 group-hover:flex">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTicketClick(ticket);
+                    }}
+                    className="pointer-events-auto inline-flex h-6 flex-shrink-0 items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2 text-[11px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+                  >
+                    <PanelRightOpen size={12} className="flex-shrink-0" />
+                    Open
+                  </button>
                 </span>
               </td>
         );
@@ -1414,13 +1333,141 @@ export function TicketTable({
       <col style={{ width: ICON_W }} />
     </colgroup>
   );
+  /* Corner badge on the ID pill summarising what needs attention (unread replies, a
+     pending approval, open tasks). It is an arrival nudge, not a permanent marker:
+     every card row can be ACKNOWLEDGED — the count shrinks per ack and the badge
+     disappears once everything is cleared. Session-only state by design; the next
+     visit re-surfaces whatever is still genuinely pending. Keys are `id|signal`. */
+  const [ackedAttn, setAckedAttn] = useState<Set<string>>(new Set());
+  const ackAttn = (...keys: string[]) => setAckedAttn((prev) => new Set([...prev, ...keys]));
+  const RowAttention = ({ ticket }: { ticket: Ticket }) => {
+    const total = ticket.tasksTotal ?? 0;
+    const done = ticket.tasksDone ?? 0;
+    const hasUnread = !!ticket.unread && !ackedAttn.has(`${ticket.id}|unread`);
+    const hasApproval = !!ticket.approval && !ackedAttn.has(`${ticket.id}|approval`);
+    const openTasks = total > 0 && done < total && !ackedAttn.has(`${ticket.id}|tasks`);
+    /* Open tasks alone never badge a row (every request has tasks) — they only ride
+       along in the card once replies or an approval already earned the badge. */
+    if (!hasUnread && !hasApproval) return null;
+    const items = [hasUnread, hasApproval, openTasks].filter(Boolean).length;
+    // Dark slate so the tiny corner count stays legible; detail is the hover card’s job.
+    const tone = { bg: '#475569', fg: '#FFFFFF' };
+    const names = taskListFor(ticket.subject);
+    return (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <span
+            className="absolute -right-2 -top-1.5 z-10 flex size-4 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums ring-2 ring-white"
+            style={{ backgroundColor: tone.bg, color: tone.fg }}
+          >
+            {items}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="right" align="start" sideOffset={6} hideArrow className="w-[272px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
+          <div className="px-3 py-2.5 text-left">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Needs attention</div>
+            <div className="space-y-2.5">
+              {hasUnread && (
+                <div className="group/att flex items-start gap-2">
+                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#EBF5FF]">
+                    <MessageSquare size={11} className="text-[#3D8BD0]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-semibold">
+                      {ticket.unread} new message{ticket.unread === 1 ? '' : 's'}
+                    </div>
+                    {ticket.lastMsg && (
+                      <p className="mt-0.5 text-[11px] leading-snug text-[#64748B] line-clamp-2 text-wrap">
+                        {ticket.lastMsg.from}: {ticket.lastMsg.snippet}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    aria-label="Acknowledge messages"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      ackAttn(`${ticket.id}|unread`);
+                    }}
+                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
+              )}
+              {hasApproval && ticket.approval && (
+                <div className="group/att flex items-start gap-2">
+                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF3E0]">
+                    <UserCheck size={11} className="text-[#F39C12]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-semibold">Approval pending</div>
+                    <p className="mt-0.5 text-[11px] text-[#64748B]">
+                      {ticket.approval.approver} · Level {ticket.approval.level} of {ticket.approval.totalLevels} · waiting {ticket.approval.waiting}
+                    </p>
+                  </div>
+                  <button
+                    aria-label="Acknowledge approval"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      ackAttn(`${ticket.id}|approval`);
+                    }}
+                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
+              )}
+              {openTasks && (
+                <div className="group/att flex items-start gap-2">
+                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F1F5F9]">
+                    <ListChecks size={11} className="text-[#64748B]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[12px] font-semibold">Tasks</span>
+                      <span className="text-[11px] font-semibold text-[#64748B]">{done} of {total} done</span>
+                    </div>
+                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[#EEF1F4]">
+                      <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-[#64748B]">Next: {names[done] ?? names[0]}</p>
+                  </div>
+                  <button
+                    aria-label="Acknowledge tasks"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      ackAttn(`${ticket.id}|tasks`);
+                    }}
+                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* One-click clear for the whole card. */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                ackAttn(`${ticket.id}|unread`, `${ticket.id}|approval`, `${ticket.id}|tasks`);
+              }}
+              className="-mx-3 -mb-2.5 mt-2.5 flex w-[calc(100%+24px)] items-center justify-center gap-1.5 rounded-b-md border-t border-[#F1F5F9] px-3 py-2 text-[11px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#F5FAFF]"
+            >
+              <CheckCheck size={13} />
+              Acknowledge all
+            </button>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   const renderTicketRow = (ticket: Ticket) => {
     const picked = selectedTickets.has(ticket.id);
     return (
             <tr
               key={ticket.id}
-              className={`group cursor-pointer border-b border-[#F1F5F9] transition-colors ${picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
-              onClick={() => onTicketClick(ticket)}
+              className={`group border-b border-[#F1F5F9] transition-colors ${picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
             >
               <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
                 {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
@@ -1430,7 +1477,7 @@ export function TicketTable({
                   checked={picked}
                   onChange={(e) => onSelectTicket(ticket.id, e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
-                  className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                  className="cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
                 />
               </td>
               {displayMeta.map((m) => {
