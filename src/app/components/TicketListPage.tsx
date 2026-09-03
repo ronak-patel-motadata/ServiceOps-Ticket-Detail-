@@ -370,7 +370,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
           />
           <TicketGroupSuggestions />
           </div>
-          <div ref={stickyRef} className="sticky left-0 top-0 z-[60] bg-white pt-0.5">
+          <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
