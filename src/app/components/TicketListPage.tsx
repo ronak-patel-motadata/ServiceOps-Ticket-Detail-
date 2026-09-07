@@ -11,6 +11,7 @@ import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { TicketKanban, type KanbanGroup } from './TicketKanban';
+import { TicketDashboardView } from './TicketDashboardView';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
@@ -172,7 +173,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'kanban'>('list');
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard'>('list-kpi');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
@@ -389,11 +390,13 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
           <div className="sticky left-0 bg-white pt-0.5">
-          <TicketStatsRow
-            tickets={tickets}
-            rules={filterRules}
-            onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
-          />
+          {view === 'list-kpi' && (
+            <TicketStatsRow
+              tickets={tickets}
+              rules={filterRules}
+              onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
+            />
+          )}
           <TicketGroupSuggestions />
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
@@ -425,6 +428,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               onTicketClick={handleOpenTicket}
               onUpdateTicket={updateTicket}
             />
+          ) : view === 'dashboard' ? (
+            <TicketDashboardView tickets={sortedTickets} />
           ) : (
             <TicketTable
               tickets={paginatedTickets}
@@ -445,7 +450,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
           )}
             
           </div>
-            {!isGrouped && view === 'list' && (
+            {!isGrouped && (view === 'list' || view === 'list-kpi') && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

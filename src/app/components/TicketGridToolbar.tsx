@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutList, Lock, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
 import { KANBAN_GROUPS, type KanbanGroup } from './TicketKanban';
-import { CURRENT_USER, isMyCustomView, upsertCustomView, type TicketView } from './TicketViewsPanel';
+import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
@@ -46,6 +46,13 @@ const AUTO_REF_OPTS = [
   { key: '30m', label: '30 Minutes' },
 ];
 const AUTO_REF_MS: Record<string, number> = { '5m': 3e5, '10m': 6e5, '20m': 1.2e6, '25m': 1.5e6, '30m': 1.8e6 };
+
+const LAYOUTS = [
+  { key: 'list' as const, label: 'List', Icon: LayoutList },
+  { key: 'list-kpi' as const, label: 'List + KPI', Icon: LayoutPanelTop },
+  { key: 'kanban' as const, label: 'Kanban', Icon: SquareKanban },
+  { key: 'dashboard' as const, label: 'Dashboard', Icon: LayoutDashboard },
+];
 
 /** Closes a popup on any outside click — shared by the three right-hand menus. */
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
@@ -93,8 +100,8 @@ export function TicketGridToolbar({
   onClearSorts: () => void;
   /** Current list grouping label, or null when ungrouped. */
   listGroupLabel?: string | null;
-  view: 'list' | 'kanban';
-  setView: (v: 'list' | 'kanban') => void;
+  view: 'list' | 'list-kpi' | 'kanban' | 'dashboard';
+  setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard') => void;
   kanbanGroup: KanbanGroup;
   setKanbanGroup: (g: KanbanGroup) => void;
 }) {
@@ -146,9 +153,11 @@ export function TicketGridToolbar({
   const [saveGroup, setSaveGroup] = useState('');
   const [savePos, setSavePos] = useState({ top: 0, left: 0 });
   const canUpdate = isMyCustomView(activeView);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const isList = view === 'list' || view === 'list-kpi';
   useEffect(() => {
     if (!saveOpen) return;
-    setSaveName(canUpdate ? activeView : '');
+    setSaveName('');
     const r = saveBtnRef.current?.getBoundingClientRect();
     if (r) setSavePos({ top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 372) });
     const onDown = (e: MouseEvent) => {
@@ -164,15 +173,22 @@ export function TicketGridToolbar({
   /** Persist the CURRENT filters as a view — new when saving as, in place when updating. */
   const commitView = (mode: 'saveAs' | 'update') => {
     const name = mode === 'update' ? activeView : saveName.trim();
-    if (saveVis === 'Technician In Group' && !saveGroup) return;
+    if (mode === 'saveAs' && saveVis === 'Technician In Group' && !saveGroup) return;
     if (!name) return;
+    const prev = mode === 'update' ? loadCustomViews().find((v) => v.name === name) : undefined;
     const view: TicketView = {
       name,
       rules: rules.map(({ field, condition, values }) => ({ field, condition, values })),
       custom: true,
       owner: CURRENT_USER,
-      visibility: saveVis,
-      ...(saveVis === 'Technician In Group' ? { group: saveGroup } : {}),
+      visibility: mode === 'update' ? (prev?.visibility ?? 'My Self') : saveVis,
+      ...(mode === 'update'
+        ? prev?.group
+          ? { group: prev.group }
+          : {}
+        : saveVis === 'Technician In Group'
+          ? { group: saveGroup }
+          : {}),
     };
     upsertCustomView(view);
     onViewSaved(view);
@@ -185,7 +201,7 @@ export function TicketGridToolbar({
   const [sortOver, setSortOver] = useState<string | null>(null);
   const [gearOpen, setGearOpen] = useState(false);
   // The gear opens as the view switcher; "Group by" swaps the card in place.
-  const [gearView, setGearView] = useState<'main' | 'group'>('main');
+  const [gearView, setGearView] = useState<'main' | 'layout' | 'group'>('main');
   // Mirrors the grid's visible-column set so the row states what it opens onto.
   const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
   useEffect(() => {
@@ -200,6 +216,7 @@ export function TicketGridToolbar({
   const sortRef = useOutside<HTMLDivElement>(sortOpen, () => setSortOpen(false));
   const gearRef = useOutside<HTMLDivElement>(gearOpen, () => setGearOpen(false));
   const moreRef = useOutside<HTMLDivElement>(moreOpen, () => setMoreOpen(false));
+  const saveMenuRef = useOutside<HTMLDivElement>(saveMenuOpen, () => setSaveMenuOpen(false));
   const [autoRef, setAutoRef] = useState('5m');
   const [autoRefOpen, setAutoRefOpen] = useState(false);
   const autoRefRef = useOutside<HTMLDivElement>(autoRefOpen, () => setAutoRefOpen(false));
@@ -271,17 +288,6 @@ export function TicketGridToolbar({
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-11">
       <TicketFilterBar rules={rules} setRules={setRules} />
 
-      {/* Save view — only once the grid is actually narrowed; nothing to save otherwise. */}
-      {(rules.length > 0 || sorts.length > 0) && (
-        <button
-          ref={saveBtnRef}
-          onClick={() => setSaveOpen((v) => !v)}
-          className={`inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${saveOpen ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#364658] hover:bg-[#F5F7FA]'}`}
-        >
-          <Bookmark size={14} />
-          Save view
-        </button>
-      )}
       {saveOpen &&
         createPortal(
           <div
@@ -343,18 +349,8 @@ export function TicketGridToolbar({
                 onClick={() => commitView('saveAs')}
                 className="rounded bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Save As
+                Save
               </button>
-              {/* Update only exists for a saved view of mine that is currently applied. */}
-              {canUpdate && (
-                <button
-                  disabled={saveVis === 'Technician In Group' && !saveGroup}
-                  onClick={() => commitView('update')}
-                  className="rounded border border-[#DFE5ED] px-3 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Update
-                </button>
-              )}
               <button
                 onClick={() => setSaveOpen(false)}
                 className="rounded border border-[#DFE5ED] px-3 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
@@ -370,6 +366,45 @@ export function TicketGridToolbar({
 
       {/* ── Right: refresh, sort, display — never pushed to a second row ── */}
       <div className="flex flex-shrink-0 items-center gap-2">
+        {(rules.length > 0 || sorts.length > 0) && (
+          <div className="relative" ref={saveMenuRef}>
+            <button
+              ref={saveBtnRef}
+              onClick={() => setSaveMenuOpen((v) => !v)}
+              className={`inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded border px-2.5 text-[13px] font-medium transition-colors ${
+                saveMenuOpen ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#364658] hover:bg-[#F5F7FA]'
+              }`}
+            >
+              <Bookmark size={14} />
+              Save
+              <ChevronDown size={13} className={`transition-transform ${saveMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {saveMenuOpen && (
+              <div className={`${POPUP} w-[208px] py-1`}>
+                <button
+                  disabled={!canUpdate}
+                  title={canUpdate ? undefined : 'Only your own saved views can be updated'}
+                  onClick={() => {
+                    setSaveMenuOpen(false);
+                    commitView('update');
+                  }}
+                  className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:text-[#B6C2D1] disabled:hover:bg-white"
+                >
+                  Update this view
+                </button>
+                <button
+                  onClick={() => {
+                    setSaveMenuOpen(false);
+                    setSaveOpen(true);
+                  }}
+                  className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                >
+                  Create as a new view
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {/* Export + Download — merged into ONE control (the Report page pattern): two tabs in
             one popup instead of two near-identical icons the user has to choose between. */}
         <div className="relative" ref={expWrapRef}>
@@ -726,27 +761,17 @@ export function TicketGridToolbar({
             <div className={`${POPUP} w-[280px]`}>
               {gearView === 'main' ? (
                 <>
-                  {/* View switcher — the two layouts of the same requests. */}
-                  <div className="flex gap-1 p-2">
-                    {([
-                      { key: 'list' as const, label: 'List', Icon: LayoutList },
-                      { key: 'kanban' as const, label: 'Kanban', Icon: SquareKanban },
-                    ]).map(({ key, label, Icon }) => (
-                      <button
-                        key={key}
-                        onClick={() => setView(key)}
-                        className={`flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 text-[12px] font-medium transition-colors ${
-                          view === key
-                            ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
-                            : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9]'
-                        }`}
-                      >
-                        <Icon size={17} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="border-t border-[#F0F2F5]" />
+                  {/* Layout lives behind one settings row (Notion pattern) — the four
+                      tiles moved into their own sub-view to keep the menu calm. */}
+                  <button
+                    onClick={() => setGearView('layout')}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                  >
+                    <LayoutGrid size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                    <span className="flex-1 text-[13px] text-[#364658]">Layout</span>
+                    <span className="text-[13px] font-medium text-[#3D8BD0]">{LAYOUTS.find((l) => l.key === view)?.label}</span>
+                    <ChevronRight size={14} className="text-[#9CA3AF]" />
+                  </button>
                   {view === 'kanban' && (
                     <button
                       onClick={() => setGearView('group')}
@@ -760,7 +785,7 @@ export function TicketGridToolbar({
                       <ChevronRight size={14} className="text-[#9CA3AF]" />
                     </button>
                   )}
-                  {view === 'list' && (
+                  {isList && (
                     <button
                       onClick={() => {
                         setGroupQuery('');
@@ -778,7 +803,7 @@ export function TicketGridToolbar({
                       <ChevronRight size={14} className="text-[#9CA3AF]" />
                     </button>
                   )}
-                  {view === 'list' && (
+                  {isList && (
                   <button
                     onClick={() => {
                       // The grid owns the column manager; the toolbar just asks for it.
@@ -795,7 +820,7 @@ export function TicketGridToolbar({
                     <ChevronRight size={14} className="text-[#9CA3AF]" />
                   </button>
                   )}
-                  {view === 'list' && (
+                  {isList && (
                     <>
                   <div className="border-t border-[#F0F2F5]" />
                   <button
@@ -811,6 +836,37 @@ export function TicketGridToolbar({
                     </>
                   )}
                 </>
+              ) : gearView === 'layout' ? (
+                <>
+                  <div className="flex items-center gap-1.5 border-b border-[#F0F2F5] px-2 py-2">
+                    <button
+                      onClick={() => setGearView('main')}
+                      className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span className="text-[13px] font-semibold text-[#1E293B]">Layout</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 p-2">
+                    {LAYOUTS.map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          setView(key);
+                          setGearView('main');
+                        }}
+                        className={`flex flex-col items-center gap-1.5 rounded-lg border py-2.5 text-[12px] font-medium transition-colors ${
+                          view === key
+                            ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                            : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9]'
+                        }`}
+                      >
+                        <Icon size={17} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="flex items-center gap-1.5 border-b border-[#F0F2F5] px-2 py-2">
@@ -822,7 +878,7 @@ export function TicketGridToolbar({
                     </button>
                     <span className="text-[13px] font-semibold text-[#1E293B]">Group by</span>
                   </div>
-                  {view === 'list' && gridCols.length > 7 && (
+                  {isList && gridCols.length > 7 && (
                     <div className="border-b border-[#F0F2F5] p-2">
                       <input
                         autoFocus
@@ -834,7 +890,7 @@ export function TicketGridToolbar({
                     </div>
                   )}
                   <div className="max-h-[300px] overflow-y-auto py-1">
-                    {view === 'list' ? (
+                    {isList ? (
                       <>
                         <button
                           onClick={() => {

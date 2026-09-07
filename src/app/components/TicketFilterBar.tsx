@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { extraValue, slaToneOf } from './TicketTable';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Attribute-based filter builder (Attio / DevRev pattern): pick an attribute → it becomes
    a chip reading "Attribute · condition · value", each segment independently editable.
@@ -495,15 +496,19 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
     const active = valuesOf(field).length > 0;
     if (active) return null;
     return (
-      <button
-        onClick={() => setOpen((v) => (v === field ? null : field))}
-        title={label}
-        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${
-          active || open === field ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]'
-        }`}
-      >
-        <Icon size={15} />
-      </button>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setOpen((v) => (v === field ? null : field))}
+            className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${
+              open === field ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]'
+            }`}
+          >
+            <Icon size={15} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
     );
   };
 

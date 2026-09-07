@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { MessageSquare, ListChecks, UserCheck } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf, SlaPill } from './TicketTable';
+import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
+import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* Kanban view of the same requests the grid shows. Columns come from the chosen group
@@ -92,6 +95,14 @@ export function TicketKanban({
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  // Full-description popup (opened from the hover expand on a card).
+  const [descTicket, setDescTicket] = useState<Ticket | null>(null);
+  useEffect(() => {
+    if (!descTicket) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDescTicket(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [descTicket]);
 
   // Column set: a fixed lifecycle order where one exists, otherwise the values present.
   const present = Array.from(new Set(tickets.map((t) => groupValue(t, group))));
@@ -116,7 +127,8 @@ export function TicketKanban({
   };
 
   return (
-    <div className="flex min-h-full gap-5 bg-[#FAFBFC] px-6 pb-6">
+    <div className="w-max min-w-full pb-6 pl-6 pr-4">
+      <div className="flex min-h-full gap-5 rounded-lg bg-[#FAFBFC] px-5 pb-5">
       {columns.map((col) => {
         const cards = tickets.filter((t) => groupValue(t, group) === col);
         const isOver = overCol === col && canDrop;
@@ -133,7 +145,7 @@ export function TicketKanban({
             className="flex w-[388px] flex-shrink-0 flex-col"
           >
             {/* Column header — the value, its count, and nothing else. */}
-            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#FAFBFC] pb-2.5 pt-4">
+            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#FAFBFC] px-3 pb-2.5 pt-4">
               {PEOPLE_GROUP(group) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -171,7 +183,7 @@ export function TicketKanban({
                       setOverCol(null);
                     }}
                     onClick={() => onTicketClick(t)}
-                    className={`cursor-pointer rounded-lg border border-[#E5E7EB] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:border-[#C9D4E0] hover:shadow-[0_3px_10px_rgba(16,24,40,0.08)] ${
+                    className={`group/card cursor-pointer rounded-lg border border-[#E5E7EB] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:border-[#C9D4E0] hover:shadow-[0_3px_10px_rgba(16,24,40,0.08)] ${
                       dragId === t.id ? 'opacity-40' : ''
                     }`}
                   >
@@ -190,6 +202,22 @@ export function TicketKanban({
 
                     <div className={`mt-1.5 line-clamp-2 text-[13px] text-[#364658] ${(t.unread ?? 0) > 0 ? 'font-semibold' : 'font-medium'}`}>
                       {t.subject}
+                    </div>
+
+                    {/* Same themed description the quick peek shows — two quiet lines. */}
+                    <div className="relative">
+                      <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#64748B]">{describeSubject(t.subject).short}</p>
+                      <Tip text="View full description">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDescTicket(t);
+                          }}
+                          className="absolute -bottom-0.5 right-0 hidden size-6 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#64748B] shadow-sm transition-colors hover:bg-[#F5F7FA] hover:text-[#364658] group-hover/card:flex"
+                        >
+                          <Maximize2 size={11} />
+                        </button>
+                      </Tip>
                     </div>
 
                     {/* Row intelligence, same signals the grid's subject cell carries. */}
@@ -267,6 +295,58 @@ export function TicketKanban({
           </div>
         );
       })}
+      {descTicket &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 p-6"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setDescTicket(null);
+            }}
+          >
+            <div className="w-[560px] max-w-full overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-2xl">
+              <div className="flex items-center gap-3 border-b border-[#F0F2F5] px-5 py-4">
+                <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{descTicket.id}</span>
+                <h3 className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-[#1E293B]">{descTicket.subject}</h3>
+                <button
+                  onClick={() => setDescTicket(null)}
+                  className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]"
+                >
+                  <X size={16} className="text-[#64748B]" />
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Description</div>
+                <div className="space-y-3">
+                  {fullDescriptionFor(descTicket.id, descTicket.subject).map((p, i) => (
+                    <Fragment key={i}>
+                      <p className="text-[13px] leading-relaxed text-[#364658]">{p}</p>
+                      {i === descriptionImageAfter(descTicket.id) && <DescriptionInlineImage />}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-[#F0F2F5] px-5 py-3">
+                <button
+                  onClick={() => setDescTicket(null)}
+                  className="rounded border border-[#DFE5ED] px-3 py-1.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    onTicketClick(descTicket);
+                    setDescTicket(null);
+                  }}
+                  className="rounded bg-[#3D8BD0] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+                >
+                  Open request
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { DEMO_CUSTOM_FORM_FIELDS } from './demoCustomFields';
+import { describeSubject } from './requestDescriptions';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { StatusBadge } from './StatusBadge';
@@ -190,100 +191,7 @@ const DEMO_STAGED_TASKS: any[] = [
 /* Description text keyed off the SUBJECT, so every request detail page reads like the
    request it belongs to rather than a shared placeholder. `short` is what shows
    collapsed; `more` are the paragraphs revealed by View more. */
-const SUBJECT_DESCRIPTIONS: { match: RegExp; short: string; more: string[] }[] = [
-  {
-    match: /vpn/i,
-    short: 'The corporate VPN drops roughly every fifteen minutes while I am working from home, and I have to reconnect manually each time to get back into our internal tools.',
-    more: [
-      'The disconnects happen on both my home Wi-Fi and a mobile hotspot, so I do not think it is my broadband. The client logs show a timeout against the gateway rather than an authentication failure.',
-      'Every drop signs me out of the internal portals and interrupts file transfers, which is making longer pieces of work very difficult to finish. Please advise whether my VPN profile needs to be reissued.',
-    ],
-  },
-  {
-    match: /internet|wi-?fi|network|website not loading|shared drive|connect/i,
-    short: 'I am unable to get a working connection from my desk. The network shows as connected, but internal sites and cloud applications either time out or fail to load entirely.',
-    more: [
-      'I have already restarted the machine, toggled the wireless adapter, and rejoined the corporate network. None of these steps made a difference, and the behaviour is identical on the guest network.',
-      'Colleagues sitting nearby are online without any trouble, which suggests the problem is specific to my device or profile. I am blocked from email, the CRM and our shared drives until this is fixed.',
-    ],
-  },
-  {
-    match: /charger|power adapter|battery|keyboard|monitor|projector|printer|hardware|not responding|burnt/i,
-    short: 'The device is not working correctly and is affecting my ability to do everyday work. The fault is consistent rather than intermittent, and it has not improved after a restart.',
-    more: [
-      'I have checked the obvious things — cables reseated, a different power outlet, and a different port where that applies — and the behaviour is the same each time, so this looks like a hardware fault rather than a configuration issue.',
-      'Please could someone check the warranty status and arrange a replacement or a bench repair. I am happy to drop the device at the IT desk if that is quicker than a visit.',
-    ],
-  },
-  {
-    match: /outlook|email|mailbox|mail/i,
-    short: 'My mailbox is not behaving correctly. Messages are not moving as expected and the client shows errors when I try to work with them, which is holding up several conversations with customers.',
-    more: [
-      'I have tried restarting the client and signing out and back in. Webmail behaves the same way, so the problem does not appear to be limited to the desktop application.',
-      'Could someone check the mailbox from the server side — I am concerned that either the profile or the quota is at fault. I can be available for a remote session at any point today.',
-    ],
-  },
-  {
-    match: /onboarding|offboarding|new laptop setup|enrollment|bulk user/i,
-    short: 'Please set up the accounts, access and equipment required for this joiner so that everything is ready and tested before their first working day.',
-    more: [
-      'This covers the Active Directory account and mailbox, membership of the relevant team groups, access to the shared drives and business applications for the role, and a prepared laptop with the standard image.',
-      'The start date is confirmed, so please flag early if any part of this cannot be completed in time — particularly the account creation, since the device build depends on it.',
-    ],
-  },
-  {
-    match: /log ?in|login|password|authentication|access|two-factor|2fa|account|sso|sap|salesforce/i,
-    short: 'I am unable to sign in to the application and cannot get past the authentication step, so I have no access to the records I need for my current work.',
-    more: [
-      'The credentials are the ones I use every day and they work elsewhere, so I do not believe this is a typing error. I have cleared the browser cache and tried a private window with the same result.',
-      'Please could the account be checked for a lock or an expired permission, and reset if required. This is currently blocking work that is due this week.',
-    ],
-  },
-  {
-    match: /license|upgrade|storage|request additional|request access|request for/i,
-    short: 'I would like to request this for my role. My current allocation is no longer sufficient for the work I am doing, and it is starting to slow down day-to-day delivery.',
-    more: [
-      'The request is for standard business use and would be covered by my department budget. I have confirmed with my manager that the spend is expected and approved on their side.',
-      'Please let me know if any additional justification or a cost centre code is required, and I will provide it straight away.',
-    ],
-  },
-  {
-    match: /slow|performance|blue screen|crash|freez/i,
-    short: 'The machine has become unreliable — it is noticeably slower than it was and fails during normal use, which is costing me time throughout the day.',
-    more: [
-      'The behaviour started after the most recent round of updates. A restart helps briefly, but the problem returns within an hour or two of normal work.',
-      'I have not installed anything new or changed any settings. Please could someone review the event logs and the update history to see what changed.',
-    ],
-  },
-  {
-    match: /teams|zoom|audio|meeting|conference/i,
-    short: 'Audio is not working correctly during meetings. Other participants cannot hear me, or I cannot hear them, and the problem happens across different meetings and rooms.',
-    more: [
-      'I have checked that the correct input and output devices are selected and that nothing is muted at the operating-system level. Other applications play sound normally.',
-      'This is affecting customer calls, so a quick look would be appreciated. I am free to test with someone from the service desk whenever suits.',
-    ],
-  },
-  {
-    match: /backup|restore|data/i,
-    short: 'I need files restored from backup. They were removed in error and are not recoverable from the recycle bin or from local version history.',
-    more: [
-      'The files were last known good earlier in the week, and they sit in our team folder on the shared drive rather than on my local machine.',
-      'Please restore the most recent clean version available. Let me know if you need the exact path and timestamps and I will send them over.',
-    ],
-  },
-];
 
-const GENERIC_DESCRIPTION = {
-  short: 'I have raised this request because the issue is affecting my normal work and I have not been able to resolve it myself.',
-  more: [
-    'I have tried the usual first steps — restarting the machine and signing out and back in — without any change in behaviour.',
-    'Please could someone from the service desk take a look and advise on the next steps. I am available for a remote session at short notice.',
-  ],
-};
-
-/** The description body for a request, chosen by its subject. */
-const describeSubject = (subject?: string) =>
-  SUBJECT_DESCRIPTIONS.find((d) => d.match.test(subject ?? '')) ?? GENERIC_DESCRIPTION;
 
 const TASK_THEMES: { match: RegExp; group: string; type: string; tasks: string[] }[] = [
   {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
+import { describeSubject } from './requestDescriptions';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -265,20 +266,6 @@ const fmtDate = (d: Date) => {
 const Kbd = ({ children }: { children: string }) => (
   <kbd className="rounded border border-[#DFE5ED] bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[#364658]">{children}</kbd>
 );
-
-const peekDescription = (subject: string) => {
-  const t = subject.toLowerCase();
-  if (t.includes('outlook')) return 'Outlook crashes to the desktop whenever the user opens a message carrying an attachment. It started after the latest Office update; safe mode shows the same behaviour while OWA works fine.';
-  if (t.includes('onboarding')) return 'New joiner starting Monday needs the full onboarding pack — AD account, mailbox, laptop image, VPN profile and departmental share access — completed before the welcome session.';
-  if (t.includes('wifi') || t.includes('wi-fi')) return 'Device associates with the corporate SSID but drops the connection within a minute. Other devices at the same desk stay online, and the issue follows this laptop across floors.';
-  if (t.includes('internet')) return 'Connection drops every few minutes and recovers on its own. Wired and wireless are both affected, and the drops line up with scheduled calls, so a stable link is needed urgently.';
-  if (t.includes('macbook') || t.includes('allocation')) return 'Design team lead has requested a MacBook Pro for video and motion work. Standard justification is attached; manager and finance approval are needed before procurement raises the order.';
-  if (t.includes('hr portal') || t.includes('log in') || t.includes('login')) return 'User is locked out of the HR portal after three failed attempts and the self-service reset mail never arrives. Payroll cut-off is this week, so access is time-sensitive.';
-  if (t.includes('password')) return 'Active Directory password expired while the user was on leave and the reset link is rejected. Needs an admin-side reset plus a forced change at next logon.';
-  if (t.includes('charger') || t.includes('charging')) return 'Laptop only charges when the cable is held at an angle and the battery drains mid-meeting. Likely a failed adapter or damaged charging port; user asks for a replacement.';
-  if (t.includes('drive')) return 'User gets "permission denied" opening the shared drive although teammates in the same group can open it fine. Access worked until last week\u2019s group cleanup.';
-  return 'Requester reports the issue is affecting day-to-day work and asks for an update on next steps. Details captured from the initial conversation are in the request thread.';
-};
 
 interface PeekAi { analysis: string; resolution: string; actions: { label: string; conf: number }[] }
 const peekAiFor = (subject: string): PeekAi => {
@@ -1151,8 +1138,8 @@ export function TicketTable({
     switch (key) {
       case 'id':
         return (
-              <td className="overflow-hidden px-4 py-3">
-                <span className="relative inline-block">
+              <td data-col="id" className="overflow-hidden px-4 py-3">
+                <span className="relative inline-block" onMouseEnter={() => hoverPeekStart(ticket.id)} onMouseLeave={hoverPeekEnd}>
                   <span
                     className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
                     onClick={(e) => {
@@ -1462,6 +1449,39 @@ export function TicketTable({
   const peekRef = useRef<HTMLDivElement | null>(null);
   const [peekPos, setPeekPos] = useState<{ top: number; left: number } | null>(null);
   const [peekAiView, setPeekAiView] = useState(false);
+  const [hoverPeekId, setHoverPeekId] = useState<string | null>(null);
+  const hoverOpenT = useRef<number | null>(null);
+  const hoverCloseT = useRef<number | null>(null);
+  const hoverPeekStart = (id: string) => {
+    if (kbPeek) return;
+    if (hoverCloseT.current) {
+      clearTimeout(hoverCloseT.current);
+      hoverCloseT.current = null;
+    }
+    if (hoverOpenT.current) clearTimeout(hoverOpenT.current);
+    hoverOpenT.current = window.setTimeout(() => setHoverPeekId(id), hoverPeekId ? 150 : 550);
+  };
+  const hoverPeekEnd = () => {
+    if (hoverOpenT.current) {
+      clearTimeout(hoverOpenT.current);
+      hoverOpenT.current = null;
+    }
+    if (kbPeek) return;
+    hoverCloseT.current = window.setTimeout(() => setHoverPeekId(null), 150);
+  };
+  const hoverPeekHold = () => {
+    if (hoverCloseT.current) {
+      clearTimeout(hoverCloseT.current);
+      hoverCloseT.current = null;
+    }
+  };
+  useEffect(
+    () => () => {
+      if (hoverOpenT.current) clearTimeout(hoverOpenT.current);
+      if (hoverCloseT.current) clearTimeout(hoverCloseT.current);
+    },
+    [],
+  );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Escape' && e.key.toLowerCase() !== 'a') return;
@@ -1490,22 +1510,24 @@ export function TicketTable({
       } else if (e.key === 'Escape') {
         // First Esc closes the peek; the next one clears the row focus entirely.
         if (kbPeek) setKbPeek(false);
+        else if (hoverPeekId) setHoverPeekId(null);
         else if (kbFocusId) setKbFocusId(null);
-      } else if (e.key.toLowerCase() === 'a' && kbPeek) {
+      } else if (e.key.toLowerCase() === 'a' && (kbPeek || hoverPeekId)) {
         e.preventDefault();
         setPeekAiView((v) => !v);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tickets, kbFocusId, kbPeek, onTicketClick]);
+  }, [tickets, kbFocusId, kbPeek, hoverPeekId, onTicketClick]);
 
   /* Anchor the peek card to the focused row — below it, flipping above near the viewport
      bottom. The card renders off-screen first so the REAL height drives the flip. */
+  const peekId = kbPeek ? kbFocusId : hoverPeekId;
   useLayoutEffect(() => {
-    if (!kbPeek || !kbFocusId) return;
+    if (!peekId) return;
     const place = () => {
-      const row = document.querySelector(`[data-row-id="${kbFocusId}"]`);
+      const row = document.querySelector(`[data-row-id="${peekId}"]`);
       if (!row) {
         setPeekPos(null);
         return;
@@ -1527,17 +1549,18 @@ export function TicketTable({
       window.removeEventListener('scroll', place, true);
       window.removeEventListener('resize', place);
     };
-  }, [kbPeek, kbFocusId, peekAiView]);
+  }, [peekId, kbPeek, peekAiView]);
 
   useEffect(() => {
-    if (!kbPeek) setPeekAiView(false);
-  }, [kbPeek]);
+    if (!kbPeek && !hoverPeekId) setPeekAiView(false);
+  }, [kbPeek, hoverPeekId]);
 
   useEffect(() => {
-    if (!kbPeek) return;
+    if (!kbPeek && !hoverPeekId) return;
     const onDown = (e: MouseEvent) => {
       if (peekRef.current?.contains(e.target as Node)) return;
       setKbPeek(false);
+      setHoverPeekId(null);
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -2058,9 +2081,9 @@ export function TicketTable({
         </>,
         document.body,
       )}
-      {kbPeek &&
+      {peekId &&
         (() => {
-          const t = tickets.find((x) => x.id === kbFocusId);
+          const t = tickets.find((x) => x.id === peekId);
           if (!t) return null;
           const done = t.tasksDone ?? 0;
           const total = t.tasksTotal ?? 0;
@@ -2071,6 +2094,8 @@ export function TicketTable({
           return createPortal(
             <div
               ref={peekRef}
+              onMouseEnter={hoverPeekHold}
+              onMouseLeave={hoverPeekEnd}
               className="fixed z-[9990] w-[520px] overflow-hidden rounded-lg border border-[#CBD5E1] bg-white shadow-xl"
               style={{ top: peekPos?.top ?? -9999, left: peekPos?.left ?? -9999 }}
             >
@@ -2167,7 +2192,7 @@ export function TicketTable({
                     Created at {createdStr} ({daysAgo} days ago) via <span className="font-medium text-[#364658]">Email</span>
                   </span>
                 </div>
-                <p className="mt-2 text-[12px] leading-relaxed text-[#364658] line-clamp-3">{peekDescription(t.subject)}</p>
+                <p className="mt-2 text-[12px] leading-relaxed text-[#364658] line-clamp-3">{describeSubject(t.subject).short}</p>
                 {total > 0 && (
                   <div className="mt-3 flex items-center gap-2.5">
                     <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-medium text-[#64748B]">
@@ -2209,20 +2234,28 @@ export function TicketTable({
                   </>
                 )}
               </div>
+              {/* Keyboard-opened peek teaches its whole key set; the hover peek only
+                  hints the one key that works without row focus. */}
               <div className="flex items-center gap-3 border-t border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[11px] text-[#64748B]">
-                <span className="inline-flex items-center gap-1">
-                  <Kbd>Enter</Kbd> open
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Kbd>Esc</Kbd> close
-                </span>
+                {kbPeek && (
+                  <>
+                    <span className="inline-flex items-center gap-1">
+                      <Kbd>Enter</Kbd> open
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Kbd>Esc</Kbd> close
+                    </span>
+                  </>
+                )}
                 <span className="inline-flex items-center gap-1">
                   <Kbd>A</Kbd> {peekAiView ? 'details' : 'AI view'}
                 </span>
-                <span className="ml-auto inline-flex items-center gap-1">
-                  <Kbd>↑</Kbd>
-                  <Kbd>↓</Kbd> navigate
-                </span>
+                {kbPeek && (
+                  <span className="ml-auto inline-flex items-center gap-1">
+                    <Kbd>↑</Kbd>
+                    <Kbd>↓</Kbd> navigate
+                  </span>
+                )}
               </div>
             </div>,
             document.body,
