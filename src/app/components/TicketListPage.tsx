@@ -120,8 +120,10 @@ export const generateMockTickets = (): Ticket[] => {
     // New replies on a handful of rows per page — badges should be the exception a
     // technician scans FOR, not row furniture.
     const unread = i % 7 === 0 ? (i % 14 === 0 ? 3 : 2) : 0;
-    // Task counts mirror the detail page seeding: 3-4 per request, 13 staged on INC-35.
-    const tasksTotal = i === 5 ? 13 : 3 + (i % 2);
+    // Tasks exist on roughly half the queue (irregular spacing so it reads organic);
+    // counts vary 2-5, 13 staged on INC-35. No-task rows show no Tasks row in the peek.
+    const hasTasks = i === 5 || [0, 2, 6, 9].includes(i % 11);
+    const tasksTotal = i === 5 ? 13 : hasTasks ? 2 + (i % 4) : 0;
     const status = i === 9 ? ('Closed' as const) : i === 2 ? ('Open' as const) : statuses[i % statuses.length]; // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
     // A pending approval blocks OPEN work only — settled rows never carry one.
     const hasApproval =
@@ -139,8 +141,8 @@ export const generateMockTickets = (): Ticket[] => {
       lastMsg: unread > 0
         ? { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
         : undefined,
-      tasksTotal,
-      tasksDone: i === 5 ? 6 : i % (tasksTotal + 1),
+      tasksTotal: hasTasks ? tasksTotal : undefined,
+      tasksDone: !hasTasks ? undefined : i === 5 ? 6 : i % (tasksTotal + 1),
       approval: hasApproval
         ? { approver: APPROVERS[i % APPROVERS.length], level: 1 + (i % 2), totalLevels: 2, waiting: APPROVAL_WAITS[i % APPROVAL_WAITS.length] }
         : undefined,

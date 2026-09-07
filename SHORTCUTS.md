@@ -126,6 +126,23 @@ Also listed in the view's own ⌨ keyboard-shortcuts popup (top-right canvas con
 
 ---
 
+## 5. Ticket listing grid
+
+Works on the Requests listing (List view). Disabled while typing in any field and
+while a detail drawer is open (the drawer owns its own shortcut set, §1).
+
+Implemented in **`src/app/components/TicketTable.tsx`** (`kbFocusId` + window keydown effect).
+
+| Shortcut | Action |
+|---|---|
+| `↑` / `↓` | Move row focus up / down (blue left accent marks the focused row) |
+| `Enter` | Open the focused ticket's detail page |
+| `Space` | Quick-peek popup for the focused ticket (toggle) |
+| `A` | Toggle the AI view inside the quick-peek (analysis, resolution, suggested actions) |
+| `Esc` | Close the quick-peek popup, then clear the row focus |
+
+---
+
 ## Maintenance
 
 When you add, change, or remove a shortcut:

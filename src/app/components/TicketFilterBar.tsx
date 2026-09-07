@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   AlignLeft,
   CalendarDays,
@@ -462,6 +462,128 @@ function Chip({
   );
 }
 
+const YOU = 'Sarah Johnson'; // signed-in persona (kept local — TicketViewsPanel imports from this module)
+
+function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void }) {
+  const [open, setOpen] = useState<'assignedTo' | 'sla' | 'priority' | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current?.contains(e.target as Node)) return;
+      setOpen(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const valuesOf = (field: string) => rules.find((r) => r.field === field)?.values ?? [];
+  const toggle = (field: string, value: string) => {
+    setOpen(null); // one-click apply — the filter chip takes over from here
+    const existing = rules.find((r) => r.field === field);
+    if (!existing) {
+      setRules([...rules, { id: `${field}-qf-${Date.now()}`, field, condition: 'is', values: [value] }]);
+      return;
+    }
+    const values = existing.values.includes(value) ? existing.values.filter((v) => v !== value) : [...existing.values, value];
+    if (!values.length) setRules(rules.filter((r) => r.id !== existing.id));
+    else setRules(rules.map((r) => (r.id === existing.id ? { ...r, condition: 'is' as const, values } : r)));
+  };
+
+  const initials = (n: string) => n.split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+  const iconBtn = (field: 'assignedTo' | 'sla' | 'priority', Icon: typeof Flag, label: string) => {
+    const active = valuesOf(field).length > 0;
+    if (active) return null;
+    return (
+      <button
+        onClick={() => setOpen((v) => (v === field ? null : field))}
+        title={label}
+        className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${
+          active || open === field ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]'
+        }`}
+      >
+        <Icon size={15} />
+      </button>
+    );
+  };
+
+  return (
+    <div ref={wrapRef} className="relative flex items-center gap-2">
+      {iconBtn('assignedTo', UserRound, 'Filter by assignee')}
+      {iconBtn('sla', Hourglass, 'Filter by SLA status')}
+      {iconBtn('priority', Flag, 'Filter by priority')}
+
+      {open === 'assignedTo' && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-[232px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Assigned to</div>
+          {[YOU, ...ASSIGNEES].map((name, i) => {
+            const on = valuesOf('assignedTo').includes(name);
+            return (
+              <Fragment key={name}>
+                <button
+                  onClick={() => toggle('assignedTo', name)}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
+                    on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                  }`}
+                >
+                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials(name)}</span>
+                  <span className="min-w-0 flex-1 truncate">{name === YOU ? `${name} (You)` : name}</span>
+                  {on && <Check size={13} className="flex-shrink-0" />}
+                </button>
+                {i === 0 && <div className="my-1 border-t border-[#F1F5F9]" />}
+              </Fragment>
+            );
+          })}
+        </div>
+      )}
+
+      {open === 'sla' && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-[196px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">SLA status</div>
+          {SLA_OPTS.map((o) => {
+            const on = valuesOf('sla').includes(o.label);
+            return (
+              <button
+                key={o.label}
+                onClick={() => toggle('sla', o.label)}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
+                  on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                }`}
+              >
+                <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                {on && <Check size={13} className="flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {open === 'priority' && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-[172px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Priority is</div>
+          {[...PRIORITY_OPTS].reverse().map((p) => {
+            const on = valuesOf('priority').includes(p.label);
+            return (
+              <button
+                key={p.label}
+                onClick={() => toggle('priority', p.label)}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
+                  on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                }`}
+              >
+                <Flag size={13} className="flex-shrink-0" fill="currentColor" style={{ color: p.color }} />
+                <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                {on && <Check size={13} className="flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TicketFilterBar({ rules, setRules }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoOpenId, setAutoOpenId] = useState<string | null>(null);
@@ -527,6 +649,8 @@ export function TicketFilterBar({ rules, setRules }: { rules: FilterRule[]; setR
         )}
         {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} />}
       </div>
+
+      <QuickFilters rules={rules} setRules={setRules} />
 
       {rules.length > 0 && (
         <button

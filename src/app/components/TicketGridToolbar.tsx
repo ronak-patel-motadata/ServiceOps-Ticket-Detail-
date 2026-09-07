@@ -37,10 +37,15 @@ const ICON_BTN =
   'inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#6b7280] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]';
 const POPUP = 'absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
 
-const AUTO_REF_OPTS = ['Off', '5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'];
-const AUTO_REF_MS: Record<string, number> = {
-  '5s': 5e3, '10s': 1e4, '30s': 3e4, '1m': 6e4, '5m': 3e5, '15m': 9e5, '30m': 1.8e6, '1h': 3.6e6, '2h': 7.2e6, '1d': 8.64e7,
-};
+const AUTO_REF_OPTS = [
+  { key: 'Off', label: 'None' },
+  { key: '5m', label: '5 Minutes' },
+  { key: '10m', label: '10 Minutes' },
+  { key: '20m', label: '20 Minutes' },
+  { key: '25m', label: '25 Minutes' },
+  { key: '30m', label: '30 Minutes' },
+];
+const AUTO_REF_MS: Record<string, number> = { '5m': 3e5, '10m': 6e5, '20m': 1.2e6, '25m': 1.5e6, '30m': 1.8e6 };
 
 /** Closes a popup on any outside click — shared by the three right-hand menus. */
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
@@ -541,12 +546,10 @@ export function TicketGridToolbar({
             <span className="w-px flex-shrink-0 bg-[#E5E7EB]" />
             <button
               onClick={() => setAutoRefOpen((v) => !v)}
-              className={`inline-flex items-center gap-0.5 pl-2 pr-1.5 text-[12px] font-medium transition-colors hover:bg-[#F5F7FA] ${
-                autoRef !== 'Off' || autoRefOpen ? 'text-[#3D8BD0]' : 'text-[#6b7280] hover:text-[#364658]'
-              }`}
+              className="inline-flex items-center gap-0.5 pl-2 pr-1.5 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
               title="Auto refresh interval"
             >
-              {autoRef}
+              {autoRef === 'Off' ? 'None' : autoRef}
               <ChevronDown size={13} className={`transition-transform ${autoRefOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
@@ -554,20 +557,20 @@ export function TicketGridToolbar({
             <div className={`${POPUP} w-[124px] py-1`}>
               <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Auto refresh</div>
               {AUTO_REF_OPTS.map((o) => {
-                const on = o === autoRef;
+                const on = o.key === autoRef;
                 return (
                   <button
-                    key={o}
+                    key={o.key}
                     onClick={() => {
-                      setAutoRef(o);
+                      setAutoRef(o.key);
                       setAutoRefOpen(false);
-                      toast.success(o === 'Off' ? 'Auto refresh turned off' : `Auto refresh every ${o}`);
+                      toast.success(o.key === 'Off' ? 'Auto refresh turned off' : `Auto refresh every ${o.label.toLowerCase()}`);
                     }}
                     className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition-colors ${
                       on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
                     }`}
                   >
-                    {o}
+                    {o.label}
                     {on && <Check size={13} />}
                   </button>
                 );

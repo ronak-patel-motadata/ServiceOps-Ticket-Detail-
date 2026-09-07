@@ -1,7 +1,8 @@
-import { Fragment, cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { AiSparkle } from './AiSparkle';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -239,7 +240,7 @@ const EXTRA_COLS: ColDef[] = [
   { key: 'department', label: 'Department', w: 140 },
   { key: 'source', label: 'Source', w: 135 },
   { key: 'location', label: 'Location', w: 150 },
-  { key: 'tags', label: 'Tags', w: 150 },
+  { key: 'tags', label: 'Tags', w: 230 },
   { key: 'supportLevel', label: 'Support Level', w: 120 },
   { key: 'lastUpdatedDate', label: 'Last Updated Date', w: 185 },
   { key: 'lastUpdatedBy', label: 'Last Updated By', w: 150 },
@@ -261,6 +262,82 @@ const fmtDate = (d: Date) => {
   const ap = d.getHours() < 12 ? 'AM' : 'PM';
   return `${DAYS3[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(h12).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
 };
+const Kbd = ({ children }: { children: string }) => (
+  <kbd className="rounded border border-[#DFE5ED] bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[#364658]">{children}</kbd>
+);
+
+const peekDescription = (subject: string) => {
+  const t = subject.toLowerCase();
+  if (t.includes('outlook')) return 'Outlook crashes to the desktop whenever the user opens a message carrying an attachment. It started after the latest Office update; safe mode shows the same behaviour while OWA works fine.';
+  if (t.includes('onboarding')) return 'New joiner starting Monday needs the full onboarding pack — AD account, mailbox, laptop image, VPN profile and departmental share access — completed before the welcome session.';
+  if (t.includes('wifi') || t.includes('wi-fi')) return 'Device associates with the corporate SSID but drops the connection within a minute. Other devices at the same desk stay online, and the issue follows this laptop across floors.';
+  if (t.includes('internet')) return 'Connection drops every few minutes and recovers on its own. Wired and wireless are both affected, and the drops line up with scheduled calls, so a stable link is needed urgently.';
+  if (t.includes('macbook') || t.includes('allocation')) return 'Design team lead has requested a MacBook Pro for video and motion work. Standard justification is attached; manager and finance approval are needed before procurement raises the order.';
+  if (t.includes('hr portal') || t.includes('log in') || t.includes('login')) return 'User is locked out of the HR portal after three failed attempts and the self-service reset mail never arrives. Payroll cut-off is this week, so access is time-sensitive.';
+  if (t.includes('password')) return 'Active Directory password expired while the user was on leave and the reset link is rejected. Needs an admin-side reset plus a forced change at next logon.';
+  if (t.includes('charger') || t.includes('charging')) return 'Laptop only charges when the cable is held at an angle and the battery drains mid-meeting. Likely a failed adapter or damaged charging port; user asks for a replacement.';
+  if (t.includes('drive')) return 'User gets "permission denied" opening the shared drive although teammates in the same group can open it fine. Access worked until last week\u2019s group cleanup.';
+  return 'Requester reports the issue is affecting day-to-day work and asks for an update on next steps. Details captured from the initial conversation are in the request thread.';
+};
+
+interface PeekAi { analysis: string; resolution: string; actions: { label: string; conf: number }[] }
+const peekAiFor = (subject: string): PeekAi => {
+  const t = subject.toLowerCase();
+  if (t.includes('outlook'))
+    return {
+      analysis: 'Crash signature matches a conflict between the June Office update and the legacy attachment-preview handler.',
+      resolution: 'Repair the Office installation, clear the local Outlook cache, then re-enable the preview handler. OWA can bridge the gap meanwhile.',
+      actions: [{ label: 'Repair Office Installation', conf: 94 }, { label: 'Clear Outlook Attachment Cache', conf: 88 }],
+    };
+  if (t.includes('onboarding'))
+    return {
+      analysis: 'Standard joiner pack — every item maps to an existing automation in the onboarding workflow.',
+      resolution: 'Trigger the New Joiner workflow with the start date; hardware bundle and access grants queue automatically from the role template.',
+      actions: [{ label: 'Trigger Onboarding Workflow', conf: 96 }, { label: 'Assign Standard Hardware Bundle', conf: 90 }],
+    };
+  if (t.includes('wifi') || t.includes('wi-fi'))
+    return {
+      analysis: 'Drop-after-association pattern points at roaming aggressiveness on the laptop adapter clashing with Floor 3 AP firmware.',
+      resolution: 'Push the current Wi-Fi driver, set roaming aggressiveness to medium, and verify the Floor 3 APs are on the rolled-out firmware.',
+      actions: [{ label: 'Run Network Diagnostic', conf: 92 }, { label: 'Push Wi-Fi Driver Update', conf: 87 }],
+    };
+  if (t.includes('internet'))
+    return {
+      analysis: 'Periodic drops on both wired and wireless suggest an uplink flap rather than a device fault.',
+      resolution: 'Check the access-switch uplink counters for the desk port, then fail the user over to the secondary SSID while the link is inspected.',
+      actions: [{ label: 'Run Link Stability Test', conf: 91 }, { label: 'Check Switch Port Health', conf: 85 }],
+    };
+  if (t.includes('macbook') || t.includes('allocation'))
+    return {
+      analysis: 'Request fits the designer hardware profile; budget line for the quarter still has headroom.',
+      resolution: 'Route for manager and finance approval, then raise the purchase order against the approved Apple catalog item.',
+      actions: [{ label: 'Send for Approval', conf: 95 }, { label: 'Raise Purchase Order Draft', conf: 82 }],
+    };
+  if (t.includes('hr portal') || t.includes('log in') || t.includes('login') || t.includes('password'))
+    return {
+      analysis: 'Account is lockout-flagged in AD and the self-service reset mail is being quarantined by the spam filter.',
+      resolution: 'Unlock the account, release the quarantined reset mail, and force a password change at next logon before payroll cut-off.',
+      actions: [{ label: 'Unlock AD Account', conf: 97 }, { label: 'Release Quarantined Email', conf: 89 }],
+    };
+  if (t.includes('charger') || t.includes('charging'))
+    return {
+      analysis: 'Symptoms match a failing adapter cable rather than the battery — charge resumes only at an angle.',
+      resolution: 'Issue a replacement adapter from stock and inspect the charging port for pin damage when it is swapped.',
+      actions: [{ label: 'Issue Replacement Adapter', conf: 93 }, { label: 'Book Port Inspection', conf: 80 }],
+    };
+  if (t.includes('drive'))
+    return {
+      analysis: 'User dropped out of the share security group during last week\u2019s group cleanup — teammates kept access.',
+      resolution: 'Re-add the user to the Floor 3 share group and confirm inheritance on the affected folder.',
+      actions: [{ label: 'Restore Group Membership', conf: 95 }, { label: 'Verify Folder Permissions', conf: 86 }],
+    };
+  return {
+    analysis: 'Signals in the request thread point at a known, low-risk cause with an established fix path.',
+    resolution: 'Apply the standard resolution for this category and confirm with the requester before closing.',
+    actions: [{ label: 'Apply Standard Fix', conf: 84 }, { label: 'Request More Details', conf: 78 }],
+  };
+};
+
 // Deterministic per-ticket hash so every optional column shows stable, believable values.
 const hx = (id: string, salt: number) => {
   let n = salt;
@@ -279,7 +356,15 @@ export const extraValue = (key: string, t: Ticket): string => {
     case 'department': return ['Finance', 'Human Resources', 'Engineering', 'Sales', 'Operations'][h(4, 5)];
     case 'source': return ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'][h(5, 4)];
     case 'location': return ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru DC', 'Pune Office'][h(6, 4)];
-    case 'tags': return ['network, vpn', 'hardware', 'onboarding, access', 'printer', 'wifi, urgent'][h(7, 5)];
+    case 'tags': {
+      const POOL = ['network', 'vpn', 'hardware', 'onboarding', 'access', 'printer', 'wifi', 'urgent', 'floor-3', 'vip', 'recurring', 'email', 'sla-watch', 'remote'];
+      const count = 2 + h(7, 5);
+      const start = h(13, POOL.length);
+      const step = 1 + h(14, 3);
+      return Array.from({ length: count }, (_, i) => POOL[(start + i * step) % POOL.length])
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join(', ');
+    }
     case 'supportLevel': return ['Tier 1', 'Tier 2', 'Tier 3'][h(8, 3)];
     case 'lastUpdatedDate': return fmtDate(new Date(t.createdBy.getTime() + (h(9, 40) + 8) * 3600e3));
     case 'lastUpdatedBy': return t.assignedTo.name;
@@ -1058,8 +1143,8 @@ export function TicketTable({
   const frozenIdx = frozenUpTo ? cols.findIndex((c) => c.key === frozenUpTo) : -1;
   const leftOf = (i: number) => CHECK_W + fitted.slice(0, i).reduce((n, w) => n + w, 0);
   // The last frozen column carries the edge: a hairline + soft shadow over the scrolling side.
-  const frozenCellCls = (i: number, picked: boolean) =>
-    `sticky z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
+  const frozenCellCls = (i: number, picked: boolean, kbFocus = false) =>
+    `sticky z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
 
   /* One renderer per column, so the body follows whatever order the header is dragged into. */
   const renderCell = (key: string, ticket: Ticket) => {
@@ -1084,6 +1169,7 @@ export function TicketTable({
       case 'subject':
         return (
               <td
+                data-col="subject"
                 className="relative cursor-pointer overflow-hidden px-4 py-3 text-[12px] text-[#364658]"
                 onClick={() => onTicketClick(ticket)}
               >
@@ -1092,7 +1178,7 @@ export function TicketTable({
                   <span className={`min-w-0 flex-1 truncate decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline ${ticket.unread ? 'font-semibold text-[#1E293B]' : 'font-medium'}`}>{ticket.subject}</span>
                 </span>
                 {/* Row hover: an explicit way in, so "click the row" is never the only clue. */}
-                <span className="pointer-events-none absolute inset-y-0 right-0 hidden items-center bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent pl-10 pr-4 group-hover:flex">
+                <span className={`pointer-events-none absolute inset-y-[2px] right-0 hidden items-center pl-10 pr-4 group-hover:flex ${ticket.id === kbFocusId ? 'bg-gradient-to-l from-[#F5FAFF] via-[#F5FAFF] via-70% to-transparent' : 'bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent'}`}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1197,6 +1283,36 @@ export function TicketTable({
                   </span>
                 </InlineSelect>
               </td>
+        );
+      }
+      case 'tags': {
+        const tags = extraValue('tags', ticket).split(', ').filter(Boolean);
+        const shown = tags.slice(0, 2);
+        const extra = tags.length - shown.length;
+        return (
+          <td className="overflow-hidden whitespace-nowrap px-4 py-3">
+            <span className="flex items-center gap-1">
+              {shown.map((tag) => (
+                <span key={tag} className="max-w-[120px] truncate rounded bg-[#F1F5F9] px-2 py-0.5 text-[11px] font-medium text-[#475569]">
+                  {tag}
+                </span>
+              ))}
+              {extra > 0 && (
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <span className="flex-shrink-0 cursor-default rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-semibold text-[#475569]">+{extra}</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-wrap">
+                    <div className="flex max-w-[220px] flex-wrap gap-1 py-0.5">
+                      {tags.map((tag) => (
+                        <span key={tag} className="rounded bg-white/15 px-2 py-0.5 text-[11px]">{tag}</span>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          </td>
         );
       }
       default: {
@@ -1340,6 +1456,92 @@ export function TicketTable({
      visit re-surfaces whatever is still genuinely pending. Keys are `id|signal`. */
   const [ackedAttn, setAckedAttn] = useState<Set<string>>(new Set());
   const ackAttn = (...keys: string[]) => setAckedAttn((prev) => new Set([...prev, ...keys]));
+
+  const [kbFocusId, setKbFocusId] = useState<string | null>(null);
+  const [kbPeek, setKbPeek] = useState(false);
+  const peekRef = useRef<HTMLDivElement | null>(null);
+  const [peekPos, setPeekPos] = useState<{ top: number; left: number } | null>(null);
+  const [peekAiView, setPeekAiView] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Escape' && e.key.toLowerCase() !== 'a') return;
+      const t = e.target as HTMLElement;
+      if (t.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (document.querySelector('[data-drawer]')) return;
+      if (!tickets.length) return;
+      const idx = tickets.findIndex((x) => x.id === kbFocusId);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const next =
+          idx < 0
+            ? e.key === 'ArrowDown'
+              ? 0
+              : tickets.length - 1
+            : Math.min(tickets.length - 1, Math.max(0, idx + (e.key === 'ArrowDown' ? 1 : -1)));
+        const id = tickets[next].id;
+        setKbFocusId(id);
+        document.querySelector(`[data-row-id="${id}"]`)?.scrollIntoView({ block: 'nearest' });
+      } else if (idx >= 0 && e.key === 'Enter') {
+        setKbPeek(false);
+        onTicketClick(tickets[idx]);
+      } else if (idx >= 0 && e.key === ' ') {
+        e.preventDefault();
+        setKbPeek((v) => !v);
+      } else if (e.key === 'Escape') {
+        // First Esc closes the peek; the next one clears the row focus entirely.
+        if (kbPeek) setKbPeek(false);
+        else if (kbFocusId) setKbFocusId(null);
+      } else if (e.key.toLowerCase() === 'a' && kbPeek) {
+        e.preventDefault();
+        setPeekAiView((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tickets, kbFocusId, kbPeek, onTicketClick]);
+
+  /* Anchor the peek card to the focused row — below it, flipping above near the viewport
+     bottom. The card renders off-screen first so the REAL height drives the flip. */
+  useLayoutEffect(() => {
+    if (!kbPeek || !kbFocusId) return;
+    const place = () => {
+      const row = document.querySelector(`[data-row-id="${kbFocusId}"]`);
+      if (!row) {
+        setPeekPos(null);
+        return;
+      }
+      const r = (row as HTMLElement).getBoundingClientRect();
+      const h = peekRef.current?.offsetHeight ?? 240;
+      const sc = (row as HTMLElement).querySelector('[data-col="subject"]');
+      const anchorLeft = sc ? sc.getBoundingClientRect().left + 16 : r.left + 48;
+      const left = Math.min(Math.max(anchorLeft, 16), Math.max(16, window.innerWidth - 536));
+      const bite = Math.round(r.height * 0.6) + 5;
+      let top = r.top + bite;
+      if (top + h > window.innerHeight - 12) top = Math.max(12, r.bottom - bite - h);
+      setPeekPos({ top, left });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [kbPeek, kbFocusId, peekAiView]);
+
+  useEffect(() => {
+    if (!kbPeek) setPeekAiView(false);
+  }, [kbPeek]);
+
+  useEffect(() => {
+    if (!kbPeek) return;
+    const onDown = (e: MouseEvent) => {
+      if (peekRef.current?.contains(e.target as Node)) return;
+      setKbPeek(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [kbPeek]);
   const RowAttention = ({ ticket }: { ticket: Ticket }) => {
     const total = ticket.tasksTotal ?? 0;
     const done = ticket.tasksDone ?? 0;
@@ -1464,12 +1666,14 @@ export function TicketTable({
 
   const renderTicketRow = (ticket: Ticket) => {
     const picked = selectedTickets.has(ticket.id);
+    const kbFocus = ticket.id === kbFocusId;
     return (
             <tr
               key={ticket.id}
-              className={`group border-b border-[#F1F5F9] transition-colors ${picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
+              data-row-id={ticket.id}
+              className={`group scroll-mt-11 scroll-mb-1 border-b border-[#F1F5F9] transition-colors ${kbFocus ? 'bg-[#F5FAFF] [outline:1px_solid_#3D8BD0] [outline-offset:-1px]' : picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
             >
-              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
+              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
                 {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
                 {picked && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#DFE5ED]" />}
                 <input
@@ -1490,7 +1694,7 @@ export function TicketTable({
                   return (
                     <Fragment key={c.key}>
                       {cloneElement(el as React.ReactElement<{ className?: string; style?: React.CSSProperties }>, {
-                        className: `${props.className ?? ''} ${frozenCellCls(ci, picked)}`,
+                        className: `${props.className ?? ''} ${frozenCellCls(ci, picked, kbFocus)}`,
                         style: { ...(props.style ?? {}), left: leftOf(ci), ...(ci === frozenIdx ? { boxShadow: frozenEdgeShadow } : {}) },
                       })}
                     </Fragment>
@@ -1854,6 +2058,176 @@ export function TicketTable({
         </>,
         document.body,
       )}
+      {kbPeek &&
+        (() => {
+          const t = tickets.find((x) => x.id === kbFocusId);
+          if (!t) return null;
+          const done = t.tasksDone ?? 0;
+          const total = t.tasksTotal ?? 0;
+          const cb = t.createdBy;
+          const createdStr = `${String(cb.getDate()).padStart(2, '0')}/${String(cb.getMonth() + 1).padStart(2, '0')}/${cb.getFullYear()} ${String(cb.getHours()).padStart(2, '0')}:${String(cb.getMinutes()).padStart(2, '0')}`;
+          const daysAgo = 2 + (Number(t.id.replace(/\D/g, '')) % 12);
+          const ai = peekAiFor(t.subject);
+          return createPortal(
+            <div
+              ref={peekRef}
+              className="fixed z-[9990] w-[520px] overflow-hidden rounded-lg border border-[#CBD5E1] bg-white shadow-xl"
+              style={{ top: peekPos?.top ?? -9999, left: peekPos?.left ?? -9999 }}
+            >
+              <div className="px-4 pb-3.5 pt-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{t.id}</span>
+                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                        <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(t.status) }} />
+                        {t.status}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Status: {t.status}</TooltipContent>
+                  </Tooltip>
+                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                        <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{t.assignedTo.initials || 'UA'}</span>
+                        <span className="truncate">{t.assignedTo.name || 'Unassigned'}</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Assignee: {t.assignedTo.name || 'Unassigned'}</TooltipContent>
+                  </Tooltip>
+                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex flex-shrink-0 items-center gap-1 text-[12px] font-medium text-[#364658]">
+                        <Flag size={12} fill="currentColor" style={{ color: priorityColor(t.priority) }} />
+                        {t.priority}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Priority: {t.priority}</TooltipContent>
+                  </Tooltip>
+                  <span className="ml-auto flex-shrink-0">
+                    <SlaPill ticket={t} />
+                  </span>
+                </div>
+                <div className="mt-2.5 text-[13px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
+                {peekAiView ? (
+                  <>
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <AiSparkle size={13} />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[#8B5CF6]">AI Analysis</span>
+                    </div>
+                    <div className="relative mt-2 overflow-hidden rounded-lg p-3">
+                      <span
+                        className="pointer-events-none absolute inset-0"
+                        style={{ opacity: 0.045, background: 'linear-gradient(90deg,#4CB1FE 0%,#731EFB 41.49%,#F911E3 100%)' }}
+                      />
+                      <div className="relative flex items-start gap-2">
+                        <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
+                          <CircleCheck size={12} className="text-[#8B5CF6]" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-semibold text-[#8B5CF6]">Analysis</div>
+                          <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.analysis}</p>
+                        </div>
+                      </div>
+                      <div className="relative mt-2.5 flex items-start gap-2">
+                        <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
+                          <Lightbulb size={12} className="text-[#8B5CF6]" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-semibold text-[#8B5CF6]">Resolution</div>
+                          <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.resolution}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-[11px] font-medium text-[#64748B]">Suggested Actions</div>
+                    {ai.actions.map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={() => toast(`${a.label} — coming soon`)}
+                        className="mt-1.5 flex w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-2.5 py-2 text-left transition-colors hover:bg-[#F5F7FA]"
+                      >
+                        <AiSparkle size={12} />
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{a.label}</span>
+                        <span className="h-1 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[#EEF1F4]">
+                          <span className="block h-full rounded-full bg-[#8B5CF6]" style={{ width: `${a.conf}%` }} />
+                        </span>
+                        <span className="flex-shrink-0 text-[11px] font-semibold text-[#8B5CF6]">{a.conf}%</span>
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#E67E22] text-[9px] font-semibold text-white">{requesterAvatar(t.requester).initials || '–'}</span>
+                  <span className="text-[12px] font-semibold text-[#364658]">{t.requester || 'Unknown requester'}</span>
+                  <span className="min-w-0 truncate text-[12px] text-[#6b7280]">
+                    Created at {createdStr} ({daysAgo} days ago) via <span className="font-medium text-[#364658]">Email</span>
+                  </span>
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-[#364658] line-clamp-3">{peekDescription(t.subject)}</p>
+                {total > 0 && (
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-medium text-[#64748B]">
+                      <ListChecks size={13} />
+                      Tasks
+                    </span>
+                    <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+                      <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+                    </div>
+                    <span className={`flex-shrink-0 text-[11px] font-semibold ${done >= total ? 'text-[#22A06B]' : 'text-[#364658]'}`}>
+                      {done}/{total}
+                    </span>
+                  </div>
+                )}
+                {!!t.unread && t.lastMsg && (
+                  <div className="mt-3 flex items-start gap-2 rounded bg-[#F8FAFC] px-2.5 py-2">
+                    <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
+                      <MessageSquare size={11} className="text-[#3D8BD0]" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-semibold text-[#1E293B]">{t.unread} new message{t.unread === 1 ? '' : 's'}</div>
+                      <p className="mt-0.5 text-[11px] leading-snug text-[#64748B] line-clamp-2">
+                        <span className="font-medium text-[#364658]">{t.lastMsg.from}:</span> {t.lastMsg.snippet}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {t.approval && (
+                  <div className="mt-3 flex items-center gap-2 rounded bg-[#FFF7EB] px-2.5 py-2">
+                    <span className="flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
+                      <UserCheck size={11} className="text-[#F39C12]" />
+                    </span>
+                    <p className="min-w-0 truncate text-[11px] leading-snug">
+                      <span className="font-semibold text-[#B45309]">Approval pending</span>
+                      <span className="text-[#8A6D3B]"> · {t.approval.approver} · Level {t.approval.level} of {t.approval.totalLevels}</span>
+                    </p>
+                  </div>
+                )}
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-3 border-t border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[11px] text-[#64748B]">
+                <span className="inline-flex items-center gap-1">
+                  <Kbd>Enter</Kbd> open
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Kbd>Esc</Kbd> close
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Kbd>A</Kbd> {peekAiView ? 'details' : 'AI view'}
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1">
+                  <Kbd>↑</Kbd>
+                  <Kbd>↓</Kbd> navigate
+                </span>
+              </div>
+            </div>,
+            document.body,
+          );
+        })()}
       {showColMgr && mgrRect && (
         <ColumnManager
           anchor={mgrRect}
