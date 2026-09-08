@@ -90,6 +90,7 @@ export function TicketKanban({
   tickets,
   group,
   subGroup = null,
+  onLanesChange,
   onTicketClick,
   onUpdateTicket,
 }: {
@@ -97,6 +98,8 @@ export function TicketKanban({
   group: KanbanGroup;
   /** Optional second axis: each value becomes a horizontal swimlane of columns. */
   subGroup?: KanbanGroup | null;
+  /** Reports the lane list so the page footer can offer "Jump to group". */
+  onLanesChange?: (info: { label: string; total: number; groups: number; list: { key: string; count: number }[] } | null) => void;
   onTicketClick: (t: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
 }) {
@@ -148,6 +151,46 @@ export function TicketKanban({
   };
   const columns = valuesFor(group);
   const lanes = subGroup ? valuesFor(subGroup) : [];
+
+  const laneCount = (lane: string) => tickets.filter((t) => groupValue(t, subGroup as KanbanGroup) === lane).length;
+  const laneSig = subGroup ? lanes.map((l) => `${l}:${laneCount(l)}`).join('|') : '';
+  useEffect(() => {
+    if (!onLanesChange) return;
+    if (!subGroup) {
+      onLanesChange(null);
+      return;
+    }
+    onLanesChange({
+      label: KANBAN_GROUPS.find((g) => g.key === subGroup)?.label ?? '',
+      total: tickets.length,
+      groups: lanes.length,
+      list: lanes.map((l) => ({ key: l, count: laneCount(l) })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subGroup, laneSig, tickets.length, onLanesChange]);
+
+  /* The footer bar dispatches a lane key: open it if folded, scroll it under the
+     toolbar, and flash the heading so the eye lands on the right one. */
+  const [flashLane, setFlashLane] = useState<string | null>(null);
+  useEffect(() => {
+    const onJump = (e: Event) => {
+      const key = String((e as CustomEvent).detail ?? '');
+      setCollapsedLanes((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      window.requestAnimationFrame(() => {
+        const el = rootRef.current?.querySelector(`[data-lane-block="${CSS.escape(key)}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      setFlashLane(key);
+      window.setTimeout(() => setFlashLane((cur) => (cur === key ? null : cur)), 1800);
+    };
+    window.addEventListener('jump-to-group', onJump as EventListener);
+    return () => window.removeEventListener('jump-to-group', onJump as EventListener);
+  }, []);
 
   // Only fields the card actually owns can be set by dropping.
   const canDrop = DROPPABLE(group);
@@ -411,12 +454,14 @@ export function TicketKanban({
             const laneCards = tickets.filter((t) => groupValue(t, subGroup) === lane);
             const collapsed = collapsedLanes.has(lane);
             return (
-              <div key={lane}>
+              <div key={lane} data-lane-block={lane} className="scroll-mt-1">
                 {/* Lane header — click anywhere on it to fold the lane away. */}
                 <div className="sticky top-0 z-30 bg-white pb-1.5 pl-6 pt-0.5">
                 <button
                   onClick={() => toggleLane(lane)}
-                  className="flex items-center gap-2 rounded px-1 py-1.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                  className={`flex items-center gap-2 rounded px-1 py-1.5 text-left transition-colors ${
+                    flashLane === lane ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'
+                  }`}
                 >
                   <ChevronDown
                     size={14}

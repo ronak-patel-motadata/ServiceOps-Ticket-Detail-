@@ -42,6 +42,11 @@ export interface Ticket {
 }
 
 // Mock data
+/* Requests per day across 19 Apr – 2 May 2022, shaped like a real intake week:
+   busy at the start of the week, quiet over the weekend (indexes 5-6 and 12-13). */
+const DAY_VOLUME = [11, 8, 9, 6, 7, 2, 1, 12, 10, 7, 5, 6, 2, 1];
+const DAY_SPREAD: number[] = DAY_VOLUME.flatMap((count, day) => Array.from({ length: count }, () => day));
+
 export const generateMockTickets = (): Ticket[] => {
   /* Indices 0–16 are fixed: they are the members of the AI suggested groups and the
      three requests with bespoke detail-page content (INC-32/33/35). The rest are a
@@ -134,7 +139,7 @@ export const generateMockTickets = (): Ticket[] => {
       subject: subjects[i % subjects.length],
       requester,
       dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
-      createdBy: new Date(2022, 3, 19 + (i % 8), 3 + (i % 12), 30),
+      createdBy: new Date(2022, 3, 19 + DAY_SPREAD[i % DAY_SPREAD.length], 3 + (i % 12), 30),
       assignedTo: assignee,
       status,
       priority: priorities[i % priorities.length],
@@ -176,6 +181,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard'>('list-kpi');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const [kanbanSubGroup, setKanbanSubGroup] = useState<KanbanGroup | null>(null);
+  const [kanbanLanes, setKanbanLanes] = useState<{ label: string; total: number; groups: number; list: { key: string; count: number }[] } | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
   useEffect(() => {
@@ -435,11 +441,20 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
+              onLanesChange={setKanbanLanes}
               onTicketClick={handleOpenTicket}
               onUpdateTicket={updateTicket}
             />
           ) : view === 'dashboard' ? (
-            <TicketDashboardView tickets={sortedTickets} />
+            <TicketDashboardView
+              tickets={sortedTickets}
+              onTicketClick={handleOpenTicket}
+              onDrillDown={(r) => {
+                setFilterRules(r.map((x, i) => ({ ...x, id: `dash-${x.field}-${i}` })));
+                setCurrentPage(1);
+                setView('list-kpi');
+              }}
+            />
           ) : (
             <TicketTable
               tickets={paginatedTickets}
@@ -475,14 +490,19 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             )}
             {/* Grouped mode keeps a PINNED footer — paging lives inside the groups, so
                 this bar summarises the grouping instead of duplicating page controls. */}
-            {isGrouped && groupInfo && (
+            {(() => {
+              const footerGroup = view === 'kanban' ? (kanbanSubGroup ? kanbanLanes : null) : isGrouped ? groupInfo : null;
+              const clearGrouping = () =>
+                view === 'kanban' ? setKanbanSubGroup(null) : setClearGroupTick((t) => t + 1);
+              return (
+            footerGroup && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                 <span className="text-[12px] text-[#64748B] tabular-nums">
-                  Showing <span className="font-medium text-[#364658]">{groupInfo.total}</span> requests in{' '}
-                  <span className="font-medium text-[#364658]">{groupInfo.groups}</span> groups
+                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> requests in{' '}
+                  <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
-                  {(groupInfo.list?.length ?? 0) > 1 && (
+                  {(footerGroup.list?.length ?? 0) > 1 && (
                     <span className="relative mr-1">
                       <button
                         onClick={() => {
@@ -505,7 +525,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                                 if (e.key === 'Escape') setJumpOpen(false);
                               }}
                               onBlur={() => setJumpOpen(false)}
-                              placeholder={'Search ' + groupInfo.label.toLowerCase() + '...'}
+                              placeholder={'Search ' + footerGroup.label.toLowerCase() + '...'}
                               className="h-8 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 text-[12px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
                             />
                           </div>
@@ -513,7 +533,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                           <div className="max-h-[300px] overflow-y-auto pb-1">
                             {(() => {
                               const q = jumpQuery.trim().toLowerCase();
-                              const rows = (groupInfo.list ?? []).filter((g) => !q || g.key.toLowerCase().includes(q));
+                              const rows = (footerGroup.list ?? []).filter((g) => !q || g.key.toLowerCase().includes(q));
                               if (!rows.length) return <div className="px-3 py-2.5 text-[12px] text-[#94A3B8]">No matching groups</div>;
                               return rows.map((g) => (
                                 <button
@@ -535,16 +555,18 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                       )}
                     </span>
                   )}
-                  Grouped by <span className="font-medium text-[#364658]">{groupInfo.label}</span>
+                  Grouped by <span className="font-medium text-[#364658]">{footerGroup.label}</span>
                   <button
-                    onClick={() => setClearGroupTick((t) => t + 1)}
+                    onClick={clearGrouping}
                     className="rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
                   >
                     Clear
                   </button>
                 </span>
               </div>
-            )}
+            )
+              );
+            })()}
         </main>
           </div>
         </div>

@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { extraValue, slaToneOf } from './TicketTable';
+import { TECH_GROUPS } from './technicianRoster';
+import { DEPARTMENTS } from './orgDepartments';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Attribute-based filter builder (Attio / DevRev pattern): pick an attribute → it becomes
@@ -67,9 +69,9 @@ const SLA_OPTS = [
 ];
 const REQUESTERS = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
 const ASSIGNEES = ['Amou Desai', 'Keetion Dale', 'Shreyak Dalal', 'Kaison Potai', 'Novak Potai', 'Rahul Shukla', 'Pratik Patial'];
-export const TECH_GROUPS = ['IT Support Group', 'Network Operations', 'Hardware Support Team', 'Software Support Team'];
+export { TECH_GROUPS };
 const IMPACTS = ['On Users', 'On Department', 'Low', 'On Business'];
-const DEPARTMENTS = ['Finance', 'Human Resources', 'Engineering', 'Sales', 'Operations'];
+
 const SOURCES = ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'];
 const LOCATIONS = ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru DC', 'Pune Office'];
 const TAGS = ['network, vpn', 'hardware', 'onboarding, access', 'printer', 'wifi, urgent'];

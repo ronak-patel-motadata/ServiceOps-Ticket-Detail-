@@ -4,6 +4,8 @@ import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, 
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { describeSubject } from './requestDescriptions';
+import { groupOfTechnician } from './technicianRoster';
+import { DEPARTMENTS } from './orgDepartments';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -337,10 +339,10 @@ export const extraValue = (key: string, t: Ticket): string => {
   switch (key) {
     case 'createdByUser': return [t.requester, 'System', t.assignedTo.name][h(1, 3)];
     case 'dueByDate': return fmtDate(t.dueBy);
-    case 'techGroup': return ['IT Support Group', 'Network Operations', 'Hardware Support Team', 'Software Support Team'][h(2, 4)];
+    case 'techGroup': return groupOfTechnician(t.assignedTo.name);
     case 'urgency': return t.priority;
     case 'impact': return t.impact ?? ['On Users', 'On Department', 'Low', 'On Business'][h(3, 4)];
-    case 'department': return ['Finance', 'Human Resources', 'Engineering', 'Sales', 'Operations'][h(4, 5)];
+    case 'department': return DEPARTMENTS[h(4, DEPARTMENTS.length)];
     case 'source': return ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'][h(5, 4)];
     case 'location': return ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru DC', 'Pune Office'][h(6, 4)];
     case 'tags': {
