@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf, SlaPill } from './TicketTable';
 import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
@@ -82,19 +82,54 @@ const initialsOf = (name: string) => {
 };
 
 
+const DROPPABLE = (g: KanbanGroup) => g === 'status' || g === 'priority' || g === 'assignedTo';
+const fieldPatch = (g: KanbanGroup, value: string): Partial<Ticket> =>
+  g === 'assignedTo' ? { assignedTo: { name: value, initials: initialsOf(value) } } : ({ [g]: value } as Partial<Ticket>);
+
 export function TicketKanban({
   tickets,
   group,
+  subGroup = null,
   onTicketClick,
   onUpdateTicket,
 }: {
   tickets: Ticket[];
   group: KanbanGroup;
+  /** Optional second axis: each value becomes a horizontal swimlane of columns. */
+  subGroup?: KanbanGroup | null;
   onTicketClick: (t: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(new Set());
+  const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [laneBodyMax, setLaneBodyMax] = useState(0);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!subGroup || !el) return;
+    // Viewport height minus the lane heading, the column header and the panel padding.
+    const measure = () => setLaneBodyMax(Math.max(240, el.clientHeight - 100));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [subGroup]);
+  const toggleCol = (col: string) =>
+    setCollapsedCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  const toggleLane = (lane: string) =>
+    setCollapsedLanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(lane)) next.delete(lane);
+      else next.add(lane);
+      return next;
+    });
   // Full-description popup (opened from the hover expand on a card).
   const [descTicket, setDescTicket] = useState<Ticket | null>(null);
   useEffect(() => {
@@ -104,48 +139,81 @@ export function TicketKanban({
     return () => window.removeEventListener('keydown', onKey);
   }, [descTicket]);
 
-  // Column set: a fixed lifecycle order where one exists, otherwise the values present.
-  const present = Array.from(new Set(tickets.map((t) => groupValue(t, group))));
-  const order =
-    group === 'status' ? STATUS_ORDER : group === 'priority' ? PRIORITY_ORDER : group === 'sla' ? SLA_ORDER : null;
-  const columns = order ? order.filter((v) => present.includes(v)) : present.sort((a, b) => a.localeCompare(b));
+  // Value set for an axis: a fixed lifecycle order where one exists, else what is present.
+  const valuesFor = (g: KanbanGroup) => {
+    const present = Array.from(new Set(tickets.map((t) => groupValue(t, g))));
+    const order =
+      g === 'status' ? STATUS_ORDER : g === 'priority' ? PRIORITY_ORDER : g === 'sla' ? SLA_ORDER : null;
+    return order ? order.filter((v) => present.includes(v)) : present.sort((a, b) => a.localeCompare(b));
+  };
+  const columns = valuesFor(group);
+  const lanes = subGroup ? valuesFor(subGroup) : [];
 
   // Only fields the card actually owns can be set by dropping.
-  const canDrop = group === 'status' || group === 'priority' || group === 'assignedTo';
+  const canDrop = DROPPABLE(group);
 
-  const drop = (col: string) => {
+  /* A drop sets the column value — and in swimlane mode the lane value too, so moving
+     a card across both axes at once does what it looks like it does. */
+  const drop = (col: string, laneKey: string | null) => {
     setOverCol(null);
     if (!dragId || !canDrop || !onUpdateTicket) return;
     const t = tickets.find((x) => x.id === dragId);
     setDragId(null);
-    if (!t || groupValue(t, group) === col) return;
-    if (group === 'assignedTo') {
-      onUpdateTicket(t.id, { assignedTo: { name: col, initials: initialsOf(col) } });
-    } else {
-      onUpdateTicket(t.id, { [group]: col } as Partial<Ticket>);
-    }
+    if (!t) return;
+    const patch: Partial<Ticket> = {};
+    if (groupValue(t, group) !== col) Object.assign(patch, fieldPatch(group, col));
+    if (laneKey && subGroup && DROPPABLE(subGroup) && groupValue(t, subGroup) !== laneKey)
+      Object.assign(patch, fieldPatch(subGroup, laneKey));
+    if (Object.keys(patch).length) onUpdateTicket(t.id, patch);
   };
 
-  return (
-    <div className="w-max min-w-full pb-6 pl-6 pr-4">
-      <div className="flex min-h-full gap-5 rounded-lg bg-[#FAFBFC] px-5 pb-5">
-      {columns.map((col) => {
-        const cards = tickets.filter((t) => groupValue(t, group) === col);
-        const isOver = overCol === col && canDrop;
+  /* One column — a full-height scrolling lane on the plain board, or an auto-height
+     section inside a swimlane row. */
+  const renderColumn = (col: string, laneKey: string | null, laneCards: Ticket[], scroll: boolean) => {
+        const cards = laneCards.filter((t) => groupValue(t, group) === col);
+        const dropKey = `${laneKey ?? ''}|${col}`;
+        const isOver = overCol === dropKey && canDrop;
+        const collapsed = collapsedCols.has(col);
         return (
           <div
             key={col}
             onDragOver={(e) => {
               if (!canDrop) return;
               e.preventDefault();
-              setOverCol(col);
+              setOverCol(dropKey);
             }}
-            onDragLeave={() => setOverCol((c) => (c === col ? null : c))}
-            onDrop={() => drop(col)}
-            className="flex w-[388px] flex-shrink-0 flex-col"
+            onDragLeave={() => setOverCol((c) => (c === dropKey ? null : c))}
+            onDrop={() => drop(col, laneKey)}
+            className={`group/col flex flex-shrink-0 flex-col ${collapsed ? 'w-11' : 'w-[388px]'} ${
+              scroll ? 'h-full min-h-0' : ''
+            }`}
           >
-            {/* Column header — the value, its count, and nothing else. */}
-            <div className="sticky top-[var(--tb,0px)] z-20 flex items-center gap-2 bg-[#FAFBFC] px-3 pb-2.5 pt-4">
+            {collapsed ? (
+              /* Folded: a slim rail that still names the column and its size — click to reopen. */
+              <Tip text={`Show ${col}`}>
+                <button
+                  onClick={() => toggleCol(col)}
+                  className={`mt-4 flex ${
+                    scroll ? 'min-h-0 flex-1' : 'min-h-[140px] flex-1'
+                  } flex-col items-center gap-2.5 rounded-lg border border-[#EEF1F4] bg-white py-3 transition-colors hover:border-[#DFE5ED] hover:bg-[#FBFCFD] ${
+                    isOver ? '!border-[#3D8BD0] !bg-[#EBF5FF]' : ''
+                  }`}
+                >
+                  <span
+                    className="size-2 flex-shrink-0 rounded-full"
+                    style={{ background: DOT[col] ?? '#94A3B8' }}
+                  />
+                  <span className="max-h-[220px] truncate text-[12px] font-semibold text-[#364658] [writing-mode:vertical-rl]">
+                    {col}
+                  </span>
+                  <span className="text-[12px] font-medium tabular-nums text-[#94A3B8]">{cards.length}</span>
+                  <ChevronsLeftRight size={14} className="mt-auto flex-shrink-0 text-[#94A3B8]" />
+                </button>
+              </Tip>
+            ) : (
+              <>
+            {/* Column header — the value, its count, and a hover control to fold it away. */}
+            <div className="flex flex-shrink-0 items-center gap-2 px-4 pb-2 pt-4">
               {PEOPLE_GROUP(group) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -163,12 +231,21 @@ export function TicketKanban({
                 </span>
               )}
               <span className="text-[12px] font-medium tabular-nums text-[#94A3B8]">{cards.length}</span>
+              <Tip text={`Hide ${col}`}>
+                <button
+                  onClick={() => toggleCol(col)}
+                  className="invisible ml-auto flex size-6 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#E9EEF4] hover:text-[#364658] group-hover/col:visible"
+                >
+                  <ChevronsRightLeft size={13} />
+                </button>
+              </Tip>
             </div>
 
             <div
-              className={`flex-1 space-y-2.5 rounded-lg border-2 border-dashed p-1 transition-colors ${
-                isOver ? 'border-[#3D8BD0] bg-[#EBF5FF]/60' : 'border-transparent'
-              }`}
+              className={`space-y-2.5 overflow-y-auto rounded-lg border-2 border-dashed px-2 py-2 transition-colors ${
+                scroll ? 'min-h-0 flex-1' : ''
+              } ${isOver ? 'border-[#3D8BD0] bg-[#EBF5FF]/60' : 'border-transparent'}`}
+              style={scroll ? undefined : { maxHeight: laneBodyMax || undefined }}
             >
               {cards.map((t) => {
                 const done = t.tasksDone ?? 0;
@@ -183,7 +260,7 @@ export function TicketKanban({
                       setOverCol(null);
                     }}
                     onClick={() => onTicketClick(t)}
-                    className={`group/card cursor-pointer rounded-lg border border-[#E5E7EB] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:border-[#C9D4E0] hover:shadow-[0_3px_10px_rgba(16,24,40,0.08)] ${
+                    className={`group/card cursor-pointer rounded-lg border border-[#EEF1F4] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05),0_2px_6px_rgba(16,24,40,0.05)] transition-all hover:border-[#DFE5ED] hover:shadow-[0_2px_4px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.10)] ${
                       dragId === t.id ? 'opacity-40' : ''
                     }`}
                   >
@@ -292,9 +369,76 @@ export function TicketKanban({
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         );
-      })}
+  };
+
+  /* Lane heading — the sub-group value in the same language its column header uses. */
+  const laneLabel = (lane: string) =>
+    subGroup && PEOPLE_GROUP(subGroup) ? (
+      <span className="inline-flex items-center gap-1.5">
+        <span
+          className="flex size-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-semibold text-white"
+          style={{ background: AVATAR_BG(subGroup) }}
+        >
+          {initialsOf(lane)}
+        </span>
+        <span className="max-w-[260px] truncate text-[12px] font-semibold text-[#364658]">{lane}</span>
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#364658]">
+        <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[lane] ?? '#94A3B8' }} />
+        <span className="max-w-[260px] truncate">{lane}</span>
+      </span>
+    );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`min-h-0 flex-1 pb-4 ${
+        subGroup ? 'overflow-y-auto overflow-x-hidden' : 'overflow-x-auto overflow-y-hidden pl-6 pr-4'
+      }`}
+    >
+      <div
+        className={`${
+          subGroup ? 'w-full space-y-7 pb-2' : 'flex h-full w-max min-w-full gap-5 rounded-lg bg-[#F7F9FB] px-4 pb-4'
+        }`}
+      >
+      {subGroup
+        ? lanes.map((lane) => {
+            const laneCards = tickets.filter((t) => groupValue(t, subGroup) === lane);
+            const collapsed = collapsedLanes.has(lane);
+            return (
+              <div key={lane}>
+                {/* Lane header — click anywhere on it to fold the lane away. */}
+                <div className="sticky top-0 z-30 bg-white pb-1.5 pl-6 pt-0.5">
+                <button
+                  onClick={() => toggleLane(lane)}
+                  className="flex items-center gap-2 rounded px-1 py-1.5 text-left transition-colors hover:bg-[#F5F7FA]"
+                >
+                  <ChevronDown
+                    size={14}
+                    className={`flex-shrink-0 text-[#94A3B8] transition-transform ${collapsed ? '-rotate-90' : ''}`}
+                  />
+                  {laneLabel(lane)}
+                  <span className="rounded-sm bg-[#E9EEF4] px-1.5 text-[11px] font-semibold tabular-nums text-[#64748B]">
+                    {laneCards.length}
+                  </span>
+                </button>
+                </div>
+                {!collapsed && (
+                  <div className="overflow-x-auto pl-6 pr-4">
+                    <div className="flex w-max min-w-full gap-5 rounded-lg bg-[#F7F9FB] px-4 pb-4">
+                      {columns.map((col) => renderColumn(col, lane, laneCards, false))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        : columns.map((col) => renderColumn(col, null, tickets, true))}
       {descTicket &&
         createPortal(
           <div
@@ -304,15 +448,41 @@ export function TicketKanban({
             }}
           >
             <div className="w-[560px] max-w-full overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-2xl">
-              <div className="flex items-center gap-3 border-b border-[#F0F2F5] px-5 py-4">
-                <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{descTicket.id}</span>
-                <h3 className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-[#1E293B]">{descTicket.subject}</h3>
-                <button
-                  onClick={() => setDescTicket(null)}
-                  className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]"
-                >
-                  <X size={16} className="text-[#64748B]" />
-                </button>
+              <div className="border-b border-[#F0F2F5] px-5 pb-3 pt-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{descTicket.id}</span>
+                  <h3 className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-[#1E293B]">{descTicket.subject}</h3>
+                  <button
+                    onClick={() => setDescTicket(null)}
+                    className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]"
+                  >
+                    <X size={16} className="text-[#64748B]" />
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-3">
+                  <Tip text={`Status: ${descTicket.status}`}>
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                      <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[descTicket.status] ?? '#94A3B8' }} />
+                      {descTicket.status}
+                    </span>
+                  </Tip>
+                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+                  <Tip text={`Assignee: ${descTicket.assignedTo.name || 'Unassigned'}`}>
+                    <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                      <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                        {descTicket.assignedTo.initials || 'UA'}
+                      </span>
+                      <span className="truncate">{descTicket.assignedTo.name || 'Unassigned'}</span>
+                    </span>
+                  </Tip>
+                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+                  <Tip text={`Priority: ${descTicket.priority}`}>
+                    <span className="inline-flex flex-shrink-0 items-center gap-1 text-[12px] font-medium text-[#364658]">
+                      <Flag size={12} fill="currentColor" style={{ color: DOT[descTicket.priority] }} />
+                      {descTicket.priority}
+                    </span>
+                  </Tip>
+                </div>
               </div>
               <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
                 <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Description</div>

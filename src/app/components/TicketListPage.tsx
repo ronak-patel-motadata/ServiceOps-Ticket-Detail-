@@ -175,6 +175,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   );
   const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard'>('list-kpi');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
+  const [kanbanSubGroup, setKanbanSubGroup] = useState<KanbanGroup | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
   useEffect(() => {
@@ -386,7 +387,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
         />
         <main className="flex-1 overflow-hidden flex flex-col">
           <div
-            className="flex-1 overflow-auto bg-white min-h-0 [scrollbar-gutter:stable]"
+            className={`flex-1 bg-white min-h-0 ${
+              view === 'kanban' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
+            }`}
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
           <div className="sticky left-0 bg-white pt-0.5">
@@ -418,13 +421,20 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             view={view}
             setView={setView}
             kanbanGroup={kanbanGroup}
-            setKanbanGroup={setKanbanGroup}
+            setKanbanGroup={(g) => {
+              setKanbanGroup(g);
+              // The columns and the lanes can never be the same field.
+              if (kanbanSubGroup === g) setKanbanSubGroup(null);
+            }}
+            kanbanSubGroup={kanbanSubGroup}
+            setKanbanSubGroup={setKanbanSubGroup}
           />
           </div>
           {view === 'kanban' ? (
             <TicketKanban
               tickets={sortedTickets}
               group={kanbanGroup}
+              subGroup={kanbanSubGroup}
               onTicketClick={handleOpenTicket}
               onUpdateTicket={updateTicket}
             />

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
@@ -85,6 +85,8 @@ export function TicketGridToolbar({
   setView,
   kanbanGroup,
   setKanbanGroup,
+  kanbanSubGroup,
+  setKanbanSubGroup,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -104,6 +106,8 @@ export function TicketGridToolbar({
   setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard') => void;
   kanbanGroup: KanbanGroup;
   setKanbanGroup: (g: KanbanGroup) => void;
+  kanbanSubGroup: KanbanGroup | null;
+  setKanbanSubGroup: (g: KanbanGroup | null) => void;
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -201,7 +205,7 @@ export function TicketGridToolbar({
   const [sortOver, setSortOver] = useState<string | null>(null);
   const [gearOpen, setGearOpen] = useState(false);
   // The gear opens as the view switcher; "Group by" swaps the card in place.
-  const [gearView, setGearView] = useState<'main' | 'layout' | 'group'>('main');
+  const [gearView, setGearView] = useState<'main' | 'layout' | 'group' | 'subgroup'>('main');
   // Mirrors the grid's visible-column set so the row states what it opens onto.
   const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
   useEffect(() => {
@@ -785,6 +789,23 @@ export function TicketGridToolbar({
                       <ChevronRight size={14} className="text-[#9CA3AF]" />
                     </button>
                   )}
+                  {view === 'kanban' && (
+                    <button
+                      onClick={() => setGearView('subgroup')}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                    >
+                      <Rows3 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                      <span className="flex-1 text-[13px] text-[#364658]">Sub group</span>
+                      {kanbanSubGroup ? (
+                        <span className="text-[13px] font-medium text-[#3D8BD0]">
+                          {KANBAN_GROUPS.find((g) => g.key === kanbanSubGroup)?.label}
+                        </span>
+                      ) : (
+                        <span className="text-[13px] text-[#94A3B8]">None</span>
+                      )}
+                      <ChevronRight size={14} className="text-[#9CA3AF]" />
+                    </button>
+                  )}
                   {isList && (
                     <button
                       onClick={() => {
@@ -863,6 +884,44 @@ export function TicketGridToolbar({
                       >
                         <Icon size={17} />
                         {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : gearView === 'subgroup' ? (
+                <>
+                  <div className="flex items-center gap-1.5 border-b border-[#F0F2F5] px-2 py-2">
+                    <button
+                      onClick={() => setGearView('main')}
+                      className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span className="text-[13px] font-semibold text-[#1E293B]">Sub group</span>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setKanbanSubGroup(null);
+                        setGearView('main');
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                    >
+                      <span className="flex-1">None</span>
+                      {!kanbanSubGroup && <Check size={14} className="text-[#3D8BD0]" />}
+                    </button>
+                    {/* The column axis cannot also be the lane axis. */}
+                    {KANBAN_GROUPS.filter((g) => g.key !== kanbanGroup).map((g) => (
+                      <button
+                        key={g.key}
+                        onClick={() => {
+                          setKanbanSubGroup(g.key);
+                          setGearView('main');
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+                      >
+                        <span className="flex-1 truncate">{g.label}</span>
+                        {kanbanSubGroup === g.key && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
                       </button>
                     ))}
                   </div>
