@@ -1112,7 +1112,7 @@ function CanvasControls({ onReset, orient, onOrientChange, fullscreen, onToggleF
         {showKeys && (
           <>
             <div className="fixed inset-0" onClick={() => setShowKeys(false)} />
-            <div className="absolute right-9 top-0 w-[290px] rounded-lg border border-[#E5E7EB] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="app-menu absolute right-9 top-0 w-[290px] rounded-lg border border-[#E5E7EB] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b border-[#F0F1F3] px-3.5 py-2.5">
                 <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#364658]">
                   <Keyboard size={14} className="text-[#6B7280]" /> Keyboard Shortcuts
@@ -1348,7 +1348,7 @@ export function DeploymentTopologyView({ search = '', statusFilter = [], patchFi
           {showScenarioMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowScenarioMenu(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+              <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[320px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
                 {scenarioList.map((s, i) => (
                   <button
                     key={s.key}

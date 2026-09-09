@@ -481,7 +481,7 @@ export function ApprovalsTabContent({
                                         <MoreVertical size={16} className="text-[#6B7280]" />
                                       </button>
                                       {openDropdownId === approver.id && (
-                                        <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-10">
+                                        <div className="app-menu absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-10">
                                           <button
                                             className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                                             onClick={() => setOpenDropdownId(null)}

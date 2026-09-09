@@ -1,7 +1,13 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 
 interface MinimizedItem { id: string; subject?: string; noIdPill?: boolean }
+
+/* First minimize of the session gets one coach mark. The dock is a small tab on an edge
+   most people never look at, so without a nudge the first minimize reads as "my record
+   vanished". Session-scoped like the detail-page tour — it teaches once, then stays out
+   of the way. */
+const HINT_KEY = 'hasSeenMinimizedRailHint';
 
 /**
  * Compact right-edge dock shown when a detail drawer is minimized.
@@ -25,7 +31,26 @@ export function MinimizedDrawerRail({
 }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
-  const enter = () => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } setOpen(true); };
+
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (sessionStorage.getItem(HINT_KEY)) return;
+    // A beat after the drawer collapses, so the card arrives to a settled screen.
+    const t = window.setTimeout(() => setHint(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+  const dismissHint = () => {
+    sessionStorage.setItem(HINT_KEY, 'true');
+    setHint(false);
+  };
+
+  const enter = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    // Reaching the dock IS the thing the hint was teaching — and the fly-out opens in the
+    // same spot, so letting both sit there would just stack two cards on one anchor.
+    if (hint) dismissHint();
+    setOpen(true);
+  };
   const leave = () => { closeTimer.current = window.setTimeout(() => setOpen(false), 150); };
 
   return (
@@ -53,10 +78,33 @@ export function MinimizedDrawerRail({
         </span>
       </button>
 
+      {/* One-time coach mark, built to the same recipe as the AI field-suggestion coach in
+          TicketFieldsAccordion: #1F2937 card, white/85 copy, white "Got it" bottom-right.
+          Two coach marks in one product should be the same object wearing different words. */}
+      {hint && !open && (
+        <div className="absolute right-full top-1/2 -translate-y-1/2 pr-2.5">
+          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-right-2 relative w-[272px] whitespace-normal rounded-lg bg-[#1F2937] p-3 text-left shadow-2xl">
+            <span className="absolute -right-1 top-1/2 size-2 -translate-y-1/2 rotate-45 bg-[#1F2937]" />
+            <div className="text-[13px] font-semibold leading-snug text-white">Your minimized space</div>
+            <p className="mt-1 text-[12px] font-normal leading-relaxed text-white/85">
+              Minimized items park here. Keep several open and switch between them without losing your place.
+            </p>
+            <div className="mt-2.5 flex justify-end">
+              <button
+                onClick={dismissHint}
+                className="h-7 rounded bg-white px-3 text-[12px] font-semibold text-[#1F2937] transition-colors hover:bg-white/90"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hover fly-out — the open items, readable instead of rotated. */}
       {open && (
         <div className="absolute right-full top-1/2 -translate-y-1/2 pr-1.5">
-        <div className="w-[240px] rounded-lg border border-[#E5E7EB] bg-white py-1.5 shadow-lg">
+        <div className="app-menu w-[240px] rounded-lg border border-[#E5E7EB] bg-white py-1.5 shadow-lg">
           <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#7B8FA5]">
             Open items
           </div>

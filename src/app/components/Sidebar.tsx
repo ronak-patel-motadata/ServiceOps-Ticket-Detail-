@@ -55,7 +55,7 @@ function AssetsNavItem({ activePage, onNavigate }: { activePage?: string; onNavi
       <NavItem icon={<IconAssets size={20} />} active={sectionActive} title="Assets" disableTooltip />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
-        <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+        <div className="app-menu w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
           {ASSET_GROUPS.map((group, gi) => (
             <div key={gi}>
               {gi > 0 && <div className="my-1 border-t border-[#F0F2F5]" />}
@@ -99,7 +99,7 @@ function VulnerabilityNavItem({ activePage, onNavigate }: { activePage?: string;
       <NavItem icon={<IconVulnerability size={20} />} active={sectionActive} title="Vulnerability" disableTooltip />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
-        <div className="w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+        <div className="app-menu w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
           {VULNERABILITY_ITEMS.map((item) => {
             const isActive = !!item.page && item.page === activePage;
             return (
@@ -139,7 +139,7 @@ function PatchNavItem({ activePage, onNavigate }: { activePage?: string; onNavig
       <NavItem icon={<IconPatch size={20} />} active={sectionActive} title="Patch" disableTooltip />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
-        <div className="w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+        <div className="app-menu w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
           {PATCH_ITEMS.map((item) => {
             const isActive = !!item.page && item.page === activePage;
             return (
@@ -178,7 +178,7 @@ function PackageNavItem({ activePage, onNavigate }: { activePage?: string; onNav
       <NavItem icon={<IconPackage size={20} />} active={sectionActive} title="Package" disableTooltip />
       {/* Flyout — pl-2 keeps a visual gap while bridging the hover area */}
       <div className="absolute left-full top-0 z-[9999] hidden group-hover:block pl-2">
-        <div className="w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+        <div className="app-menu w-[250px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
           {PACKAGE_ITEMS.map((item) => {
             const isActive = !!item.page && item.page === activePage;
             return (

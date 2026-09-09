@@ -168,7 +168,7 @@ export function PatchVulnerabilitiesTab({ endpoints = INITIAL_COMPUTERS }: Patch
             {showActions && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowActions(false)} />
-                <div className="absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+                <div className="app-menu absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
                   {actions.map((a) => (
                     <button
                       key={a.key}

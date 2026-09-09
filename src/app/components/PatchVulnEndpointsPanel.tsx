@@ -100,7 +100,7 @@ export function PatchVulnEndpointsPanel({ isOpen, onClose, cveId, endpoints }: P
                 {showOffice && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowOffice(false)} />
-                    <div className="absolute right-0 top-full z-50 mt-1 w-[220px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                    <div className="app-menu absolute right-0 top-full z-50 mt-1 w-[220px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
                       {officeOptions.map((o) => (
                         <button
                           key={o}

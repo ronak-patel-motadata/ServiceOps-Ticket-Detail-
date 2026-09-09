@@ -302,7 +302,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
               </button>
 
               {showTaskSortMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[280px] overflow-y-auto w-[180px]">
+                <div className="app-menu absolute top-full left-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[280px] overflow-y-auto w-[180px]">
                   <button
                     onClick={() => { setTypeFilter(null); onClearTypeFilter?.(); setShowTaskSortMenu(false); }}
                     className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors"
@@ -367,7 +367,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
 
           {showAddRelationDropdown && (
             <div
-              className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto w-[160px]"
+              className="app-menu absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto w-[160px]"
               ref={addRelationDropdownRef}
             >
               {relationTypes.map((type) => (
@@ -404,7 +404,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
                 </button>
 
                 {showTypeDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto">
+                  <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto">
                     {relationTypes.map((type) => (
                       <button
                         key={type}
@@ -495,7 +495,7 @@ export function RelationsTabContent({ ticketId, externalRelations = [], initialT
 
                 {showAddRelationDropdown && (
                   <div
-                    className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto min-w-[200px]"
+                    className="app-menu absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 max-h-[240px] overflow-y-auto min-w-[200px]"
                     ref={addRelationDropdownRef}
                   >
                     {relationTypes.map((type) => (

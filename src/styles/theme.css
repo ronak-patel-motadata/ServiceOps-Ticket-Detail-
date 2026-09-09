@@ -249,6 +249,17 @@ body,
   overflow: hidden;
 }
 
+/* Dropdown rows: the hover fill sits INSET from the menu edges with a 4px radius rather
+   than running edge to edge. Applied through the .app-menu marker on menu surfaces, so
+   modals, side panels and hover cards are untouched. Only full-width rows are affected —
+   a menu's own footer buttons (Cancel / Apply) keep their natural size. */
+.app-menu button[class~="w-full"],
+.app-menu a[class~="w-full"] {
+  width: calc(100% - 8px);
+  margin-inline: 4px;
+  border-radius: 4px;
+}
+
 /* Auto-hide scrollbars — the thumb stays invisible until the pointer is over that
    scroll area (or something inside it), so we never show several bars at once.
    Applied globally to Tailwind's overflow utilities; the gutter stays reserved so

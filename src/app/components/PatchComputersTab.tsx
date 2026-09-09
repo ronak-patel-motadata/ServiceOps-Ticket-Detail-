@@ -300,7 +300,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
           {showOffice && (
             <>
               <div className="fixed inset-0 z-40" onClick={closeOfficeMenu} />
-              <div className={`absolute ${hideBuckets ? 'right-0' : 'left-0'} top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1`}>
+              <div className={`app-menu absolute ${hideBuckets ? 'right-0' : 'left-0'} top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1`}>
                 {/* Search — tenants can have 100+ groups, so the list is filterable */}
                 <div className="px-3 pb-2 pt-1">
                   <div className="relative">
@@ -422,7 +422,7 @@ export function PatchComputersTab({ computers, setComputers, onInstall, hideBuck
             {showMore && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMore(false)} />
-                <div className="absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+                <div className="app-menu absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
                   {actions.map((a) => (
                     <div key={a.key}>
                       {a.tone === 'danger' && <div className="my-1 border-t border-[#F0F2F5]" />}

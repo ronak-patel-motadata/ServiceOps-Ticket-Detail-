@@ -173,7 +173,7 @@ export function EndpointPatchesTab({ patches, setPatches }: EndpointPatchesTabPr
           {showCategory && (
             <>
               <div className="fixed inset-0 z-40" onClick={closeCategoryMenu} />
-              <div className="absolute left-0 top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+              <div className="app-menu absolute left-0 top-full mt-1 z-50 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
                 <div className="px-3 pb-2 pt-1">
                   <div className="relative">
                     <input
@@ -253,7 +253,7 @@ export function EndpointPatchesTab({ patches, setPatches }: EndpointPatchesTabPr
             {showMore && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMore(false)} />
-                <div className="absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
+                <div className="app-menu absolute left-0 top-full mt-1 z-50 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1">
                   {actions.map((a) => (
                     <div key={a.key}>
                       {a.tone === 'danger' && <div className="my-1 border-t border-[#F0F2F5]" />}

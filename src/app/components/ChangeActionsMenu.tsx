@@ -58,7 +58,7 @@ export function ChangeActionsMenu({ onOpenApprovalPopup, onRestartOnboarding }: 
       </button>
 
       {showActionsMenu && (
-        <div className="absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item
             label="Archive"
             icon={

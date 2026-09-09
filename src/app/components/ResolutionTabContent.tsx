@@ -201,7 +201,7 @@ export function ResolutionTabContent({
 
                       {/* AI Assist Dropdown Menu */}
                       {showAIAssistMenuDiagnosis && (
-                        <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                        <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                           <div className="py-2">
                             <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
                               Refine
@@ -245,7 +245,7 @@ export function ResolutionTabContent({
 
                               {/* Tone Submenu */}
                               {showToneSubmenuDiagnosis && (
-                                <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                   <div className="py-2">
                                     <button 
                                       className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -334,7 +334,7 @@ export function ResolutionTabContent({
 
                       {/* All Formatting Options Dropdown */}
                       {showFormattingMenuDiagnosis && (
-                        <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                        <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                           <div className="flex items-center gap-1">
                             <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                               <Bold size={16} />
@@ -477,7 +477,7 @@ export function ResolutionTabContent({
 
                       {/* AI Assist Dropdown Menu */}
                       {showAIAssistMenuSolution && (
-                        <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                        <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                           <div className="py-2">
                             <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
                               Refine
@@ -521,7 +521,7 @@ export function ResolutionTabContent({
 
                               {/* Tone Submenu */}
                               {showToneSubmenuSolution && (
-                                <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                   <div className="py-2">
                                     <button 
                                       className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -610,7 +610,7 @@ export function ResolutionTabContent({
 
                       {/* All Formatting Options Dropdown */}
                       {showFormattingMenuSolution && (
-                        <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                        <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                           <div className="flex items-center gap-1">
                             <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                               <Bold size={16} />

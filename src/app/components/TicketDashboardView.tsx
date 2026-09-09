@@ -27,7 +27,7 @@ import {
 } from 'recharts';
 import { slaToneOf, SlaPill } from './TicketTable';
 import type { Ticket } from './TicketListPage';
-import type { FilterRule } from './TicketFilterBar';
+import { AGE_BUCKETS, ageHoursOf, type FilterRule } from './TicketFilterBar';
 import { TECHNICIANS, groupOfTechnician } from './technicianRoster';
 import { DEPARTMENTS } from './orgDepartments';
 import { BreakdownPanel } from './BreakdownPanel';
@@ -69,8 +69,6 @@ const hx = (id: string, salt: number) => {
 const SOURCES = ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'];
 const deptOf = (t: Ticket) => DEPARTMENTS[hx(t.id, 4) % DEPARTMENTS.length];
 const sourceOf = (t: Ticket) => SOURCES[hx(t.id, 5) % SOURCES.length];
-/** Mock age in hours, wider for older/lower-priority work. */
-const ageHoursOf = (t: Ticket) => 2 + (hx(t.id, 21) % 220);
 
 const initialsOf = (n: string) =>
   n
@@ -182,14 +180,32 @@ function Tile({
 
 /* ── Charts ─────────────────────────────────────────────────────────────── */
 
-function Donut({ segs, total, centerLabel, size = 132 }: { segs: Seg[]; total: number; centerLabel: string; size?: number }) {
+function Donut({
+  segs,
+  total,
+  centerLabel,
+  size = 132,
+  active = null,
+}: {
+  segs: Seg[];
+  total: number;
+  centerLabel: string;
+  size?: number;
+  /** Label of the slice being pointed at; the rest recede. */
+  active?: string | null;
+}) {
+  const hot = active ? segs.find((s) => s.label === active) ?? null : null;
   let acc = 0;
   const stops = segs
     .filter((s) => s.value > 0)
     .map((s) => {
       const from = (acc / total) * 360;
       acc += s.value;
-      return `${s.color} ${from}deg ${(acc / total) * 360}deg`;
+      /* Receding slices keep their OWN hue at low alpha instead of turning grey — the ring
+         still reads as the same chart, just quieter, so the eye tracks one wedge without
+         losing its bearings. */
+      const paint = !hot || hot.label === s.label ? s.color : `${s.color}24`;
+      return `${paint} ${from}deg ${(acc / total) * 360}deg`;
     })
     .join(', ');
   return (
@@ -197,33 +213,82 @@ function Donut({ segs, total, centerLabel, size = 132 }: { segs: Seg[]; total: n
       className="relative flex-shrink-0 rounded-full"
       style={{ width: size, height: size, background: total > 0 ? `conic-gradient(${stops})` : '#F1F5F9' }}
     >
-      <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white">
-        <span className="text-[20px] font-semibold leading-none text-[#1E293B] tabular-nums">{total}</span>
-        <span className="mt-1 text-[10px] text-[#7B8FA5]">{centerLabel}</span>
+      <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white px-3">
+        {/* The centre answers the hover: that slice's count, in its own colour. */}
+        <span
+          className="text-[20px] font-semibold leading-none tabular-nums transition-colors"
+          style={{ color: hot ? hot.color : '#1E293B' }}
+        >
+          {hot ? hot.value : total}
+        </span>
+        <span className="mt-1 w-full truncate text-center text-[10px] text-[#7B8FA5]">{hot ? hot.label : centerLabel}</span>
       </div>
     </div>
   );
 }
 
-function Legend({ segs, total, onPick }: { segs: Seg[]; total: number; onPick?: (label: string) => void }) {
+function Legend({
+  segs,
+  total,
+  onPick,
+  active = null,
+  onHover,
+}: {
+  segs: Seg[];
+  total: number;
+  onPick?: (label: string) => void;
+  active?: string | null;
+  onHover?: (label: string | null) => void;
+}) {
   return (
-    <div className="min-w-0 flex-1 space-y-1.5">
-      {segs.map((s) => (
-        <button
-          key={s.label}
-          onClick={onPick ? () => onPick(s.label) : undefined}
-          className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-[12px] ${
-            onPick ? 'transition-colors hover:bg-[#F5F7FA]' : 'cursor-default'
-          }`}
-        >
-          <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-          <span className="min-w-0 flex-1 truncate text-left text-[#64748B]">{s.label}</span>
-          <span className="font-semibold tabular-nums text-[#364658]">{s.value}</span>
-          <span className="w-9 text-right text-[11px] tabular-nums text-[#94A3B8]">
-            {total ? Math.round((s.value / total) * 100) : 0}%
-          </span>
-        </button>
-      ))}
+    <div className="min-w-0 flex-1 space-y-1.5" onMouseLeave={onHover ? () => onHover(null) : undefined}>
+      {segs.map((s) => {
+        const dim = !!active && active !== s.label;
+        return (
+          <button
+            key={s.label}
+            onClick={onPick ? () => onPick(s.label) : undefined}
+            /* Focus mirrors hover so tabbing through the legend lights the ring too. */
+            onMouseEnter={onHover ? () => onHover(s.label) : undefined}
+            onFocus={onHover ? () => onHover(s.label) : undefined}
+            onBlur={onHover ? () => onHover(null) : undefined}
+            className={`flex w-full items-center gap-2 rounded px-1 py-0.5 text-[12px] transition-all duration-150 ${
+              onPick ? 'hover:bg-[#F5F7FA]' : 'cursor-default'
+            } ${dim ? 'opacity-40' : ''} ${active === s.label ? 'bg-[#F5F7FA]' : ''}`}
+          >
+            <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            <span className={`min-w-0 flex-1 truncate text-left ${active === s.label ? 'text-[#364658]' : 'text-[#64748B]'}`}>
+              {s.label}
+            </span>
+            <span className="font-semibold tabular-nums text-[#364658]">{s.value}</span>
+            <span className="w-9 text-right text-[11px] tabular-nums text-[#94A3B8]">
+              {total ? Math.round((s.value / total) * 100) : 0}%
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Donut and its legend have to share one hovered slice, so they are one component rather
+   than two siblings and a lifted state in every card that wants a ring. */
+function DonutWithLegend({
+  segs,
+  total,
+  centerLabel,
+  onPick,
+}: {
+  segs: Seg[];
+  total: number;
+  centerLabel: string;
+  onPick?: (label: string) => void;
+}) {
+  const [active, setActive] = useState<string | null>(null);
+  return (
+    <div className="flex items-center gap-4">
+      <Donut segs={segs} total={total} centerLabel={centerLabel} active={active} />
+      <Legend segs={segs} total={total} onPick={onPick} active={active} onHover={setActive} />
     </div>
   );
 }
@@ -233,7 +298,7 @@ function Legend({ segs, total, onPick }: { segs: Seg[]; total: number; onPick?: 
 function ChartTip({ active, payload, label, suffix }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="min-w-[132px] rounded-lg border border-[#DFE5ED] bg-white px-3 py-2 shadow-lg">
+    <div className="app-menu min-w-[132px] rounded-lg border border-[#DFE5ED] bg-white px-3 py-2 shadow-lg">
       {label !== undefined && <div className="mb-1 text-[11px] font-medium text-[#7B8FA5]">{label}</div>}
       <div className="space-y-0.5">
         {payload.map((p: any) => {
@@ -326,7 +391,7 @@ export function TicketDashboardView({
 }: {
   tickets: Ticket[];
   onTicketClick?: (t: Ticket) => void;
-  onDrillDown?: (rules: Omit<FilterRule, 'id'>[]) => void;
+  onDrillDown?: (rules: Omit<FilterRule, 'id'>[], label: string) => void;
 }) {
   /* Always a bounded window — an unbounded range would mean one column per day for the
      customer's whole history. It opens on the SMALLEST range so the first query the
@@ -340,7 +405,10 @@ export function TicketDashboardView({
     return <div className="px-6 py-16 text-center text-[13px] text-[#94A3B8]">No requests match the current filters.</div>;
   }
 
-  const drill = (rules: Omit<FilterRule, 'id'>[]) => (onDrillDown ? () => onDrillDown(rules) : undefined);
+  /* Every drill-down names itself so the list can show WHERE the user came from, not just
+     that some filter is on. The label is the thing they clicked, in their words. */
+  const drill = (rules: Omit<FilterRule, 'id'>[], label: string) =>
+    onDrillDown ? () => onDrillDown(rules, label) : undefined;
 
   /* ── Figures ── */
   const open = tickets.filter(isOpen);
@@ -421,14 +489,9 @@ export function TicketDashboardView({
     value: tickets.filter((t) => sourceOf(t) === sv).length,
   })).filter((s) => s.value > 0);
 
-  /* Backlog aging — the classic ITSM health check on unresolved work. */
-  const AGING = [
-    { label: '< 24 hours', color: '#22C55E', test: (h: number) => h < 24 },
-    { label: '1 – 3 days', color: '#3D8BD0', test: (h: number) => h >= 24 && h < 72 },
-    { label: '3 – 7 days', color: '#F59E0B', test: (h: number) => h >= 72 && h < 168 },
-    { label: '> 7 days', color: '#EF4444', test: (h: number) => h >= 168 },
-  ];
-  const agingRows = AGING.map((a) => ({ ...a, value: open.filter((t) => a.test(ageHoursOf(t))).length }));
+  /* Backlog aging — the classic ITSM health check on unresolved work. Buckets come from
+     the filter layer so a bar and the list it drills into can never disagree. */
+  const agingRows = AGE_BUCKETS.map((a) => ({ ...a, value: open.filter((t) => a.test(ageHoursOf(t))).length }));
 
   /* Received vs resolved per day — inflow against outflow, the flow chart every
      service-desk dashboard leads with. */
@@ -502,7 +565,7 @@ export function TicketDashboardView({
           label="Open requests"
           value={open.length}
           sub={`${total} total`}
-          onClick={drill([{ field: 'status', condition: 'is', values: OPEN_STATES }])}
+          onClick={drill([{ field: 'status', condition: 'is', values: OPEN_STATES }], 'Open requests')}
           hint="Show unresolved requests in the list"
         />
         <Tile
@@ -512,7 +575,7 @@ export function TicketDashboardView({
           value={breached.length}
           sub={`$${penalty.toLocaleString()} exposure`}
           trend={{ pct: '8%', up: true, good: false }}
-          onClick={drill([{ field: 'sla', condition: 'is', values: ['Breached'] }])}
+          onClick={drill([{ field: 'sla', condition: 'is', values: ['Breached'] }], 'SLA breached')}
           hint="Show breached requests"
         />
         <Tile
@@ -521,7 +584,7 @@ export function TicketDashboardView({
           label="Due today"
           value={dueSoon.length}
           sub="resolution due < 24h"
-          onClick={drill([{ field: 'sla', condition: 'is', values: ['Due soon'] }])}
+          onClick={drill([{ field: 'sla', condition: 'is', values: ['Due soon'] }], 'Due today')}
           hint="Show requests due within 24 hours"
         />
         <Tile
@@ -531,10 +594,13 @@ export function TicketDashboardView({
           value={urgent.length}
           sub="unresolved"
           trend={{ pct: '4.5%', up: true, good: false }}
-          onClick={drill([
-            { field: 'priority', condition: 'is', values: ['Urgent'] },
-            { field: 'status', condition: 'is', values: OPEN_STATES },
-          ])}
+          onClick={drill(
+            [
+              { field: 'priority', condition: 'is', values: ['Urgent'] },
+              { field: 'status', condition: 'is', values: OPEN_STATES },
+            ],
+            'Urgent priority',
+          )}
           hint="Show unresolved urgent requests"
         />
         <Tile
@@ -543,7 +609,7 @@ export function TicketDashboardView({
           label="Pending approval"
           value={approvals.length}
           sub="awaiting approvers"
-          onClick={drill([{ field: 'approval', condition: 'is', values: ['Pending approval'] }])}
+          onClick={drill([{ field: 'approval', condition: 'is', values: ['Pending approval'] }], 'Pending approval')}
           hint="Show requests awaiting an approver"
         />
         <Tile
@@ -553,7 +619,7 @@ export function TicketDashboardView({
           value={resolved.length}
           sub={`avg ${avgResolve} to resolve`}
           trend={{ pct: '12%', up: true, good: true }}
-          onClick={drill([{ field: 'status', condition: 'is', values: ['Completed', 'Closed'] }])}
+          onClick={drill([{ field: 'status', condition: 'is', values: ['Completed', 'Closed'] }], 'Resolved')}
           hint="Show resolved requests"
         />
       </div>
@@ -586,14 +652,16 @@ export function TicketDashboardView({
         </Card>
 
         <Card title="Requests by status" sub="Whole queue">
-          <div className="flex items-center gap-4">
-            <Donut segs={statusSegs} total={total} centerLabel="requests" />
-            <Legend
-              segs={statusSegs}
-              total={total}
-              onPick={onDrillDown ? (label) => onDrillDown([{ field: 'status', condition: 'is', values: [label] }]) : undefined}
-            />
-          </div>
+          <DonutWithLegend
+            segs={statusSegs}
+            total={total}
+            centerLabel="requests"
+            onPick={
+              onDrillDown
+                ? (label) => onDrillDown([{ field: 'status', condition: 'is', values: [label] }], `${label} requests`)
+                : undefined
+            }
+          />
         </Card>
 
         <Card title="Requests by priority" sub="Whole queue">
@@ -616,7 +684,7 @@ export function TicketDashboardView({
                   name="Requests"
                   radius={[0, 4, 4, 0]}
                   onClick={(d: any) =>
-                    onDrillDown?.([{ field: 'priority', condition: 'is', values: [d.label] }])
+                    onDrillDown?.([{ field: 'priority', condition: 'is', values: [d.label] }], `${d.label} priority`)
                   }
                   className={onDrillDown ? 'cursor-pointer' : ''}
                 >
@@ -660,10 +728,13 @@ export function TicketDashboardView({
                     {initialsOf(name)}
                   </span>
                 }
-                onClick={drill([
-                  { field: 'assignedTo', condition: 'is', values: [name] },
-                  { field: 'status', condition: 'is', values: OPEN_STATES },
-                ])}
+                onClick={drill(
+                  [
+                    { field: 'assignedTo', condition: 'is', values: [name] },
+                    { field: 'status', condition: 'is', values: OPEN_STATES },
+                  ],
+                  `Assigned to ${name}`,
+                )}
               />
             ))}
           </div>
@@ -698,7 +769,23 @@ export function TicketDashboardView({
                   tickLine={false}
                 />
                 <RTooltip cursor={{ fill: '#F8FAFC' }} content={<ChartTip />} />
-                <Bar dataKey="value" name="Requests" radius={[4, 4, 0, 0]}>
+                <Bar
+                  dataKey="value"
+                  name="Requests"
+                  radius={[4, 4, 0, 0]}
+                  /* The bar counts OPEN work, so the drill has to carry the same status
+                     constraint — an age filter on its own would pull in closed requests. */
+                  onClick={(d: any) =>
+                    onDrillDown?.(
+                      [
+                        { field: 'age', condition: 'is', values: [d.label] },
+                        { field: 'status', condition: 'is', values: OPEN_STATES },
+                      ],
+                      `Open ${d.label}`,
+                    )
+                  }
+                  className={onDrillDown ? 'cursor-pointer' : ''}
+                >
                   {agingRows.map((a) => (
                     <Cell key={a.label} fill={a.color} />
                   ))}
@@ -716,10 +803,7 @@ export function TicketDashboardView({
         </Card>
 
         <Card title="Requests by source" sub="How the desk is being reached">
-          <div className="flex items-center gap-4">
-            <Donut segs={sourceSegs} total={total} centerLabel="requests" />
-            <Legend segs={sourceSegs} total={total} />
-          </div>
+          <DonutWithLegend segs={sourceSegs} total={total} centerLabel="requests" />
         </Card>
       </div>
 
@@ -799,7 +883,7 @@ export function TicketDashboardView({
           action={
             onDrillDown && (
               <button
-                onClick={() => onDrillDown([{ field: 'sla', condition: 'is', values: ['Breached', 'Due soon'] }])}
+                onClick={() => onDrillDown([{ field: 'sla', condition: 'is', values: ['Breached', 'Due soon'] }], 'Needs attention')}
                 className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
               >
                 View all
@@ -821,7 +905,10 @@ export function TicketDashboardView({
                   <col className="w-[104px]" />
                 </colgroup>
                 <thead>
-                  <tr className="border-y border-[#E5E7EB]">
+                  {/* Same header treatment as the listing grid: white, one hairline UNDER the
+                      row. The old banded top-and-bottom rule read as a separate box floating
+                      inside the card. */}
+                  <tr>
                     {[
                       { k: 'id', label: 'ID', cls: 'pl-4 pr-3' },
                       { k: 'subject', label: 'Subject', cls: 'px-3' },
@@ -831,7 +918,7 @@ export function TicketDashboardView({
                     ].map((c) => (
                       <th
                         key={c.k}
-                        className={`${c.cls} whitespace-nowrap bg-[#FBFCFD] py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B]`}
+                        className={`${c.cls} whitespace-nowrap bg-white py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] shadow-[inset_0_-1px_0_#E5E7EB]`}
                       >
                         {c.label}
                       </th>
@@ -907,7 +994,9 @@ export function TicketDashboardView({
                     name="Requests"
                     radius={[0, 4, 4, 0]}
                     onClick={(d: any) =>
-                      d.other ? setDeptOpen(true) : onDrillDown?.([{ field: 'department', condition: 'is', values: [d.label] }])
+                      d.other
+                        ? setDeptOpen(true)
+                        : onDrillDown?.([{ field: 'department', condition: 'is', values: [d.label] }], `${d.label} department`)
                     }
                     className={onDrillDown ? 'cursor-pointer' : ''}
                   >
@@ -952,7 +1041,7 @@ export function TicketDashboardView({
                       {initialsOf(name)}
                     </span>
                   }
-                  onClick={drill([{ field: 'requester', condition: 'is', values: [name] }])}
+                  onClick={drill([{ field: 'requester', condition: 'is', values: [name] }], `Raised by ${name}`)}
                 />
               ))}
             </div>
@@ -969,7 +1058,7 @@ export function TicketDashboardView({
               </div>
               {onDrillDown && (
                 <button
-                  onClick={() => onDrillDown([{ field: 'unread', condition: 'is', values: ['Has unread'] }])}
+                  onClick={() => onDrillDown([{ field: 'unread', condition: 'is', values: ['Has unread'] }], 'Unread replies')}
                   className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
                 >
                   Open
@@ -987,10 +1076,13 @@ export function TicketDashboardView({
           onClose={() => setRosterOpen(false)}
           onPick={(name) => {
             setRosterOpen(false);
-            onDrillDown?.([
-              { field: 'assignedTo', condition: 'is', values: [name] },
-              { field: 'status', condition: 'is', values: OPEN_STATES },
-            ]);
+            onDrillDown?.(
+              [
+                { field: 'assignedTo', condition: 'is', values: [name] },
+                { field: 'status', condition: 'is', values: OPEN_STATES },
+              ],
+              `Assigned to ${name}`,
+            );
           }}
         />
       )}
@@ -1004,7 +1096,7 @@ export function TicketDashboardView({
           onClose={() => setDeptOpen(false)}
           onPick={(label) => {
             setDeptOpen(false);
-            onDrillDown?.([{ field: 'department', condition: 'is', values: [label] }]);
+            onDrillDown?.([{ field: 'department', condition: 'is', values: [label] }], `${label} department`);
           }}
         />
       )}

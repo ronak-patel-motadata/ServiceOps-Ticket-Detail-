@@ -160,7 +160,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showUserGroupDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {userGroupOptions.map((option) => (
                         <button
                           key={option}
@@ -190,7 +190,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showAssigneeDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {assigneeOptions.map((option) => (
                         <button
                           key={option.label}
@@ -222,7 +222,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                 
                 {showTaskTypeDropdown && (
-                  <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                  <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                     {taskTypeOptions.map((option) => (
                       <button
                         key={option}
@@ -269,7 +269,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showStatusDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {statusOptions.map((option) => (
                         <button
                           key={option.label}
@@ -303,7 +303,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showPriorityDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {priorityOptions.map((option) => (
                         <button
                           key={option.label}
@@ -347,7 +347,7 @@ export function TaskFormPanel({ task, onClose, onSave }: TaskFormPanelProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showNotifyUnitDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {['Hours', 'Days', 'Minutes'].map((option) => (
                         <button
                           key={option}

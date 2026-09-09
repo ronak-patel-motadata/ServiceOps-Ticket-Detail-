@@ -191,7 +191,7 @@ export function PatchInstallationTab({ installations, showTopology = false, pack
           {filterOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
-              <div className={`absolute right-0 top-full mt-1.5 z-50 ${hasPatchCols ? 'w-[340px]' : 'w-[260px]'} bg-white rounded-lg shadow-lg border border-[#DFE5ED]`}>
+              <div className={`app-menu absolute right-0 top-full mt-1.5 z-50 ${hasPatchCols ? 'w-[340px]' : 'w-[260px]'} bg-white rounded-lg shadow-lg border border-[#DFE5ED]`}>
                 {/* Selected pills — statuses + patch ids together */}
                 {filterActive && (
                   <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-[#F0F2F5]">

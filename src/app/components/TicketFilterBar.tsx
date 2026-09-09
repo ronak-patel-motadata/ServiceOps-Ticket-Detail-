@@ -13,6 +13,7 @@ import {
   MoreVertical,
   Plus,
   Search,
+  Timer,
   Trash2,
   UserCheck,
   UserRound,
@@ -88,6 +89,30 @@ const initialsOf = (name: string) => {
 const DATE_OPTS = [{ label: 'Today' }, { label: 'Last 7 days' }, { label: 'Last 30 days' }, { label: 'Last 90 days' }, { label: 'Older than 90 days' }];
 
 /** Every filterable column, in grid order — the picker is a mirror of the table. */
+/* ── Backlog age ──────────────────────────────────────────────────────────────
+   Bucketing lives HERE rather than on the dashboard because the aging chart and the
+   `age` filter have to agree exactly: the bar that reads 25 must drill into 25 rows,
+   or the chart is lying. The dashboard imports these instead of keeping its own copy.
+   Declared ABOVE FILTER_ATTRS — that list reads AGE_BUCKETS while the module is still
+   evaluating, so a later `const` would be in its temporal dead zone. */
+const ageHash = (id: string, salt: number) => {
+  let n = salt;
+  for (const ch of id) n = (n * 31 + ch.charCodeAt(0)) % 997;
+  return n;
+};
+/** Mock age in hours, stable per request id. */
+export const ageHoursOf = (t: Ticket) => 2 + (ageHash(t.id, 21) % 220);
+export const AGE_BUCKETS: { label: string; color: string; test: (h: number) => boolean }[] = [
+  { label: '< 24 hours', color: '#22C55E', test: (h) => h < 24 },
+  { label: '1 – 3 days', color: '#3D8BD0', test: (h) => h >= 24 && h < 72 },
+  { label: '3 – 7 days', color: '#F59E0B', test: (h) => h >= 72 && h < 168 },
+  { label: '> 7 days', color: '#EF4444', test: (h) => h >= 168 },
+];
+export const ageBucketOf = (t: Ticket) => {
+  const h = ageHoursOf(t);
+  return AGE_BUCKETS.find((b) => b.test(h))?.label ?? '';
+};
+
 export const FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Subject', icon: AlignLeft, type: 'text' },
@@ -100,6 +125,7 @@ export const FILTER_ATTRS: Attr[] = [
   { key: 'approval', label: 'Approval', icon: UserCheck, type: 'select', options: [{ label: 'Pending approval', color: '#f59e0b' }, { label: 'No approval', color: '#94a3b8' }] },
   { key: 'unread', label: 'Unread updates', icon: MessageSquare, type: 'select', options: [{ label: 'Has unread', color: '#3D8BD0' }, { label: 'All read', color: '#94a3b8' }] },
   { key: 'openTasks', label: 'Tasks', icon: ListChecks, type: 'select', options: [{ label: 'Has open tasks', color: '#f59e0b' }, { label: 'All tasks done', color: '#22c55e' }] },
+  { key: 'age', label: 'Age', icon: Timer, type: 'select', options: AGE_BUCKETS.map((b) => ({ label: b.label, color: b.color })) },
   /* The optional columns from Manage columns — same values the grid derives. */
   { key: 'createdByUser', label: 'Created By', icon: UserRound, type: 'select', people: 'technician', options: opts([...ASSIGNEES, ...REQUESTERS, 'System']) },
   { key: 'dueByDate', label: 'Due By', icon: CalendarDays, type: 'text' },
@@ -158,6 +184,8 @@ const valueFor = (t: Ticket, field: string): string => {
       return (t.unread ?? 0) > 0 ? 'Has unread' : 'All read';
     case 'openTasks':
       return (t.tasksTotal ?? 0) - (t.tasksDone ?? 0) > 0 ? 'Has open tasks' : 'All tasks done';
+    case 'age':
+      return ageBucketOf(t);
     default:
       if (field in t) return String((t as any)[field] ?? '');
       return extraValue(field, t);
@@ -218,7 +246,7 @@ export function applyFilters(tickets: Ticket[], rules: FilterRule[]): Ticket[] {
 
 /* ── UI ───────────────────────────────────────────────────────────────────── */
 
-const POPUP = 'absolute z-[60] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
+const POPUP = 'app-menu absolute z-[60] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
 
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
   const ref = useRef<T>(null);
@@ -521,7 +549,7 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
       {iconBtn('priority', Flag, 'Filter by priority')}
 
       {open === 'assignedTo' && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-[232px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[232px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
           <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Assigned to</div>
           {[YOU, ...ASSIGNEES].map((name, i) => {
             const on = valuesOf('assignedTo').includes(name);
@@ -545,7 +573,7 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
       )}
 
       {open === 'sla' && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-[196px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[196px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
           <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">SLA status</div>
           {SLA_OPTS.map((o) => {
             const on = valuesOf('sla').includes(o.label);
@@ -567,7 +595,7 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
       )}
 
       {open === 'priority' && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-[172px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
+        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[172px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
           <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Priority is</div>
           {[...PRIORITY_OPTS].reverse().map((p) => {
             const on = valuesOf('priority').includes(p.label);

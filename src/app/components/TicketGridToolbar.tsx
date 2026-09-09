@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
-import { KANBAN_GROUPS, type KanbanGroup } from './TicketKanban';
+import { KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, type KanbanGroup } from './TicketKanban';
+import { ColumnManager } from './TicketTable';
 import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
@@ -35,7 +36,7 @@ const EXPORT_DEFAULTS = [
 
 const ICON_BTN =
   'inline-flex h-8 w-8 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#6b7280] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]';
-const POPUP = 'absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
+const POPUP = 'app-menu absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl';
 
 const AUTO_REF_OPTS = [
   { key: 'Off', label: 'None' },
@@ -87,6 +88,8 @@ export function TicketGridToolbar({
   setKanbanGroup,
   kanbanSubGroup,
   setKanbanSubGroup,
+  cardFields,
+  setCardFields,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -108,6 +111,8 @@ export function TicketGridToolbar({
   setKanbanGroup: (g: KanbanGroup) => void;
   kanbanSubGroup: KanbanGroup | null;
   setKanbanSubGroup: (g: KanbanGroup | null) => void;
+  cardFields: string[];
+  setCardFields: (f: string[]) => void;
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -206,6 +211,7 @@ export function TicketGridToolbar({
   const [gearOpen, setGearOpen] = useState(false);
   // The gear opens as the view switcher; "Group by" swaps the card in place.
   const [gearView, setGearView] = useState<'main' | 'layout' | 'group' | 'subgroup'>('main');
+  const [fieldMgr, setFieldMgr] = useState<{ right: number; bottom: number } | null>(null);
   // Mirrors the grid's visible-column set so the row states what it opens onto.
   const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
   useEffect(() => {
@@ -254,7 +260,8 @@ export function TicketGridToolbar({
     <div className="flex items-start gap-2 pb-2.5 pl-6 pr-4">
       {/* ── Left: find and narrow. Search sits OUTSIDE the wrapping group so the second
            row of chips starts under the first chip, not under the search. ── */}
-      {searchOpen || searchQuery ? (
+      {/* Searching rows has nothing to act on in the dashboard. */}
+      {view === 'dashboard' ? null : searchOpen || searchQuery ? (
         <div className="relative">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
           <input
@@ -297,7 +304,7 @@ export function TicketGridToolbar({
           <div
             ref={savePopRef}
             style={{ top: savePos.top, left: savePos.left }}
-            className="fixed z-[9999] w-[360px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white p-4 shadow-xl"
+            className="app-menu fixed z-[9999] w-[360px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white p-4 shadow-xl"
           >
             <label className="mb-1.5 block text-[13px] text-[#7B8FA5]">
               Save view <span className="text-[#EF4444]">*</span>
@@ -411,6 +418,8 @@ export function TicketGridToolbar({
         )}
         {/* Export + Download — merged into ONE control (the Report page pattern): two tabs in
             one popup instead of two near-identical icons the user has to choose between. */}
+        {/* Exporting rows is a list action — no rows to export on a board or a dashboard. */}
+        {isList && (
         <div className="relative" ref={expWrapRef}>
           <button
             ref={expBtnRef}
@@ -423,7 +432,7 @@ export function TicketGridToolbar({
           {expOpen && createPortal(
             <div
               ref={expPopRef}
-              className="fixed z-[9999] flex w-[360px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+              className="app-menu fixed z-[9999] flex w-[360px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
               style={{ top: expPos.top, right: expPos.right, maxHeight: expMaxH }}
             >
               <div className="flex flex-shrink-0 items-center gap-2.5 border-b border-[#E5E7EB] px-4">
@@ -571,6 +580,7 @@ export function TicketGridToolbar({
             document.body,
           )}
         </div>
+        )}
 
         {/* Refresh + auto-refresh interval merged into one split control (Dashboard pattern). */}
         <div className="relative" ref={autoRefRef}>
@@ -618,6 +628,8 @@ export function TicketGridToolbar({
           )}
         </div>
 
+        {/* Exporting rows and column sorting mean nothing on a dashboard. */}
+        {view !== 'dashboard' && (
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((v) => !v)}
@@ -749,6 +761,7 @@ export function TicketGridToolbar({
             </div>
           )}
         </div>
+        )}
 
         <div className="relative" ref={gearRef}>
           <button
@@ -800,6 +813,25 @@ export function TicketGridToolbar({
                         <span className="text-[13px] font-medium text-[#3D8BD0]">
                           {KANBAN_GROUPS.find((g) => g.key === kanbanSubGroup)?.label}
                         </span>
+                      ) : (
+                        <span className="text-[13px] text-[#94A3B8]">None</span>
+                      )}
+                      <ChevronRight size={14} className="text-[#9CA3AF]" />
+                    </button>
+                  )}
+                  {view === 'kanban' && (
+                    <button
+                      onClick={() => {
+                        const r = gearRef.current?.getBoundingClientRect();
+                        setGearOpen(false);
+                        if (r) setFieldMgr({ right: r.right, bottom: r.bottom });
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+                    >
+                      <Columns3 size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                      <span className="flex-1 text-[13px] text-[#364658]">Card fields</span>
+                      {cardFields.length ? (
+                        <span className="text-[13px] font-medium text-[#3D8BD0]">{cardFields.length} shown</span>
                       ) : (
                         <span className="text-[13px] text-[#94A3B8]">None</span>
                       )}
@@ -1032,6 +1064,29 @@ export function TicketGridToolbar({
           )}
         </div>
       </div>
+
+      {fieldMgr && (
+        <ColumnManager
+          anchor={fieldMgr}
+          catalog={kanbanFieldsFor(kanbanGroup)}
+          active={cardFieldsFor(cardFields, kanbanGroup)}
+          title="Card fields"
+          shownLabel="Shown on card"
+          searchPlaceholder="Search fields..."
+          onApply={(keys) => {
+            const at = cardFields.indexOf(kanbanGroup);
+            if (at < 0) return setCardFields(keys);
+            const back = Math.min(at, keys.length);
+            setCardFields([...keys.slice(0, back), kanbanGroup, ...keys.slice(back)]);
+          }}
+          onClose={() => setFieldMgr(null)}
+          onBack={() => {
+            setFieldMgr(null);
+            setGearView('main');
+            setGearOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

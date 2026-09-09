@@ -201,7 +201,7 @@ export function AuditTrailsTabContent({ ticketId, entries }: AuditTrailsTabConte
               {showFilter && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowFilter(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                  <div className="app-menu absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
                     <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Filter</h4>
                     <div className="space-y-3">
                       <div>
@@ -230,7 +230,7 @@ export function AuditTrailsTabContent({ ticketId, entries }: AuditTrailsTabConte
               {showDownload && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowDownload(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+                  <div className="app-menu absolute right-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
                     <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Download</h4>
 
                     {/* Format */}

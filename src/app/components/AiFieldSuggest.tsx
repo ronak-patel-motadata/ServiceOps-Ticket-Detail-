@@ -72,7 +72,7 @@ export function AiFieldSuggest({
           <div
             ref={panelRef}
             style={{ position: 'fixed', top: rect.bottom + 6, left: Math.max(8, rect.right - W), width: W }}
-            className="z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+            className="app-menu z-[9999] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
           >
             <div className="flex items-center gap-1.5 px-3 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
               <AiSparkle size={12} />

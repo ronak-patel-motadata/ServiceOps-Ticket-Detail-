@@ -182,7 +182,7 @@ function RowMenu({
           <div
             ref={popRef}
             style={{ top: pos.top, left: pos.left }}
-            className="fixed z-[9999] w-[200px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-xl"
+            className="app-menu fixed z-[9999] w-[200px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-xl"
           >
             {items.map((it) => (
               <button

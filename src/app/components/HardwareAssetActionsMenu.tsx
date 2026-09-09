@@ -66,7 +66,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       </button>
 
       {open && minimal && (
-        <div className="absolute right-0 top-full mt-1 w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
           <Item label="Archive" icon={<Archive size={15} />} />
           <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
@@ -74,7 +74,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && nonIt && (
-        <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />
@@ -88,7 +88,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && contract && (
-        <div className="absolute right-0 top-full mt-1 w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item label="Cancel Contract" icon={<XCircle size={15} />} />
           <Item label="Archive" icon={<Archive size={15} />} />
           <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
@@ -96,21 +96,21 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && purchase && (
-        <div className="absolute right-0 top-full mt-1 w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item label="Receive Items" icon={<PackageCheck size={15} />} />
           <Item label="Print" onClick={() => window.print()} icon={<Printer size={15} />} />
         </div>
       )}
 
       {open && patch && (
-        <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item label="Deploy Patch" icon={<Package size={15} />} />
           <Item label="Download to File Server" icon={<Download size={15} />} />
         </div>
       )}
 
       {open && report && (
-        <div className="absolute right-0 top-full mt-1 w-[190px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[190px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
           <Item label="Duplicate" icon={<CopyPlus size={15} />} />
           <Item label="View History" icon={<History size={15} />} />
           <Divider />
@@ -119,7 +119,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && knowledge && (
-        <div className="absolute right-0 top-full mt-1 w-[210px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[210px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg z-[9999]">
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item label="Print" icon={<Printer size={15} />} />
           <Divider />
@@ -128,14 +128,14 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && patchDeploy && (
-        <div className="absolute right-0 top-full mt-1 w-[230px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[230px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Item label="Update Configuration" icon={<UserCheck size={15} />} />
           <Item label="Cancel Deployment" icon={<X size={15} />} />
         </div>
       )}
 
       {open && cmdb && (
-        <div className="absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[210px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999]">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item label="Sync Warranty" icon={<RefreshCw size={15} />} />
@@ -155,7 +155,7 @@ export function HardwareAssetActionsMenu({ onOpenApprovalPopup, onOpenAddBarcode
       )}
 
       {open && !minimal && !nonIt && !contract && !purchase && !cmdb && !patch && !patchDeploy && !knowledge && !report && (
-        <div className="absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
+        <div className="app-menu absolute right-0 top-full mt-1 w-[220px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-[9999] max-h-[70vh] overflow-y-auto">
           <Section label="Actions" />
           <Item onClick={onOpenApprovalPopup} label="Ask for Approval" icon={<UserCheck size={15} />} />
           <Item onClick={onOpenAddBarcode} label="Add Barcode" icon={<Barcode size={15} />} />

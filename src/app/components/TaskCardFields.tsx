@@ -123,7 +123,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           </button>
 
           {showStatusDropdown && (
-            <div className="absolute top-full left-0 mt-1 min-w-[160px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+            <div className="app-menu absolute top-full left-0 mt-1 min-w-[160px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {statusOptions.map((option) => (
                 <button
                   key={option.label}
@@ -168,7 +168,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           </button>
 
           {showPriorityDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-full min-w-[140px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+            <div className="app-menu absolute top-full left-0 mt-1 w-full min-w-[140px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {priorityOptions.map((option) => (
                 <button
                   key={option.label}
@@ -202,7 +202,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
             <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
           {showTaskTypeDropdown && (
-            <div className="absolute top-full left-0 mt-1 min-w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
+            <div className="app-menu absolute top-full left-0 mt-1 min-w-[190px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
               {taskTypeOptions.map((opt) => (
                 <button
                   key={opt}
@@ -230,7 +230,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
             <ChevronDown size={11} className="text-[#9CA3AF] opacity-0 group-hover/f:opacity-100 transition-opacity flex-shrink-0" />
           </button>
           {showUserGroupDropdown && (
-            <div className="absolute top-full left-0 mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
+            <div className="app-menu absolute top-full left-0 mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[240px] overflow-y-auto">
               {userGroupOptions.map((opt) => (
                 <button
                   key={opt}
@@ -271,7 +271,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           </button>
 
           {showAssigneeDropdown && (
-            <div className="absolute top-full right-0 mt-1 w-full min-w-[240px] max-w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+            <div className="app-menu absolute top-full right-0 mt-1 w-full min-w-[240px] max-w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
               {/* Search Box */}
               <div className="px-3 pb-2">
                 <div className="relative">
@@ -370,7 +370,7 @@ export function TaskCardFields({ task, statusColors, priorityColors, onUpdateTas
           </button>
 
           {showDateDropdown && (
-            <div className="absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
+            <div className="app-menu absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
               <div className="space-y-4">
                 {/* Start Date */}
                 <div>

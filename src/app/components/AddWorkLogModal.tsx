@@ -121,7 +121,7 @@ export function AddWorkLogModal({ isOpen, onClose, onAdd, editingLog, onUpdate }
                   <ChevronDown size={16} className="text-[#7B8FA5] flex-shrink-0" />
                 </button>
                 {showTechDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-10 max-h-[240px] overflow-auto">
+                  <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-10 max-h-[240px] overflow-auto">
                     {TECHNICIANS.map((t) => (
                       <button
                         key={t.email}

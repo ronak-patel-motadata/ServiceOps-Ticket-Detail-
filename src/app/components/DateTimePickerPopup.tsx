@@ -85,7 +85,7 @@ export function DateTimePickerPopup({
   return createPortal(
     <>
       <div data-dtp className="fixed inset-0 z-[70]" onClick={onClose} />
-      <div data-dtp className="fixed z-[71] w-[300px] bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-3" style={{ top, left }}>
+      <div data-dtp className="app-menu fixed z-[71] w-[300px] bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-3" style={{ top, left }}>
       {/* Current value */}
       <div className="flex items-center justify-between border border-[#DFE5ED] rounded-md px-3 py-2 mb-3">
         <span className="text-[13px] text-[#364658]">{formatTop(sel, withTime)}</span>

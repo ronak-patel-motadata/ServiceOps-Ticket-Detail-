@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
-import { slaInfoOf, SlaPill } from './TicketTable';
+import { extraValue, slaInfoOf, SlaPill, TicketPeekCard, useHoverPeek } from './TicketTable';
 import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -10,6 +10,63 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 /* Kanban view of the same requests the grid shows. Columns come from the chosen group
    field; a card can be dragged to another column to change that field, which is the whole
    point of a board — triage by moving, not by opening each record. */
+
+const fmtShortDate = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
+/* Blocks the card draws in their own designed slot rather than as a label/value row. */
+export const KANBAN_BUILTINS = new Set(['id', 'subject', 'description', 'sla', 'signals', 'status', 'priority', 'assignedTo']);
+
+export const KANBAN_FIELDS: { key: string; label: string }[] = [
+  { key: 'id', label: 'ID' },
+  { key: 'subject', label: 'Subject' },
+  { key: 'description', label: 'Description' },
+  { key: 'sla', label: 'SLA status' },
+  { key: 'signals', label: 'Activity signals' },
+  { key: 'status', label: 'Status' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'assignedTo', label: 'Assigned to' },
+  { key: 'requester', label: 'Requester' },
+  { key: 'createdBy', label: 'Created date' },
+  { key: 'dueByDate', label: 'Due by' },
+  { key: 'techGroup', label: 'Technician group' },
+  { key: 'department', label: 'Department' },
+  { key: 'source', label: 'Source' },
+  { key: 'location', label: 'Location' },
+  { key: 'tags', label: 'Tags' },
+  { key: 'impact', label: 'Impact' },
+  { key: 'urgency', label: 'Urgency' },
+  { key: 'supportLevel', label: 'Support level' },
+  { key: 'requestAge', label: 'Request age' },
+  { key: 'approvalStatus', label: 'Approval status' },
+];
+
+/** The base selection — everything a card can show, including the field the board
+    happens to be grouped by right now. Order is the card order. */
+export const DEFAULT_CARD_FIELDS = ['id', 'sla', 'subject', 'description', 'signals', 'assignedTo', 'status', 'priority'];
+
+/** Fields worth offering for a board grouped this way — the axis is never offered. */
+export const kanbanFieldsFor = (group: string) => KANBAN_FIELDS.filter((f) => f.key !== group);
+
+/** What the card actually renders: the base minus whatever the column heading says. */
+export const cardFieldsFor = (fields: string[], group: string) => fields.filter((k) => k !== group);
+
+export const cardFieldValue = (t: Ticket, key: string): string => {
+  switch (key) {
+    case 'requester':
+      return t.requester || '---';
+    case 'status':
+      return t.status;
+    case 'priority':
+      return t.priority;
+    case 'assignedTo':
+      return t.assignedTo.name || 'Unassigned';
+    case 'createdBy':
+      return fmtShortDate(t.createdBy);
+    default:
+      return extraValue(key, t);
+  }
+};
 
 export type KanbanGroup = 'status' | 'priority' | 'assignedTo' | 'requester' | 'sla';
 
@@ -86,10 +143,104 @@ const DROPPABLE = (g: KanbanGroup) => g === 'status' || g === 'priority' || g ==
 const fieldPatch = (g: KanbanGroup, value: string): Partial<Ticket> =>
   g === 'assignedTo' ? { assignedTo: { name: value, initials: initialsOf(value) } } : ({ [g]: value } as Partial<Ticket>);
 
+function CardFieldValue({ t, k }: { t: Ticket; k: string }) {
+  const v = cardFieldValue(t, k);
+  if (v === '---' || v === '') return <span className="text-[#B6C2D1]">---</span>;
+
+  if (k === 'tags') {
+    const tags = v.split(', ').filter(Boolean);
+    const shown = tags.slice(0, 2);
+    const extra = tags.length - shown.length;
+    return (
+      <span className="flex min-w-0 items-center gap-1">
+        {shown.map((tag) => (
+          <span key={tag} className="max-w-[86px] truncate rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[10px] font-medium text-[#475569]">
+            {tag}
+          </span>
+        ))}
+        {extra > 0 && (
+          <Tip text={tags.join(', ')}>
+            <span className="flex-shrink-0 rounded bg-[#F1F5F9] px-1 py-0.5 text-[10px] font-semibold text-[#475569]">+{extra}</span>
+          </Tip>
+        )}
+      </span>
+    );
+  }
+
+  // Anything on the priority/status scale carries its dot, as it does in the grid.
+  if (k === 'urgency' || k === 'status' || k === 'priority') {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[v] ?? '#94A3B8' }} />
+        <span className="truncate">{v}</span>
+      </span>
+    );
+  }
+
+  if (k === 'requester') {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="flex size-4 flex-shrink-0 items-center justify-center rounded bg-[#E67E22] text-[8px] font-semibold text-white">
+          {initialsOf(v)}
+        </span>
+        <span className="truncate">{v}</span>
+      </span>
+    );
+  }
+
+  return <span className="truncate">{v}</span>;
+}
+
+/* Description + its expand control. The control OVERLAYS the last line on card hover so it
+   costs the board no height — but it is an icon-only button on a solid white chip, not blue
+   words fading out of the sentence. That was the readability problem: the old link merged
+   into the text it sat on. A bordered chip reads as a control sitting on top of the text,
+   covers ~2 words instead of a third of the line, and carries a tooltip in place of a label.
+   It only renders when the text is genuinely cut off, measured rather than guessed, because
+   the clamp depends on whatever width the user has dragged the column to. */
+function CardDescription({ text, onExpand }: { text: string; onExpand: () => void }) {
+  const ref = useRef<HTMLParagraphElement | null>(null);
+  const [clamped, setClamped] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setClamped(el.scrollHeight - el.clientHeight > 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div className="relative mt-1.5">
+      <p ref={ref} className="line-clamp-2 text-[12px] leading-[1.5] text-[#64748B]">
+        {text}
+      </p>
+      {clamped && (
+        <span className="pointer-events-none absolute -bottom-0.5 right-0 hidden items-end bg-gradient-to-l from-white from-65% to-transparent pl-8 group-hover/card:flex">
+          <Tip text="Read the full description">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpand();
+              }}
+              className="pointer-events-auto flex size-6 flex-shrink-0 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#64748B] shadow-sm transition-colors hover:border-[#9EC5E8] hover:bg-[#EBF5FF] hover:text-[#3D8BD0]"
+            >
+              <Maximize2 size={12} />
+            </button>
+          </Tip>
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function TicketKanban({
   tickets,
   group,
   subGroup = null,
+  cardFields = DEFAULT_CARD_FIELDS,
   onLanesChange,
   onTicketClick,
   onUpdateTicket,
@@ -98,6 +249,8 @@ export function TicketKanban({
   group: KanbanGroup;
   /** Optional second axis: each value becomes a horizontal swimlane of columns. */
   subGroup?: KanbanGroup | null;
+  /** Extra fields shown on every card, in the order they were added. */
+  cardFields?: string[];
   /** Reports the lane list so the page footer can offer "Jump to group". */
   onLanesChange?: (info: { label: string; total: number; groups: number; list: { key: string; count: number }[] } | null) => void;
   onTicketClick: (t: Ticket) => void;
@@ -133,6 +286,10 @@ export function TicketKanban({
       else next.add(lane);
       return next;
     });
+  /* Same quick peek the grid raises from its ID pills — one preview card across both
+     views, so a board user never has to open a record just to read it. */
+  const peek = useHoverPeek();
+
   // Full-description popup (opened from the hover expand on a card).
   const [descTicket, setDescTicket] = useState<Ticket | null>(null);
   useEffect(() => {
@@ -293,6 +450,28 @@ export function TicketKanban({
               {cards.map((t) => {
                 const done = t.tasksDone ?? 0;
                 const total = t.tasksTotal ?? 0;
+                const fields = cardFieldsFor(cardFields, group);
+                const show = (k: string) => fields.includes(k);
+                const extras = fields.filter((k) => !KANBAN_BUILTINS.has(k));
+                const headerKey = fields.find((k) => k === 'sla' || k === 'status' || k === 'priority');
+                const footerKeys = fields.filter(
+                  (k) => (k === 'assignedTo' || k === 'status' || k === 'priority') && k !== headerKey,
+                );
+                const [leadKey, ...chipKeys] = footerKeys;
+                const chipFor = (k: string) =>
+                  k === 'status'
+                    ? { value: t.status, tip: `Status: ${t.status}` }
+                    : { value: t.priority, tip: `Priority: ${t.priority}` };
+                const personLead = (
+                  <Tip text={`Assigned to ${t.assignedTo.name}`}>
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                        {t.assignedTo.initials}
+                      </span>
+                      <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assignedTo.name}</span>
+                    </span>
+                  </Tip>
+                );
                 return (
                   <div
                     key={t.id}
@@ -307,41 +486,66 @@ export function TicketKanban({
                       dragId === t.id ? 'opacity-40' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <Tip text={`${t.id} · raised by ${t.requester}`}>
-                        <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{t.id}</span>
-                      </Tip>
-                      <span className="ml-auto">
-                        {group === 'sla' ? (
-                          <ValueChip label={t.status} color={DOT[t.status] ?? '#94A3B8'} big tip={`Status: ${t.status}`} />
-                        ) : (
-                          <SlaPill ticket={t} />
+                    {(show('id') || headerKey) && (
+                      <div className="flex items-center gap-2">
+                        {show('id') && (
+                          /* No tooltip here on purpose: the peek says everything the old
+                             "raised by …" tip did and more, and two popups on one target is
+                             the collision the grid already had to unpick. */
+                          <span
+                            data-peek-anchor={t.id}
+                            onMouseEnter={() => peek.start(t.id)}
+                            onMouseLeave={peek.end}
+                            className="cursor-pointer rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] transition-colors hover:bg-[#d0e8f9]"
+                          >
+                            {t.id}
+                          </span>
                         )}
-                      </span>
-                    </div>
+                        {headerKey && (
+                          <span className="ml-auto">
+                            {headerKey === 'sla' ? (
+                              <SlaPill ticket={t} />
+                            ) : (
+                              <ValueChip
+                                label={chipFor(headerKey).value}
+                                color={DOT[chipFor(headerKey).value] ?? '#94A3B8'}
+                                big
+                                tip={chipFor(headerKey).tip}
+                              />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    <div className={`mt-1.5 line-clamp-2 text-[13px] text-[#364658] ${(t.unread ?? 0) > 0 ? 'font-semibold' : 'font-medium'}`}>
-                      {t.subject}
-                    </div>
+                    {show('subject') && (
+                      <div className={`mt-1.5 line-clamp-2 text-[13px] text-[#364658] ${(t.unread ?? 0) > 0 ? 'font-semibold' : 'font-medium'}`}>
+                        {t.subject}
+                      </div>
+                    )}
 
                     {/* Same themed description the quick peek shows — two quiet lines. */}
-                    <div className="relative">
-                      <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#64748B]">{describeSubject(t.subject).short}</p>
-                      <Tip text="View full description">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDescTicket(t);
-                          }}
-                          className="absolute -bottom-0.5 right-0 hidden size-6 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#64748B] shadow-sm transition-colors hover:bg-[#F5F7FA] hover:text-[#364658] group-hover/card:flex"
-                        >
-                          <Maximize2 size={11} />
-                        </button>
-                      </Tip>
-                    </div>
+                    {show('description') && (
+                      <CardDescription text={describeSubject(t.subject).short} onExpand={() => setDescTicket(t)} />
+                    )}
+
+                    {extras.length > 0 && (
+                      <div className="mt-2.5 space-y-1.5 border-t border-[#F1F5F9] pt-2.5">
+                        {extras.map((k) => (
+                          <div key={k} className="flex items-baseline gap-2 text-[11px]">
+                            <span className="w-[104px] flex-shrink-0 truncate text-[#94A3B8]">
+                              {KANBAN_FIELDS.find((x) => x.key === k)?.label ?? k}
+                            </span>
+                            <span className="flex min-w-0 flex-1 items-center font-medium text-[#364658]">
+                              <CardFieldValue t={t} k={k} />
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Row intelligence, same signals the grid's subject cell carries. */}
-                    {((t.unread ?? 0) > 0 || t.approval || total > 0) && (
+                    {show('signals') && ((t.unread ?? 0) > 0 || t.approval || total > 0) && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {(t.unread ?? 0) > 0 && (
                           <Tip text={`${t.unread} unread ${t.unread === 1 ? 'reply' : 'replies'}${t.lastMsg ? ` from ${t.lastMsg.from}` : ''}`}>
@@ -376,32 +580,36 @@ export function TicketKanban({
                       </div>
                     )}
 
-                    <div className="mt-2.5 flex items-center gap-2 border-t border-[#F1F5F9] pt-2">
-                      {group === 'assignedTo' ? (
-                        <Tip text={`Status: ${t.status}`}>
-                          <span className="inline-flex min-w-0 items-center gap-1.5">
-                            <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[t.status] }} />
-                            <span className="truncate text-[12px] text-[#64748B]">{t.status}</span>
-                          </span>
-                        </Tip>
-                      ) : (
-                        <Tip text={`Assigned to ${t.assignedTo.name}`}>
-                          <span className="inline-flex min-w-0 items-center gap-2">
-                            <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                              {t.assignedTo.initials}
-                            </span>
-                            <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assignedTo.name}</span>
-                          </span>
-                        </Tip>
-                      )}
-                      <span className="ml-auto flex flex-shrink-0 items-center">
-                        {group === 'priority' ? (
-                          <ValueChip label={t.status} color={DOT[t.status] ?? '#94A3B8'} tip={`Status: ${t.status}`} />
-                        ) : (
-                          <ValueChip label={t.priority} color={DOT[t.priority]} tip={`Priority: ${t.priority}`} />
-                        )}
-                      </span>
-                    </div>
+                    {footerKeys.length > 0 && (
+                      <div className="mt-2.5 flex items-center gap-2 border-t border-[#F1F5F9] pt-2">
+                        {leadKey === 'assignedTo'
+                          ? personLead
+                          : (() => {
+                              const c = chipFor(leadKey);
+                              return (
+                                <Tip text={c.tip}>
+                                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                                    <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[c.value] ?? '#94A3B8' }} />
+                                    <span className="truncate text-[12px] text-[#64748B]">{c.value}</span>
+                                  </span>
+                                </Tip>
+                              );
+                            })()}
+                        <span className="ml-auto flex flex-shrink-0 items-center gap-1.5">
+                          {chipKeys.map((k) =>
+                            k === 'assignedTo' ? (
+                              <Tip key={k} text={`Assigned to ${t.assignedTo.name}`}>
+                                <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                                  {t.assignedTo.initials}
+                                </span>
+                              </Tip>
+                            ) : (
+                              <ValueChip key={k} label={chipFor(k).value} color={DOT[chipFor(k).value] ?? '#94A3B8'} tip={chipFor(k).tip} />
+                            ),
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -484,6 +692,20 @@ export function TicketKanban({
             );
           })
         : columns.map((col) => renderColumn(col, null, tickets, true))}
+      {peek.peekId &&
+        (() => {
+          const pt = tickets.find((x) => x.id === peek.peekId);
+          return pt ? (
+            <TicketPeekCard
+              t={pt}
+              aiView={peek.aiView}
+              cardRef={peek.cardRef}
+              pos={peek.pos}
+              onHold={peek.hold}
+              onEnd={peek.end}
+            />
+          ) : null;
+        })()}
       {descTicket &&
         createPortal(
           <div

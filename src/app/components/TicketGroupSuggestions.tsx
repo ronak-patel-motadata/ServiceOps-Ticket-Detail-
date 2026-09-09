@@ -367,7 +367,7 @@ function AddRecordButton({
         {label}
       </button>
       {open && (
-        <div className={`absolute right-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+        <div className={`app-menu absolute right-0 z-50 w-[460px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           <div className="p-2">
             <input
               autoFocus

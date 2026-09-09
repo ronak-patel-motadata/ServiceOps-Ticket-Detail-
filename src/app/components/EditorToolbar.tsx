@@ -313,7 +313,7 @@ export function EditorFormattingRow({ className }: { className?: string } = {}) 
   }, []);
   const run = (command: string, value?: string) => { exec(command, value); refreshStates(); };
 
-  const menuBase = 'absolute left-0 bottom-full mb-1 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-50';
+  const menuBase = 'app-menu absolute left-0 bottom-full mb-1 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-1 z-50';
   const menuCls = `${menuBase} min-w-[150px]`;
   const itemCls = (sel: boolean) => `w-full flex items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${sel ? 'bg-[#F1F5F9] text-[#364658] font-medium' : 'text-[#364658] hover:bg-[#F9FAFB]'}`;
   const Divider = () => <span className="mx-1 h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />;
@@ -506,7 +506,7 @@ export function EditorAiAssist() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-2 w-[220px] rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+        <div className="app-menu absolute bottom-full left-0 z-50 mb-2 w-[220px] rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
           <div className="py-2">
             <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">Refine</div>
             <Item icon={<RefreshCw size={14} className="text-[#364658]" />} label="Rephrase" />
@@ -523,7 +523,7 @@ export function EditorAiAssist() {
                 <ChevronRight size={12} className="text-[#7B8FA5]" />
               </button>
               {toneOpen && (
-                <div className="absolute bottom-0 left-full ml-1 w-[160px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                <div className="app-menu absolute bottom-0 left-full ml-1 w-[160px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
                   {['Professional', 'Empathetic', 'Concise', 'Formal', 'Friendly'].map((t) => (
                     <button
                       key={t}

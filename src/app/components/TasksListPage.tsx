@@ -170,7 +170,7 @@ export function TasksListPage({ onNavigate }: { onNavigate: (page: string) => vo
               {showViewMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowViewMenu(false)} />
-                  <div className="absolute left-0 top-full z-20 mt-1 w-[220px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+                  <div className="app-menu absolute left-0 top-full z-20 mt-1 w-[220px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
                     {TASK_VIEWS.map((v) => (
                       <button
                         key={v.id}

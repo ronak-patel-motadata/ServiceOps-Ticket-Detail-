@@ -179,7 +179,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
             {confirmDeleteId === task.id && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setConfirmDeleteId(null)} />
-                <div className="absolute right-0 top-full mt-2 z-50 w-[224px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-3">
+                <div className="app-menu absolute right-0 top-full mt-2 z-50 w-[224px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-3">
                   <div className="absolute -top-1.5 right-2.5 size-3 bg-white border-l border-t border-[#DFE5ED] rotate-45" />
                   <p className="relative text-[12px] text-[#364658]">Are you sure, you want to delete this task?</p>
                   <div className="relative mt-2.5 flex items-center justify-end gap-2">
@@ -267,7 +267,7 @@ export function TasksTabContent({ tasks, onAddTask, onEditTask, onUpdateTask, on
             <Filter size={16} />
           </button>
           {showTaskSortMenu && (
-            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-2 z-50">
+            <div className="app-menu absolute left-0 top-full mt-2 w-48 bg-white border border-[#DFE5ED] rounded-lg shadow-lg py-2 z-50">
               <button 
                 onClick={() => {
                   setTaskFilter('unresolved');

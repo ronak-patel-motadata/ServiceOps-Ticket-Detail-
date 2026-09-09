@@ -129,7 +129,7 @@ export function ServiceRequestTabContent({
                       {/* Status Dropdown Menu */}
                       {showServiceRequestItemStatus === item.id && (
                         <div 
-                          className="absolute left-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
+                          className="app-menu absolute left-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {['Requested', 'In Progress', 'Delivered'].map((status) => (
@@ -168,7 +168,7 @@ export function ServiceRequestTabContent({
                       {/* Dropdown Menu */}
                       {showServiceRequestMenu === item.id && (
                         <div 
-                          className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
+                          className="app-menu absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button

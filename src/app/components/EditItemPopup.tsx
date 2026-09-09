@@ -147,7 +147,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditProcessorDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['Apple M3 Pro', 'Apple M3 Max', 'Intel Core i7', 'Intel Core i9'].map((option) => (
                         <button
                           key={option}
@@ -175,7 +175,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditRAMDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['8 GB', '16 GB', '32 GB', '64 GB'].map((option) => (
                         <button
                           key={option}
@@ -203,7 +203,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditStorageDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['256 GB SSD', '512 GB SSD', '1 TB SSD', '2 TB SSD'].map((option) => (
                         <button
                           key={option}
@@ -231,7 +231,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditDisplayDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['14" Retina', '16" Retina', '13" LED', '15" LED'].map((option) => (
                         <button
                           key={option}
@@ -259,7 +259,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditGraphicsDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['Integrated GPU', 'Dedicated GPU', 'High Performance GPU'].map((option) => (
                         <button
                           key={option}
@@ -287,7 +287,7 @@ export function EditItemPopup({
                     <ChevronDown className="size-4 text-[#7B8FA5]" />
                   </button>
                   {showEditColorDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {['Space Gray', 'Silver', 'Gold', 'Midnight'].map((option) => (
                         <button
                           key={option}

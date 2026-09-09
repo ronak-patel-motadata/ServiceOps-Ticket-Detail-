@@ -194,7 +194,7 @@ function ProblemFieldRow({
         </button>
         <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
         {open && (
-          <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+          <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
             {options.map((opt) => (
               <button
                 key={opt}
@@ -724,7 +724,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               </button>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
               {showStatusDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                   {statusOptions.map((option) => (
                     <button
                       key={option.label}
@@ -809,7 +809,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               
               {/* Priority Dropdown Menu */}
               {showPriorityDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                   {priorityOptions.map((option) => (
                     <button
                       key={option.label}
@@ -878,7 +878,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               
               {/* Assignee Dropdown Menu */}
               {showAssigneeDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-full min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                <div className="app-menu absolute top-full right-0 mt-1 w-full min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                   {/* Search Box */}
                   <div className="px-3 pb-2">
                     <div className="relative">
@@ -988,7 +988,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
               
               {/* Tech Group Dropdown Menu */}
               {showTechGroupDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                <div className="app-menu absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                   {!selectedTechGroup && (
                     <SuggestedSection
                       values={AI_SUGGESTED.techGroup}
@@ -1056,7 +1056,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   
                   {/* Urgency Dropdown Menu */}
                   {showUrgencyDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {urgencyOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1118,7 +1118,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   
                   {/* Impact Dropdown Menu */}
                   {showImpactDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {impactOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1179,7 +1179,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                     instead of pushing them down. onMouseDown on the suggestion rows beats
                     the input's blur-close, so a tap lands before the popup dismisses. */}
                 {showTagInput && (
-                  <div className="absolute right-0 top-full z-50 mt-1 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
+                  <div className="app-menu absolute right-0 top-full z-50 mt-1 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-lg">
                     <div className="p-2">
                       <input
                         type="text"
@@ -1340,7 +1340,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showCategoryDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {categoryOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1400,7 +1400,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   )}
                   
                   {showDepartmentDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-[240px] min-w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {!selectedDepartment && (
                         <SuggestedSection
                           values={AI_SUGGESTED.department}
@@ -1461,7 +1461,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showSourceDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {sourceOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1514,7 +1514,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showLocationDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {locationOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1567,7 +1567,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showVendorDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {vendorOptions.map((option) => (
                         <button
                           key={option.label}
@@ -1620,7 +1620,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showSupportLevelDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {supportLevelOptions.map((option) => (
                         <button
                           key={option.label}

@@ -218,7 +218,7 @@ export function AISummary({
             
             {/* Dropdown Menu */}
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-50">
+              <div className="app-menu absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-50">
                 {menuOptions.map((option, index) => (
                   <button
                     key={index}

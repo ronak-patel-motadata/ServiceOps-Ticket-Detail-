@@ -3,14 +3,14 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
-import { ArrowDown, ArrowUp, ChevronUp, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { TicketStatsRow } from './TicketStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
-import { TicketKanban, type KanbanGroup } from './TicketKanban';
+import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
@@ -156,6 +156,45 @@ export const generateMockTickets = (): Ticket[] => {
   });
 };
 
+/* A drill-down REPLACES the listing's own header rather than stacking on top of it. Arriving
+   from a dashboard tile, the answer to "what am I looking at" is the tile — not "All Requests",
+   not the queue-wide KPI strip, and not the AI grouping banner, all of which describe the whole
+   queue and quietly contradict a filtered list. So this occupies the title row: the parent crumb
+   doubles as the way back, the tile's own words become the page title, and the count says how
+   much of the queue survived the filter. */
+function DrillCrumb({
+  label,
+  shown,
+  total,
+  onBack,
+}: {
+  label: string;
+  shown: number;
+  total: number;
+  onBack: () => void;
+}) {
+  return (
+    <div className="bg-white">
+      <div className="flex items-center gap-2.5 px-6 py-3">
+        <button
+          onClick={onBack}
+          title="Back to the dashboard"
+          className="group inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded px-2.5 text-[13px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
+        >
+          <ArrowLeft size={15} className="flex-shrink-0 transition-transform group-hover:-translate-x-0.5" />
+          Dashboard
+        </button>
+        <ChevronRight size={16} className="flex-shrink-0 text-[#CBD5E1]" />
+        <h1 className="truncate text-[17px] font-semibold text-[#1E293B]">{label}</h1>
+        <span className="h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />
+        <span className="flex-shrink-0 text-[12px] text-[#7B8FA5]">
+          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} requests
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const [tickets, setTickets] = useState<Ticket[]>(generateMockTickets());
   // Assignee / Status / Priority are editable straight from the grid.
@@ -179,8 +218,19 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
   const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard'>('list-kpi');
+  /* Set only when the list was reached by clicking something on the dashboard. It carries the
+     trail back: what was clicked, and the filters that were in force before the drill. */
+  const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
+  const backToDashboard = () => {
+    if (drillFrom) setFilterRules(drillFrom.rules);
+    setDrillFrom(null);
+    setCurrentPage(1);
+    setView('dashboard');
+  };
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const [kanbanSubGroup, setKanbanSubGroup] = useState<KanbanGroup | null>(null);
+  // Extra fields on every kanban card, in the order the user added them.
+  const [cardFields, setCardFields] = useState<string[]>(DEFAULT_CARD_FIELDS);
   const [kanbanLanes, setKanbanLanes] = useState<{ label: string; total: number; groups: number; list: { key: string; count: number }[] } | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
@@ -373,24 +423,38 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {viewsOpen && (
+          {/* Its toggle lives in the header a drill-down replaces, so the rail steps aside too
+              rather than sitting there unclosable. `viewsOpen` is untouched — going back
+              restores it exactly as it was. */}
+          {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
               active={activeView}
               onSelect={(v: TicketView) => {
                 setActiveView(v.name);
                 setFilterRules(v.rules.map((r, i) => ({ ...r, id: `view-${v.name}-${i}` })));
                 setCurrentPage(1);
+                // Picking a view is a fresh start — the dashboard trail no longer applies.
+                setDrillFrom(null);
               }}
             />
           )}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Toolbar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          activeView={activeView}
-          viewsOpen={viewsOpen}
-          onToggleViews={() => setViewsOpen((v) => !v)}
-        />
+        {drillFrom ? (
+          <DrillCrumb
+            label={drillFrom.label}
+            shown={sortedTickets.length}
+            total={tickets.length}
+            onBack={backToDashboard}
+          />
+        ) : (
+          <Toolbar
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            activeView={activeView}
+            viewsOpen={viewsOpen}
+            onToggleViews={() => setViewsOpen((v) => !v)}
+          />
+        )}
         <main className="flex-1 overflow-hidden flex flex-col">
           <div
             className={`flex-1 bg-white min-h-0 ${
@@ -399,14 +463,16 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
           <div className="sticky left-0 bg-white pt-0.5">
-          {view === 'list-kpi' && (
+          {/* Both of these speak for the WHOLE queue, so a drill-down hides them — leaving one
+              screen that is only ever about the thing the user clicked. */}
+          {view === 'list-kpi' && !drillFrom && (
             <TicketStatsRow
               tickets={tickets}
               rules={filterRules}
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
             />
           )}
-          <TicketGroupSuggestions />
+          {!drillFrom && <TicketGroupSuggestions />}
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
@@ -425,7 +491,12 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             }
             listGroupLabel={isGrouped ? groupInfo?.label ?? null : null}
             view={view}
-            setView={setView}
+            setView={(v) => {
+              /* Reaching the dashboard by the view switcher has to undo the drill too —
+                 otherwise the charts would silently redraw over the drilled-down subset. */
+              if (v === 'dashboard' && drillFrom) return backToDashboard();
+              setView(v);
+            }}
             kanbanGroup={kanbanGroup}
             setKanbanGroup={(g) => {
               setKanbanGroup(g);
@@ -434,6 +505,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             }}
             kanbanSubGroup={kanbanSubGroup}
             setKanbanSubGroup={setKanbanSubGroup}
+            cardFields={cardFields}
+            setCardFields={setCardFields}
           />
           </div>
           {view === 'kanban' ? (
@@ -441,6 +514,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
+              cardFields={cardFields}
               onLanesChange={setKanbanLanes}
               onTicketClick={handleOpenTicket}
               onUpdateTicket={updateTicket}
@@ -449,7 +523,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             <TicketDashboardView
               tickets={sortedTickets}
               onTicketClick={handleOpenTicket}
-              onDrillDown={(r) => {
+              onDrillDown={(r, label) => {
+                /* Remember what the list looked like BEFORE the drill — a saved view's rules
+                   would otherwise be lost, and "back" has to put them back. */
+                setDrillFrom({ label, rules: filterRules });
                 setFilterRules(r.map((x, i) => ({ ...x, id: `dash-${x.field}-${i}` })));
                 setCurrentPage(1);
                 setView('list-kpi');
@@ -491,7 +568,17 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             {/* Grouped mode keeps a PINNED footer — paging lives inside the groups, so
                 this bar summarises the grouping instead of duplicating page controls. */}
             {(() => {
-              const footerGroup = view === 'kanban' ? (kanbanSubGroup ? kanbanLanes : null) : isGrouped ? groupInfo : null;
+              // The dashboard has no rows and no groups, so it gets no grouping footer.
+              const footerGroup =
+                view === 'dashboard'
+                  ? null
+                  : view === 'kanban'
+                    ? kanbanSubGroup
+                      ? kanbanLanes
+                      : null
+                    : isGrouped
+                      ? groupInfo
+                      : null;
               const clearGrouping = () =>
                 view === 'kanban' ? setKanbanSubGroup(null) : setClearGroupTick((t) => t + 1);
               return (
@@ -515,7 +602,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                         <ChevronUp size={13} className={`text-[#9CA3AF] transition-transform ${jumpOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {jumpOpen && (
-                        <div className="absolute bottom-full right-0 z-50 mb-1.5 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl">
+                        <div className="app-menu absolute bottom-full right-0 z-50 mb-1.5 w-[280px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl">
                           <div className="p-2">
                             <input
                               autoFocus

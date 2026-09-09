@@ -225,7 +225,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                   
                   {showApproversDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[300px] overflow-y-auto">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50 max-h-[300px] overflow-y-auto">
                       {!expandedCategory ? (
                         <div className="space-y-1">
                           <button
@@ -418,7 +418,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                       
                       {showStageTechGroupDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                        <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                           {groupOptions.map((option) => (
                             <button
                               key={option}
@@ -450,7 +450,7 @@ export function CreateApprovalPopup({ isOpen, onClose, approval }: CreateApprova
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none" />
                       
                       {showStageTechnicianDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                        <div className="app-menu absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                           {technicianOptions.map((option) => (
                             <button
                               key={option}

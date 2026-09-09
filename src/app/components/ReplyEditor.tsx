@@ -366,7 +366,7 @@ export function ReplyEditor({
 
               {/* AI Assist Dropdown - Reply Editor */}
               {showAIAssistMenu && (
-                <div className="absolute left-0 bottom-full mb-2 w-[240px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                <div className="app-menu absolute left-0 bottom-full mb-2 w-[240px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                   <div className="py-2">
                     {/* Generate a reply section */}
                     <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -471,7 +471,7 @@ export function ReplyEditor({
 
                       {/* Tone Submenu */}
                       {showToneSubmenu && (
-                        <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                        <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                           <div className="py-2">
                             <button 
                               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"

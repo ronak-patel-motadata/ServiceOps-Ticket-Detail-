@@ -164,7 +164,7 @@ export function DrawerTabStrip({
             <ChevronDown size={14} className={`transition-transform ${showMore ? 'rotate-180' : ''}`} />
           </button>
           {showMore && (
-            <div className="absolute top-full right-0 mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg py-1 min-w-[260px] max-h-[340px] overflow-y-auto z-[9999]">
+            <div className="app-menu absolute top-full right-0 mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg py-1 min-w-[260px] max-h-[340px] overflow-y-auto z-[9999]">
               {overflow.map((t) => {
                 const active = t.id === activeId;
                 return (

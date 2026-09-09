@@ -81,7 +81,7 @@ export function ServiceRequestItems({
                 
                 {/* Dropdown Menu */}
                 {showMenu === item.id && (
-                  <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]">
+                  <div className="app-menu absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]">
                     <button
                       className="w-full px-4 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] flex items-center gap-2 transition-colors"
                       onClick={(e) => {

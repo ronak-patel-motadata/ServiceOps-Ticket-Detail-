@@ -328,7 +328,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showProjectNameDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {projectNameOptions.map((option) => (
                         <button
                           key={option.label}
@@ -386,7 +386,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showCostCenterDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {costCenterOptions.map((option) => (
                         <button
                           key={option.label}
@@ -470,7 +470,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showBuildingDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {buildingOptions.map((option) => (
                         <button
                           key={option.label}
@@ -524,7 +524,7 @@ export function AdditionalFieldsAccordion(props: AdditionalFieldsAccordionProps)
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                   
                   {showRequestChannelDropdown && (
-                    <div className="absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                    <div className="app-menu absolute top-full right-0 mt-1 w-max min-w-[200px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                       {requestChannelOptions.map((option) => (
                         <button
                           key={option.label}

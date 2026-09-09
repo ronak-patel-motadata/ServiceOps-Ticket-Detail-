@@ -2352,7 +2352,7 @@ onStackActiveGroupChange,
               {/* Watchers Dropdown */}
               {showWatchersDropdown && isWatching && (
                 <div 
-                  className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
+                  className="app-menu absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#e5e7eb] py-2 min-w-[280px] z-[9999]"
                   onMouseEnter={() => setShowWatchersDropdown(true)}
                   onMouseLeave={() => setShowWatchersDropdown(false)}
                 >
@@ -2400,7 +2400,7 @@ onStackActiveGroupChange,
               {showRelationModeMenu && (
                 <>
                   <div className="fixed inset-0 z-[9998]" onClick={() => setShowRelationModeMenu(false)} />
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
+                  <div className="app-menu absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] w-[160px]">
                     <button onClick={() => { setRelationMode('existing'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Link Existing</button>
                     <button onClick={() => { setRelationMode('create'); setShowRelationModeMenu(false); setShowPropertiesRelationDropdown(true); }} className="w-full px-3 py-2 text-[13px] text-left hover:bg-[#F9FAFB] text-[#364658] transition-colors">Create New</button>
                   </div>
@@ -2409,7 +2409,7 @@ onStackActiveGroupChange,
               
               {showPropertiesRelationDropdown && (
                 <div
-                  className="absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
+                  className="app-menu absolute top-full right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-[9999] max-h-[240px] overflow-y-auto w-[230px]"
                   ref={propertiesRelationDropdownRef}
                 >
                   <div className="px-3 py-1.5 border-b border-[#F0F2F5] text-[11px] font-semibold text-[#7B8FA5]">{relationMode === 'create' ? 'Create New' : 'Link Existing'}</div>
@@ -2452,7 +2452,7 @@ onStackActiveGroupChange,
               {showHeaderStatusDropdown && (
                 <>
                   <div className="fixed inset-0 z-[90]" onClick={() => setShowHeaderStatusDropdown(false)} />
-                  <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
+                  <div className="app-menu absolute top-full right-0 mt-1.5 w-56 bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-2 z-[100]">
                     {statusOptions.map((option, idx) => {
                       const isSel = selectedStatus === option.label;
                       return (
@@ -2528,7 +2528,7 @@ onStackActiveGroupChange,
                       
                       {/* Status Dropdown */}
                       {showBadgeStatusDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
+                        <div className="app-menu absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
                           {statusOptions.map((option) => (
                             <button
                               key={option.label}
@@ -2607,7 +2607,7 @@ onStackActiveGroupChange,
                       
                       {/* Priority Dropdown */}
                       {showBadgePriorityDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
+                        <div className="app-menu absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
                           {priorityOptions.map((option) => (
                             <button
                               key={option.label}
@@ -2686,7 +2686,7 @@ onStackActiveGroupChange,
                   
                   {/* Assignee Dropdown */}
                   {showBadgeAssigneeDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
+                    <div className="app-menu absolute top-full left-0 mt-1 w-full min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-[100]">
                       {/* Search Box */}
                       <div className="px-3 pb-2">
                         <div className="relative">
@@ -2994,7 +2994,7 @@ onStackActiveGroupChange,
                       <MoreVertical size={14} className="text-[#7B8FA5]" />
                     </button>
                     {showAiSummaryMenu && (
-                      <div className="absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-20 min-w-[200px]">
+                      <div className="app-menu absolute top-full right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-20 min-w-[200px]">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -3315,7 +3315,7 @@ onStackActiveGroupChange,
                             <ChevronDown className="size-4" />
                           </button>
                           {showMoreTabsDropdown && (
-                            <div className="absolute top-full right-0 mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg py-1 min-w-[160px] z-[9999]">
+                            <div className="app-menu absolute top-full right-0 mt-1 bg-white border border-[#e5e7eb] rounded-lg shadow-lg py-1 min-w-[160px] z-[9999]">
                               {filteredOverflowTabs.map(tabId => (
                                 <button
                                   key={tabId}
@@ -4322,7 +4322,7 @@ onStackActiveGroupChange,
 
                           {/* AI Assist Dropdown */}
                           {showAIAssistMenuForward && (
-                            <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                            <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                               <div className="py-2">
                                 {/* Refine section header */}
                                 <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -4371,7 +4371,7 @@ onStackActiveGroupChange,
 
                                   {/* Tone Submenu */}
                                   {showToneSubmenuForward && (
-                                    <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                    <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                       <div className="py-2">
                                         <button 
                                           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -4490,7 +4490,7 @@ onStackActiveGroupChange,
 
                     {/* AI Assist Dropdown Menu - Refine options only */}
                     {showAIAssistMenuCollaborate && (
-                      <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                      <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                         <div className="py-2">
                           {/* Refine section header */}
                           <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -4551,7 +4551,7 @@ onStackActiveGroupChange,
 
                             {/* Tone Submenu */}
                             {showToneSubmenuCollaborate && (
-                              <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                              <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                 <div className="py-2">
                                   <button 
                                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -4628,7 +4628,7 @@ onStackActiveGroupChange,
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuCollaborate && (
-                      <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                      <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                         <div className="flex items-center gap-1">
                           <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                             <Bold size={16} />
@@ -4739,7 +4739,7 @@ onStackActiveGroupChange,
 
                     {/* AI Assist Dropdown Menu - Refine options only */}
                     {showAIAssistMenuNote && (
-                      <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                      <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                         <div className="py-2">
                           {/* Refine section header */}
                           <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -4800,7 +4800,7 @@ onStackActiveGroupChange,
 
                             {/* Tone Submenu */}
                             {showToneSubmenuNote && (
-                              <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                              <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                 <div className="py-2">
                                   <button 
                                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -4877,7 +4877,7 @@ onStackActiveGroupChange,
 
                     {/* All Formatting Options Dropdown */}
                     {showFormattingMenuNote && (
-                      <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                      <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                         <div className="flex items-center gap-1">
                           <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                             <Bold size={16} />
@@ -5099,7 +5099,7 @@ onStackActiveGroupChange,
 
                                 {/* AI Assist Dropdown Menu - Refine options only */}
                                 {showAIAssistMenuDiagnosis && (
-                                  <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                  <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                     <div className="py-2">
                                       {/* Refine section header */}
                                       <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -5156,7 +5156,7 @@ onStackActiveGroupChange,
 
                                         {/* Tone Submenu */}
                                         {showToneSubmenuDiagnosis && (
-                                          <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                          <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                             <div className="py-2">
                                               <button 
                                                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -5228,7 +5228,7 @@ onStackActiveGroupChange,
 
                                 {/* All Formatting Options Dropdown */}
                                 {showFormattingMenuDiagnosis && (
-                                  <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                                  <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                                     <div className="flex items-center gap-1">
                                       <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                                         <Bold size={16} />
@@ -5371,7 +5371,7 @@ onStackActiveGroupChange,
 
                               {/* AI Assist Dropdown Menu - Refine options only */}
                               {showAIAssistMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                <div className="app-menu absolute left-0 bottom-full mb-2 w-[220px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                   <div className="py-2">
                                     {/* Refine section header */}
                                     <div className="px-2 py-1.5 text-[11px] font-medium text-[#7B8FA5]">
@@ -5431,7 +5431,7 @@ onStackActiveGroupChange,
 
                                       {/* Tone Submenu */}
                                       {showToneSubmenuSolution && (
-                                        <div className="absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
+                                        <div className="app-menu absolute left-full bottom-0 ml-1 w-[160px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50">
                                           <div className="py-2">
                                             <button 
                                               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F9FAFB] transition-colors text-left"
@@ -5508,7 +5508,7 @@ onStackActiveGroupChange,
 
                               {/* All Formatting Options Dropdown */}
                               {showFormattingMenuSolution && (
-                                <div className="absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
+                                <div className="app-menu absolute left-0 bottom-full mb-2 bg-white border border-[#DFE5ED] rounded-lg shadow-lg z-50 px-3 py-2">
                                   <div className="flex items-center gap-1">
                                     <button className="size-[30px] flex items-center justify-center hover:bg-[#F9FAFB] rounded text-[#7B8FA5]" title="Bold">
                                       <Bold size={16} />
@@ -5709,7 +5709,7 @@ onStackActiveGroupChange,
                           {/* Status Dropdown Menu */}
                           {showServiceRequestItemStatus === item.id && (
                             <div 
-                              className="absolute left-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
+                              className="app-menu absolute left-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {['Requested', 'In Progress', 'Delivered'].map((status) => (
@@ -5748,7 +5748,7 @@ onStackActiveGroupChange,
                           {/* Dropdown Menu */}
                           {showServiceRequestMenu === item.id && (
                             <div 
-                              className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
+                              className="app-menu absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[9999]"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button
@@ -5914,7 +5914,7 @@ onStackActiveGroupChange,
 
                     {/* Dropdown Menu */}
                     {showAiDropdown && (
-                      <div className="absolute bottom-full left-0 mb-2 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
+                      <div className="app-menu absolute bottom-full left-0 mb-2 w-[240px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50">
                         {aiOptions.map((option, index) => (
                           <button
                             key={index}
@@ -6246,7 +6246,7 @@ onStackActiveGroupChange,
                   </button>
                   
                   {showCatalogCategoryDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                    <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                       {['All', 'Hardware', 'Software', 'Accessories', 'Furniture', 'Mobile Device'].map((category) => (
                         <button
                           key={category}
@@ -6505,7 +6505,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showProcessorDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showProcessorDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['Apple M3', 'Apple M3 Pro', 'Apple M3 Max', 'Intel Core i7', 'Intel Core i9'].map((option) => (
                                 <button
                                   key={option}
@@ -6536,7 +6536,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showRAMDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showRAMDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['8 GB', '16 GB', '32 GB', '64 GB'].map((option) => (
                                 <button
                                   key={option}
@@ -6567,7 +6567,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showStorageDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showStorageDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['256 GB SSD', '512 GB SSD', '1 TB SSD', '2 TB SSD'].map((option) => (
                                 <button
                                   key={option}
@@ -6598,7 +6598,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showDisplayDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showDisplayDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['13" Retina', '14" Retina', '15" Retina', '16" Retina'].map((option) => (
                                 <button
                                   key={option}
@@ -6629,7 +6629,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showGraphicsDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showGraphicsDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['Integrated GPU', 'NVIDIA RTX 3060', 'NVIDIA RTX 4070', 'AMD Radeon Pro'].map((option) => (
                                 <button
                                   key={option}
@@ -6660,7 +6660,7 @@ onStackActiveGroupChange,
                             <ChevronDown className={`size-4 text-[#6B7280] transition-transform ${showColorDropdown ? 'rotate-180' : ''}`} />
                           </button>
                           {showColorDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
+                            <div className="app-menu absolute top-full left-0 right-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg overflow-hidden z-[120]">
                               {['Space Gray', 'Silver', 'Midnight', 'Starlight'].map((option) => (
                                 <button
                                   key={option}

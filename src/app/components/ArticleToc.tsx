@@ -119,7 +119,7 @@ export function ArticleToc({ sections }: { sections: TocSection[] }) {
 
       {/* The full list, opened by hovering anywhere on the rail. */}
       <div
-        className={`absolute right-full top-1/2 mr-3 w-[268px] -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-white py-1.5 shadow-lg transition-all duration-150 ${
+        className={`app-menu absolute right-full top-1/2 mr-3 w-[268px] -translate-y-1/2 rounded-lg border border-[#E5E7EB] bg-white py-1.5 shadow-lg transition-all duration-150 ${
           open ? 'pointer-events-auto opacity-100' : 'pointer-events-none translate-x-1 opacity-0'
         }`}
       >

@@ -142,7 +142,7 @@ export function RelSavedViews({ storageKey, capture, apply, reset }: RelSavedVie
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
+          <div className="app-menu absolute left-0 top-full mt-2 w-[300px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-4 z-50">
             <h4 className="text-[15px] font-semibold text-[#3D8BD0] mb-3">Saved Views</h4>
             {views.length === 0 ? (
               <p className="text-[12px] text-[#9CA3AF] mb-3">No saved views yet — expand nodes or apply a filter, then save it below.</p>

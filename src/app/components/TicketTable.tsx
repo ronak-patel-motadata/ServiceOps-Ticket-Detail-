@@ -93,7 +93,7 @@ function InlineSelect({
           <div
             ref={menuRef}
             style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
-            className="z-[9999] rounded-lg border border-[#DFE5ED] bg-white py-2 shadow-lg"
+            className="app-menu z-[9999] rounded-lg border border-[#DFE5ED] bg-white py-2 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             {user ? (
@@ -419,7 +419,7 @@ function HeaderMenu({
       <div className="fixed inset-0 z-[9998]" onClick={onClose} />
       <div
         style={{ position: 'fixed', top, left, width: W }}
-        className="z-[9999] flex max-h-[420px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl"
+        className="app-menu z-[9999] flex max-h-[420px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl"
       >
         {view === 'root' ? (
           <>
@@ -507,18 +507,28 @@ function HeaderMenu({
 /* Manage-columns popup — TWO PANES: everything addable on the left (click to move it
    across), the columns shown in the table on the right (drag to reorder, ✕ to remove).
    One search filters both sides. Draft state — Apply commits, Cancel/outside discards. */
-function ColumnManager({
+export function ColumnManager({
   anchor,
   catalog,
   active,
+  title = 'Manage columns',
+  shownLabel = 'Shown in table',
+  searchPlaceholder = 'Search columns...',
   onApply,
   onClose,
+  onBack,
 }: {
   anchor: { right: number; bottom: number };
   catalog: ColDef[];
   active: string[];
+  /** Dialog heading — the kanban opens the same dialog for card fields. */
+  title?: string;
+  shownLabel?: string;
+  searchPlaceholder?: string;
   onApply: (keys: string[]) => void;
   onClose: () => void;
+  /** Present when the dialog was opened from a menu — returns to it. */
+  onBack?: () => void;
 }) {
   const [draft, setDraft] = useState<string[]>(active);
   const [q, setQ] = useState('');
@@ -558,18 +568,28 @@ function ColumnManager({
       <div className="fixed inset-0 z-[9998]" onClick={onClose} />
       <div
         style={{ position: 'fixed', top, left, width: W, maxHeight: maxH }}
-        className="z-[9999] flex flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+        className="app-menu z-[9999] flex flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
       >
         {/* Title + one search across both panes */}
         <div className="border-b border-[#F0F2F5] px-4 pb-3 pt-3">
-          <div className="mb-2.5 text-[13px] font-semibold text-[#364658]">Manage columns</div>
+          <div className="mb-2.5 flex items-center gap-1.5">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="flex size-6 flex-shrink-0 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
+              >
+                <ChevronLeft size={15} />
+              </button>
+            )}
+            <span className="text-[13px] font-semibold text-[#364658]">{title}</span>
+          </div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
             <input
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search columns..."
+              placeholder={searchPlaceholder}
               className="w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] py-2 pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
             />
           </div>
@@ -597,7 +617,7 @@ function ColumnManager({
           </div>
           {/* RIGHT — shown in the table, in grid order */}
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Shown in table · {activeDefs.length}</div>
+            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{shownLabel} · {activeDefs.length}</div>
             <div ref={shownRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
               {shownDefs.map((c) => (
                 <div
@@ -1141,9 +1161,14 @@ export function TicketTable({
       case 'id':
         return (
               <td data-col="id" className="overflow-hidden px-4 py-3">
-                <span className="relative inline-block" onMouseEnter={() => hoverPeekStart(ticket.id)} onMouseLeave={hoverPeekEnd}>
+                {/* The peek is anchored to the PILL, not this wrapper — the attention badge
+                    overhangs the corner, and hovering it used to bubble up here and open the
+                    quick view behind its own tooltip. One hover target, one popup. */}
+                <span className="relative inline-block">
                   <span
                     className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
+                    onMouseEnter={() => hoverPeekStart(ticket.id)}
+                    onMouseLeave={hoverPeekEnd}
                     onClick={(e) => {
                       e.stopPropagation();
                       onTicketClick(ticket);
@@ -1584,6 +1609,9 @@ export function TicketTable({
       <Tooltip delayDuration={200}>
         <TooltipTrigger asChild>
           <span
+            /* Sliding off the pill onto the badge leaves an open peek behind — close it so
+               the attention card is the only thing on screen. */
+            onMouseEnter={hoverPeekEnd}
             className="absolute -right-2 -top-1.5 z-10 flex size-4 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums ring-2 ring-white"
             style={{ backgroundColor: tone.bg, color: tone.fg }}
           >
@@ -2040,7 +2068,7 @@ export function TicketTable({
           <div
             ref={phPickerRef}
             style={{ position: 'fixed', top: phRect.bottom + 4, left: Math.min(phRect.left, window.innerWidth - 272), width: 264 }}
-            className="z-[9999] flex max-h-[340px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
+            className="app-menu z-[9999] flex max-h-[340px] flex-col overflow-hidden rounded-lg border border-[#DFE5ED] bg-white shadow-xl"
           >
             <div className="border-b border-[#F0F2F5] px-3 pb-2 pt-2.5">
               <div className="relative">
@@ -2086,182 +2114,17 @@ export function TicketTable({
       {peekId &&
         (() => {
           const t = tickets.find((x) => x.id === peekId);
-          if (!t) return null;
-          const done = t.tasksDone ?? 0;
-          const total = t.tasksTotal ?? 0;
-          const cb = t.createdBy;
-          const createdStr = `${String(cb.getDate()).padStart(2, '0')}/${String(cb.getMonth() + 1).padStart(2, '0')}/${cb.getFullYear()} ${String(cb.getHours()).padStart(2, '0')}:${String(cb.getMinutes()).padStart(2, '0')}`;
-          const daysAgo = 2 + (Number(t.id.replace(/\D/g, '')) % 12);
-          const ai = peekAiFor(t.subject);
-          return createPortal(
-            <div
-              ref={peekRef}
-              onMouseEnter={hoverPeekHold}
-              onMouseLeave={hoverPeekEnd}
-              className="fixed z-[9990] w-[520px] overflow-hidden rounded-lg border border-[#CBD5E1] bg-white shadow-xl"
-              style={{ top: peekPos?.top ?? -9999, left: peekPos?.left ?? -9999 }}
-            >
-              <div className="px-4 pb-3.5 pt-3.5">
-                <div className="flex items-center gap-3">
-                  <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{t.id}</span>
-                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#364658]">
-                        <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(t.status) }} />
-                        {t.status}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>Status: {t.status}</TooltipContent>
-                  </Tooltip>
-                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[#364658]">
-                        <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{t.assignedTo.initials || 'UA'}</span>
-                        <span className="truncate">{t.assignedTo.name || 'Unassigned'}</span>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>Assignee: {t.assignedTo.name || 'Unassigned'}</TooltipContent>
-                  </Tooltip>
-                  <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex flex-shrink-0 items-center gap-1 text-[12px] font-medium text-[#364658]">
-                        <Flag size={12} fill="currentColor" style={{ color: priorityColor(t.priority) }} />
-                        {t.priority}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>Priority: {t.priority}</TooltipContent>
-                  </Tooltip>
-                  <span className="ml-auto flex-shrink-0">
-                    <SlaPill ticket={t} />
-                  </span>
-                </div>
-                <div className="mt-2.5 text-[13px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
-                {peekAiView ? (
-                  <>
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <AiSparkle size={13} />
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[#8B5CF6]">AI Analysis</span>
-                    </div>
-                    <div className="relative mt-2 overflow-hidden rounded-lg p-3">
-                      <span
-                        className="pointer-events-none absolute inset-0"
-                        style={{ opacity: 0.045, background: 'linear-gradient(90deg,#4CB1FE 0%,#731EFB 41.49%,#F911E3 100%)' }}
-                      />
-                      <div className="relative flex items-start gap-2">
-                        <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
-                          <CircleCheck size={12} className="text-[#8B5CF6]" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-semibold text-[#8B5CF6]">Analysis</div>
-                          <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.analysis}</p>
-                        </div>
-                      </div>
-                      <div className="relative mt-2.5 flex items-start gap-2">
-                        <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
-                          <Lightbulb size={12} className="text-[#8B5CF6]" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-semibold text-[#8B5CF6]">Resolution</div>
-                          <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.resolution}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-[11px] font-medium text-[#64748B]">Suggested Actions</div>
-                    {ai.actions.map((a) => (
-                      <button
-                        key={a.label}
-                        onClick={() => toast(`${a.label} — coming soon`)}
-                        className="mt-1.5 flex w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-2.5 py-2 text-left transition-colors hover:bg-[#F5F7FA]"
-                      >
-                        <AiSparkle size={12} />
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{a.label}</span>
-                        <span className="h-1 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[#EEF1F4]">
-                          <span className="block h-full rounded-full bg-[#8B5CF6]" style={{ width: `${a.conf}%` }} />
-                        </span>
-                        <span className="flex-shrink-0 text-[11px] font-semibold text-[#8B5CF6]">{a.conf}%</span>
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#E67E22] text-[9px] font-semibold text-white">{requesterAvatar(t.requester).initials || '–'}</span>
-                  <span className="text-[12px] font-semibold text-[#364658]">{t.requester || 'Unknown requester'}</span>
-                  <span className="min-w-0 truncate text-[12px] text-[#6b7280]">
-                    Created at {createdStr} ({daysAgo} days ago) via <span className="font-medium text-[#364658]">Email</span>
-                  </span>
-                </div>
-                <p className="mt-2 text-[12px] leading-relaxed text-[#364658] line-clamp-3">{describeSubject(t.subject).short}</p>
-                {total > 0 && (
-                  <div className="mt-3 flex items-center gap-2.5">
-                    <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-medium text-[#64748B]">
-                      <ListChecks size={13} />
-                      Tasks
-                    </span>
-                    <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
-                      <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-                    </div>
-                    <span className={`flex-shrink-0 text-[11px] font-semibold ${done >= total ? 'text-[#22A06B]' : 'text-[#364658]'}`}>
-                      {done}/{total}
-                    </span>
-                  </div>
-                )}
-                {!!t.unread && t.lastMsg && (
-                  <div className="mt-3 flex items-start gap-2 rounded bg-[#F8FAFC] px-2.5 py-2">
-                    <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
-                      <MessageSquare size={11} className="text-[#3D8BD0]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12px] font-semibold text-[#1E293B]">{t.unread} new message{t.unread === 1 ? '' : 's'}</div>
-                      <p className="mt-0.5 text-[11px] leading-snug text-[#64748B] line-clamp-2">
-                        <span className="font-medium text-[#364658]">{t.lastMsg.from}:</span> {t.lastMsg.snippet}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {t.approval && (
-                  <div className="mt-3 flex items-center gap-2 rounded bg-[#FFF7EB] px-2.5 py-2">
-                    <span className="flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
-                      <UserCheck size={11} className="text-[#F39C12]" />
-                    </span>
-                    <p className="min-w-0 truncate text-[11px] leading-snug">
-                      <span className="font-semibold text-[#B45309]">Approval pending</span>
-                      <span className="text-[#8A6D3B]"> · {t.approval.approver} · Level {t.approval.level} of {t.approval.totalLevels}</span>
-                    </p>
-                  </div>
-                )}
-                  </>
-                )}
-              </div>
-              {/* Keyboard-opened peek teaches its whole key set; the hover peek only
-                  hints the one key that works without row focus. */}
-              <div className="flex items-center gap-3 border-t border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[11px] text-[#64748B]">
-                {kbPeek && (
-                  <>
-                    <span className="inline-flex items-center gap-1">
-                      <Kbd>Enter</Kbd> open
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Kbd>Esc</Kbd> close
-                    </span>
-                  </>
-                )}
-                <span className="inline-flex items-center gap-1">
-                  <Kbd>A</Kbd> {peekAiView ? 'details' : 'AI view'}
-                </span>
-                {kbPeek && (
-                  <span className="ml-auto inline-flex items-center gap-1">
-                    <Kbd>↑</Kbd>
-                    <Kbd>↓</Kbd> navigate
-                  </span>
-                )}
-              </div>
-            </div>,
-            document.body,
-          );
+          return t ? (
+            <TicketPeekCard
+              t={t}
+              kbPeek={kbPeek}
+              aiView={peekAiView}
+              cardRef={peekRef}
+              pos={peekPos}
+              onHold={hoverPeekHold}
+              onEnd={hoverPeekEnd}
+            />
+          ) : null;
         })()}
       {showColMgr && mgrRect && (
         <ColumnManager
@@ -2274,4 +2137,293 @@ export function TicketTable({
       )}
     </div>
   );
+}
+/* ── Quick peek ──────────────────────────────────────────────────────────────
+   The hover/keyboard preview card, lifted out of the grid so the KANBAN board can
+   raise the identical card from its own ID pills. Everything it needs already lives
+   in this module (statusColor, SlaPill, peekAiFor, Kbd…), so it stays here rather
+   than dragging half of them into a new file. */
+export function TicketPeekCard({
+  t,
+  kbPeek = false,
+  aiView,
+  cardRef,
+  pos,
+  onHold,
+  onEnd,
+}: {
+  t: Ticket;
+  /** Keyboard-opened peeks teach the whole key set; hover peeks hint only the one that works. */
+  kbPeek?: boolean;
+  aiView: boolean;
+  cardRef: { current: HTMLDivElement | null };
+  pos: { top: number; left: number } | null;
+  onHold: () => void;
+  onEnd: () => void;
+}) {
+  const done = t.tasksDone ?? 0;
+  const total = t.tasksTotal ?? 0;
+  const cb = t.createdBy;
+  const createdStr = `${String(cb.getDate()).padStart(2, '0')}/${String(cb.getMonth() + 1).padStart(2, '0')}/${cb.getFullYear()} ${String(cb.getHours()).padStart(2, '0')}:${String(cb.getMinutes()).padStart(2, '0')}`;
+  const daysAgo = 2 + (Number(t.id.replace(/\D/g, '')) % 12);
+  const ai = peekAiFor(t.subject);
+  return createPortal(
+    <div
+      ref={cardRef}
+      onMouseEnter={onHold}
+      onMouseLeave={onEnd}
+      className="app-menu fixed z-[9990] w-[520px] overflow-hidden rounded-lg border border-[#CBD5E1] bg-white shadow-xl"
+      style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
+    >
+      <div className="px-4 pb-3.5 pt-3.5">
+        <div className="flex items-center gap-3">
+          <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{t.id}</span>
+          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(t.status) }} />
+                {t.status}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Status: {t.status}</TooltipContent>
+          </Tooltip>
+          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[#364658]">
+                <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{t.assignedTo.initials || 'UA'}</span>
+                <span className="truncate">{t.assignedTo.name || 'Unassigned'}</span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Assignee: {t.assignedTo.name || 'Unassigned'}</TooltipContent>
+          </Tooltip>
+          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex flex-shrink-0 items-center gap-1 text-[12px] font-medium text-[#364658]">
+                <Flag size={12} fill="currentColor" style={{ color: priorityColor(t.priority) }} />
+                {t.priority}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Priority: {t.priority}</TooltipContent>
+          </Tooltip>
+          <span className="ml-auto flex-shrink-0">
+            <SlaPill ticket={t} />
+          </span>
+        </div>
+        <div className="mt-2.5 text-[13px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
+        {aiView ? (
+          <>
+            <div className="mt-3 flex items-center gap-1.5">
+              <AiSparkle size={13} />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#8B5CF6]">AI Analysis</span>
+            </div>
+            <div className="relative mt-2 overflow-hidden rounded-lg p-3">
+              <span
+                className="pointer-events-none absolute inset-0"
+                style={{ opacity: 0.045, background: 'linear-gradient(90deg,#4CB1FE 0%,#731EFB 41.49%,#F911E3 100%)' }}
+              />
+              <div className="relative flex items-start gap-2">
+                <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
+                  <CircleCheck size={12} className="text-[#8B5CF6]" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold text-[#8B5CF6]">Analysis</div>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.analysis}</p>
+                </div>
+              </div>
+              <div className="relative mt-2.5 flex items-start gap-2">
+                <span className="mt-px flex size-5 flex-shrink-0 items-center justify-center rounded bg-white">
+                  <Lightbulb size={12} className="text-[#8B5CF6]" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold text-[#8B5CF6]">Resolution</div>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-[#364658]">{ai.resolution}</p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 text-[11px] font-medium text-[#64748B]">Suggested Actions</div>
+            {ai.actions.map((a) => (
+              <button
+                key={a.label}
+                onClick={() => toast(`${a.label} — coming soon`)}
+                className="mt-1.5 flex w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-2.5 py-2 text-left transition-colors hover:bg-[#F5F7FA]"
+              >
+                <AiSparkle size={12} />
+                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{a.label}</span>
+                <span className="h-1 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[#EEF1F4]">
+                  <span className="block h-full rounded-full bg-[#8B5CF6]" style={{ width: `${a.conf}%` }} />
+                </span>
+                <span className="flex-shrink-0 text-[11px] font-semibold text-[#8B5CF6]">{a.conf}%</span>
+              </button>
+            ))}
+          </>
+        ) : (
+          <>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#E67E22] text-[9px] font-semibold text-white">{requesterAvatar(t.requester).initials || '–'}</span>
+          <span className="text-[12px] font-semibold text-[#364658]">{t.requester || 'Unknown requester'}</span>
+          <span className="min-w-0 truncate text-[12px] text-[#6b7280]">
+            Created at {createdStr} ({daysAgo} days ago) via <span className="font-medium text-[#364658]">Email</span>
+          </span>
+        </div>
+        <p className="mt-2 text-[12px] leading-relaxed text-[#364658] line-clamp-3">{describeSubject(t.subject).short}</p>
+        {total > 0 && (
+          <div className="mt-3 flex items-center gap-2.5">
+            <span className="inline-flex flex-shrink-0 items-center gap-1.5 text-[11px] font-medium text-[#64748B]">
+              <ListChecks size={13} />
+              Tasks
+            </span>
+            <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+              <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
+            </div>
+            <span className={`flex-shrink-0 text-[11px] font-semibold ${done >= total ? 'text-[#22A06B]' : 'text-[#364658]'}`}>
+              {done}/{total}
+            </span>
+          </div>
+        )}
+        {!!t.unread && t.lastMsg && (
+          <div className="mt-3 flex items-start gap-2 rounded bg-[#F8FAFC] px-2.5 py-2">
+            <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
+              <MessageSquare size={11} className="text-[#3D8BD0]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[12px] font-semibold text-[#1E293B]">{t.unread} new message{t.unread === 1 ? '' : 's'}</div>
+              <p className="mt-0.5 text-[11px] leading-snug text-[#64748B] line-clamp-2">
+                <span className="font-medium text-[#364658]">{t.lastMsg.from}:</span> {t.lastMsg.snippet}
+              </p>
+            </div>
+          </div>
+        )}
+        {t.approval && (
+          <div className="mt-3 flex items-center gap-2 rounded bg-[#FFF7EB] px-2.5 py-2">
+            <span className="flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-white">
+              <UserCheck size={11} className="text-[#F39C12]" />
+            </span>
+            <p className="min-w-0 truncate text-[11px] leading-snug">
+              <span className="font-semibold text-[#B45309]">Approval pending</span>
+              <span className="text-[#8A6D3B]"> · {t.approval.approver} · Level {t.approval.level} of {t.approval.totalLevels}</span>
+            </p>
+          </div>
+        )}
+          </>
+        )}
+      </div>
+      {/* Keyboard-opened peek teaches its whole key set; the hover peek only
+          hints the one key that works without row focus. */}
+      <div className="flex items-center gap-3 border-t border-[#EEF1F4] bg-[#F8FAFC] px-4 py-2 text-[11px] text-[#64748B]">
+        {kbPeek && (
+          <>
+            <span className="inline-flex items-center gap-1">
+              <Kbd>Enter</Kbd> open
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Kbd>Esc</Kbd> close
+            </span>
+          </>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <Kbd>A</Kbd> {aiView ? 'details' : 'AI view'}
+        </span>
+        {kbPeek && (
+          <span className="ml-auto inline-flex items-center gap-1">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd> navigate
+          </span>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* Hover plumbing for the peek: open/close delays, placement and the keys that drive it.
+   The grid keeps its own copy because its peek is entangled with row keyboard focus;
+   this is for surfaces that only ever hover, like the board. */
+export function useHoverPeek() {
+  const [peekId, setPeekId] = useState<string | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [aiView, setAiView] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const openT = useRef<number | null>(null);
+  const closeT = useRef<number | null>(null);
+
+  const start = (id: string) => {
+    if (closeT.current) {
+      clearTimeout(closeT.current);
+      closeT.current = null;
+    }
+    if (openT.current) clearTimeout(openT.current);
+    // Second and later peeks open fast — the long delay is only there to stop the
+    // first card firing while the pointer is merely crossing the surface.
+    openT.current = window.setTimeout(() => setPeekId(id), peekId ? 150 : 550);
+  };
+  const end = () => {
+    if (openT.current) {
+      clearTimeout(openT.current);
+      openT.current = null;
+    }
+    closeT.current = window.setTimeout(() => setPeekId(null), 150);
+  };
+  const hold = () => {
+    if (closeT.current) {
+      clearTimeout(closeT.current);
+      closeT.current = null;
+    }
+  };
+
+  /* Anchored to the element that raised it, biting into its lower edge, flipping above
+     when the card would run past the viewport bottom. Measured after render so the REAL
+     height decides the flip. */
+  useLayoutEffect(() => {
+    if (!peekId) return;
+    const place = () => {
+      const anchor = document.querySelector(`[data-peek-anchor="${peekId}"]`) as HTMLElement | null;
+      if (!anchor) {
+        setPos(null);
+        return;
+      }
+      const r = anchor.getBoundingClientRect();
+      const h = cardRef.current?.offsetHeight ?? 240;
+      const left = Math.min(Math.max(r.left, 16), Math.max(16, window.innerWidth - 536));
+      const bite = Math.round(r.height * 0.6) + 5;
+      let top = r.top + bite;
+      if (top + h > window.innerHeight - 12) top = Math.max(12, r.bottom - bite - h);
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [peekId, aiView]);
+
+  useEffect(() => {
+    if (!peekId) setAiView(false);
+  }, [peekId]);
+
+  useEffect(() => {
+    if (!peekId) return;
+    const onDown = (e: MouseEvent) => {
+      if (cardRef.current?.contains(e.target as Node)) return;
+      setPeekId(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (e.key === 'Escape') setPeekId(null);
+      else if (e.key.toLowerCase() === 'a') setAiView((v) => !v);
+    };
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [peekId]);
+
+  return { peekId, pos, aiView, cardRef, start, end, hold };
 }

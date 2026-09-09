@@ -417,7 +417,7 @@ export function AssetValueDisplay({ field, state }: { field: string; state: Asse
   }
 }
 
-const menuClass = 'absolute top-full right-0 mt-1 w-full min-w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50';
+const menuClass = 'app-menu absolute top-full right-0 mt-1 w-full min-w-[260px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-2 z-50';
 const optionClass = 'w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#F9FAFB] text-left transition-colors';
 const triggerClass = 'w-full pr-8 py-2 text-[13px] text-[#364658] bg-transparent border-none rounded-md cursor-pointer hover:bg-[#F3F4F6] focus:outline-none focus:bg-[#F3F4F6] transition-colors text-left truncate';
 
@@ -1020,7 +1020,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
                 <button className={`${triggerClass} pl-3`} title={display} onClick={() => toggle('task:dates')}>{display || <span className="text-[#9CA3AF]">Select dates</span>}</button>
                 <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
                 {open === 'task:dates' && (
-                  <div className="absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
+                  <div className="app-menu absolute top-full right-0 mt-1 w-full min-w-[280px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] p-4 z-50">
                     <div className="space-y-4">
                       <div>
                         <label className="text-[12px] text-[#7B8FA5] mb-1 block">Start Date</label>

@@ -1725,7 +1725,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   
                   {/* Filter Dropdown */}
                   {showPropertiesFilter && (
-                    <div className="absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-50">
+                    <div className="app-menu absolute right-0 top-full mt-1 w-[180px] bg-white rounded-lg shadow-lg border border-[#DFE5ED] py-1 z-50">
                       <button
                         className={`w-full flex items-center justify-between px-4 py-2 text-[13px] hover:bg-[#F9FAFB] transition-colors ${
                           selectedFilter === 'all' ? 'text-[#3D8BD0]' : 'text-[#364658]'
@@ -2985,7 +2985,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           {confirmStopId === t.id && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setConfirmStopId(null)} />
-                              <div className="absolute right-0 top-full mt-2 z-50 w-[224px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-3">
+                              <div className="app-menu absolute right-0 top-full mt-2 z-50 w-[224px] bg-white border border-[#DFE5ED] rounded-lg shadow-lg p-3">
                                 <div className="absolute -top-1.5 right-2.5 size-3 bg-white border-l border-t border-[#DFE5ED] rotate-45" />
                                 <p className="relative text-[12px] text-[#364658]">Are you sure, you want to stop timer?</p>
                                 <div className="relative mt-2.5 flex items-center justify-end gap-2">
@@ -3059,7 +3059,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                           <ChevronDown size={16} className={`text-[#7B8FA5] flex-shrink-0 transition-transform ${trackerTechOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {trackerTechOpen && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-md shadow-lg py-1 z-10 max-h-[220px] overflow-y-auto">
+                          <div className="app-menu absolute left-0 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-md shadow-lg py-1 z-10 max-h-[220px] overflow-y-auto">
                             {TRACKER_TECHNICIANS.map((tech) => (
                               <button
                                 key={tech.name}
@@ -3934,7 +3934,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                               className="fixed inset-0 z-[100]"
                               onClick={() => setShowAISummaryMenu(false)}
                             />
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[101]">
+                            <div className="app-menu absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 z-[101]">
                               <button 
                                 onClick={() => {
                                   onChatbotAddAsNote?.(aiSummaryContent);

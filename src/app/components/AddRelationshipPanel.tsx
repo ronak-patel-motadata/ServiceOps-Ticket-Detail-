@@ -121,7 +121,7 @@ function SearchSelect({ label, value, options, onSelect, width }: { label: strin
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-[#E5E7EB] bg-white shadow-lg">
+          <div className="app-menu absolute left-0 top-full z-50 mt-1 w-full min-w-[240px] rounded-lg border border-[#E5E7EB] bg-white shadow-lg">
             <div className="relative m-2">
               <input
                 autoFocus

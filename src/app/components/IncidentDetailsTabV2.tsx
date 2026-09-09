@@ -247,7 +247,7 @@ export function IncidentDetailsTabV2({
           {showFieldFilter && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowFieldFilter(false)} />
-              <div className="absolute right-0 top-full z-50 mt-1 w-[180px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
+              <div className="app-menu absolute right-0 top-full z-50 mt-1 w-[180px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-lg">
                 {([['all', 'All fields'], ['empty', 'Empty fields'], ['filled', 'Filled fields'], ['required', 'Required fields']] as const).map(([id, label]) => (
                   <button
                     key={id}
