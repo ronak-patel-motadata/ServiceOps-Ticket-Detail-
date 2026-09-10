@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronRight,
   Clock,
   Flame,
@@ -11,6 +10,7 @@ import {
   TrendingDown,
   TrendingUp,
   UserCheck,
+  UserX,
 } from 'lucide-react';
 import {
   Area,
@@ -28,7 +28,7 @@ import {
 import { slaToneOf, SlaPill, taskListFor } from './TicketTable';
 import type { Ticket } from './TicketListPage';
 import { AGE_BUCKETS, ageHoursOf, type FilterRule } from './TicketFilterBar';
-import { TECHNICIANS, groupOfTechnician } from './technicianRoster';
+import { CURRENT_USER, TECHNICIANS, groupOfTechnician } from './technicianRoster';
 import { DEPARTMENTS } from './orgDepartments';
 import { BreakdownPanel } from './BreakdownPanel';
 import { TechnicianWorkloadPanel, type TechRow } from './TechnicianWorkloadPanel';
@@ -99,15 +99,20 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`flex flex-col rounded-lg border border-[#DFE5ED] bg-white p-4 ${className}`}>
-      <div className="mb-3 flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-[#1E293B]">{title}</div>
-          {sub && <div className="mt-0.5 text-[11px] text-[#94A3B8]">{sub}</div>}
+    <div className={`flex flex-col rounded-lg border border-[#DFE5ED] bg-white ${className}`}>
+      {/* Title band, matching the live product's widget chrome: light-gray strip with the
+          title (and any action) inside it, body below on white. rounded-t-[7px] hugs the
+          card's 8px radius from inside — overflow-hidden would clip chart tooltips. */}
+      {/* Title only — no supporting line. Call sites still pass `sub`; it now feeds a
+          hover tooltip on the title instead of a printed second row, so the context
+          ("whole queue", "showing 10 of 40") is reachable without costing band height. */}
+      <div className="flex items-center gap-2 rounded-t-[7px] border-b border-[#F0F2F5] bg-[#F8FAFC] px-4 py-2.5">
+        <div className="min-w-0 flex-1 text-[13px] font-semibold text-[#1E293B]" title={typeof sub === 'string' ? sub : undefined}>
+          {title}
         </div>
         {action}
       </div>
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col p-4">{children}</div>
     </div>
   );
 }
@@ -239,7 +244,7 @@ function Legend({
   onHover?: (label: string | null) => void;
 }) {
   return (
-    <div className="min-w-0 flex-1 space-y-1.5" onMouseLeave={onHover ? () => onHover(null) : undefined}>
+    <div className="min-w-0 max-w-[320px] flex-1 space-y-1.5" onMouseLeave={onHover ? () => onHover(null) : undefined}>
       {segs.map((s) => {
         const dim = !!active && active !== s.label;
         return (
@@ -383,14 +388,23 @@ function Gauge({ pct }: { pct: number }) {
 /* ── The dashboard ──────────────────────────────────────────────────────── */
 
 export function TicketDashboardView({
-  tickets,
+  tickets: allTickets,
   onTicketClick,
   onDrillDown,
+  scope = 'all',
 }: {
   tickets: Ticket[];
   onTicketClick?: (t: Ticket) => void;
   onDrillDown?: (rules: Omit<FilterRule, 'id'>[], label: string) => void;
+  /** 'mine' narrows every figure to the signed-in technician's own queue. */
+  scope?: 'all' | 'mine';
 }) {
+  /* One switch scopes the WHOLE page. Every figure below already derives from `tickets`,
+     so narrowing it here is the only change needed — no card can disagree with another
+     because none of them re-derive the population for themselves. */
+  const mine = scope === 'mine';
+  const tickets = mine ? allTickets.filter((t) => t.assignedTo.name === CURRENT_USER) : allTickets;
+  const scopeSub = mine ? 'Assigned to you' : 'Whole queue';
   /* Always a bounded window — an unbounded range would mean one column per day for the
      customer's whole history. It opens on the SMALLEST range so the first query the
      dashboard fires is the cheapest one; 15 days is an explicit opt-in. */
@@ -400,16 +414,33 @@ export function TicketDashboardView({
   const total = tickets.length;
 
   if (total === 0) {
-    return <div className="px-6 py-16 text-center text-[13px] text-[#94A3B8]">No requests match the current filters.</div>;
+    return (
+      <div className="px-6 py-16 text-center text-[13px] text-[#94A3B8]">
+        {mine ? 'Nothing is assigned to you right now.' : 'No requests to report on yet.'}
+      </div>
+    );
   }
 
   /* Every drill-down names itself so the list can show WHERE the user came from, not just
      that some filter is on. The label is the thing they clicked, in their words. */
+  const scopeRules = (rules: Omit<FilterRule, 'id'>[]): Omit<FilterRule, 'id'>[] =>
+    mine && !rules.some((r) => r.field === 'assignedTo')
+      ? [...rules, { field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }]
+      : rules;
+  /* The list has to open the SAME rows the card counted, so every drill inherits the page
+     scope. Labels stay as written — the list's own filter chips spell out "Assigned to
+     <me>", which says it better than bending each label into a possessive. */
+  const drillTo = (rules: Omit<FilterRule, 'id'>[], label: string) => onDrillDown?.(scopeRules(rules), label);
   const drill = (rules: Omit<FilterRule, 'id'>[], label: string) =>
-    onDrillDown ? () => onDrillDown(rules, label) : undefined;
+    onDrillDown ? () => drillTo(rules, label) : undefined;
 
   /* ── Figures ── */
   const open = tickets.filter(isOpen);
+  /* Ownerless open work — nobody is even failing at it yet, which is why it outranks
+     most of the page. Only meaningful desk-wide: My view is BY DEFINITION assigned.
+     (Declared AFTER `open` — it reads it, and a const above would be in its dead zone.) */
+  const unassignedOpen = open.filter((t) => !t.assignedTo.name || t.assignedTo.name === 'Unassigned');
+  const unassignedUrgent = unassignedOpen.filter((t) => t.priority === 'Urgent' || t.priority === 'High').length;
   const resolved = tickets.filter((t) => t.status === 'Completed' || t.status === 'Closed');
   const breached = open.filter((t) => slaToneOf(t) === 'breached');
   const dueSoon = open.filter((t) => slaToneOf(t) === 'due');
@@ -449,13 +480,13 @@ export function TicketDashboardView({
     if (slaToneOf(t) === 'breached') cur.breached += 1;
     if (slaToneOf(t) === 'due') cur.dueToday += 1;
   });
-  const techRows: TechRow[] = [...techMap.entries()].map(([name, v]) => ({
+  const techRows: TechRow[] = [...techMap.entries()].filter(([name]) => name !== 'Unassigned').map(([name, v]) => ({
     name,
     initials: initialsOf(name === 'Unassigned' ? 'UA' : name),
     group: groupOfTechnician(name),
     ...v,
   }));
-  const techs = [...techMap.entries()].filter(([, v]) => v.open > 0).sort((a, b) => b[1].open - a[1].open);
+  const techs = [...techMap.entries()].filter(([name, v]) => name !== 'Unassigned' && v.open > 0).sort((a, b) => b[1].open - a[1].open);
   const topTechs = techs.slice(0, 6);
   const maxTech = Math.max(...topTechs.map(([, v]) => v.open), 1);
 
@@ -565,6 +596,67 @@ export function TicketDashboardView({
   const topRequesters = [...requesterMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxRequester = Math.max(...topRequesters.map(([, v]) => v), 1);
 
+  const conversationCard = (
+    <Card
+      title="Conversation backlog"
+      sub={mine ? 'Replies waiting on you' : 'Replies waiting on the desk'}
+      action={
+        onDrillDown && unread.length > 0 ? (
+          <button
+            onClick={() => drillTo([{ field: 'unread', condition: 'is', values: ['Has unread'] }], 'Unread replies')}
+            className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+          >
+            View all
+            <ChevronRight size={13} />
+          </button>
+        ) : undefined
+      }
+    >
+      {unread.length === 0 ? (
+        <div className="flex items-center gap-3 py-2">
+          <span className="flex size-9 flex-shrink-0 items-center justify-center rounded bg-[#F1F5F9]">
+            <MessageSquare size={17} className="text-[#94A3B8]" />
+          </span>
+          <span className="text-[12px] text-[#64748B]">{mine ? 'No replies waiting on you.' : 'No replies waiting.'}</span>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 pb-2">
+            <span className="flex size-9 flex-shrink-0 items-center justify-center rounded bg-[#EBF5FF]">
+              <MessageSquare size={17} className="text-[#3D8BD0]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[20px] font-semibold leading-6 text-[#1E293B] tabular-nums">{unreadTotal}</div>
+              <div className="text-[11px] text-[#94A3B8]">unread across {unread.length} request{unread.length === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+          <div className="space-y-0.5 border-t border-[#F1F5F9] pt-2">
+            {[...unread]
+              .sort((a, b) => (b.unread ?? 0) - (a.unread ?? 0))
+              .slice(0, 4)
+              .map((t) => (
+                <button
+                  key={t.id}
+                  onClick={onTicketClick ? () => onTicketClick(t) : undefined}
+                  className="flex w-full items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[#F5F7FA]"
+                >
+                  <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">
+                    {t.id}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-[#64748B]">
+                    {t.lastMsg ? `${t.lastMsg.from}: ${t.lastMsg.snippet}` : t.subject}
+                  </span>
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-sm bg-[#EBF5FF] px-1.5 py-0.5 text-[11px] font-medium text-[#3D8BD0]">
+                    {t.unread} new
+                  </span>
+                </button>
+              ))}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+
   return (
     <div className="space-y-4 px-6 pb-8 pt-4">
       {/* ── Headline tiles ── */}
@@ -622,16 +714,39 @@ export function TicketDashboardView({
           onClick={drill([{ field: 'approval', condition: 'is', values: ['Pending approval'] }], 'Pending approval')}
           hint="Show requests awaiting an approver"
         />
-        <Tile
-          icon={CheckCircle2}
-          color="#22C55E"
-          label="Resolved"
-          value={resolved.length}
-          sub={`avg ${avgResolve} to resolve`}
-          trend={{ pct: '12%', up: true, good: true }}
-          onClick={drill([{ field: 'status', condition: 'is', values: ['Completed', 'Closed'] }], 'Resolved')}
-          hint="Show resolved requests"
-        />
+        {mine ? (
+          <Tile
+            icon={MessageSquare}
+            color="#3D8BD0"
+            label="Unread replies"
+            value={unreadTotal}
+            sub={unreadTotal === 0 ? 'all caught up' : `across ${unread.length} request${unread.length === 1 ? '' : 's'}`}
+            onClick={drill([{ field: 'unread', condition: 'is', values: ['Has unread'] }], 'Unread replies')}
+            hint="Show requests with unread replies"
+          />
+        ) : (
+          <Tile
+            icon={UserX}
+            color={unassignedOpen.length === 0 ? '#22C55E' : '#F59E0B'}
+            label="Unassigned"
+            value={unassignedOpen.length}
+            sub={
+              unassignedOpen.length === 0
+                ? 'every request has an owner'
+                : unassignedUrgent > 0
+                  ? `${unassignedUrgent} urgent or high`
+                  : 'awaiting an owner'
+            }
+            onClick={drill(
+              [
+                { field: 'assignedTo', condition: 'is', values: ['Unassigned'] },
+                { field: 'status', condition: 'is', values: OPEN_STATES },
+              ],
+              'Unassigned requests',
+            )}
+            hint="Show open requests with no owner"
+          />
+        )}
       </div>
 
       {/* ── SLA · status · priority ── */}
@@ -639,7 +754,7 @@ export function TicketDashboardView({
         <Card title="SLA compliance" sub={`${open.length} unresolved requests measured`}>
           <div className="flex items-center gap-4">
             <Gauge pct={slaPct} />
-            <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="min-w-0 max-w-[320px] flex-1 space-y-1.5">
               {slaSegs.map((s) => (
                 <div key={s.label} className="flex items-center gap-2 text-[12px]">
                   <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
@@ -661,20 +776,20 @@ export function TicketDashboardView({
           </div>
         </Card>
 
-        <Card title="Requests by status" sub="Whole queue">
+        <Card title="Requests by status" sub={scopeSub}>
           <DonutWithLegend
             segs={statusSegs}
             total={total}
             centerLabel="requests"
             onPick={
               onDrillDown
-                ? (label) => onDrillDown([{ field: 'status', condition: 'is', values: [label] }], `${label} requests`)
+                ? (label) => drillTo([{ field: 'status', condition: 'is', values: [label] }], `${label} requests`)
                 : undefined
             }
           />
         </Card>
 
-        <Card title="Requests by priority" sub="Whole queue">
+        <Card title="Requests by priority" sub={scopeSub}>
           <div className="h-[148px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={prioSegs} layout="vertical" margin={{ top: 4, right: 28, bottom: 0, left: 0 }} barSize={16}>
@@ -694,7 +809,7 @@ export function TicketDashboardView({
                   name="Requests"
                   radius={[0, 4, 4, 0]}
                   onClick={(d: any) =>
-                    onDrillDown?.([{ field: 'priority', condition: 'is', values: [d.label] }], `${d.label} priority`)
+                    drillTo([{ field: 'priority', condition: 'is', values: [d.label] }], `${d.label} priority`)
                   }
                   className={onDrillDown ? 'cursor-pointer' : ''}
                 >
@@ -719,8 +834,12 @@ export function TicketDashboardView({
         </Card>
       </div>
 
-      {/* ── Technician load · backlog aging · intake source ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* ── Technician load · backlog aging · open tasks ── */}
+      {/* My view: the Unread-replies TILE carries the conversation signal now, so no card
+          repeats it — aging and tasks split the row. Desk-wide the card stays (the overall
+          tile row has no unread tile; its sixth slot is Unassigned). */}
+      <div className={`grid grid-cols-1 gap-4 ${mine ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+        {!mine && (
         <Card
           title="Technician workload"
           sub={`Top ${topTechs.length} of ${techRows.length} technicians by open work`}
@@ -764,8 +883,9 @@ export function TicketDashboardView({
             <div className="mt-1 text-[11px] text-[#94A3B8]">Red bars carry at least one breached request.</div>
           </div>
         </Card>
+        )}
 
-        <Card title="Backlog aging" sub="How long unresolved work has been open">
+        <Card title="Backlog aging" sub={mine ? 'How long your unresolved work has been open' : 'How long unresolved work has been open'}>
           <div className="h-[152px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agingRows} margin={{ top: 14, right: 4, bottom: 0, left: -22 }} barSize={38}>
@@ -786,7 +906,7 @@ export function TicketDashboardView({
                   /* The bar counts OPEN work, so the drill has to carry the same status
                      constraint — an age filter on its own would pull in closed requests. */
                   onClick={(d: any) =>
-                    onDrillDown?.(
+                    drillTo(
                       [
                         { field: 'age', condition: 'is', values: [d.label] },
                         { field: 'status', condition: 'is', values: OPEN_STATES },
@@ -815,7 +935,7 @@ export function TicketDashboardView({
         {/* Checklist work is the quiet reason requests sit still: the ticket is "In Progress"
             but the thing actually blocking it is a task nobody has picked up. The source
             split that used to live here answered a question nobody acts on. */}
-        <Card title="Open tasks" sub="Checklist work still outstanding">
+        <Card title="Open tasks" sub={mine ? 'Your checklist work still outstanding' : 'Checklist work still outstanding'}>
           <div className="flex items-center gap-4 pb-3">
             <div className="flex-shrink-0">
               <div className="text-[26px] font-semibold leading-none tabular-nums text-[#1E293B]">{taskOpen}</div>
@@ -882,7 +1002,7 @@ export function TicketDashboardView({
               </span>
               {onDrillDown && (
                 <button
-                  onClick={() => onDrillDown([{ field: 'openTasks', condition: 'is', values: ['Has open tasks'] }], 'Open tasks')}
+                  onClick={() => drillTo([{ field: 'openTasks', condition: 'is', values: ['Has open tasks'] }], 'Open tasks')}
                   className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
                 >
                   View all
@@ -961,16 +1081,15 @@ export function TicketDashboardView({
         </div>
       </Card>
 
-      {/* ── Attention list · department split · top requesters ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* ── Attention list full-width, then the three compact splits ── */}
+      <div className="space-y-4">
         <Card
           title="Needs attention"
           sub={`Breached and due-soon requests, worst first · showing ${atRisk.length} of ${atRiskTotal}`}
-          className="lg:col-span-2"
           action={
             onDrillDown && (
               <button
-                onClick={() => onDrillDown([{ field: 'sla', condition: 'is', values: ['Breached', 'Due soon'] }], 'Needs attention')}
+                onClick={() => drillTo([{ field: 'sla', condition: 'is', values: ['Breached', 'Due soon'] }], 'Needs attention')}
                 className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
               >
                 View all
@@ -1029,9 +1148,15 @@ export function TicketDashboardView({
                       </td>
                       <td className="overflow-hidden px-3 py-2.5">
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                            {t.assignedTo.initials}
-                          </span>
+                          {t.assignedTo.name === 'Unassigned' ? (
+                            /* The grid's ownerless mark — a dashed empty circle, not a filled
+                               avatar with nobody's initials in it. */
+                            <span className="size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
+                          ) : (
+                            <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                              {t.assignedTo.initials}
+                            </span>
+                          )}
                           <span className="min-w-0 truncate text-[12px] text-[#4A5568]">{t.assignedTo.name}</span>
                         </span>
                       </td>
@@ -1052,7 +1177,7 @@ export function TicketDashboardView({
           )}
         </Card>
 
-        <div className="space-y-4">
+        <div className={`grid grid-cols-1 gap-4 ${mine ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
           <Card
             title="Requests by department"
             sub={
@@ -1083,7 +1208,7 @@ export function TicketDashboardView({
                     onClick={(d: any) =>
                       d.other
                         ? setDeptOpen(true)
-                        : onDrillDown?.([{ field: 'department', condition: 'is', values: [d.label] }], `${d.label} department`)
+                                                : drillTo([{ field: 'department', condition: 'is', values: [d.label] }], `${d.label} department`)
                     }
                     className={onDrillDown ? 'cursor-pointer' : ''}
                   >
@@ -1114,7 +1239,7 @@ export function TicketDashboardView({
             </div>
           </Card>
 
-          <Card title="Top requesters" sub="Most requests raised">
+          <Card title="Top requesters" sub={mine ? 'Who your work comes from' : 'Most requests raised'}>
             <div className="space-y-0.5 pt-1">
               {topRequesters.map(([name, count]) => (
                 <BarRow
@@ -1134,26 +1259,7 @@ export function TicketDashboardView({
             </div>
           </Card>
 
-          <Card title="Conversation backlog" sub="Replies waiting on the desk">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 flex-shrink-0 items-center justify-center rounded bg-[#EBF5FF]">
-                <MessageSquare size={17} className="text-[#3D8BD0]" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[20px] font-semibold leading-6 text-[#1E293B] tabular-nums">{unreadTotal}</div>
-                <div className="text-[11px] text-[#94A3B8]">unread across {unread.length} requests</div>
-              </div>
-              {onDrillDown && (
-                <button
-                  onClick={() => onDrillDown([{ field: 'unread', condition: 'is', values: ['Has unread'] }], 'Unread replies')}
-                  className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
-                >
-                  Open
-                  <ChevronRight size={13} />
-                </button>
-              )}
-            </div>
-          </Card>
+          {!mine && conversationCard}
         </div>
       </div>
 
@@ -1183,7 +1289,7 @@ export function TicketDashboardView({
           onClose={() => setDeptOpen(false)}
           onPick={(label) => {
             setDeptOpen(false);
-            onDrillDown?.([{ field: 'department', condition: 'is', values: [label] }], `${label} department`);
+            drillTo([{ field: 'department', condition: 'is', values: [label] }], `${label} department`);
           }}
         />
       )}

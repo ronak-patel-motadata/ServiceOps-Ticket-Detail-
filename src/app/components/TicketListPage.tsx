@@ -102,7 +102,7 @@ export const generateMockTickets = (): Ticket[] => {
     { name: 'Kaison Potai', initials: 'KP' },
     { name: 'Novak Potai', initials: 'NP' },
     { name: 'Rahul Shukla', initials: 'RS' },
-    { name: 'Keetion Dale', initials: 'KD' },
+    { name: 'Sarah Johnson', initials: 'SJ' },
     { name: 'Pratik Patial', initials: 'PP' }
   ];
   
@@ -134,13 +134,17 @@ export const generateMockTickets = (): Ticket[] => {
     // A pending approval blocks OPEN work only — settled rows never carry one.
     const hasApproval =
       i % 11 === 3 && status !== 'Closed' && status !== 'Completed';
+    /* Fresh intake nobody has picked up yet — only OPEN work can be ownerless, and the
+       first 17 indices stay assigned (they anchor the AI groups and bespoke demos). */
+    const unassigned =
+      i >= 17 && (i % 9 === 7 || i % 9 === 2) && (status === 'Open' || status === 'In Progress' || status === 'Pending');
     return {
       id: `INC-${String(i + 30).padStart(2, '0')}`,
       subject: subjects[i % subjects.length],
       requester,
       dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
       createdBy: new Date(2022, 3, 19 + DAY_SPREAD[i % DAY_SPREAD.length], 3 + (i % 12), 30),
-      assignedTo: assignee,
+      assignedTo: unassigned ? { name: 'Unassigned', initials: '' } : assignee,
       status,
       priority: priorities[i % priorities.length],
       unread,
@@ -227,6 +231,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     setCurrentPage(1);
     setView('dashboard');
   };
+  /* Dashboard scope. Lives here rather than in the dashboard because the toolbar owns the
+     switch and the dashboard owns the charts. */
+  const [dashScope, setDashScope] = useState<'all' | 'mine'>('all');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const [kanbanSubGroup, setKanbanSubGroup] = useState<KanbanGroup | null>(null);
   // Extra fields on every kanban card, in the order the user added them.
@@ -507,6 +514,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             setKanbanSubGroup={setKanbanSubGroup}
             cardFields={cardFields}
             setCardFields={setCardFields}
+            dashScope={dashScope}
+            setDashScope={setDashScope}
           />
           </div>
           {view === 'kanban' ? (
@@ -521,7 +530,11 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             />
           ) : view === 'dashboard' ? (
             <TicketDashboardView
-              tickets={sortedTickets}
+              /* Deliberately the UNFILTERED set: the dashboard narrows itself with the
+                 Overall/Mine switch, and its filter row is hidden, so honouring list
+                 filters here would silently redraw every chart with no way to see why. */
+              tickets={tickets}
+              scope={dashScope}
               onTicketClick={handleOpenTicket}
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules

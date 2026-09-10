@@ -25,7 +25,10 @@ export interface TicketView {
 }
 
 /** The signed-in technician — decides what lands in "My Views". */
-export const CURRENT_USER = 'Sarah Johnson';
+/* Imported AND re-exported: this module uses CURRENT_USER at module scope (the seeded view
+   owners below), and a bare `export … from` re-export would not bind the name locally. */
+import { CURRENT_USER } from './technicianRoster';
+export { CURRENT_USER };
 
 export const TICKET_VIEWS: TicketView[] = [
   { name: 'All Requests', rules: [] },

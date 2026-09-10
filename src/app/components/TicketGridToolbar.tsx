@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
 import { KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, type KanbanGroup } from './TicketKanban';
 import { ColumnManager } from './TicketTable';
 import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
@@ -84,6 +85,8 @@ export function TicketGridToolbar({
   listGroupLabel,
   view,
   setView,
+  dashScope,
+  setDashScope,
   kanbanGroup,
   setKanbanGroup,
   kanbanSubGroup,
@@ -107,6 +110,8 @@ export function TicketGridToolbar({
   listGroupLabel?: string | null;
   view: 'list' | 'list-kpi' | 'kanban' | 'dashboard';
   setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard') => void;
+  dashScope: 'all' | 'mine';
+  setDashScope: (s: 'all' | 'mine') => void;
   kanbanGroup: KanbanGroup;
   setKanbanGroup: (g: KanbanGroup) => void;
   kanbanSubGroup: KanbanGroup | null;
@@ -210,7 +215,7 @@ export function TicketGridToolbar({
   const [sortOver, setSortOver] = useState<string | null>(null);
   const [gearOpen, setGearOpen] = useState(false);
   // The gear opens as the view switcher; "Group by" swaps the card in place.
-  const [gearView, setGearView] = useState<'main' | 'layout' | 'group' | 'subgroup'>('main');
+  const [gearView, setGearView] = useState<'main' | 'group' | 'subgroup'>('main');
   const [fieldMgr, setFieldMgr] = useState<{ right: number; bottom: number } | null>(null);
   // Mirrors the grid's visible-column set so the row states what it opens onto.
   const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
@@ -297,7 +302,37 @@ export function TicketGridToolbar({
       )}
 
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-11">
-      <TicketFilterBar rules={rules} setRules={setRules} />
+      {/* The dashboard scopes itself with the Overall/Mine switch instead of ad-hoc filter
+          rules — two ways to narrow the same charts would contradict each other, and a
+          filtered dashboard with the filter row hidden would be a silent lie. */}
+      {view === 'dashboard' ? (
+        <div className="flex flex-shrink-0 items-center gap-0.5 rounded border border-[#DFE5ED] bg-[#F8FAFC] p-0.5">
+          {([
+            { key: 'all', label: 'Overall view', Icon: Users, hint: 'Every request across the desk' },
+            { key: 'mine', label: 'My view', Icon: UserRound, hint: `Only requests assigned to ${CURRENT_USER}` },
+          ] as const).map((o) => {
+            const on = dashScope === o.key;
+            return (
+              <Tooltip key={o.key} delayDuration={400}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setDashScope(o.key)}
+                    className={`inline-flex h-7 items-center gap-1.5 rounded px-3 text-[12px] font-medium transition-colors ${
+                      on ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'
+                    }`}
+                  >
+                    <o.Icon size={13} className="flex-shrink-0" />
+                    {o.label}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{o.hint}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      ) : (
+        <TicketFilterBar rules={rules} setRules={setRules} />
+      )}
 
       {saveOpen &&
         createPortal(
@@ -778,17 +813,34 @@ export function TicketGridToolbar({
             <div className={`${POPUP} w-[280px]`}>
               {gearView === 'main' ? (
                 <>
-                  {/* Layout lives behind one settings row (Notion pattern) — the four
-                      tiles moved into their own sub-view to keep the menu calm. */}
-                  <button
-                    onClick={() => setGearView('layout')}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
-                  >
-                    <LayoutGrid size={14} className="flex-shrink-0 text-[#7B8FA5]" />
-                    <span className="flex-1 text-[13px] text-[#364658]">Layout</span>
-                    <span className="text-[13px] font-medium text-[#3D8BD0]">{LAYOUTS.find((l) => l.key === view)?.label}</span>
-                    <ChevronRight size={14} className="text-[#9CA3AF]" />
-                  </button>
+                  {/* Layout tiles sit UPFRONT — switching view is the most common thing this
+                      menu is opened for, and hiding four options behind a fifth click was a
+                      hop nobody needed. Picking one keeps the menu open: the highlight moves,
+                      the page changes behind it, and the other settings stay in reach. */}
+                  <div className="px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                    Layout
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
+                    {LAYOUTS.map(({ key, label, Icon }) => (
+                      <Tooltip key={key} delayDuration={400}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setView(key)}
+                            className={`flex flex-col items-center gap-1.5 rounded border py-2.5 text-[12px] font-medium transition-colors ${
+                              view === key
+                                ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                                : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#364658]'
+                            }`}
+                          >
+                            <Icon size={17} />
+                            {label}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Switch to the {label} layout</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  <div className="border-t border-[#F0F2F5]" />
                   {view === 'kanban' && (
                     <button
                       onClick={() => setGearView('group')}
@@ -888,37 +940,6 @@ export function TicketGridToolbar({
                   </button>
                     </>
                   )}
-                </>
-              ) : gearView === 'layout' ? (
-                <>
-                  <div className="flex items-center gap-1.5 border-b border-[#F0F2F5] px-2 py-2">
-                    <button
-                      onClick={() => setGearView('main')}
-                      className="flex size-6 items-center justify-center rounded text-[#64748B] transition-colors hover:bg-[#F3F4F6]"
-                    >
-                      <ChevronLeft size={15} />
-                    </button>
-                    <span className="text-[13px] font-semibold text-[#1E293B]">Layout</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 p-2">
-                    {LAYOUTS.map(({ key, label, Icon }) => (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          setView(key);
-                          setGearView('main');
-                        }}
-                        className={`flex flex-col items-center gap-1.5 rounded-lg border py-2.5 text-[12px] font-medium transition-colors ${
-                          view === key
-                            ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
-                            : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9]'
-                        }`}
-                      >
-                        <Icon size={17} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                 </>
               ) : gearView === 'subgroup' ? (
                 <>

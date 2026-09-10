@@ -685,14 +685,25 @@ const SLA_TONE: Record<SlaTone, { bg: string; fg: string; flip?: boolean }> = {
   done: { bg: '#F1F5F9', fg: '#64748B' },
 };
 /** The grid's SLA pill (flipped hourglass when breached) — also used by the Kanban cards. */
-export function DueByPill({ tone, label }: { tone: SlaTone; label: string }) {
+export function DueByPill({
+  tone,
+  label,
+  className = '',
+  compact = false,
+}: {
+  tone: SlaTone;
+  label: string;
+  className?: string;
+  /** Kanban scale: 11px glyph and label, to sit level with the card's other chips. */
+  compact?: boolean;
+}) {
   const t = SLA_TONE[tone];
   return (
-    <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5" style={{ backgroundColor: t.bg }}>
+    <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 ${className}`} style={{ backgroundColor: t.bg }}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="10"
-        height="13"
+        width={compact ? 8 : 10}
+        height={compact ? 11 : 13}
         viewBox="0 0 12 16"
         fill="none"
         style={t.flip ? { transform: 'scaleY(-1)' } : undefined}
@@ -710,7 +721,9 @@ export function DueByPill({ tone, label }: { tone: SlaTone; label: string }) {
           </clipPath>
         </defs>
       </svg>
-      <span className="text-[12px] font-semibold" style={{ color: t.fg }}>{label}</span>
+      <span className={compact ? 'text-[11px] font-semibold' : 'text-[12px] font-semibold'} style={{ color: t.fg }}>
+        {label}
+      </span>
     </span>
   );
 }
@@ -751,13 +764,21 @@ const dueBySla = (t: Ticket): SlaInfo => {
 export const slaToneOf = (t: Ticket): SlaTone => dueBySla(t).tone;
 /** The SLA pill WITH its hover detail (due/met date · total time · SLA name).
  *  Used by the grid cell and the Kanban cards. */
-export function SlaPill({ ticket }: { ticket: Ticket }) {
+export function SlaPill({
+  ticket,
+  className = '',
+  compact = false,
+}: {
+  ticket: Ticket;
+  className?: string;
+  compact?: boolean;
+}) {
   const sla = dueBySla(ticket);
   return (
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>
         <span className="inline-flex">
-          <DueByPill tone={sla.tone} label={sla.label} />
+          <DueByPill tone={sla.tone} label={sla.label} className={className} compact={compact} />
         </span>
       </TooltipTrigger>
       <TooltipContent>

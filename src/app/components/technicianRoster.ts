@@ -32,6 +32,7 @@ export const TECHNICIANS: Technician[] = [
     // Carries tickets in the mock data
     'Amou Desai',
     'Keetion Dale',
+    'Sarah Johnson',
     // Wider team
     'Priya Raut',
     'Daniel Okafor',
@@ -76,3 +77,11 @@ const GROUP_BY_NAME = new Map(TECHNICIANS.map((t) => [t.name, t.group]));
 
 /** The group a technician belongs to; unknown names fall back so no chart can break. */
 export const groupOfTechnician = (name: string) => GROUP_BY_NAME.get(name) ?? TECH_GROUPS[0];
+
+/* Who is signed in. The saved-view owner and the Tasks module's "mine" view already named
+   her; this is now the ONE definition they and the dashboard's My view all read, so the
+   product can never disagree with itself about who you are. She carries requests in the mock
+   data (see the roster above and the assignee pool) — a signed-in user with an empty queue
+   would leave every personal card blank. */
+export const CURRENT_USER = 'Sarah Johnson';
+export const CURRENT_USER_INITIALS = 'SJ';

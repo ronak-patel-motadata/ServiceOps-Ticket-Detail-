@@ -7,6 +7,8 @@ import { TasksTable } from './TasksTable';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { useDrawerStack } from './DrawerStack';
 import type { Patch } from './PatchesListPage';
+// Signed-in identity comes from the roster so Tasks, saved views and My view agree.
+import { CURRENT_USER } from './technicianRoster';
 
 /* Task listing — every task across the service desk, independent of the record it belongs to.
  * Built from the same parts as the other list pages (Sidebar · Header · toolbar · grid ·
@@ -62,7 +64,7 @@ const TASK_VIEWS = [
   { id: 'open', label: 'All Open Tasks', chip: 'Status Not In Not Started, Closed' },
   { id: 'all', label: 'All Tasks', chip: null },
   { id: 'overdue', label: 'Overdue Tasks', chip: 'Due By Status Is Overdue' },
-  { id: 'mine', label: 'My Tasks', chip: 'Assignee Is Sarah Johnson' },
+  { id: 'mine', label: 'My Tasks', chip: `Assignee Is ${CURRENT_USER}` },
 ] as const;
 
 /* Map a task onto the Patch shape so the cloned PatchDrawer body compiles unchanged. Severity
@@ -88,8 +90,6 @@ const taskToPatchShape = (t: TaskRow): Patch => ({
     dueDate: t.overdueBy ? 'Sun, Jul 26, 2026' : 'Mon, Aug 17, 2026',
   },
 });
-
-const CURRENT_USER = 'Sarah Johnson';
 
 export function TasksListPage({ onNavigate }: { onNavigate: (page: string) => void }) {
   const [tasks] = useState<TaskRow[]>(mockTasks);

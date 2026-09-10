@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, GripVertical, Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { extraValue, slaInfoOf, SlaPill, TicketPeekCard, useHoverPeek } from './TicketTable';
 import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
@@ -42,8 +42,11 @@ export const KANBAN_FIELDS: { key: string; label: string }[] = [
 ];
 
 /** The base selection — everything a card can show, including the field the board
-    happens to be grouped by right now. Order is the card order. */
-export const DEFAULT_CARD_FIELDS = ['id', 'sla', 'subject', 'description', 'signals', 'assignedTo', 'status', 'priority'];
+    happens to be grouped by right now. Order is the card order.
+    Description is deliberately NOT here: two lines of body text per card is the single
+    biggest thing standing between a board and a scannable one, and the subject already
+    says what the request is. It stays available in Card fields for anyone who wants it. */
+export const DEFAULT_CARD_FIELDS = ['id', 'sla', 'subject', 'signals', 'assignedTo', 'status', 'priority'];
 
 /** Fields worth offering for a board grouped this way — the axis is never offered. */
 export const kanbanFieldsFor = (group: string) => KANBAN_FIELDS.filter((f) => f.key !== group);
@@ -76,6 +79,9 @@ export const KANBAN_GROUPS: { key: KanbanGroup; label: string }[] = [
   { key: 'assignedTo', label: 'Assigned to' },
   { key: 'sla', label: 'SLA Status' },
 ];
+
+/** Per-group column order the user dragged into place. */
+const COL_ORDER_KEY = 'kanbanColumnOrder';
 
 const STATUS_ORDER = ['Open', 'In Progress', 'Pending', 'Completed', 'Closed', 'Cancelled'];
 const PRIORITY_ORDER = ['Urgent', 'High', 'Medium', 'Low'];
@@ -258,6 +264,18 @@ export function TicketKanban({
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  /* Column order is per GROUP — the sequence you want for Status says nothing about the one
+     you want for Priority — and it outlives the session, because re-dragging five columns
+     back into place on every visit is worse than not being able to drag them at all. */
+  const [colOrder, setColOrder] = useState<Record<string, string[]>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(COL_ORDER_KEY) ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+  const [dragCol, setDragCol] = useState<string | null>(null);
+  const [dropCol, setDropCol] = useState<{ col: string; after: boolean } | null>(null);
   const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(new Set());
   const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
   const rootRef = useRef<HTMLDivElement>(null);
@@ -306,7 +324,30 @@ export function TicketKanban({
       g === 'status' ? STATUS_ORDER : g === 'priority' ? PRIORITY_ORDER : g === 'sla' ? SLA_ORDER : null;
     return order ? order.filter((v) => present.includes(v)) : present.sort((a, b) => a.localeCompare(b));
   };
-  const columns = valuesFor(group);
+  /* Saved order first (minus anything no longer present), then any value the data has that
+     the saved order has never seen — a new status must appear, not vanish. */
+  const columns = (() => {
+    const vals = valuesFor(group);
+    const saved = colOrder[group];
+    if (!saved?.length) return vals;
+    const known = saved.filter((v) => vals.includes(v));
+    return [...known, ...vals.filter((v) => !known.includes(v))];
+  })();
+
+  const moveColumn = (from: string, to: string, after: boolean) => {
+    if (from === to) return;
+    const next = columns.filter((c) => c !== from);
+    const at = next.indexOf(to);
+    if (at < 0) return;
+    next.splice(after ? at + 1 : at, 0, from);
+    const map = { ...colOrder, [group]: next };
+    setColOrder(map);
+    try {
+      localStorage.setItem(COL_ORDER_KEY, JSON.stringify(map));
+    } catch {
+      /* private mode — the order just won't survive the session */
+    }
+  };
   const lanes = subGroup ? valuesFor(subGroup) : [];
 
   const laneCount = (lane: string) => tickets.filter((t) => groupValue(t, subGroup as KanbanGroup) === lane).length;
@@ -378,16 +419,44 @@ export function TicketKanban({
           <div
             key={col}
             onDragOver={(e) => {
+              /* A column drag and a card drag land on the same element — whichever is in
+                 flight wins, so a column being moved never also looks like a card drop. */
+              if (dragCol) {
+                e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                setDropCol({ col, after: e.clientX > r.left + r.width / 2 });
+                return;
+              }
               if (!canDrop) return;
               e.preventDefault();
               setOverCol(dropKey);
             }}
-            onDragLeave={() => setOverCol((c) => (c === dropKey ? null : c))}
-            onDrop={() => drop(col, laneKey)}
-            className={`group/col flex flex-shrink-0 flex-col ${collapsed ? 'w-11' : 'w-[388px]'} ${
+            onDragLeave={() => {
+              if (dragCol) return setDropCol((d) => (d?.col === col ? null : d));
+              setOverCol((c) => (c === dropKey ? null : c));
+            }}
+            onDrop={() => {
+              if (dragCol) {
+                if (dropCol) moveColumn(dragCol, dropCol.col, dropCol.after);
+                setDragCol(null);
+                setDropCol(null);
+                return;
+              }
+              drop(col, laneKey);
+            }}
+            className={`group/col relative flex flex-shrink-0 flex-col ${collapsed ? 'w-11' : 'w-[388px]'} ${
               scroll ? 'h-full min-h-0' : ''
-            }`}
+            } ${dragCol === col ? 'opacity-40' : ''}`}
           >
+            {/* Full-height insertion line, on the side the pointer is closest to, so "move it
+                to the end" is a real drop and not a guess. */}
+            {dragCol && dragCol !== col && dropCol?.col === col && (
+              <span
+                className={`pointer-events-none absolute inset-y-0 z-20 w-0.5 rounded-full bg-[#3D8BD0] ${
+                  dropCol.after ? '-right-1' : '-left-1'
+                }`}
+              />
+            )}
             {collapsed ? (
               /* Folded: a slim rail that still names the column and its size — click to reopen. */
               <Tip text={`Show ${col}`}>
@@ -412,8 +481,31 @@ export function TicketKanban({
               </Tip>
             ) : (
               <>
-            {/* Column header — the value, its count, and a hover control to fold it away. */}
-            <div className="flex flex-shrink-0 items-center gap-2 px-4 pb-2 pt-4">
+            {/* Column header — the value, its count, a drag handle and a hover control to
+                fold it away. Only the HEADER is draggable: making the whole column a handle
+                would fight the card drag that lives inside it. */}
+            <div
+              draggable
+              onDragStart={(e) => {
+                setDragCol(col);
+                e.dataTransfer.effectAllowed = 'move';
+                /* The browser's default ghost is a screenshot of the whole 388px column. A
+                   small labelled chip is legible and says exactly what is moving. */
+                const ghost = document.createElement('div');
+                ghost.textContent = col;
+                ghost.style.cssText =
+                  'position:fixed;top:-1000px;left:-1000px;padding:6px 12px;border-radius:6px;' +
+                  'background:#fff;border:1px solid #DFE5ED;border-left:3px solid #3D8BD0;' +
+                  'font:600 12px system-ui;color:#364658;box-shadow:0 4px 12px rgba(16,24,40,.12)';
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 12, 16);
+                setTimeout(() => ghost.remove(), 0);
+              }}
+              onDragEnd={() => {
+                setDragCol(null);
+                setDropCol(null);
+              }}
+              className="flex flex-shrink-0 cursor-grab items-center gap-2 px-4 pb-2 pt-4 active:cursor-grabbing">
               {PEOPLE_GROUP(group) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -431,6 +523,9 @@ export function TicketKanban({
                 </span>
               )}
               <span className="text-[12px] font-medium tabular-nums text-[#94A3B8]">{cards.length}</span>
+              {/* Column controls live together in the right corner, hide + drag, the same
+                  hover-revealed size-6 slot each — far from the status dot, and in flow after
+                  ml-auto so their appearing never shifts the title on the left. */}
               <Tip text={`Hide ${col}`}>
                 <button
                   onClick={() => toggleCol(col)}
@@ -438,6 +533,11 @@ export function TicketKanban({
                 >
                   <ChevronsRightLeft size={13} />
                 </button>
+              </Tip>
+              <Tip text="Drag to reorder">
+                <span className="invisible flex size-6 flex-shrink-0 cursor-grab items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#E9EEF4] hover:text-[#364658] active:cursor-grabbing group-hover/col:visible">
+                  <GripVertical size={13} />
+                </span>
               </Tip>
             </div>
 
@@ -453,25 +553,17 @@ export function TicketKanban({
                 const fields = cardFieldsFor(cardFields, group);
                 const show = (k: string) => fields.includes(k);
                 const extras = fields.filter((k) => !KANBAN_BUILTINS.has(k));
-                const headerKey = fields.find((k) => k === 'sla' || k === 'status' || k === 'priority');
-                const footerKeys = fields.filter(
-                  (k) => (k === 'assignedTo' || k === 'status' || k === 'priority') && k !== headerKey,
-                );
-                const [leadKey, ...chipKeys] = footerKeys;
+                /* The ranked attributes all sit together under the title, in whatever order
+                   Card fields puts them in — SLA beside priority reads as one judgement about
+                   the request, where SLA-up-top and priority-down-bottom read as two. */
+                const metaKeys = fields.filter((k) => k === 'sla' || k === 'status' || k === 'priority');
+                /* Who owns it belongs in the corner, not in the same row as what it is. */
+                const showAvatar = show('assignedTo');
                 const chipFor = (k: string) =>
                   k === 'status'
                     ? { value: t.status, tip: `Status: ${t.status}` }
                     : { value: t.priority, tip: `Priority: ${t.priority}` };
-                const personLead = (
-                  <Tip text={`Assigned to ${t.assignedTo.name}`}>
-                    <span className="inline-flex min-w-0 items-center gap-2">
-                      <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                        {t.assignedTo.initials}
-                      </span>
-                      <span className="min-w-0 truncate text-[12px] text-[#64748B]">{t.assignedTo.name}</span>
-                    </span>
-                  </Tip>
-                );
+                const hasSignals = show('signals') && ((t.unread ?? 0) > 0 || !!t.approval || total > 0);
                 return (
                   <div
                     key={t.id}
@@ -482,38 +574,40 @@ export function TicketKanban({
                       setOverCol(null);
                     }}
                     onClick={() => onTicketClick(t)}
-                    className={`group/card cursor-pointer rounded-lg border border-[#EEF1F4] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05),0_2px_6px_rgba(16,24,40,0.05)] transition-all hover:border-[#DFE5ED] hover:shadow-[0_2px_4px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.10)] ${
+                    /* One soft shadow at rest, not two stacked — on a dense board the doubled
+                       shadow read as weight around every card. The lift stays on hover. */
+                    className={`group/card cursor-pointer rounded-[6px] border border-[#EEF1F4] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-all hover:border-[#DFE5ED] hover:shadow-[0_2px_4px_rgba(16,24,40,0.06),0_6px_16px_rgba(16,24,40,0.10)] ${
                       dragId === t.id ? 'opacity-40' : ''
                     }`}
                   >
-                    {(show('id') || headerKey) && (
+                    {(show('id') || showAvatar) && (
                       <div className="flex items-center gap-2">
                         {show('id') && (
-                          /* No tooltip here on purpose: the peek says everything the old
-                             "raised by …" tip did and more, and two popups on one target is
-                             the collision the grid already had to unpick. */
+                          /* Plain text, not a filled pill: every card carries an id, so tinting
+                             each one is pure repetition — an id is a reference you read, not a
+                             value worth highlighting. No tooltip either, on purpose — the peek
+                             says everything the old "raised by …" tip did and more, and two
+                             popups on one target is the collision the grid had to unpick. */
                           <span
                             data-peek-anchor={t.id}
                             onMouseEnter={() => peek.start(t.id)}
                             onMouseLeave={peek.end}
-                            className="cursor-pointer rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] transition-colors hover:bg-[#d0e8f9]"
+                            className="cursor-pointer text-[11px] font-medium text-[#94A3B8] transition-colors hover:text-[#3D8BD0]"
                           >
                             {t.id}
                           </span>
                         )}
-                        {headerKey && (
-                          <span className="ml-auto">
-                            {headerKey === 'sla' ? (
-                              <SlaPill ticket={t} />
+                        {showAvatar && (
+                          <Tip text={t.assignedTo.name === 'Unassigned' ? 'Unassigned' : `Assigned to ${t.assignedTo.name}`}>
+                            {t.assignedTo.name === 'Unassigned' ? (
+                              /* The grid's ownerless mark — dashed circle, not an empty blue box. */
+                              <span className="ml-auto size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
                             ) : (
-                              <ValueChip
-                                label={chipFor(headerKey).value}
-                                color={DOT[chipFor(headerKey).value] ?? '#94A3B8'}
-                                big
-                                tip={chipFor(headerKey).tip}
-                              />
+                              <span className="ml-auto flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                                {t.assignedTo.initials}
+                              </span>
                             )}
-                          </span>
+                          </Tip>
                         )}
                       </div>
                     )}
@@ -529,6 +623,72 @@ export function TicketKanban({
                       <CardDescription text={describeSubject(t.subject).short} onExpand={() => setDescTicket(t)} />
                     )}
 
+                    {/* ONE quiet meta line closes the card. It used to be two — a chip rail and
+                        a bordered footer — which put something in all four corners and made a
+                        three-field card read as five stacked blocks. Alerts sit left (they are
+                        the reason to look), identity sits right. */}
+                    {/* One row under the title carrying everything ranked about the request:
+                        SLA next to priority, then the activity signals. Read left to right it
+                        goes when it is due → how bad it is → what has happened since. */}
+                    {(metaKeys.length > 0 || hasSignals) && (
+                      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                        {metaKeys.map((k) =>
+                          k === 'sla' ? (
+                            <SlaPill key={k} ticket={t} className="h-[22px]" compact />
+                          ) : (
+                            /* Dot + label, not a second filled pill: the SLA chip beside it is
+                               the one thing on the card that is genuinely time-critical, and two
+                               tinted pills side by side would flatten that difference. */
+                            <Tip key={k} text={chipFor(k).tip}>
+                              <span className="inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded border border-[#EEF1F4] bg-white px-2">
+                                <span
+                                  className="size-1.5 flex-shrink-0 rounded-full"
+                                  style={{ background: DOT[chipFor(k).value] ?? '#94A3B8' }}
+                                />
+                                <span className="truncate text-[11px] font-medium text-[#64748B]">{chipFor(k).value}</span>
+                              </span>
+                            </Tip>
+                          ),
+                        )}
+
+                        {hasSignals && (t.unread ?? 0) > 0 && (
+                          <Tip text={`${t.unread} unread ${t.unread === 1 ? 'reply' : 'replies'}${t.lastMsg ? ` from ${t.lastMsg.from}` : ''}`}>
+                            <span className="inline-flex h-[22px] items-center gap-1 rounded bg-[#EBF5FF] px-2 text-[11px] font-medium text-[#3D8BD0]">
+                              <MessageSquare size={11} />
+                              {t.unread} new
+                            </span>
+                          </Tip>
+                        )}
+                        {hasSignals && t.approval && (
+                          <Tip
+                            text={`Waiting on ${t.approval.approver} · Level ${t.approval.level} of ${t.approval.totalLevels} · ${t.approval.waiting}`}
+                          >
+                            <span className="inline-flex h-[22px] items-center gap-1 rounded bg-[#FEF3C7] px-2 text-[11px] font-medium text-[#B45309]">
+                              <UserCheck size={11} />
+                              Approval
+                            </span>
+                          </Tip>
+                        )}
+                        {/* Task progress is a fact, not an alert — no fill, so the chips that DO
+                            need attention stay the loudest things on the line. */}
+                        {hasSignals && total > 0 && (
+                          <Tip text={`${done} of ${total} tasks completed`}>
+                            <span
+                              className={`inline-flex h-[22px] items-center gap-1 rounded border border-[#EEF1F4] bg-white px-2 text-[11px] font-medium ${
+                                done === total ? 'text-[#15803D]' : 'text-[#94A3B8]'
+                              }`}
+                            >
+                              <ListChecks size={11} />
+                              {done}/{total}
+                            </span>
+                          </Tip>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Fields added in "Card fields" append BELOW the default card rather
+                        than splitting it — the hairline marks where the card the product
+                        designed ends and the columns this user asked for begin. */}
                     {extras.length > 0 && (
                       <div className="mt-2.5 space-y-1.5 border-t border-[#F1F5F9] pt-2.5">
                         {extras.map((k) => (
@@ -541,73 +701,6 @@ export function TicketKanban({
                             </span>
                           </div>
                         ))}
-                      </div>
-                    )}
-
-                    {/* Row intelligence, same signals the grid's subject cell carries. */}
-                    {show('signals') && ((t.unread ?? 0) > 0 || t.approval || total > 0) && (
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {(t.unread ?? 0) > 0 && (
-                          <Tip text={`${t.unread} unread ${t.unread === 1 ? 'reply' : 'replies'}${t.lastMsg ? ` from ${t.lastMsg.from}` : ''}`}>
-                            <span className="inline-flex items-center gap-1 rounded-sm bg-[#EBF5FF] px-1.5 py-0.5 text-[11px] font-medium text-[#3D8BD0]">
-                              <MessageSquare size={11} />
-                              {t.unread} new
-                            </span>
-                          </Tip>
-                        )}
-                        {t.approval && (
-                          <Tip
-                            text={`Waiting on ${t.approval.approver} · Level ${t.approval.level} of ${t.approval.totalLevels} · ${t.approval.waiting}`}
-                          >
-                            <span className="inline-flex items-center gap-1 rounded-sm bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-medium text-[#B45309]">
-                              <UserCheck size={11} />
-                              Approval
-                            </span>
-                          </Tip>
-                        )}
-                        {total > 0 && (
-                          <Tip text={`${done} of ${total} tasks completed`}>
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${
-                                done === total ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#F1F5F9] text-[#64748B]'
-                              }`}
-                            >
-                              <ListChecks size={11} />
-                              {done}/{total}
-                            </span>
-                          </Tip>
-                        )}
-                      </div>
-                    )}
-
-                    {footerKeys.length > 0 && (
-                      <div className="mt-2.5 flex items-center gap-2 border-t border-[#F1F5F9] pt-2">
-                        {leadKey === 'assignedTo'
-                          ? personLead
-                          : (() => {
-                              const c = chipFor(leadKey);
-                              return (
-                                <Tip text={c.tip}>
-                                  <span className="inline-flex min-w-0 items-center gap-1.5">
-                                    <span className="size-2 flex-shrink-0 rounded-full" style={{ background: DOT[c.value] ?? '#94A3B8' }} />
-                                    <span className="truncate text-[12px] text-[#64748B]">{c.value}</span>
-                                  </span>
-                                </Tip>
-                              );
-                            })()}
-                        <span className="ml-auto flex flex-shrink-0 items-center gap-1.5">
-                          {chipKeys.map((k) =>
-                            k === 'assignedTo' ? (
-                              <Tip key={k} text={`Assigned to ${t.assignedTo.name}`}>
-                                <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                                  {t.assignedTo.initials}
-                                </span>
-                              </Tip>
-                            ) : (
-                              <ValueChip key={k} label={chipFor(k).value} color={DOT[chipFor(k).value] ?? '#94A3B8'} tip={chipFor(k).tip} />
-                            ),
-                          )}
-                        </span>
                       </div>
                     )}
                   </div>

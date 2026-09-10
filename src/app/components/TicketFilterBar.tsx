@@ -117,7 +117,7 @@ export const FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Subject', icon: AlignLeft, type: 'text' },
   { key: 'requester', label: 'Requester', icon: UserRound, type: 'select', people: 'requester', options: REQUESTERS.map((label) => ({ label })) },
-  { key: 'assignedTo', label: 'Assigned to', icon: UserCheck, type: 'select', people: 'technician', options: ASSIGNEES.map((label) => ({ label })) },
+  { key: 'assignedTo', label: 'Assigned to', icon: UserCheck, type: 'select', people: 'technician', options: [{ label: 'Unassigned' }, ...ASSIGNEES.map((label) => ({ label }))] },
   { key: 'sla', label: 'SLA Status', icon: Hourglass, type: 'select', options: SLA_OPTS },
   { key: 'status', label: 'Status', icon: CircleDot, type: 'select', options: STATUS_OPTS },
   { key: 'priority', label: 'Priority', icon: Flag, type: 'select', options: PRIORITY_OPTS },
