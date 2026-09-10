@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { slaToneOf, SlaPill } from './TicketTable';
+import { slaToneOf, SlaPill, taskListFor } from './TicketTable';
 import type { Ticket } from './TicketListPage';
 import { AGE_BUCKETS, ageHoursOf, type FilterRule } from './TicketFilterBar';
 import { TECHNICIANS, groupOfTechnician } from './technicianRoster';
@@ -36,7 +36,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Dashboard layout of the request queue — the service-desk view a lead opens first:
    where the desk stands (headline tiles), where it is at risk (SLA, aging, breach list),
-   how the work splits (status / priority / technician / department / source) and how it
+   how the work splits (status / priority / technician / department / tasks) and how it
    flows (received vs resolved). Every number derives from the SAME filtered ticket set the
    grid renders and the grid's own SLA rule, so no two surfaces can disagree.
    Charts are pure CSS/SVG — no chart library in the listing bundle. */
@@ -66,9 +66,7 @@ const hx = (id: string, salt: number) => {
   for (const ch of id) n = (n * 31 + ch.charCodeAt(0)) % 997;
   return n;
 };
-const SOURCES = ['Email', 'Support Portal', 'Technician Portal', 'Walk-in'];
 const deptOf = (t: Ticket) => DEPARTMENTS[hx(t.id, 4) % DEPARTMENTS.length];
-const sourceOf = (t: Ticket) => SOURCES[hx(t.id, 5) % SOURCES.length];
 
 const initialsOf = (n: string) =>
   n
@@ -483,11 +481,23 @@ export function TicketDashboardView({
       : []),
   ];
 
-  const sourceSegs: Seg[] = SOURCES.map((sv, i) => ({
-    label: sv,
-    color: ['#3D8BD0', '#8B5CF6', '#22C55E', '#F59E0B'][i],
-    value: tickets.filter((t) => sourceOf(t) === sv).length,
-  })).filter((s) => s.value > 0);
+  /* Open checklist work. Counted over UNRESOLVED requests only — leftover tasks on a closed
+     request are bookkeeping, not a queue the desk still owes. `taskRows` is what's blocked,
+     `taskAll/taskDone` the whole picture those blockers sit inside. */
+  const taskRows = open.filter((t) => (t.tasksTotal ?? 0) > (t.tasksDone ?? 0));
+  const taskAll = open.reduce((n, t) => n + (t.tasksTotal ?? 0), 0);
+  const taskDone = open.reduce((n, t) => n + (t.tasksDone ?? 0), 0);
+  const taskOpen = taskAll - taskDone;
+  const taskPct = taskAll ? Math.round((taskDone / taskAll) * 100) : 100;
+  /* Worst first: most steps left, then the one furthest from finishing — a 0/5 outranks a
+     4/5 even though both have work left. */
+  const topTaskRows = [...taskRows]
+    .sort((a, b) => {
+      const left = (t: Ticket) => (t.tasksTotal ?? 0) - (t.tasksDone ?? 0);
+      return left(b) - left(a) || (a.tasksDone ?? 0) - (b.tasksDone ?? 0);
+    })
+    .slice(0, 4);
+
 
   /* Backlog aging — the classic ITSM health check on unresolved work. Buckets come from
      the filter layer so a bar and the list it drills into can never disagree. */
@@ -802,8 +812,85 @@ export function TicketDashboardView({
           </div>
         </Card>
 
-        <Card title="Requests by source" sub="How the desk is being reached">
-          <DonutWithLegend segs={sourceSegs} total={total} centerLabel="requests" />
+        {/* Checklist work is the quiet reason requests sit still: the ticket is "In Progress"
+            but the thing actually blocking it is a task nobody has picked up. The source
+            split that used to live here answered a question nobody acts on. */}
+        <Card title="Open tasks" sub="Checklist work still outstanding">
+          <div className="flex items-center gap-4 pb-3">
+            <div className="flex-shrink-0">
+              <div className="text-[26px] font-semibold leading-none tabular-nums text-[#1E293B]">{taskOpen}</div>
+              <div className="mt-1 text-[11px] text-[#7B8FA5]">open tasks</div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2 text-[11px]">
+                <span className="text-[#64748B]">Completed</span>
+                <span className="font-semibold tabular-nums text-[#364658]">
+                  {taskDone} of {taskAll}
+                </span>
+              </div>
+              <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-[#F1F5F9]">
+                <span
+                  className="block h-full rounded-full bg-[#22C55E] transition-all"
+                  style={{ width: `${taskPct}%` }}
+                />
+              </span>
+              <div className="mt-1.5 text-[11px] text-[#94A3B8]">{taskPct}% of checklist work done</div>
+            </div>
+          </div>
+
+          <div className="border-t border-[#F1F5F9] pt-2.5 text-[11px] font-medium text-[#7B8FA5]">Most outstanding</div>
+          <div className="space-y-0.5 pt-1">
+            {topTaskRows.map((t) => {
+              const done = t.tasksDone ?? 0;
+              const all = t.tasksTotal ?? 0;
+              const next = taskListFor(t.subject)[done] ?? 'Final checks';
+              return (
+                <Tooltip key={t.id} delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={onTicketClick ? () => onTicketClick(t) : undefined}
+                      className="flex w-full items-center gap-2 rounded px-1 py-1 transition-colors hover:bg-[#F5F7FA]"
+                    >
+                      <span className="flex-shrink-0 rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">
+                        {t.id}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-left text-[12px] text-[#364658]">{t.subject}</span>
+                      <span className="h-1.5 w-[56px] flex-shrink-0 overflow-hidden rounded-full bg-[#F1F5F9]">
+                        <span
+                          className="block h-full rounded-full bg-[#3D8BD0]"
+                          style={{ width: `${all ? (done / all) * 100 : 0}%` }}
+                        />
+                      </span>
+                      <span className="w-8 flex-shrink-0 text-right text-[11px] font-semibold tabular-nums text-[#364658]">
+                        {done}/{all}
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  {/* The one thing a queue view can't show: what the next step actually is. */}
+                  <TooltipContent side="top" className="text-wrap">
+                    Next: {next}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto border-t border-[#F1F5F9] pt-2.5">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-[11px] text-[#64748B]">
+                {taskRows.length} of {open.length} open requests are waiting on tasks
+              </span>
+              {onDrillDown && (
+                <button
+                  onClick={() => onDrillDown([{ field: 'openTasks', condition: 'is', values: ['Has open tasks'] }], 'Open tasks')}
+                  className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+                >
+                  View all
+                  <ChevronRight size={13} />
+                </button>
+              )}
+            </div>
+          </div>
         </Card>
       </div>
 

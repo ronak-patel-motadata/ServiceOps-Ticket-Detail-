@@ -219,7 +219,7 @@ const requesterAvatar = (name: string) => {
 };
 /* Task names shown in the hover card, themed by subject — the same mapping idea the
    detail page's seedTasksFor/TASK_THEMES uses, so both screens tell one story. */
-const taskListFor = (subject: string): string[] => {
+export const taskListFor = (subject: string): string[] => {
   const s2 = subject.toLowerCase();
   if (s2.includes('onboarding')) return ['IT - Acquire Laptop', 'IT - Create Email ID and Accounts', 'Admin - Workstation Allocation', 'Admin - Joining Kit Allocation'];
   if (s2.includes('macbook') || s2.includes('request for')) return ['Manager approval', 'Procurement review', 'Vendor PO creation', 'Asset tagging & handover'];
