@@ -216,7 +216,10 @@ function Donut({
       className="relative flex-shrink-0 rounded-full"
       style={{ width: size, height: size, background: total > 0 ? `conic-gradient(${stops})` : '#F1F5F9' }}
     >
-      <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white px-3">
+      {/* Ring thickness scales with the donut (~16% of diameter) instead of a fixed
+          15px — at the larger size that read as a thin hoop; this matches the bolder
+          ring weight of the live product. */}
+      <div className="absolute flex flex-col items-center justify-center rounded-full bg-white px-3" style={{ inset: Math.round(size * 0.16) }}>
         {/* The centre answers the hover: that slice's count, in its own colour. */}
         <span
           className="text-[20px] font-semibold leading-none tabular-nums transition-colors"
@@ -244,7 +247,7 @@ function Legend({
   onHover?: (label: string | null) => void;
 }) {
   return (
-    <div className="min-w-0 max-w-[320px] flex-1 space-y-1.5" onMouseLeave={onHover ? () => onHover(null) : undefined}>
+    <div className="min-w-0 space-y-1.5" onMouseLeave={onHover ? () => onHover(null) : undefined}>
       {segs.map((s) => {
         const dim = !!active && active !== s.label;
         return (
@@ -260,11 +263,11 @@ function Legend({
             } ${dim ? 'opacity-40' : ''} ${active === s.label ? 'bg-[#F5F7FA]' : ''}`}
           >
             <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-            <span className={`min-w-0 flex-1 truncate text-left ${active === s.label ? 'text-[#364658]' : 'text-[#64748B]'}`}>
+            <span className={`min-w-0 max-w-[160px] truncate text-left ${active === s.label ? 'text-[#364658]' : 'text-[#64748B]'}`}>
               {s.label}
             </span>
             <span className="font-semibold tabular-nums text-[#364658]">{s.value}</span>
-            <span className="w-9 text-right text-[11px] tabular-nums text-[#94A3B8]">
+            <span className="text-[11px] tabular-nums text-[#94A3B8]">
               {total ? Math.round((s.value / total) * 100) : 0}%
             </span>
           </button>
@@ -289,8 +292,8 @@ function DonutWithLegend({
 }) {
   const [active, setActive] = useState<string | null>(null);
   return (
-    <div className="flex items-center gap-4">
-      <Donut segs={segs} total={total} centerLabel={centerLabel} active={active} />
+    <div className="flex flex-1 items-center justify-center gap-8">
+      <Donut segs={segs} total={total} centerLabel={centerLabel} size={148} active={active} />
       <Legend segs={segs} total={total} onPick={onPick} active={active} onHover={setActive} />
     </div>
   );
@@ -359,27 +362,31 @@ function BarRow({
 }
 
 /** Semi-circle SLA gauge — same treatment as the listing's KPI strip. */
+/* Scaled ~1.35× (r 52 → 70, stroke 14 → 18) so it carries the same presence as the 148px
+   donut beside it — at the old size it read as an accessory to its own legend. Geometry:
+   arc baseline y=84, so an 18px round cap reaches 93 inside the 94-high viewBox, and
+   x spans 14 → 154 inside 168. */
 function Gauge({ pct }: { pct: number }) {
-  const r = 52;
+  const r = 70;
   const len = Math.PI * r;
   const color = pct >= 90 ? '#22C55E' : pct >= 75 ? '#F59E0B' : '#EF4444';
   return (
-    <div className="relative h-[78px] w-[124px] flex-shrink-0">
-      <svg width="124" height="68" viewBox="0 0 124 68" aria-hidden>
-        <path d="M8 62 A52 52 0 0 1 116 62" fill="none" stroke="#E9EEF4" strokeWidth="10" strokeLinecap="round" />
+    <div className="relative h-[100px] w-[168px] flex-shrink-0">
+      <svg width="168" height="94" viewBox="0 0 168 94" aria-hidden>
+        <path d="M14 84 A70 70 0 0 1 154 84" fill="none" stroke="#E9EEF4" strokeWidth="18" strokeLinecap="round" />
         <path
-          d="M8 62 A52 52 0 0 1 116 62"
+          d="M14 84 A70 70 0 0 1 154 84"
           fill="none"
           stroke={color}
-          strokeWidth="10"
+          strokeWidth="18"
           strokeLinecap="round"
           strokeDasharray={`${(len * pct) / 100} ${len}`}
         />
       </svg>
       <div className="absolute inset-x-0 bottom-0 text-center leading-none">
-        <span className="text-[24px] font-semibold text-[#1E293B] tabular-nums">{pct}</span>
-        <span className="text-[12px] font-medium text-[#64748B]">%</span>
-        <div className="mt-1 text-[10px] text-[#94A3B8]">SLA met</div>
+        <span className="text-[28px] font-semibold text-[#1E293B] tabular-nums">{pct}</span>
+        <span className="text-[13px] font-medium text-[#64748B]">%</span>
+        <div className="mt-1 text-[11px] text-[#94A3B8]">SLA met</div>
       </div>
     </div>
   );
@@ -752,13 +759,13 @@ export function TicketDashboardView({
       {/* ── SLA · status · priority ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card title="SLA compliance" sub={`${open.length} unresolved requests measured`}>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-1 items-center justify-center gap-8">
             <Gauge pct={slaPct} />
-            <div className="min-w-0 max-w-[320px] flex-1 space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               {slaSegs.map((s) => (
                 <div key={s.label} className="flex items-center gap-2 text-[12px]">
                   <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span className="min-w-0 flex-1 truncate text-[#64748B]">{s.label}</span>
+                  <span className="min-w-0 max-w-[160px] truncate text-[#64748B]">{s.label}</span>
                   <span className="font-semibold tabular-nums text-[#364658]">{s.value}</span>
                 </div>
               ))}
