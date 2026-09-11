@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, GripVertical, Maximize2, MessageSquare, ListChecks, UserCheck, X } from 'lucide-react';
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, GripVertical, Maximize2, MessageSquare, ListChecks, Pin, PinOff, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { extraValue, slaInfoOf, SlaPill, TicketPeekCard, useHoverPeek } from './TicketTable';
 import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
@@ -82,6 +82,8 @@ export const KANBAN_GROUPS: { key: KanbanGroup; label: string }[] = [
 
 /** Per-group column order the user dragged into place. */
 const COL_ORDER_KEY = 'kanbanColumnOrder';
+/** Per-group columns pinned to the left — the board's frozen columns. */
+const COL_PIN_KEY = 'kanbanPinnedColumns';
 
 const STATUS_ORDER = ['Open', 'In Progress', 'Pending', 'Completed', 'Closed', 'Cancelled'];
 const PRIORITY_ORDER = ['Urgent', 'High', 'Medium', 'Low'];
@@ -276,6 +278,27 @@ export function TicketKanban({
   });
   const [dragCol, setDragCol] = useState<string | null>(null);
   const [dropCol, setDropCol] = useState<{ col: string; after: boolean } | null>(null);
+  /* Frozen columns, per group and persisted like the order — pinning "Open" for the
+     status board shouldn't freeze anything on the priority board. */
+  const [pinnedMap, setPinnedMap] = useState<Record<string, string[]>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(COL_PIN_KEY) ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+  const togglePin = (col: string) =>
+    setPinnedMap((m) => {
+      const cur = m[group] ?? [];
+      const next = cur.includes(col) ? cur.filter((c) => c !== col) : [...cur, col];
+      const map = { ...m, [group]: next };
+      try {
+        localStorage.setItem(COL_PIN_KEY, JSON.stringify(map));
+      } catch {
+        /* private mode — pins just won't survive the session */
+      }
+      return map;
+    });
   const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(new Set());
   const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
   const rootRef = useRef<HTMLDivElement>(null);
@@ -334,11 +357,27 @@ export function TicketKanban({
     return [...known, ...vals.filter((v) => !known.includes(v))];
   })();
 
+  /* Pinned columns surface first, in the order they were pinned — like the listing's
+     frozen columns, freezing IS a statement about position. */
+  const pinned = (pinnedMap[group] ?? []).filter((c) => columns.includes(c));
+  const displayCols = [...pinned, ...columns.filter((c) => !pinned.includes(c))];
+  /* Sticky offset for pinned column N = the real widths of the pinned columns before it
+     (a collapsed rail is 44px, a full column 388px) plus the 4px gaps. */
+  const pinOffset = (col: string) => {
+    let x = 0;
+    for (const c of pinned) {
+      if (c === col) break;
+      x += (collapsedCols.has(c) ? 44 : 388) + 4;
+    }
+    return x;
+  };
+
   const moveColumn = (from: string, to: string, after: boolean) => {
     if (from === to) return;
-    const next = columns.filter((c) => c !== from);
-    const at = next.indexOf(to);
-    if (at < 0) return;
+    const next = displayCols.filter((c) => c !== from);
+    // Dropping onto the frozen block lands the column right after it, never inside.
+    const at = Math.max(next.indexOf(to), pinned.filter((c) => c !== from).length);
+    if (next.indexOf(to) < 0) return;
     next.splice(after ? at + 1 : at, 0, from);
     const map = { ...colOrder, [group]: next };
     setColOrder(map);
@@ -415,6 +454,9 @@ export function TicketKanban({
         const dropKey = `${laneKey ?? ''}|${col}`;
         const isOver = overCol === dropKey && canDrop;
         const collapsed = collapsedCols.has(col);
+        const pinIdx = pinned.indexOf(col);
+        const isPinned = pinIdx >= 0;
+        const lastPinned = isPinned && pinIdx === pinned.length - 1;
         return (
           <div
             key={col}
@@ -444,9 +486,19 @@ export function TicketKanban({
               }
               drop(col, laneKey);
             }}
-            className={`group/col relative flex flex-shrink-0 flex-col ${collapsed ? 'w-11' : 'w-[388px]'} ${
-              scroll ? 'h-full min-h-0' : ''
-            } ${dragCol === col ? 'opacity-40' : ''}`}
+            className={`group/col flex flex-shrink-0 flex-col ${
+              isPinned ? 'sticky z-30 bg-[#F7F9FB]' : 'relative'
+            } ${collapsed ? 'w-11' : 'w-[388px]'} ${scroll ? 'h-full min-h-0' : ''} ${
+              dragCol === col ? 'opacity-40' : ''
+            }`}
+            style={
+              isPinned
+                ? {
+                    left: pinOffset(col),
+                    boxShadow: lastPinned ? '10px 0 14px -10px rgba(16,24,40,0.16)' : undefined,
+                  }
+                : undefined
+            }
           >
             {/* Full-height insertion line, on the side the pointer is closest to, so "move it
                 to the end" is a real drop and not a guess. */}
@@ -485,8 +537,9 @@ export function TicketKanban({
                 fold it away. Only the HEADER is draggable: making the whole column a handle
                 would fight the card drag that lives inside it. */}
             <div
-              draggable
+              draggable={!isPinned}
               onDragStart={(e) => {
+                if (isPinned) return;
                 setDragCol(col);
                 e.dataTransfer.effectAllowed = 'move';
                 /* The browser's default ghost is a screenshot of the whole 388px column. A
@@ -523,22 +576,40 @@ export function TicketKanban({
                 </span>
               )}
               <span className="text-[12px] font-medium tabular-nums text-[#94A3B8]">{cards.length}</span>
-              {/* Column controls live together in the right corner, hide + drag, the same
-                  hover-revealed size-6 slot each — far from the status dot, and in flow after
-                  ml-auto so their appearing never shifts the title on the left. */}
+              {/* Column controls live together in the right corner — pin, hide, drag — the
+                  same hover-revealed size-6 slot each, in flow after ml-auto so appearing
+                  never shifts the title. The pin STAYS visible once set: a frozen column
+                  should say so at a glance, and the lit pin is also the way back out. */}
+              <Tip text={isPinned ? 'Unpin column' : 'Pin column to the left'}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePin(col);
+                  }}
+                  className={`ml-auto flex size-6 flex-shrink-0 items-center justify-center rounded transition-colors ${
+                    isPinned
+                      ? 'text-[#3D8BD0] hover:bg-[#E9EEF4]'
+                      : 'invisible text-[#94A3B8] hover:bg-[#E9EEF4] hover:text-[#364658] group-hover/col:visible'
+                  }`}
+                >
+                  {isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+                </button>
+              </Tip>
               <Tip text={`Hide ${col}`}>
                 <button
                   onClick={() => toggleCol(col)}
-                  className="invisible ml-auto flex size-6 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#E9EEF4] hover:text-[#364658] group-hover/col:visible"
+                  className="invisible flex size-6 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#E9EEF4] hover:text-[#364658] group-hover/col:visible"
                 >
                   <ChevronsRightLeft size={13} />
                 </button>
               </Tip>
+              {!isPinned && (
               <Tip text="Drag to reorder">
                 <span className="invisible flex size-6 flex-shrink-0 cursor-grab items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#E9EEF4] hover:text-[#364658] active:cursor-grabbing group-hover/col:visible">
                   <GripVertical size={13} />
                 </span>
               </Tip>
+              )}
             </div>
 
             <div
@@ -741,13 +812,13 @@ export function TicketKanban({
   return (
     <div
       ref={rootRef}
-      className={`min-h-0 flex-1 pb-4 ${
-        subGroup ? 'overflow-y-auto overflow-x-hidden' : 'overflow-x-auto overflow-y-hidden pl-6 pr-4'
+      className={`min-h-0 flex-1 ${
+        subGroup ? 'pb-4 overflow-y-auto overflow-x-hidden' : 'overflow-x-auto overflow-y-hidden pl-6 pr-4'
       }`}
     >
       <div
         className={`${
-          subGroup ? 'w-full space-y-7 pb-2' : 'flex h-full w-max min-w-full gap-5 rounded-lg bg-[#F7F9FB] px-4 pb-4'
+          subGroup ? 'w-full space-y-7 pb-2' : 'flex h-full w-max min-w-full gap-1 rounded-lg bg-[#F7F9FB] px-4 pb-4'
         }`}
       >
       {subGroup
@@ -776,15 +847,15 @@ export function TicketKanban({
                 </div>
                 {!collapsed && (
                   <div className="overflow-x-auto pl-6 pr-4">
-                    <div className="flex w-max min-w-full gap-5 rounded-lg bg-[#F7F9FB] px-4 pb-4">
-                      {columns.map((col) => renderColumn(col, lane, laneCards, false))}
+                    <div className="flex w-max min-w-full gap-1 rounded-lg bg-[#F7F9FB] px-4 pb-4">
+                      {displayCols.map((col) => renderColumn(col, lane, laneCards, false))}
                     </div>
                   </div>
                 )}
               </div>
             );
           })
-        : columns.map((col) => renderColumn(col, null, tickets, true))}
+        : displayCols.map((col) => renderColumn(col, null, tickets, true))}
       {peek.peekId &&
         (() => {
           const pt = tickets.find((x) => x.id === peek.peekId);

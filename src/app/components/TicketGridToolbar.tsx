@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronL
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
-import { KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, type KanbanGroup } from './TicketKanban';
+import { DEFAULT_CARD_FIELDS, KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, type KanbanGroup } from './TicketKanban';
 import { ColumnManager } from './TicketTable';
 import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -1091,6 +1091,10 @@ export function TicketGridToolbar({
           anchor={fieldMgr}
           catalog={kanbanFieldsFor(kanbanGroup)}
           active={cardFieldsFor(cardFields, kanbanGroup)}
+          /* The designed card is not negotiable — its fields pin on top, locked; the
+             user arranges only what THEY added below. The group axis is already out
+             of both lists, so it is never offered or locked. */
+          lockedKeys={cardFieldsFor(DEFAULT_CARD_FIELDS, kanbanGroup)}
           title="Card fields"
           shownLabel="Shown on card"
           searchPlaceholder="Search fields..."

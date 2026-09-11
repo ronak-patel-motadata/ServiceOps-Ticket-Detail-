@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { describeSubject } from './requestDescriptions';
@@ -517,6 +517,7 @@ export function ColumnManager({
   onApply,
   onClose,
   onBack,
+  lockedKeys = [],
 }: {
   anchor: { right: number; bottom: number };
   catalog: ColDef[];
@@ -529,8 +530,15 @@ export function ColumnManager({
   onClose: () => void;
   /** Present when the dialog was opened from a menu — returns to it. */
   onBack?: () => void;
+  /** The designed baseline: these rows pin to the top in this order, can't be removed
+      or dragged — user customisation happens BELOW them. Empty = everything editable. */
+  lockedKeys?: string[];
 }) {
-  const [draft, setDraft] = useState<string[]>(active);
+  const isLocked = (k: string) => lockedKeys.includes(k);
+  /* Locked keys always present, always first, always in their own order — whatever
+     state arrives (older saved sets included) normalises to that shape. */
+  const normalize = (d: string[]) => [...lockedKeys, ...d.filter((k) => !isLocked(k))];
+  const [draft, setDraft] = useState<string[]>(() => normalize(active));
   const [q, setQ] = useState('');
   const [rowDrag, setRowDrag] = useState<string | null>(null);
   const [rowOver, setRowOver] = useState<string | null>(null);
@@ -553,11 +561,13 @@ export function ColumnManager({
   const availDefs = catalog.filter((c) => !draft.includes(c.key) && c.label.toLowerCase().includes(query));
   const shownDefs = query ? activeDefs.filter((c) => c.label.toLowerCase().includes(query)) : activeDefs;
   const dropRow = (target: string) => {
-    if (rowDrag && rowDrag !== target) {
+    if (rowDrag && rowDrag !== target && !isLocked(rowDrag)) {
       setDraft((d) => {
         const next = d.filter((k) => k !== rowDrag);
-        next.splice(next.indexOf(target), 0, rowDrag);
-        return next;
+        // Dropping onto the locked block lands the row right below it instead.
+        const at = isLocked(target) ? lockedKeys.length : next.indexOf(target);
+        next.splice(at, 0, rowDrag);
+        return normalize(next);
       });
     }
     setRowDrag(null);
@@ -619,23 +629,39 @@ export function ColumnManager({
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{shownLabel} · {activeDefs.length}</div>
             <div ref={shownRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-              {shownDefs.map((c) => (
+              {shownDefs.map((c, i) => {
+                const locked = isLocked(c.key);
+                return (
+                <Fragment key={c.key}>
+                {/* Hairline where the designed card ends and the user's additions begin. */}
+                {!query && !locked && i > 0 && isLocked(shownDefs[i - 1].key) && (
+                  <div className="mx-2 my-1.5 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-[#F0F2F5]" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[#B6C2D1]">Added by you</span>
+                    <span className="h-px flex-1 bg-[#F0F2F5]" />
+                  </div>
+                )}
                 <div
-                  key={c.key}
                   data-colrow={c.key}
-                  draggable
-                  onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setRowDrag(c.key); }}
+                  draggable={!locked}
+                  onDragStart={locked ? undefined : (e) => { e.dataTransfer.effectAllowed = 'move'; setRowDrag(c.key); }}
                   onDragOver={(e) => { e.preventDefault(); if (rowOver !== c.key) setRowOver(c.key); }}
                   onDragLeave={() => { if (rowOver === c.key) setRowOver(null); }}
                   onDrop={(e) => { e.preventDefault(); dropRow(c.key); }}
                   onDragEnd={() => { setRowDrag(null); setRowOver(null); }}
-                  className={`group/sh relative flex cursor-grab select-none items-center gap-2 rounded px-2 py-1.5 transition-colors duration-500 ${justAdded === c.key ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'} ${rowDrag === c.key ? 'opacity-40' : ''}`}
+                  title={locked ? 'Default field — always on the card' : undefined}
+                  className={`group/sh relative flex select-none items-center gap-2 rounded px-2 py-1.5 transition-colors duration-500 ${locked ? 'cursor-default' : 'cursor-grab'} ${justAdded === c.key ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'} ${rowDrag === c.key ? 'opacity-40' : ''}`}
                 >
-                  {rowOver === c.key && rowDrag && rowDrag !== c.key && (
+                  {rowOver === c.key && rowDrag && rowDrag !== c.key && !isLocked(rowDrag) && !locked && (
                     <span className="absolute inset-x-2 top-0 h-[2px] rounded bg-[#3D8BD0]" />
                   )}
-                  <GripVertical size={13} className="flex-shrink-0 text-[#B6C2D1]" />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-[#364658]">{c.label}</span>
+                  {locked ? (
+                    <Lock size={12} className="flex-shrink-0 text-[#B6C2D1]" />
+                  ) : (
+                    <GripVertical size={13} className="flex-shrink-0 text-[#B6C2D1]" />
+                  )}
+                  <span className={`min-w-0 flex-1 truncate text-[13px] ${locked ? 'text-[#64748B]' : 'text-[#364658]'}`}>{c.label}</span>
+                  {!locked && (
                   <button
                     onClick={() => draft.length > 1 && setDraft((d) => d.filter((k) => k !== c.key))}
                     title={draft.length > 1 ? 'Remove from table' : 'At least one column must stay'}
@@ -643,8 +669,11 @@ export function ColumnManager({
                   >
                     <X size={13} />
                   </button>
+                  )}
                 </div>
-              ))}
+                </Fragment>
+                );
+              })}
               {query && !shownDefs.length && (
                 <div className="px-3 py-8 text-center text-[12px] text-[#94A3B8]">No columns found</div>
               )}

@@ -277,7 +277,8 @@ body,
 .overflow-x-auto:hover,
 .overflow-y-scroll:hover,
 .overflow-x-scroll:hover {
-  scrollbar-color: #CBD5E1 transparent;
+  /* One step lighter than the old #CBD5E1/#94A3B8 ramp — the revealed thumb read as a dark bar against the board. */
+  scrollbar-color: #E2E8F0 transparent;
 }
 .overflow-y-auto::-webkit-scrollbar,
 .overflow-auto::-webkit-scrollbar,
@@ -308,14 +309,14 @@ body,
 .overflow-x-auto:hover::-webkit-scrollbar-thumb,
 .overflow-y-scroll:hover::-webkit-scrollbar-thumb,
 .overflow-x-scroll:hover::-webkit-scrollbar-thumb {
-  background-color: #CBD5E1;
+  background-color: #E2E8F0;
 }
 .overflow-y-auto::-webkit-scrollbar-thumb:hover,
 .overflow-auto::-webkit-scrollbar-thumb:hover,
 .overflow-x-auto::-webkit-scrollbar-thumb:hover,
 .overflow-y-scroll::-webkit-scrollbar-thumb:hover,
 .overflow-x-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: #94A3B8;
+  background-color: #CBD5E1;
 }
 
 /* AI Shimmer Animation */
