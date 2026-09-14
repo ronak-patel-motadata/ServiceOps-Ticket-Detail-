@@ -3493,12 +3493,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </TooltipTrigger>
                         <TooltipContent>Download</TooltipContent>
                       </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button onClick={() => setPatchFiles((prev) => prev.filter((x) => x.name !== f.name))} className="hidden group-hover:flex size-7 items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={14} /></button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
-                      </Tooltip>
+                      {/* No delete here: a patch's files are what the vendor shipped, not
+                          user attachments — copy link and download are the only actions. */}
                     </div>
                   </div>
                 ))}

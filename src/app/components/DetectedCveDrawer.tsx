@@ -3038,7 +3038,7 @@ onStackMinimizedChange,
                       <div className="mb-3 flex items-center gap-2.5">
                         <span className="flex size-7 items-center justify-center rounded bg-[#3D8BD0]/10 text-[#3D8BD0]"><Gauge size={15} /></span>
                         <h3 className="text-[14px] font-semibold text-[#364658]">CVSS 3.1 Metrics</h3>
-                        <span className="ml-auto text-[13px] font-semibold text-[#364658]">Base Score <span className={score >= 9 ? 'text-[#B42318]' : score >= 7 ? 'text-[#C4320A]' : 'text-[#B54708]'}>{score}</span></span>
+                        <span className="ml-auto text-[13px] font-semibold text-[#364658]">Base Score: <span className={score >= 9 ? 'text-[#B42318]' : score >= 7 ? 'text-[#C4320A]' : 'text-[#B54708]'}>{score}</span></span>
                       </div>
                       <div className="grid grid-cols-2 gap-x-6 gap-y-4 @2xl:grid-cols-3">
                         <Field label="Exploitability Score">{exploitability}</Field>
