@@ -1,10 +1,11 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { describeSubject } from './requestDescriptions';
 import { groupOfTechnician } from './technicianRoster';
+import { similarityClusters } from './TicketGroupSuggestions';
 import { DEPARTMENTS } from './orgDepartments';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -232,6 +233,16 @@ const REQUESTER_OPTIONS: CellOption[] = ['Jainam Shah', 'Nandini Patel', 'Darsha
   initials: requesterAvatar(n).initials,
 }));
 interface ColDef { key: string; label: string; flex?: boolean; w?: number }
+
+/* ── Similarity grouping ──────────────────────────────────────────────────────
+   A grouping axis that is NOT a column: the clusters the AI suggestions panel found.
+   Built once at module scope so every group header can look up its cluster copy. */
+const UNCLUSTERED = 'No similar requests';
+const SIM_CLUSTERS = similarityClusters();
+const SIMILARITY_OF = new Map<string, string>(
+  SIM_CLUSTERS.flatMap((c) => c.ticketIds.map((id) => [id, c.key] as [string, string])),
+);
+const SIM_SUMMARY = new Map<string, string>(SIM_CLUSTERS.map((c) => [c.key, c.summary]));
 
 /* ------- Optional columns (the Manage-columns popup) + their derived values ------- */
 const EXTRA_COLS: ColDef[] = [
@@ -1418,7 +1429,8 @@ export function TicketTable({
     const ord = GROUP_ORDERS[key];
     const ks = [...counts.keys()].sort((a, b) => (ord ? ord.indexOf(a) - ord.indexOf(b) : a.localeCompare(b)));
     onGroupedChange?.(true, {
-      label: CATALOG.find((c) => c.key === key)?.label ?? key,
+      // 'similarity' is not in CATALOG — it is a virtual axis, so it names itself.
+      label: key === 'similarity' ? 'Similarity' : CATALOG.find((c) => c.key === key)?.label ?? key,
       groups: counts.size,
       total: src.length,
       list: ks.map((k) => ({ key: k, count: counts.get(k)! })),
@@ -1427,6 +1439,9 @@ export function TicketTable({
 
   const groupValueOf = (key: string, t: Ticket): string => {
     switch (key) {
+      /* Not a column — a virtual axis over the AI's clusters. Anything the model didn't
+         cluster falls into one explicit bucket rather than a group of one each. */
+      case 'similarity': return SIMILARITY_OF.get(t.id) ?? UNCLUSTERED;
       case 'id': return t.id;
       case 'subject': return t.subject;
       case 'requester': return t.requester;
@@ -1489,7 +1504,14 @@ export function TicketTable({
       buckets.get(v)!.push(t);
     }
     const order = GROUP_ORDERS[groupBy];
-    const keys = [...buckets.keys()].sort((a, b) => (order ? order.indexOf(a) - order.indexOf(b) : a.localeCompare(b)));
+    const keys = [...buckets.keys()].sort((a, b) => {
+      // The "no match" bucket is a remainder, not a cluster — it always sits last.
+      if (groupBy === 'similarity') {
+        if (a === UNCLUSTERED) return 1;
+        if (b === UNCLUSTERED) return -1;
+      }
+      return order ? order.indexOf(a) - order.indexOf(b) : a.localeCompare(b);
+    });
     for (const k of keys) {
       const arr = buckets.get(k)!;
       const pages = Math.ceil(arr.length / groupPageSize);
@@ -1923,7 +1945,11 @@ export function TicketTable({
         </tbody>
       </table>
       ) : (
-      <div className="pb-1">
+      <div className="pb-1" style={{ width: baseTotal + (insertAt ? PH_W : 0), minWidth: '100%' }}>
+        {/* Explicit width, NEVER w-max: the group tables are `w-full table-fixed`, and a
+            max-content parent leaves their widths unresolvable — every column collapses to
+            the checkbox. A definite width is both resolvable and wide enough for the header
+            and pager to pin against. */}
         {groupBlocks.map((g) => {
           const isCollapsed = collapsed.has(g.key);
           const allSel = g.all.every((t) => selectedTickets.has(t.id));
@@ -1931,23 +1957,93 @@ export function TicketTable({
           return (
             <div key={g.key} data-group-block={g.key} className="mb-3">
               {/* Sticky group title — pinned while its rows scroll, pushed out at the end. */}
-              <div className={`sticky left-0 top-[var(--tb,0px)] z-40 flex h-12 items-center px-6 transition-colors duration-500 ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}>
-                <button
-                  onClick={() =>
-                    setCollapsed((p) => {
-                      const n = new Set(p);
-                      if (n.has(g.key)) n.delete(g.key);
-                      else n.add(g.key);
-                      return n;
-                    })
-                  }
-                  className="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-[#F5F7FA]"
-                >
-                  <ChevronDown size={14} className={`flex-shrink-0 text-[#9CA3AF] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                  {groupBand(g.colKey, g.key)}
-                  <span className="text-[12px] font-medium text-[#94A3B8]">{g.all.length}</span>
-                </button>
-              </div>
+              {/* A similarity group is a CLAIM about these requests, so its header carries the
+                  evidence (the AI's one-line summary) and the two things you'd do about it.
+                  Every other grouping stays the compact single-line band. */}
+              {(() => {
+                const sim = g.colKey === 'similarity' && g.key !== UNCLUSTERED;
+                const toggle = () =>
+                  setCollapsed((p) => {
+                    const n = new Set(p);
+                    if (n.has(g.key)) n.delete(g.key);
+                    else n.add(g.key);
+                    return n;
+                  });
+                return (
+                  <div
+                    className={`sticky left-0 top-[var(--tb,0px)] z-40 flex items-center gap-3 px-6 transition-colors duration-500 ${
+                      sim ? 'py-2.5 hover:bg-[#F5F7FA]' : 'h-12'
+                    } ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}
+                  >
+                    <button
+                      onClick={toggle}
+                      className={`flex min-w-0 items-center gap-2 rounded px-1.5 py-1 text-left transition-colors ${sim ? 'flex-1' : 'hover:bg-[#F5F7FA]'}`}
+                    >
+                      <ChevronDown size={14} className={`mt-px flex-shrink-0 self-start text-[#9CA3AF] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                      {sim ? (
+                        /* The sparkle sits OUTSIDE the text column, so title and summary share
+                           one left edge by construction. A padding offset can't be right here:
+                           AiSparkle renders at size × 1.2 (48/40 viewBox), so a "13px" icon is
+                           actually 15.6px — any hand-computed indent drifts. */
+                        <span className="flex min-w-0 flex-1 items-start gap-2">
+                          <AiSparkle size={13} className="mt-[3px] flex-shrink-0" />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="truncate text-[13px] font-semibold text-[#1E293B]">{g.key}</span>
+                              <span className="flex-shrink-0 rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-[#64748B]">
+                                {g.all.length}
+                              </span>
+                            </span>
+                            <span className="mt-0.5 block truncate text-[12px] font-normal text-[#7B8FA5]">
+                              {SIM_SUMMARY.get(g.key)}
+                            </span>
+                          </span>
+                        </span>
+                      ) : (
+                        <>
+                          {groupBand(g.colKey, g.key)}
+                          <span className="text-[12px] font-medium text-[#94A3B8]">{g.all.length}</span>
+                        </>
+                      )}
+                    </button>
+                    {sim && (
+                      /* Pinned to the RIGHT edge of the scroller, the way the grid pins its
+                         manage-columns gutter. The header title already sticks left; without
+                         this the actions sat out at full table width and slid past as you
+                         scrolled. bg-inherit so the flash highlight still shows through. */
+                      <span className="sticky right-4 z-10 flex flex-shrink-0 items-center gap-2 bg-inherit pl-6">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.success(`Merging ${g.all.length} requests into one`);
+                          }}
+                          style={{
+                            background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                            border: '1px solid transparent',
+                          }}
+                          className="inline-flex h-8 items-center gap-1.5 rounded px-3 text-[12px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
+                        >
+                          <GitMerge size={13} className="text-[#7B8FA5]" />
+                          Merge requests
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast.success('Problem created from this group');
+                          }}
+                          style={{
+                            background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
+                          }}
+                          className="inline-flex h-8 items-center gap-1.5 rounded px-3 text-[12px] font-medium text-white transition-all duration-200 hover:brightness-[0.92] hover:shadow-md"
+                        >
+                          <TriangleAlert size={13} />
+                          Create problem
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
               {!isCollapsed && (
                 <table className="w-full table-fixed" style={{ minWidth: baseTotal + (insertAt ? PH_W : 0) }}>
                   {colGroupJSX}
@@ -2015,13 +2111,15 @@ export function TicketTable({
                 </table>
               )}
               {!isCollapsed && g.pages > 1 && (
-                <div className="px-4 pb-2 pt-1.5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-1 pl-7">
-                    <span className="text-[12px] text-[#64748B] tabular-nums">
+                <div className="pb-2 pt-1.5">
+                  {/* Like the group header: the count pins left and the controls pin right, so
+                      only the grid between them moves when you scroll sideways. */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-1 pl-6 pr-4">
+                    <span className="sticky left-11 z-10 bg-white text-[12px] text-[#64748B] tabular-nums">
                       Showing <span className="font-medium text-[#364658]">{g.start}–{g.end}</span> of{' '}
                       <span className="font-medium text-[#364658]">{g.all.length}</span>
                     </span>
-                    <div className="flex items-center gap-4">
+                    <div className="sticky right-4 z-10 flex items-center gap-4 bg-white pl-4">
                       <div className="flex items-center gap-2">
                         <span className="whitespace-nowrap text-[12px] text-[#64748B]">Rows per page</span>
                         <select

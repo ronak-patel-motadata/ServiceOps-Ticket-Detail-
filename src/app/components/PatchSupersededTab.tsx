@@ -342,7 +342,7 @@ function ShortcutRow({ keys, label }: { keys: React.ReactNode; label: string }) 
   );
 }
 
-function CanvasControls() {
+function CanvasControls({ isFull, onToggleFull }: { isFull?: boolean; onToggleFull?: () => void }) {
   const rf = useReactFlow();
   const [showKeys, setShowKeys] = useState(false);
   const panBy = (dx: number, dy: number) => {
@@ -353,12 +353,22 @@ function CanvasControls() {
   const padBtn = 'inline-flex items-center justify-center size-7 rounded-md border border-[#E5E7EB] bg-white shadow-sm text-[#6B7280] hover:bg-[#F5F7FA] transition-colors';
   return (
     <>
-      {/* Top-right: keyboard shortcuts · fit & center · zoom in/out */}
+      {/* Top-right: full screen · keyboard shortcuts · fit & center · zoom in/out */}
       <div className="absolute top-3 right-3 z-20 flex flex-col gap-2">
         <div className="flex flex-col overflow-hidden rounded-lg border border-[#E5E7EB] bg-white shadow-sm">
+          {onToggleFull && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={onToggleFull} className={`${btn} ${isFull ? 'bg-[#EAF2FB] text-[#3D8BD0]' : ''}`}>
+                  {isFull ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">{isFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => setShowKeys((v) => !v)} className={`${btn} ${showKeys ? 'bg-[#EAF2FB] text-[#3D8BD0]' : ''}`}><Keyboard size={14} /></button>
+              <button onClick={() => setShowKeys((v) => !v)} className={`${btn} ${onToggleFull ? 'border-t border-[#E5E7EB]' : ''} ${showKeys ? 'bg-[#EAF2FB] text-[#3D8BD0]' : ''}`}><Keyboard size={14} /></button>
             </TooltipTrigger>
             <TooltipContent side="left">Keyboard shortcuts</TooltipContent>
           </Tooltip>
@@ -388,9 +398,6 @@ function CanvasControls() {
                 <div className="mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">View</div>
                 <ShortcutRow keys={<Kbd>R</Kbd>} label="Reset layout" />
                 <ShortcutRow keys={<><Kbd>Ctrl</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>Shift</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>F</Kbd></>} label="Toggle fullscreen" />
-                <div className="mt-2.5 border-t border-[#F0F1F3] pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Search</div>
-                <ShortcutRow keys={<><Kbd>Ctrl</Kbd><span className="text-[10px] text-[#9CA3AF]">+</span><Kbd>F</Kbd></>} label="Focus search" />
-                <ShortcutRow keys={<Kbd>Escape</Kbd>} label="Clear search" />
               </div>
             </div>
           </>
@@ -438,7 +445,7 @@ interface PatchSupersededTabProps {
   patchName?: string;
 }
 
-function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSignal, fitSignal, onReset }: PatchSupersededTabProps & { q: string; expandAllSignal: number; collapseAllSignal: number; fitSignal: number; onReset?: () => void }) {
+function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSignal, fitSignal, onReset, isFull, onToggleFull }: PatchSupersededTabProps & { q: string; expandAllSignal: number; collapseAllSignal: number; fitSignal: number; onReset?: () => void; isFull?: boolean; onToggleFull?: () => void }) {
   const rf = useReactFlow();
   const { upRoots, downRoots, nodeMap } = useMemo(() => buildTrees(), []);
   // The newest patch of EACH Superseded-by branch — tagged 'Latest' on the canvas.
@@ -663,7 +670,7 @@ function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSi
       proOptions={{ hideAttribution: true }}
     >
       <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#DCE3EC" bgColor="#FAFBFC" />
-      <CanvasControls />
+      <CanvasControls isFull={isFull} onToggleFull={onToggleFull} />
     </ReactFlow>
     {/* Rich node hover card — screen-space so it stays crisp at any zoom (CMDB map design) */}
     {hoverCard && (
@@ -715,20 +722,18 @@ function SupersededGraph({ patchId, patchName, q, expandAllSignal, collapseAllSi
 }
 
 export function PatchSupersededTab({ patchId, patchName }: PatchSupersededTabProps) {
-  const [search, setSearch] = useState('');
   // Expand/collapse-all signals + fullscreen (same pattern as the CMDB map toolbar).
   const [allExpanded, setAllExpanded] = useState(false);
   const [expandKey, setExpandKey] = useState(0);
   const [collapseKey, setCollapseKey] = useState(0);
   const [isFull, setIsFull] = useState(false);
   const [fitKey, setFitKey] = useState(0);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const q = search.trim().toLowerCase();
+  /* No node search on this map any more — the graph keeps its highlight prop, fed empty. */
+  const q = '';
   const hasAny = SUPERSEDES.length > 0 || SUPERSEDED_BY.length > 0;
 
   // Tab-level hotkeys (this component only mounts while the Superseded tab is active):
-  // Ctrl+F focuses the node search (Esc in the field clears it), Ctrl+Shift+F toggles
-  // fullscreen, E toggles expand/collapse-all — same set as the CMDB Dependency Map.
+  // Ctrl+Shift+F toggles fullscreen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const inField = e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
@@ -736,11 +741,6 @@ export function PatchSupersededTab({ patchId, patchName }: PatchSupersededTabPro
         e.preventDefault();
         setIsFull((v) => !v);
         setFitKey((k) => k + 1);
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        searchRef.current?.focus();
         return;
       }
       if (inField) return;
@@ -764,43 +764,23 @@ export function PatchSupersededTab({ patchId, patchName }: PatchSupersededTabPro
   return (
     // Fullscreen = the same toolbar + canvas promoted to a fixed overlay (CMDB map pattern).
     <div className={isFull ? 'fixed inset-0 z-[10000] flex flex-col bg-white' : 'flex min-h-0 flex-1 flex-col overflow-hidden'}>
-      {/* Toolbar — node search left, canvas actions right (outside the canvas) */}
-      <div className="flex flex-shrink-0 items-center gap-3 border-b border-[#E5E7EB] px-6 py-3">
-        <div className="relative w-[280px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { setSearch(''); e.currentTarget.blur(); } }}
-            placeholder="Search...   Ctrl + F | Esc to clear"
-            className="h-8 w-full rounded border border-[#DFE5ED] pl-9 pr-8 text-[13px] text-[#364658] outline-none placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:ring-1 focus:ring-[#3D8BD0]"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9ca3af] hover:text-[#364658]"><X size={15} /></button>
-          )}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {/* Full screen */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => { setIsFull((v) => !v); setFitKey((k) => k + 1); }}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${isFull ? 'border-[#3D8BD0] bg-[#3D8BD0] text-white' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA]'}`}
-              >
-                {isFull ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{isFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
+      {/* No toolbar: the map is the whole tab. Full screen moved onto the canvas control
+          stack, where fit and zoom already live, so nothing floats above the graph. */}
 
       {/* Canvas */}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-[#FAFBFC]">
         <ReactFlowProvider>
-          <SupersededGraph patchId={patchId} patchName={patchName} q={q} expandAllSignal={expandKey} collapseAllSignal={collapseKey} fitSignal={fitKey} onReset={() => setAllExpanded(false)} />
+          <SupersededGraph
+            patchId={patchId}
+            patchName={patchName}
+            q={q}
+            expandAllSignal={expandKey}
+            collapseAllSignal={collapseKey}
+            fitSignal={fitKey}
+            onReset={() => setAllExpanded(false)}
+            isFull={isFull}
+            onToggleFull={() => { setIsFull((v) => !v); setFitKey((k) => k + 1); }}
+          />
         </ReactFlowProvider>
       </div>
     </div>

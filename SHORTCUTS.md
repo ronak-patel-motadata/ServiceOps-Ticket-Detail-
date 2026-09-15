@@ -89,7 +89,8 @@ the Dependency Map (section 2), minus the features that map doesn't have (no min
 legend / view modes).
 
 Implemented in **`src/app/components/PatchSupersededTab.tsx`** (canvas keys need the canvas
-focused — click it once; `Ctrl+F` / `Ctrl+Shift+F` work tab-wide).
+focused — click it once; `Ctrl+Shift+F` works tab-wide). The map has no node search —
+its toolbar was removed and full screen moved onto the canvas control stack.
 
 | Shortcut | Action |
 |---|---|
@@ -98,8 +99,7 @@ focused — click it once; `Ctrl+F` / `Ctrl+Shift+F` work tab-wide).
 | `F` | Fit & center all nodes |
 | `R` | Reset layout (collapse all, re-fit) |
 | `Ctrl + Shift + F` | Toggle fullscreen |
-| `Ctrl + F` | Focus the node search |
-| `Esc` | Clear search (in the field) / hide the hover card (on canvas) |
+| `Esc` | Hide the hover card |
 
 Also listed in the tab's own ⌨ keyboard-shortcuts popup (top-right canvas controls).
 

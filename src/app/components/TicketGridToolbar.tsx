@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, type KanbanGroup } from './TicketKanban';
 import { ColumnManager } from './TicketTable';
+import { AiSparkle } from './AiSparkle';
+import { Info } from 'lucide-react';
 import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -55,6 +57,8 @@ const LAYOUTS = [
   { key: 'kanban' as const, label: 'Kanban', Icon: SquareKanban },
   { key: 'dashboard' as const, label: 'Dashboard', Icon: LayoutDashboard },
 ];
+/** Opt-in extra — only the Views Lab passes `showCalendar`. */
+const CALENDAR_LAYOUT = { key: 'calendar' as const, label: 'Calendar', Icon: CalendarDays };
 
 /** Closes a popup on any outside click — shared by the three right-hand menus. */
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
@@ -87,6 +91,7 @@ export function TicketGridToolbar({
   setView,
   dashScope,
   setDashScope,
+  showCalendar = false,
   kanbanGroup,
   setKanbanGroup,
   kanbanSubGroup,
@@ -108,10 +113,12 @@ export function TicketGridToolbar({
   onClearSorts: () => void;
   /** Current list grouping label, or null when ungrouped. */
   listGroupLabel?: string | null;
-  view: 'list' | 'list-kpi' | 'kanban' | 'dashboard';
-  setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard') => void;
+  view: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar';
+  setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar') => void;
   dashScope: 'all' | 'mine';
   setDashScope: (s: 'all' | 'mine') => void;
+  /** Offer the prototype Calendar layout (Views Lab only). */
+  showCalendar?: boolean;
   kanbanGroup: KanbanGroup;
   setKanbanGroup: (g: KanbanGroup) => void;
   kanbanSubGroup: KanbanGroup | null;
@@ -664,7 +671,7 @@ export function TicketGridToolbar({
         </div>
 
         {/* Exporting rows and column sorting mean nothing on a dashboard. */}
-        {view !== 'dashboard' && (
+        {view !== 'dashboard' && view !== 'calendar' && (
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((v) => !v)}
@@ -821,7 +828,7 @@ export function TicketGridToolbar({
                     Layout
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
-                    {LAYOUTS.map(({ key, label, Icon }) => (
+                    {[...LAYOUTS, ...(showCalendar ? [CALENDAR_LAYOUT] : [])].map(({ key, label, Icon }) => (
                       <Tooltip key={key} delayDuration={400}>
                         <TooltipTrigger asChild>
                           <button
@@ -1014,6 +1021,46 @@ export function TicketGridToolbar({
                           <span className="flex-1">None</span>
                           {!listGroupLabel && <Check size={14} className="text-[#3D8BD0]" />}
                         </button>
+                        {/* Not a column — the AI's similarity clusters as a grouping axis.
+                            Listed first because it answers a different question from the
+                            column groupings below it. */}
+                        {'similarity'.includes(groupQuery.trim().toLowerCase()) && (
+                          <button
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('set-group-by', { detail: 'similarity' }));
+                              setGearView('main');
+                            }}
+                            /* The product AI tint at 5% over white — the same wash the
+                               suggestions detail card uses, so an AI-derived grouping is
+                               recognisable as one without shouting in a plain menu. */
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(90deg, rgba(76, 177, 254, 0.11) 0%, rgba(115, 30, 251, 0.11) 41.49%, rgba(249, 17, 227, 0.11) 100%), #FFF'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF'; }}
+                            className="flex w-full items-center gap-2 border-b border-[#F0F2F5] px-3 py-2 text-left text-[13px] text-[#364658] transition-[background] duration-150"
+                          >
+                            <AiSparkle size={13} className="flex-shrink-0" />
+                            <span className="truncate">Similarity</span>
+                            <Tooltip delayDuration={200}>
+                              <TooltipTrigger asChild>
+                                <span
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex size-5 flex-shrink-0 cursor-default items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-white/70 hover:text-[#64748B]"
+                                >
+                                  <Info size={13} />
+                                </span>
+                              </TooltipTrigger>
+                              {/* The product standard black tooltip, one sentence. The long
+                                  explainer card belongs on the AI banner, where there is room
+                                  for it — a menu needs the answer, not a briefing. */}
+                              <TooltipContent side="left" sideOffset={10} className="max-w-[248px] text-wrap">
+                                Stacks requests that share one underlying cause, so you can merge them or raise a
+                                problem instead of working each one.
+                              </TooltipContent>
+                            </Tooltip>
+                            <span className="flex-1" />
+                            {listGroupLabel === 'Similarity' && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
+                          </button>
+                        )}
                         {/* Group by any column currently in the grid. */}
                         {gridCols
                           // ID and Subject are unique per request — never groupable.

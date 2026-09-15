@@ -19,13 +19,14 @@ import { KnowledgeListPage } from './components/KnowledgeListPage';
 import { TasksListPage } from './components/TasksListPage';
 import { ReportsListPage } from './components/ReportsListPage';
 import { IconGalleryPage } from './components/IconGalleryPage';
+import { ViewsLabListPage } from './components/ViewsLabListPage';
 import { EndpointsListPage } from './components/EndpointsListPage';
 import { VulnerabilitiesListPage } from './components/VulnerabilitiesListPage';
 import { DetectedCvesListPage } from './components/DetectedCvesListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'icons';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'icons' | 'views-lab';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <DrawerStackProvider activePage={activePage}>
       {activePage === 'request' && <TicketListPage onNavigate={navigate} />}
+      {activePage === 'views-lab' && <ViewsLabListPage onNavigate={navigate} />}
       {activePage === 'problem' && <ProblemListPage onNavigate={navigate} />}
       {activePage === 'change' && <ChangeListPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListPage onNavigate={navigate} />}

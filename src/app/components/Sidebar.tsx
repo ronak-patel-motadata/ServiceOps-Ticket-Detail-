@@ -16,7 +16,7 @@ import {
   IconTask,
   IconMyTeam,
 } from './SidebarIcons';
-import { Shapes, Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart, Rocket, Monitor, ClipboardCheck, Settings } from 'lucide-react';
+import { Shapes, LayoutTemplate, Cpu, AppWindow, Boxes, Recycle, KeyRound, Gauge, FileText, ShoppingCart, Rocket, Monitor, ClipboardCheck, Settings } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 // Asset sub-modules surfaced in the hover flyout (grouped with dividers).
@@ -288,8 +288,15 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <NavItem icon={<IconMyTeam size={20} />} title="My Team" />
       </div>
 
-      {/* Pinned to the BOTTOM — the Icon Library reference page for the frontend team. */}
+      {/* Pinned to the BOTTOM — the team's two reference pages: the listing-view bench
+          and the icon library. Neither is a product module, hence the divider. */}
       <div className="mt-auto flex flex-col border-t border-[#e5e7eb] py-1">
+        <NavItem
+          icon={<LayoutTemplate size={20} />}
+          title="Views Lab"
+          active={activePage === 'views-lab'}
+          onClick={() => onNavigate?.('views-lab')}
+        />
         <NavItem
           icon={<Shapes size={20} />}
           title="Icon Library"

@@ -42,6 +42,17 @@ interface SuggestedGroup {
   tickets: GroupTicket[];
 }
 
+/** Cluster a request belongs to, for the grid's "Similarity" grouping — the SAME
+    clusters this panel suggests, so the banner and the grid can never disagree. */
+export interface SimilarityCluster {
+  key: string;
+  name: string;
+  summary: string;
+  ticketIds: string[];
+}
+export const similarityClusters = (): SimilarityCluster[] =>
+  GROUP_SEEDS.map((g) => ({ key: g.name, name: g.name, summary: g.summary, ticketIds: g.tickets.map((t) => t.id) }));
+
 const GROUP_SEEDS: SuggestedGroup[] = [
   {
     id: 'grp-1',
