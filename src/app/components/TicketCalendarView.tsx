@@ -82,8 +82,8 @@ export function TicketCalendarView({
 
   const eventsOn = (d: Date) => byDay.get(keyOf(d)) ?? [];
 
-  /* The visible range: a full 6-week grid for month, the containing Sun–Sat for week.
-     One helper, so the header label and the body can never disagree. */
+  /* The visible range: the weeks the month actually occupies, or the containing Sun–Sat
+     for week. One helper, so the header label and the body can never disagree. */
   const days = useMemo(() => {
     if (mode === 'week') {
       const start = new Date(cursor);
@@ -97,12 +97,18 @@ export function TicketCalendarView({
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
     const start = new Date(first);
     start.setDate(1 - first.getDay());
-    return Array.from({ length: 42 }, (_, i) => {
+    const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+    // Leading blanks + the month's own days, rounded up to whole weeks (4, 5 or 6).
+    const weeks = Math.ceil((first.getDay() + daysInMonth) / 7);
+    return Array.from({ length: weeks * 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       return d;
     });
   }, [cursor, mode]);
+  // Row count drives the grid; the classes are spelled out so Tailwind emits all three.
+  const weekRows = days.length / 7;
+  const rowsClass = weekRows === 6 ? 'grid-rows-6' : weekRows === 4 ? 'grid-rows-4' : 'grid-rows-5';
 
   const title = useMemo(() => {
     if (mode === 'week') {
@@ -217,18 +223,18 @@ export function TicketCalendarView({
 
           {/* Day cells — a fixed 6-row month, or one tall row for a week. */}
           <div
-            className={`grid min-h-0 flex-1 grid-cols-7 overflow-y-auto ${mode === 'month' ? 'grid-rows-6' : 'grid-rows-1'}`}
+            className={`grid min-h-0 flex-1 grid-cols-7 overflow-y-auto ${mode === 'month' ? rowsClass : 'grid-rows-1'}`}
           >
             {days.map((d) => {
               const events = eventsOn(d);
               const outside = mode === 'month' && d.getMonth() !== cursor.getMonth();
               const isToday = sameDay(d, today);
               // A month cell shows three and counts the rest; a week column has room for all.
-              const cap = mode === 'month' ? 3 : events.length;
+              const cap = mode === 'month' ? 4 : events.length;
               return (
                 <div
                   key={keyOf(d)}
-                  className={`flex min-h-[112px] min-w-0 flex-col gap-1 border-b border-r border-[#EEF1F4] p-1.5 ${
+                  className={`flex min-h-[132px] min-w-0 flex-col gap-1 border-b border-r border-[#EEF1F4] p-1.5 ${
                     outside ? 'bg-[#FCFDFE]' : 'bg-white'
                   }`}
                 >
@@ -252,18 +258,27 @@ export function TicketCalendarView({
                     {events.slice(0, cap).map((t) => (
                       <Chip key={t.id} t={t} />
                     ))}
-                    {events.length > cap && (
+                  </div>
+                  {/* Outside the scroll area, so it sits on the floor of the cell instead of
+                      riding away with the chips — the count of what's hidden has to stay
+                      visible for it to mean anything. */}
+                  {events.length > cap && (
+                    <div className="relative -mt-1 flex-shrink-0">
+                      {/* The KPI strip's fade, turned vertical: the last chip dissolves into
+                         the link instead of being cut by a rule, which also says "there is
+                         more above this" rather than just "here is a footer". */}
+                      <span className="pointer-events-none absolute inset-x-0 -top-3 h-3 bg-gradient-to-t from-white to-transparent" />
                       <button
                         onClick={() => {
                           setCursor(new Date(d));
                           setMode('week');
                         }}
-                        className="w-full rounded px-1.5 py-0.5 text-left text-[10px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF]"
+                        className="relative w-full rounded bg-white px-1.5 py-0.5 text-left text-[10px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF]"
                       >
                         +{events.length - cap} more
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

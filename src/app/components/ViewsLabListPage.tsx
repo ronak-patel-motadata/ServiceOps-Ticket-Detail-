@@ -33,6 +33,20 @@ import type { Ticket } from './TicketListPage';
 const DAY_VOLUME = [11, 8, 9, 6, 7, 2, 1, 12, 10, 7, 5, 6, 2, 1];
 const DAY_SPREAD: number[] = DAY_VOLUME.flatMap((count, day) => Array.from({ length: count }, () => day));
 
+/* Due dates spread across the WHOLE month rather than clustered at its end — a calendar
+   is only readable if the load looks like a real week. Weekdays carry 1-4 slots (uneven,
+   so some days are busy and some quiet), Saturdays one, Sundays none. Deterministic: the
+   same index always lands on the same day, so the grid, board and calendar agree. */
+const DUE_DAYS: number[] = (() => {
+  const out: number[] = [];
+  for (let d = 1; d <= 30; d++) {
+    const dow = new Date(2022, 3, d).getDay();
+    const slots = dow === 0 ? 0 : dow === 6 ? 1 : 1 + ((d * 5) % 4);
+    for (let k = 0; k < slots; k++) out.push(d);
+  }
+  return out;
+})();
+
 const generateLabTickets = (): Ticket[] => {
   /* Indices 0–16 are fixed: they are the members of the AI suggested groups and the
      three requests with bespoke detail-page content (INC-32/33/35). The rest are a
@@ -128,7 +142,7 @@ const generateLabTickets = (): Ticket[] => {
       id: `INC-${String(i + 30).padStart(2, '0')}`,
       subject: subjects[i % subjects.length],
       requester,
-      dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
+      dueBy: new Date(2022, 3, DUE_DAYS[(i * 31 + 7) % DUE_DAYS.length], 9 + (i % 9), (i % 4) * 15),
       createdBy: new Date(2022, 3, 19 + DAY_SPREAD[i % DAY_SPREAD.length], 3 + (i % 12), 30),
       assignedTo: unassigned ? { name: 'Unassigned', initials: '' } : assignee,
       status,
