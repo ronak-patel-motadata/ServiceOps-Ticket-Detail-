@@ -479,7 +479,10 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
             />
           )}
-          {!drillFrom && <TicketGroupSuggestions />}
+          {/* The AI grouping banner is about triaging a QUEUE — on a calendar its four
+              clusters have no place to land, and it eats the height the month grid
+              needs. Hidden there, kept everywhere else. */}
+          {!drillFrom && view !== 'calendar' && <TicketGroupSuggestions />}
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar

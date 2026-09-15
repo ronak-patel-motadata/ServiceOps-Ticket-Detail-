@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, TriangleAlert } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf } from './TicketTable';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -11,6 +11,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
    Prototyped in the Views Lab. It is not wired into the Requests listing. */
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** The mini month uses the compact labels DateTimePickerPopup already established. */
+const MINI_WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -65,6 +67,10 @@ export function TicketCalendarView({
 
   const [mode, setMode] = useState<Mode>('month');
   const [cursor, setCursor] = useState<Date>(busiestMonth);
+  /* The rail's selected day. Starts unset so the rail opens on "what needs attention"
+     rather than an arbitrary date the user never chose. */
+  const [picked, setPicked] = useState<Date | null>(null);
+  const [railOpen, setRailOpen] = useState(true);
   const today = new Date();
 
   /** Requests bucketed by the day they are due — built once per ticket set. */
@@ -161,6 +167,57 @@ export function TicketCalendarView({
     );
   };
 
+  /* Everything the rail needs. "Needs attention" is the calendar's answer to the question a
+     change manager actually opens it with: what is at risk, soonest first. */
+  const monthDays = useMemo(() => {
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const count = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+    return { lead: first.getDay(), count };
+  }, [cursor]);
+
+  const atRisk = useMemo(
+    () =>
+      tickets
+        .filter((t) => {
+          const tone = slaInfoOf(t).tone;
+          return tone === 'breached' || tone === 'due';
+        })
+        .sort((a, b) => a.dueBy.getTime() - b.dueBy.getTime())
+        .slice(0, 6),
+    [tickets],
+  );
+
+  /* Upcoming = the next things due from the visible period's start. On a mock queue dated
+     2022 "from now" would always be empty, so it reads forward from the cursor instead. */
+  const upcoming = useMemo(() => {
+    const from = new Date(cursor.getFullYear(), cursor.getMonth(), 1).getTime();
+    return tickets
+      .filter((t) => t.dueBy.getTime() >= from)
+      .sort((a, b) => a.dueBy.getTime() - b.dueBy.getTime())
+      .slice(0, 6);
+  }, [tickets, cursor]);
+
+  const pickedEvents = picked ? eventsOn(picked) : [];
+
+  const RailRow = ({ t, showDate = false }: { t: Ticket; showDate?: boolean }) => {
+    const tone = TONE[slaInfoOf(t).tone] ?? TONE.done;
+    return (
+      <button
+        onClick={() => onTicketClick(t)}
+        className="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-white hover:shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
+      >
+        <span className="mt-1.5 size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: tone.dot }} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12px] text-[#364658]">{t.subject}</span>
+          <span className="mt-0.5 block text-[11px] text-[#94A3B8]">
+            {t.id} · {showDate ? `${MONTHS[t.dueBy.getMonth()].slice(0, 3)} ${t.dueBy.getDate()}, ` : ''}
+            {fmtTime(t.dueBy)}
+          </span>
+        </span>
+      </button>
+    );
+  };
+
   const segBtn = (m: Mode, label: string) => (
     <button
       key={m}
@@ -179,6 +236,21 @@ export function TicketCalendarView({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Toolbar — period left, navigation and grain right. */}
       <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-[#E5E7EB] px-6 py-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setRailOpen((v) => !v)}
+              className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+                railOpen
+                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                  : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA] hover:text-[#364658]'
+              }`}
+            >
+              {railOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{railOpen ? 'Hide side panel' : 'Show side panel'}</TooltipContent>
+        </Tooltip>
         <div className="min-w-0">
           <div className="truncate text-[15px] font-semibold text-[#1E293B]">{title}</div>
           <div className="mt-0.5 text-[11px] text-[#94A3B8]">
@@ -211,6 +283,136 @@ export function TicketCalendarView({
       </div>
 
       {/* ── Day: a single agenda column ── */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* ── Side rail: mini month, the picked day, then what needs attention ──
+            The pattern every ITSM change calendar lands on: a small month to jump around
+            without losing the big grid, and a column that answers "what should I look at"
+            when no specific day is chosen. */}
+        {railOpen && (
+          <div className="flex w-[264px] flex-shrink-0 flex-col overflow-y-auto border-r border-[#E5E7EB] bg-[#F8FAFC]">
+            {/* Mini month — the DateTimePickerPopup cell recipe, sized down. */}
+            <div className="m-3 flex-shrink-0 rounded-lg border border-[#EEF1F4] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#364658]">
+                  {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
+                </span>
+                <span className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+                    className="flex size-6 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#364658]"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+                    className="flex size-6 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#364658]"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </span>
+              </div>
+              <div className="grid grid-cols-7">
+                {MINI_WEEKDAYS.map((w) => (
+                  <div key={w} className="py-1 text-center text-[10px] font-medium text-[#A9B6C6]">
+                    {w}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-y-0.5">
+                {Array.from({ length: monthDays.lead + monthDays.count }, (_, i) => {
+                  if (i < monthDays.lead) return <span key={`b${i}`} />;
+                  const day = i - monthDays.lead + 1;
+                  const d = new Date(cursor.getFullYear(), cursor.getMonth(), day);
+                  const n = eventsOn(d).length;
+                  const sel = picked ? sameDay(d, picked) : false;
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => setPicked(sel ? null : d)}
+                      className={`relative flex h-7 items-center justify-center rounded text-[12px] transition-colors ${
+                        sel
+                          ? 'bg-[#3D8BD0] font-semibold text-white'
+                          : sameDay(d, today)
+                            ? 'border border-[#3D8BD0] font-semibold text-[#364658]'
+                            : 'text-[#364658] hover:bg-[#EFF3F8]'
+                      }`}
+                    >
+                      {day}
+                      {/* A dot marks a day with work — the reason to look at it. */}
+                      {n > 0 && (
+                        <span
+                          className={`absolute bottom-0.5 size-1 rounded-full ${sel ? 'bg-white' : 'bg-[#3D8BD0]'}`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Picked day, or the attention list when none is chosen. */}
+            {picked ? (
+              <div className="min-h-0 flex-1 px-2 py-3">
+                <div className="mb-1.5 flex items-center gap-2 px-2">
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-[#1E293B]">
+                    {WEEKDAYS[picked.getDay()]}, {MONTHS[picked.getMonth()].slice(0, 3)} {picked.getDate()}
+                  </span>
+                  <button
+                    onClick={() => setPicked(null)}
+                    className="flex-shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF]"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {pickedEvents.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                    <span className="flex size-9 items-center justify-center rounded-full bg-[#F1F5F9]">
+                      <CalendarClock size={16} className="text-[#94A3B8]" />
+                    </span>
+                    <span className="text-[12px] text-[#64748B]">Nothing due on this day.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {pickedEvents.map((t) => (
+                      <RailRow key={t.id} t={t} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 px-2 py-3">
+                <div className="mb-1.5 flex items-center gap-1.5 px-2">
+                  <TriangleAlert size={12} className="flex-shrink-0 text-[#F59E0B]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Needs attention</span>
+                </div>
+                {atRisk.length === 0 ? (
+                  <div className="px-2 pb-3 text-[12px] text-[#64748B]">Nothing breached or due soon.</div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {atRisk.map((t) => (
+                      <RailRow key={t.id} t={t} showDate />
+                    ))}
+                  </div>
+                )}
+
+                <div className="mb-1.5 mt-4 flex items-center gap-1.5 border-t border-[#F0F2F5] px-2 pt-3">
+                  <CalendarClock size={12} className="flex-shrink-0 text-[#94A3B8]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Upcoming</span>
+                </div>
+                {upcoming.length === 0 ? (
+                  <div className="px-2 text-[12px] text-[#64748B]">Nothing scheduled ahead.</div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {upcoming.map((t) => (
+                      <RailRow key={t.id} t={t} showDate />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Weekday rail */}
           <div className="grid flex-shrink-0 grid-cols-7 border-b border-[#EEF1F4]">
@@ -239,17 +441,22 @@ export function TicketCalendarView({
                   }`}
                 >
                   <div className="flex flex-shrink-0 items-center justify-between px-0.5">
-                    <span
-                      className={`inline-flex size-6 items-center justify-center rounded-full text-[12px] tabular-nums ${
-                        isToday
-                          ? 'bg-[#3D8BD0] font-semibold text-white'
-                          : outside
-                            ? 'text-[#CBD5E1]'
-                            : 'text-[#64748B]'
+                    {/* The date is the handle: clicking it loads that day into the rail
+                        instead of navigating away from the month you are reading. */}
+                    <button
+                      onClick={() => setPicked(picked && sameDay(d, picked) ? null : new Date(d))}
+                      className={`inline-flex size-6 items-center justify-center rounded-full text-[12px] tabular-nums transition-colors ${
+                        picked && sameDay(d, picked)
+                          ? 'bg-[#1E293B] font-semibold text-white'
+                          : isToday
+                            ? 'bg-[#3D8BD0] font-semibold text-white'
+                            : outside
+                              ? 'text-[#CBD5E1] hover:bg-[#F1F5F9]'
+                              : 'text-[#64748B] hover:bg-[#F1F5F9]'
                       }`}
                     >
                       {d.getDate()}
-                    </span>
+                    </button>
                     {events.length > 0 && !outside && (
                       <span className="text-[10px] font-medium tabular-nums text-[#B6C2D1]">{events.length}</span>
                     )}
@@ -284,6 +491,7 @@ export function TicketCalendarView({
             })}
           </div>
         </div>
+      </div>
     </div>
   );
 }
