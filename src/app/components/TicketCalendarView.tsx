@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { DueByPill, dueBySla, slaInfoOf } from './TicketTable';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -537,37 +537,41 @@ export function TicketCalendarView({
                         <div className="px-1 text-[12px] text-[#64748B]">Nothing scheduled on this day.</div>
                       ) : (
                         <div className="space-y-1.5">
-                          {dayEvents.map((t) => (
-                            <button
-                              key={t.id}
-                              onClick={() => onTicketClick(t)}
-                              className="w-full rounded border border-[#EEF1F4] border-l-2 border-l-[#3D8BD0] bg-white px-2.5 py-2 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-[0_2px_6px_rgba(16,24,40,0.08)]"
-                            >
-                              <span className="block truncate text-[12px] font-medium text-[#364658]">{t.subject}</span>
-                              <span className="mt-0.5 flex items-center gap-1.5 text-[11px]">
-                                <span className="flex-shrink-0 font-medium text-[#64748B]">{t.id}</span>
-                                <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
-                                <span className="min-w-0 truncate font-medium tabular-nums text-[#64748B]">
-                                {!isMultiDay(t)
-                                  ? endOf(t).getTime() > t.dueBy.getTime()
-                                    ? `${fmtTime(t.dueBy)} – ${fmtTime(endOf(t))}`
-                                    : `Scheduled start · ${fmtTime(t.dueBy)}`
-                                  : sameDay(t.dueBy, day)
-                                    ? `Starts ${fmtTime(t.dueBy)}`
-                                    : sameDay(endOf(t), day)
-                                      ? `Ends ${fmtTime(endOf(t))}`
-                                      : `Runs through ${fmtDay(endOf(t))}`}
+                          {dayEvents.map((t) => {
+                            const tone = TONE[slaInfoOf(t).tone] ?? TONE.done;
+                            return (
+                              <button
+                                key={t.id}
+                                onClick={() => onTicketClick(t)}
+                                style={{ borderLeftColor: tone.dot }}
+                                className="w-full rounded-md border border-[#EEF1F4] border-l-2 bg-white px-2.5 py-2 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all hover:shadow-[0_2px_6px_rgba(16,24,40,0.08)]"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{t.subject}</span>
+                                  <span className="flex-shrink-0 text-[10.5px] font-medium text-[#94A3B8]">{t.id}</span>
                                 </span>
-                              </span>
-                              {/* The window's impact, clamped so a wordy statement can
-                                  never push the day's other entries off the rail. */}
-                              {t.windowNote && (
-                                <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-[#94A3B8]">
-                                  {t.windowNote}
+                                <span className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-[#64748B]">
+                                  <Clock size={11} className="flex-shrink-0 text-[#94A3B8]" />
+                                  <span className="min-w-0 truncate tabular-nums">
+                                  {!isMultiDay(t)
+                                    ? endOf(t).getTime() > t.dueBy.getTime()
+                                      ? `${fmtTime(t.dueBy)} – ${fmtTime(endOf(t))}`
+                                      : `Scheduled start · ${fmtTime(t.dueBy)}`
+                                    : sameDay(t.dueBy, day)
+                                      ? `Starts ${fmtTime(t.dueBy)}`
+                                      : sameDay(endOf(t), day)
+                                        ? `Ends ${fmtTime(endOf(t))}`
+                                        : `Runs through ${fmtDay(endOf(t))}`}
+                                  </span>
                                 </span>
-                              )}
-                            </button>
-                          ))}
+                                {t.windowNote && (
+                                  <span className="mt-1.5 block border-t border-[#F1F5F9] pt-1.5">
+                                    <span className="line-clamp-2 text-[11px] leading-4 text-[#94A3B8]">{t.windowNote}</span>
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </>
