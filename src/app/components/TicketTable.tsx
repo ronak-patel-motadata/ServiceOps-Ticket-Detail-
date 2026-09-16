@@ -281,7 +281,7 @@ const Kbd = ({ children }: { children: string }) => (
 );
 
 interface PeekAi { analysis: string; resolution: string; actions: { label: string; conf: number }[] }
-const peekAiFor = (subject: string): PeekAi => {
+const peekAiFor = (subject: string, noun = 'request'): PeekAi => {
   const t = subject.toLowerCase();
   if (t.includes('outlook'))
     return {
@@ -332,7 +332,7 @@ const peekAiFor = (subject: string): PeekAi => {
       actions: [{ label: 'Restore Group Membership', conf: 95 }, { label: 'Verify Folder Permissions', conf: 86 }],
     };
   return {
-    analysis: 'Signals in the request thread point at a known, low-risk cause with an established fix path.',
+    analysis: `Signals in the ${noun} thread point at a known, low-risk cause with an established fix path.`,
     resolution: 'Apply the standard resolution for this category and confirm with the requester before closing.',
     actions: [{ label: 'Apply Standard Fix', conf: 84 }, { label: 'Request More Details', conf: 78 }],
   };
@@ -784,7 +784,9 @@ const longDateTime = (d: Date) => {
   return `${LONG_DATE[d.getDay()]}, ${LONG_MONTH[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${h}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
 };
 interface SlaInfo { tone: SlaTone; label: string; name: string; target: string; when: string }
-const dueBySla = (t: Ticket): SlaInfo => {
+/** Exported for the calendar tooltip — the same per-request SLA facts the pill's own
+    hover shows (countdown, target window, SLA name). */
+export const dueBySla = (t: Ticket): SlaInfo => {
   const name = SLA_NAME[t.priority];
   const target = SLA_TARGET[t.priority];
   const n = Number(t.id.replace(/\D/g, ""));
@@ -859,6 +861,8 @@ interface TicketTableProps {
   sorts?: { column: keyof Ticket; dir: 'asc' | 'desc' }[];
   onTicketClick: (ticket: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
+  /** What one record is called — the Change listing renders this grid as "changes". */
+  noun?: string;
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
@@ -868,6 +872,7 @@ interface TicketTableProps {
 
 export function TicketTable({
   tickets,
+  noun = 'request',
   selectedTickets,
   allSelected,
   onSelectAll,
@@ -2032,11 +2037,12 @@ export function TicketTable({
                             toast.success('Problem created from this group');
                           }}
                           style={{
-                            background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
+                            background:
+                              'linear-gradient(90deg, rgba(76, 177, 254, 0.08) 0%, rgba(115, 30, 251, 0.08) 41.49%, rgba(249, 17, 227, 0.08) 100%), #FFF',
                           }}
-                          className="inline-flex h-8 items-center gap-1.5 rounded px-3 text-[12px] font-medium text-white transition-all duration-200 hover:brightness-[0.92] hover:shadow-md"
+                          className="inline-flex h-8 items-center gap-1.5 rounded px-3 text-[12px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
                         >
-                          <TriangleAlert size={13} />
+                          <TriangleAlert size={13} className="text-[#731EFB]" />
                           Create problem
                         </button>
                       </span>
@@ -2265,6 +2271,7 @@ export function TicketTable({
           return t ? (
             <TicketPeekCard
               t={t}
+              noun={noun}
               kbPeek={kbPeek}
               aiView={peekAiView}
               cardRef={peekRef}
@@ -2299,6 +2306,7 @@ export function TicketPeekCard({
   pos,
   onHold,
   onEnd,
+  noun = 'request',
 }: {
   t: Ticket;
   /** Keyboard-opened peeks teach the whole key set; hover peeks hint only the one that works. */
@@ -2308,13 +2316,15 @@ export function TicketPeekCard({
   pos: { top: number; left: number } | null;
   onHold: () => void;
   onEnd: () => void;
+  /** What one record is called — the Change listing peeks say "change". */
+  noun?: string;
 }) {
   const done = t.tasksDone ?? 0;
   const total = t.tasksTotal ?? 0;
   const cb = t.createdBy;
   const createdStr = `${String(cb.getDate()).padStart(2, '0')}/${String(cb.getMonth() + 1).padStart(2, '0')}/${cb.getFullYear()} ${String(cb.getHours()).padStart(2, '0')}:${String(cb.getMinutes()).padStart(2, '0')}`;
   const daysAgo = 2 + (Number(t.id.replace(/\D/g, '')) % 12);
-  const ai = peekAiFor(t.subject);
+  const ai = peekAiFor(t.subject, noun);
   return createPortal(
     <div
       ref={cardRef}

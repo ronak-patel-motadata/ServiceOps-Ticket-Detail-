@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { TicketListPage } from './components/TicketListPage';
 import { ProblemListPage } from './components/ProblemListPage';
-import { ChangeListPage } from './components/ChangeListPage';
 import { ReleaseListPage } from './components/ReleaseListPage';
 import { HardwareAssetsListPage } from './components/HardwareAssetsListPage';
 import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
@@ -20,6 +19,7 @@ import { TasksListPage } from './components/TasksListPage';
 import { ReportsListPage } from './components/ReportsListPage';
 import { IconGalleryPage } from './components/IconGalleryPage';
 import { ViewsLabListPage } from './components/ViewsLabListPage';
+import { ChangeListingPage } from './components/ChangeListingPage';
 import { EndpointsListPage } from './components/EndpointsListPage';
 import { VulnerabilitiesListPage } from './components/VulnerabilitiesListPage';
 import { DetectedCvesListPage } from './components/DetectedCvesListPage';
@@ -41,7 +41,7 @@ export default function App() {
       {activePage === 'request' && <TicketListPage onNavigate={navigate} />}
       {activePage === 'views-lab' && <ViewsLabListPage onNavigate={navigate} />}
       {activePage === 'problem' && <ProblemListPage onNavigate={navigate} />}
-      {activePage === 'change' && <ChangeListPage onNavigate={navigate} />}
+      {activePage === 'change' && <ChangeListingPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListPage onNavigate={navigate} />}
       {activePage === 'hardware-assets' && <HardwareAssetsListPage onNavigate={navigate} />}
       {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}

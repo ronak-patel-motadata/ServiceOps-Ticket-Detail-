@@ -18,7 +18,7 @@ import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { toast } from 'sonner';
-import type { Change } from './ChangeListPage';
+import { changeImpactOf, changeScheduleOf, type Change } from './ChangeListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -670,10 +670,31 @@ onStackActiveGroupChange,
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
-  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '' });
+  const [analysis, setAnalysis] = useState({
+    /* Seeded per change (changeImpactOf, shared with the listing calendar); editable here. */
+    impact: activeChange ? changeImpactOf(activeChange) : '',
+    rolloutPlan: '',
+    backoutPlan: '',
+  });
   // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
-  const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
-  const [changeScheduleEnd, setChangeScheduleEnd] = useState('2026-07-01T12:11');
+  /* Seeded from this change's own planned window (changeScheduleOf — shared with the
+     listing calendar) and re-seeded whenever the drawer swaps to another change. */
+  const toScheduleInput = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const [changeScheduleStart, setChangeScheduleStart] = useState(() =>
+    activeChange ? toScheduleInput(changeScheduleOf(activeChange).start) : '2026-06-09T23:10',
+  );
+  const [changeScheduleEnd, setChangeScheduleEnd] = useState(() =>
+    activeChange ? toScheduleInput(changeScheduleOf(activeChange).end) : '2026-07-01T12:11',
+  );
+  useEffect(() => {
+    if (!activeChange) return;
+    const win = changeScheduleOf(activeChange);
+    setChangeScheduleStart(toScheduleInput(win.start));
+    setChangeScheduleEnd(toScheduleInput(win.end));
+    setAnalysis((a) => ({ ...a, impact: changeImpactOf(activeChange) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChange?.id]);
   const [plannedRolloutStart, setPlannedRolloutStart] = useState('');
   const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
   const [actualRolloutStart, setActualRolloutStart] = useState('');

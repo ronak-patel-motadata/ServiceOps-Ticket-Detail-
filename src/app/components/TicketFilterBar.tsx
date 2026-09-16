@@ -267,12 +267,15 @@ function AttrPicker({
   onClose,
   align = 'left',
   used = [],
+  noun = 'request',
 }: {
   onPick: (key: string) => void;
   onClose: () => void;
   align?: 'left' | 'right';
   /** Attribute keys already filtered — hidden so a column is never listed twice. */
   used?: string[];
+  /** What one record is called — heads the list as "Change attributes" etc. */
+  noun?: string;
 }) {
   const [q, setQ] = useState('');
   const ref = useOutside<HTMLDivElement>(true, onClose);
@@ -293,7 +296,7 @@ function AttrPicker({
         </div>
       </div>
       <div className="max-h-[300px] overflow-y-auto py-1">
-        <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Request attributes</div>
+        <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{`${noun.charAt(0).toUpperCase() + noun.slice(1)} attributes`}</div>
         {rows.length ? (
           rows.map((a) => (
             <button
@@ -619,7 +622,16 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
   );
 }
 
-export function TicketFilterBar({ rules, setRules }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void }) {
+export function TicketFilterBar({
+  rules,
+  setRules,
+  noun = 'request',
+}: {
+  rules: FilterRule[];
+  setRules: (r: FilterRule[]) => void;
+  /** What one record is called — the Change listing renders this bar as "changes". */
+  noun?: string;
+}) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoOpenId, setAutoOpenId] = useState<string | null>(null);
 
@@ -682,7 +694,7 @@ export function TicketFilterBar({ rules, setRules }: { rules: FilterRule[]; setR
             <Plus size={15} />
           </button>
         )}
-        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} />}
+        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} noun={noun} />}
       </div>
 
       <QuickFilters rules={rules} setRules={setRules} />

@@ -21,6 +21,10 @@ export interface Ticket {
   subject: string;
   requester: string;
   dueBy: Date;
+  /** Optional planned END of the record's window (the Change queue's schedule). */
+  dueEnd?: Date;
+  /** What the window means for users — the Change Schedule's impact statement. */
+  windowNote?: string;
   createdBy: Date;
   assignedTo: {
     name: string;

@@ -66,13 +66,37 @@ export const CUSTOM_VIEW_SEEDS: TicketView[] = [
   { name: 'Access & Account Requests', custom: true, owner: 'Pratik Patial', visibility: 'All Technician', rules: [{ field: 'subject', condition: 'contains', values: ['access', 'password', 'account', 'login'] }] },
 ];
 
+/* The Change listing's predefined catalog — the same rail, the change queue's own cuts.
+   Statuses/priorities are the mapped Ticket values the change grid actually renders. */
+export const CHANGE_VIEWS: TicketView[] = [
+  { name: 'All Changes', rules: [] },
+  { name: 'All Open Changes', rules: [{ field: 'status', condition: 'is', values: ['Open', 'In Progress', 'Pending'] }] },
+  { name: 'All Emergency Changes', rules: [{ field: 'priority', condition: 'is', values: ['Urgent'] }] },
+  {
+    name: 'My Open Changes',
+    rules: [
+      { field: 'assignedTo', condition: 'is', values: [CURRENT_USER] },
+      { field: 'status', condition: 'is', values: ['Open', 'In Progress', 'Pending'] },
+    ],
+  },
+  { name: 'Open Changes in My Group', rules: [{ field: 'status', condition: 'is', values: ['Open', 'In Progress'] }] },
+  { name: 'All Archived Changes', rules: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
+];
+
 /* A colleague's view is only visible to me when they shared it beyond themselves. */
 const visibleToMe = (v: TicketView) => v.owner === CURRENT_USER || v.visibility !== 'My Self';
 const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) === CURRENT_USER;
 
-const FAV_KEY = 'ticketViewFavs';
-const CUSTOM_KEY = 'ticketViewCustom';
-const DEFAULT_KEY = 'ticketViewDefault';
+/* Which module's catalog + storage the rail serves. 'ticket' keeps the legacy keys so
+   existing saves survive; other stores namespace their own, so favourites, saved views
+   and the default view never leak between the Request and Change listings. */
+export type ViewStore = 'ticket' | 'change';
+const builtinsFor = (store: ViewStore) => (store === 'change' ? CHANGE_VIEWS : TICKET_VIEWS);
+/* The seeded shared views are request-flavoured — other modules start with none. */
+const seedsFor = (store: ViewStore) => (store === 'change' ? [] : CUSTOM_VIEW_SEEDS);
+const favKey = (store: ViewStore) => (store === 'ticket' ? 'ticketViewFavs' : `${store}ViewFavs`);
+const customKey = (store: ViewStore) => (store === 'ticket' ? 'ticketViewCustom' : `${store}ViewCustom`);
+const defaultKey = (store: ViewStore) => (store === 'ticket' ? 'ticketViewDefault' : `${store}ViewDefault`);
 
 const load = (key: string): string[] => {
   try {
@@ -92,21 +116,21 @@ const save = (key: string, v: string[]) => {
 export const VIEWS_CHANGED = 'ticket-views-changed';
 
 /** Saved views this user has stored locally (their own saves and clones). */
-export const loadCustomViews = (): TicketView[] => {
+export const loadCustomViews = (store: ViewStore = 'ticket'): TicketView[] => {
   try {
-    return JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? '[]') as TicketView[];
+    return JSON.parse(localStorage.getItem(customKey(store)) ?? '[]') as TicketView[];
   } catch {
     return [];
   }
 };
 
 /** Create or overwrite one of MY saved views, then tell any open rail to refresh. */
-export const upsertCustomView = (view: TicketView) => {
-  const mine = loadCustomViews();
+export const upsertCustomView = (view: TicketView, store: ViewStore = 'ticket') => {
+  const mine = loadCustomViews(store);
   const i = mine.findIndex((v) => v.name === view.name);
   const next = i >= 0 ? mine.map((v, idx) => (idx === i ? view : v)) : [...mine, view];
   try {
-    localStorage.setItem(CUSTOM_KEY, JSON.stringify(next));
+    localStorage.setItem(customKey(store), JSON.stringify(next));
   } catch {
     /* storage unavailable — the view lives for this session only */
   }
@@ -114,16 +138,16 @@ export const upsertCustomView = (view: TicketView) => {
 };
 
 /** True when this name belongs to a view the signed-in user may overwrite. */
-export const isMyCustomView = (name: string) =>
-  [...CUSTOM_VIEW_SEEDS, ...loadCustomViews()].some((v) => v.name === name && (v.owner ?? CURRENT_USER) === CURRENT_USER);
+export const isMyCustomView = (name: string, store: ViewStore = 'ticket') =>
+  [...seedsFor(store), ...loadCustomViews(store)].some((v) => v.name === name && (v.owner ?? CURRENT_USER) === CURRENT_USER);
 
 /** The view the listing should open on, or null when the user has not set one. */
-export const getDefaultView = (): TicketView | null => {
+export const getDefaultView = (store: ViewStore = 'ticket'): TicketView | null => {
   try {
-    const name = localStorage.getItem(DEFAULT_KEY);
+    const name = localStorage.getItem(defaultKey(store));
     if (!name) return null;
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? '[]') as TicketView[];
-    return [...TICKET_VIEWS, ...CUSTOM_VIEW_SEEDS, ...custom].find((v) => v.name === name) ?? null;
+    const custom = JSON.parse(localStorage.getItem(customKey(store)) ?? '[]') as TicketView[];
+    return [...builtinsFor(store), ...seedsFor(store), ...custom].find((v) => v.name === name) ?? null;
   } catch {
     return null;
   }
@@ -261,18 +285,29 @@ function ViewName({ name, active }: { name: string; active: boolean }) {
   );
 }
 
-export function TicketViewsSidebar({ active, onSelect }: { active: string; onSelect: (view: TicketView) => void }) {
+export function TicketViewsSidebar({
+  active,
+  onSelect,
+  store = 'ticket',
+}: {
+  active: string;
+  onSelect: (view: TicketView) => void;
+  /** Which module's catalog + saved-view storage the rail serves. */
+  store?: ViewStore;
+}) {
+  const builtin = builtinsFor(store);
+  const seedPool = seedsFor(store);
   const [q, setQ] = useState('');
   const [tab, setTab] = useState<'all' | 'predefined' | 'mine' | 'shared'>('all');
-  const [favs, setFavs] = useState<string[]>(() => load(FAV_KEY));
-  const [customs, setCustoms] = useState<TicketView[]>(loadCustomViews);
+  const [favs, setFavs] = useState<string[]>(() => load(favKey(store)));
+  const [customs, setCustoms] = useState<TicketView[]>(() => loadCustomViews(store));
   // A view saved from the toolbar must appear here immediately.
   useEffect(() => {
-    const onChanged = () => setCustoms(loadCustomViews());
+    const onChanged = () => setCustoms(loadCustomViews(store));
     window.addEventListener(VIEWS_CHANGED, onChanged);
     return () => window.removeEventListener(VIEWS_CHANGED, onChanged);
-  }, []);
-  const [defaultView, setDefaultView] = useState<string>(() => localStorage.getItem(DEFAULT_KEY) ?? '');
+  }, [store]);
+  const [defaultView, setDefaultView] = useState<string>(() => localStorage.getItem(defaultKey(store)) ?? '');
   const tabsRef = useRef<HTMLDivElement>(null);
   const [tabFadeL, setTabFadeL] = useState(false);
   const [tabFadeR, setTabFadeR] = useState(false);
@@ -295,7 +330,7 @@ export function TicketViewsSidebar({ active, onSelect }: { active: string; onSel
   const saveCustoms = (next: TicketView[]) => {
     setCustoms(next);
     try {
-      localStorage.setItem(CUSTOM_KEY, JSON.stringify(next));
+      localStorage.setItem(customKey(store), JSON.stringify(next));
     } catch {
       /* storage unavailable — clones just will not persist */
     }
@@ -305,8 +340,8 @@ export function TicketViewsSidebar({ active, onSelect }: { active: string; onSel
     const next = defaultView === name ? '' : name;
     setDefaultView(next);
     try {
-      if (next) localStorage.setItem(DEFAULT_KEY, next);
-      else localStorage.removeItem(DEFAULT_KEY);
+      if (next) localStorage.setItem(defaultKey(store), next);
+      else localStorage.removeItem(defaultKey(store));
     } catch {
       /* ignore */
     }
@@ -316,7 +351,7 @@ export function TicketViewsSidebar({ active, onSelect }: { active: string; onSel
   const cloneView = (v: TicketView) => {
     // "Copy of X", then "Copy of X (2)"… so repeated clones never collide.
     let name = `Copy of ${v.name}`;
-    const taken = (n: string) => [...TICKET_VIEWS, ...CUSTOM_VIEW_SEEDS, ...customs].some((x) => x.name === n);
+    const taken = (n: string) => [...builtin, ...seedPool, ...customs].some((x) => x.name === n);
     for (let i = 2; taken(name); i += 1) name = `Copy of ${v.name} (${i})`;
     saveCustoms([...customs, { name, rules: v.rules, custom: true, owner: CURRENT_USER, visibility: 'My Self' }]);
     toast.success(`“${name}” created`);
@@ -326,7 +361,7 @@ export function TicketViewsSidebar({ active, onSelect }: { active: string; onSel
     saveCustoms(customs.filter((c) => c.name !== v.name));
     setFavs((prev) => {
       const next = prev.filter((fv) => fv !== v.name);
-      save(FAV_KEY, next);
+      save(favKey(store), next);
       return next;
     });
     if (defaultView === v.name) setAsDefault(v.name);
@@ -336,22 +371,22 @@ export function TicketViewsSidebar({ active, onSelect }: { active: string; onSel
   const toggleFav = (name: string) =>
     setFavs((prev) => {
       const next = prev.includes(name) ? prev.filter((f) => f !== name) : [...prev, name];
-      save(FAV_KEY, next);
+      save(favKey(store), next);
       return next;
     });
 
 
   const ql = q.trim().toLowerCase();
   const match = (v: TicketView) => !ql || v.name.toLowerCase().includes(ql);
-  const saved = [...CUSTOM_VIEW_SEEDS, ...customs];
+  const saved = [...seedPool, ...customs];
   const pool =
     tab === 'mine'
       ? saved.filter(ownedByMe)
       : tab === 'shared'
         ? saved.filter((v) => !ownedByMe(v) && visibleToMe(v))
         : tab === 'predefined'
-          ? TICKET_VIEWS
-          : [...TICKET_VIEWS, ...saved.filter(visibleToMe)];
+          ? builtin
+          : [...builtin, ...saved.filter(visibleToMe)];
   const catalog = pool.filter(match);
   const favViews = catalog.filter((v) => favs.includes(v.name));
   const otherViews = catalog.filter((v) => !favs.includes(v.name));

@@ -252,6 +252,7 @@ export function TicketKanban({
   onLanesChange,
   onTicketClick,
   onUpdateTicket,
+  noun = 'request',
 }: {
   tickets: Ticket[];
   group: KanbanGroup;
@@ -263,6 +264,8 @@ export function TicketKanban({
   onLanesChange?: (info: { label: string; total: number; groups: number; list: { key: string; count: number }[] } | null) => void;
   onTicketClick: (t: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
+  /** What one record is called — the Change listing renders this board as "changes". */
+  noun?: string;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -780,7 +783,7 @@ export function TicketKanban({
 
               {cards.length === 0 && (
                 <div className="rounded-lg border border-dashed border-[#DFE5ED] bg-white/50 py-7 text-center text-[12px] text-[#94A3B8]">
-                  {canDrop ? 'Drop a request here' : 'No requests'}
+                  {canDrop ? `Drop a ${noun} here` : `No ${noun}s`}
                 </div>
               )}
             </div>
@@ -862,6 +865,7 @@ export function TicketKanban({
           return pt ? (
             <TicketPeekCard
               t={pt}
+              noun={noun}
               aiView={peek.aiView}
               cardRef={peek.cardRef}
               pos={peek.pos}

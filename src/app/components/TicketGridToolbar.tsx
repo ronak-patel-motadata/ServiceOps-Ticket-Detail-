@@ -8,7 +8,7 @@ import { DEFAULT_CARD_FIELDS, KANBAN_GROUPS, cardFieldsFor, kanbanFieldsFor, typ
 import { ColumnManager } from './TicketTable';
 import { AiSparkle } from './AiSparkle';
 import { Info } from 'lucide-react';
-import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView } from './TicketViewsPanel';
+import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView, type ViewStore } from './TicketViewsPanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
@@ -98,6 +98,8 @@ export function TicketGridToolbar({
   setKanbanSubGroup,
   cardFields,
   setCardFields,
+  noun = 'request',
+  viewsStore = 'ticket',
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -125,6 +127,10 @@ export function TicketGridToolbar({
   setKanbanSubGroup: (g: KanbanGroup | null) => void;
   cardFields: string[];
   setCardFields: (f: string[]) => void;
+  /** What one record is called — the Change listing renders this toolbar as "changes". */
+  noun?: string;
+  /** Which module's saved-view storage the Save-view actions write to. */
+  viewsStore?: ViewStore;
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -173,7 +179,10 @@ export function TicketGridToolbar({
   const [saveVis, setSaveVis] = useState<'My Self' | 'All Technician' | 'Technician In Group'>('My Self');
   const [saveGroup, setSaveGroup] = useState('');
   const [savePos, setSavePos] = useState({ top: 0, left: 0 });
-  const canUpdate = isMyCustomView(activeView);
+  /* The copy's noun, capitalised where a label needs it. */
+  const ns = `${noun}s`;
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+  const canUpdate = isMyCustomView(activeView, viewsStore);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const isList = view === 'list' || view === 'list-kpi';
   useEffect(() => {
@@ -196,7 +205,7 @@ export function TicketGridToolbar({
     const name = mode === 'update' ? activeView : saveName.trim();
     if (mode === 'saveAs' && saveVis === 'Technician In Group' && !saveGroup) return;
     if (!name) return;
-    const prev = mode === 'update' ? loadCustomViews().find((v) => v.name === name) : undefined;
+    const prev = mode === 'update' ? loadCustomViews(viewsStore).find((v) => v.name === name) : undefined;
     const view: TicketView = {
       name,
       rules: rules.map(({ field, condition, values }) => ({ field, condition, values })),
@@ -211,7 +220,7 @@ export function TicketGridToolbar({
           ? { group: saveGroup }
           : {}),
     };
-    upsertCustomView(view);
+    upsertCustomView(view, viewsStore);
     onViewSaved(view);
     setSaveOpen(false);
     toast.success(mode === 'update' ? `“${name}” updated` : `“${name}” saved`);
@@ -256,7 +265,7 @@ export function TicketGridToolbar({
   const refresh = () => {
     setSpinning(true);
     window.setTimeout(() => setSpinning(false), 700);
-    toast.success('Requests refreshed');
+    toast.success(`${Noun}s refreshed`);
   };
 
   useEffect(() => {
@@ -287,7 +296,7 @@ export function TicketGridToolbar({
                 setSearchOpen(false);
               }
             }}
-            placeholder="Search requests..."
+            placeholder={`Search ${ns}...`}
             className="h-8 w-[260px] rounded border border-[#DFE5ED] bg-white pl-8 pr-7 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:outline-none"
           />
           {searchQuery && (
@@ -315,8 +324,8 @@ export function TicketGridToolbar({
       {view === 'dashboard' ? (
         <div className="flex flex-shrink-0 items-center gap-0.5 rounded border border-[#DFE5ED] bg-[#F8FAFC] p-0.5">
           {([
-            { key: 'all', label: 'Overall view', Icon: Users, hint: 'Every request across the desk' },
-            { key: 'mine', label: 'My view', Icon: UserRound, hint: `Only requests assigned to ${CURRENT_USER}` },
+            { key: 'all', label: 'Overall view', Icon: Users, hint: `Every ${noun} across the desk` },
+            { key: 'mine', label: 'My view', Icon: UserRound, hint: `Only ${ns} assigned to ${CURRENT_USER}` },
           ] as const).map((o) => {
             const on = dashScope === o.key;
             return (
@@ -338,7 +347,7 @@ export function TicketGridToolbar({
           })}
         </div>
       ) : (
-        <TicketFilterBar rules={rules} setRules={setRules} />
+        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} />
       )}
 
       {saveOpen &&
@@ -1024,7 +1033,7 @@ export function TicketGridToolbar({
                         {/* Not a column — the AI's similarity clusters as a grouping axis.
                             Listed first because it answers a different question from the
                             column groupings below it. */}
-                        {'similarity'.includes(groupQuery.trim().toLowerCase()) && (
+                        {noun === 'request' && 'similarity'.includes(groupQuery.trim().toLowerCase()) && (
                           <button
                             onClick={() => {
                               window.dispatchEvent(new CustomEvent('set-group-by', { detail: 'similarity' }));
@@ -1053,7 +1062,7 @@ export function TicketGridToolbar({
                                   explainer card belongs on the AI banner, where there is room
                                   for it — a menu needs the answer, not a briefing. */}
                               <TooltipContent side="left" sideOffset={10} className="max-w-[248px] text-wrap">
-                                Stacks requests that share one underlying cause, so you can merge them or raise a
+                                Stacks {ns} that share one underlying cause, so you can merge them or raise a
                                 problem instead of working each one.
                               </TooltipContent>
                             </Tooltip>
@@ -1112,10 +1121,13 @@ export function TicketGridToolbar({
           </button>
           {moreOpen && (
             <div className={`${POPUP} w-[228px] py-1`}>
-              {[
-                { key: 'import-incident', label: 'Import Incident', icon: Import },
-                { key: 'import-sr', label: 'Import Service Request', icon: Import },
-              ].map((a) => (
+              {(noun === 'request'
+                ? [
+                    { key: 'import-incident', label: 'Import Incident', icon: Import },
+                    { key: 'import-sr', label: 'Import Service Request', icon: Import },
+                  ]
+                : [{ key: 'import-record', label: `Import ${Noun}`, icon: Import }]
+              ).map((a) => (
                 <button
                   key={a.key}
                   onClick={() => {
@@ -1136,7 +1148,7 @@ export function TicketGridToolbar({
       {fieldMgr && (
         <ColumnManager
           anchor={fieldMgr}
-          catalog={kanbanFieldsFor(kanbanGroup)}
+          catalog={kanbanFieldsFor(kanbanGroup).map((f) => (f.label === 'Request age' ? { ...f, label: `${Noun} age` } : f))}
           active={cardFieldsFor(cardFields, kanbanGroup)}
           /* The designed card is not negotiable — its fields pin on top, locked; the
              user arranges only what THEY added below. The group axis is already out

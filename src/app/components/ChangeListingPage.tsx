@@ -1,9 +1,10 @@
-/* ── Views Lab ────────────────────────────────────────────────────────────────
-   A clone of the request listing that exists to PROTOTYPE listing views. New layouts,
-   toolbars and row treatments get built and reviewed here first; once a view earns its
-   place, it is lifted into the module that needs it. Cloned rather than shared on
-   purpose — experiments here must never be able to break the real Requests page.
-   Reached from the sidebar's bottom group, beside the Icon Library. */
+/* ── Change listing ──────────────────────────────────────────────────────────
+   The Views Lab recipe promoted to a real module: the Change queue rendered through the
+   shared listing chrome, with all five layouts — List, List + KPI, Kanban, Dashboard and
+   Calendar. The queue is the REAL mockChanges pool mapped onto the Ticket shape the grid
+   renders (status/priority translated, a derived evening scheduled-start as the calendar
+   axis); the original Change rides in a lookup so every click opens the real ChangeDrawer.
+   File-per-module clone, per the project rule — divergence here can never break Requests. */
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -11,7 +12,6 @@ import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
-import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { TicketStatsRow } from './TicketStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
@@ -19,7 +19,8 @@ import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { TicketCalendarView } from './TicketCalendarView';
-import { mockChanges, type Change } from './ChangeListPage';
+import { changeImpactOf, changeScheduleOf, mockChanges, type Change } from './ChangeListPage';
+import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
@@ -28,138 +29,6 @@ import { TicketDrawer } from './TicketDrawer';
 // real listing can never drift apart on what a request IS.
 import type { Ticket } from './TicketListPage';
 
-// Mock data
-/* Requests per day across 19 Apr – 2 May 2022, shaped like a real intake week:
-   busy at the start of the week, quiet over the weekend (indexes 5-6 and 12-13). */
-const DAY_VOLUME = [11, 8, 9, 6, 7, 2, 1, 12, 10, 7, 5, 6, 2, 1];
-const DAY_SPREAD: number[] = DAY_VOLUME.flatMap((count, day) => Array.from({ length: count }, () => day));
-
-/* Due dates spread across the WHOLE month rather than clustered at its end — a calendar
-   is only readable if the load looks like a real week. Weekdays carry 1-4 slots (uneven,
-   so some days are busy and some quiet), Saturdays one, Sundays none. Deterministic: the
-   same index always lands on the same day, so the grid, board and calendar agree. */
-const DUE_DAYS: number[] = (() => {
-  const out: number[] = [];
-  for (let d = 1; d <= 30; d++) {
-    const dow = new Date(2022, 3, d).getDay();
-    const slots = dow === 0 ? 0 : dow === 6 ? 1 : 1 + ((d * 5) % 4);
-    for (let k = 0; k < slots; k++) out.push(d);
-  }
-  return out;
-})();
-
-const generateLabTickets = (): Ticket[] => {
-  /* Indices 0–16 are fixed: they are the members of the AI suggested groups and the
-     three requests with bespoke detail-page content (INC-32/33/35). The rest are a
-     realistic spread of service-desk work so the queue never reads as one repeated row. */
-  const subjects = [
-    "Outlook keeps crashing when opening attachments",
-    "Employee Onboarding",
-    "My Internet Down",
-    "WiFi is not working",
-    "Employee Onboarding",
-    "Request for Apple MacBook Pro Allocation",
-    "Employee Onboarding",
-    "Unable to log in to the HR portal",
-    "Employee Onboarding",
-    "Laptop charger not working",
-    "WiFi is not working",
-    "Internet dropping every few minutes",
-    "Charger stopped charging the laptop",
-    "Cannot open shared drive from Floor 3",
-    "Password reset for Active Directory account",
-    "Employee Onboarding",
-    "Burnt smell from power adapter",
-    "VPN disconnects when working from home",
-    "Request access to Salesforce CRM",
-    "Printer on 2nd floor not responding",
-    "Outlook not syncing emails since morning",
-    "New laptop setup for marketing hire",
-    "Software license renewal — Adobe Creative Cloud",
-    "Blue screen error on Windows startup",
-    "Microsoft Teams audio not working in meetings",
-    "Request for an additional monitor",
-    "Shared mailbox access for finance team",
-    "SAP login fails with authentication error",
-    "Slow system performance after latest update",
-    "Mobile device enrollment for new phone",
-    "Request for Zoom license upgrade",
-    "Email quota exceeded — unable to send mail",
-    "Data restore request from last week's backup",
-    "Employee Offboarding — access revocation",
-    "Website not loading on corporate network",
-    "Request for additional OneDrive storage",
-    "Keyboard keys not responding on laptop",
-    "Two-factor authentication device replacement",
-    "Conference room projector not connecting",
-    "Bulk user creation for new department"
-  ];
-  
-  const requesters = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
-  const assignees = [
-    { name: 'Amou Desai', initials: 'AD' },
-    { name: 'Keetion Dale', initials: 'KD' },
-    { name: 'Shreyak Dalal', initials: 'SD' },
-    { name: 'Kaison Potai', initials: 'KP' },
-    { name: 'Novak Potai', initials: 'NP' },
-    { name: 'Rahul Shukla', initials: 'RS' },
-    { name: 'Sarah Johnson', initials: 'SJ' },
-    { name: 'Pratik Patial', initials: 'PP' }
-  ];
-  
-  const statuses: Ticket['status'][] = ['Open', 'In Progress', 'Completed', 'Pending', 'Closed'];
-  const priorities: Ticket['priority'][] = ['Low', 'Medium', 'High', 'Urgent'];
-  
-  const MSG_SNIPPETS = [
-    "I'm still seeing the same error after the restart — sharing a screenshot now.",
-    'This started happening again after the latest update. Can someone take a look today?',
-    'Thanks for the quick fix yesterday — unfortunately it is back again this morning.',
-    'Adding my manager here. We need this resolved before the client call at 4 PM.',
-    'Tried the steps you shared, but step 3 fails with "access denied".',
-  ];
-  const MSG_TIMES = ['8m ago', '24m ago', '1h ago', '2h ago', '4h ago'];
-  const APPROVERS = ['Rakesh Rathod', 'Priya Nair', 'Vikram Sethi', 'Sarah Johnson'];
-  const APPROVAL_WAITS = ['2d', '5h', '1d', '3d'];
-
-  return Array.from({ length: 84 }, (_, i) => {
-    const requester = requesters[i % requesters.length];
-    const assignee = assignees[i % assignees.length];
-    // New replies on a handful of rows per page — badges should be the exception a
-    // technician scans FOR, not row furniture.
-    const unread = i % 7 === 0 ? (i % 14 === 0 ? 3 : 2) : 0;
-    // Tasks exist on roughly half the queue (irregular spacing so it reads organic);
-    // counts vary 2-5, 13 staged on INC-35. No-task rows show no Tasks row in the peek.
-    const hasTasks = i === 5 || [0, 2, 6, 9].includes(i % 11);
-    const tasksTotal = i === 5 ? 13 : hasTasks ? 2 + (i % 4) : 0;
-    const status = i === 9 ? ('Closed' as const) : i === 2 ? ('Open' as const) : statuses[i % statuses.length]; // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
-    // A pending approval blocks OPEN work only — settled rows never carry one.
-    const hasApproval =
-      i % 11 === 3 && status !== 'Closed' && status !== 'Completed';
-    /* Fresh intake nobody has picked up yet — only OPEN work can be ownerless, and the
-       first 17 indices stay assigned (they anchor the AI groups and bespoke demos). */
-    const unassigned =
-      i >= 17 && (i % 9 === 7 || i % 9 === 2) && (status === 'Open' || status === 'In Progress' || status === 'Pending');
-    return {
-      id: `INC-${String(i + 30).padStart(2, '0')}`,
-      subject: subjects[i % subjects.length],
-      requester,
-      dueBy: new Date(2022, 3, DUE_DAYS[(i * 31 + 7) % DUE_DAYS.length], 9 + (i % 9), (i % 4) * 15),
-      createdBy: new Date(2022, 3, 19 + DAY_SPREAD[i % DAY_SPREAD.length], 3 + (i % 12), 30),
-      assignedTo: unassigned ? { name: 'Unassigned', initials: '' } : assignee,
-      status,
-      priority: priorities[i % priorities.length],
-      unread,
-      lastMsg: unread > 0
-        ? { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
-        : undefined,
-      tasksTotal: hasTasks ? tasksTotal : undefined,
-      tasksDone: !hasTasks ? undefined : i === 5 ? 6 : i % (tasksTotal + 1),
-      approval: hasApproval
-        ? { approver: APPROVERS[i % APPROVERS.length], level: 1 + (i % 2), totalLevels: 2, waiting: APPROVAL_WAITS[i % APPROVAL_WAITS.length] }
-        : undefined,
-    };
-  });
-};
 
 /* A drill-down REPLACES the listing's own header rather than stacking on top of it. Arriving
    from a dashboard tile, the answer to "what am I looking at" is the tile — not "All Requests",
@@ -193,35 +62,41 @@ function DrillCrumb({
         <h1 className="truncate text-[17px] font-semibold text-[#1E293B]">{label}</h1>
         <span className="h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />
         <span className="flex-shrink-0 text-[12px] text-[#7B8FA5]">
-          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} requests
+          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} changes
         </span>
       </div>
     </div>
   );
 }
 
-/* The calendar previews the CHANGE listing here: the real mockChanges mapped onto the
-   Ticket shape the calendar renders (id, subject, owner, a derived scheduled start), with
-   the ORIGINAL Change kept aside so a click opens the real ChangeDrawer. Scheduled starts
+/* The queue: mockChanges mapped onto the Ticket shape the shared chrome renders, with
+   the ORIGINAL Change kept aside so clicks open the real ChangeDrawer. Scheduled starts
    are evenings after creation — change windows, not office hours. */
 const CHANGE_STATUS = (st: string): Ticket['status'] =>
   /pending/i.test(st) ? 'Pending' : /progress|implementation/i.test(st) ? 'In Progress' : /closed|completed/i.test(st) ? 'Completed' : 'Open';
 const CHANGE_PRIORITY = (pr: string): Ticket['priority'] =>
   /p1|urgent/i.test(pr) ? 'Urgent' : /high|p2/i.test(pr) ? 'High' : /low|p4/i.test(pr) ? 'Low' : 'Medium';
-const CHANGE_CAL: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
+const CHANGES: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
   const byId = new Map<string, Change>();
   const rows = mockChanges.map((c, i) => {
     byId.set(c.id, c);
-    const sched = new Date(c.createdDate);
-    sched.setDate(sched.getDate() + (i % 6) + 1);
-    sched.setHours(i % 7 === 3 ? 9 + (i % 4) : 18 + (i % 5), (i % 4) * 15, 0, 0);
+    /* The planned window comes from the shared schedule helper, so the calendar and
+       the Planning tab's Change Schedule can never disagree. */
+    const win = changeScheduleOf(c);
     return {
       id: c.id,
       subject: c.subject,
       requester: c.requester,
-      dueBy: sched,
+      dueBy: win.start,
+      dueEnd: win.end,
+      windowNote: changeImpactOf(c),
       createdBy: c.createdDate,
-      assignedTo: { name: c.assignee.name, initials: c.assignee.initials },
+      /* A slice of the queue belongs to the signed-in technician, so the "My …" views
+         and the dashboard's My-view scope have something real to show. */
+      assignedTo:
+        i % 5 === 2
+          ? { name: CURRENT_USER, initials: CURRENT_USER_INITIALS }
+          : { name: c.assignee.name, initials: c.assignee.initials },
       status: CHANGE_STATUS(c.status),
       priority: CHANGE_PRIORITY(c.priority),
     } as Ticket;
@@ -229,8 +104,8 @@ const CHANGE_CAL: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
   return { rows, byId };
 })();
 
-export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
-  const [tickets, setTickets] = useState<Ticket[]>(generateLabTickets());
+export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const [tickets, setTickets] = useState<Ticket[]>(CHANGES.rows);
   // Assignee / Status / Priority are editable straight from the grid.
   const updateTicket = (id: string, patch: Partial<Ticket>) =>
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -247,7 +122,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const startView = getDefaultView();
+  const startView = getDefaultView('change');
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
@@ -284,7 +159,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
   const sortDirection = sorts[0]?.dir ?? 'asc';
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState(startView?.name ?? 'All Requests');
+  const [activeView, setActiveView] = useState(startView?.name ?? 'All Changes');
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -296,9 +171,8 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
   const { open: openInStack } = useDrawerStack();
 
   const handleOpenTicket = (ticket: Ticket) => {
-    // INC-33 opens the SECOND design option of the detail page (TicketDrawerV2);
-    // every other ticket keeps the existing V1 TicketDrawer.
-    openInStack(ticket.id === 'INC-33' ? 'request-v2' : 'request', ticket.id, ticket.subject, ticket);
+    // Every row is a change — open the real ChangeDrawer with the original record.
+    openInStack('change', ticket.id, ticket.subject, CHANGES.byId.get(ticket.id) ?? ticket);
   };
 
   const handleCloseDrawer = () => {
@@ -456,7 +330,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
 
   return (
     <div className="flex h-screen bg-[#f9fafb]">
-      <Sidebar activePage="views-lab" onNavigate={onNavigate} />
+      <Sidebar activePage="change" onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -465,6 +339,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
               restores it exactly as it was. */}
           {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
+              store="change"
               active={activeView}
               onSelect={(v: TicketView) => {
                 setActiveView(v.name);
@@ -504,6 +379,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
               screen that is only ever about the thing the user clicked. */}
           {view === 'list-kpi' && !drillFrom && (
             <TicketStatsRow
+              noun="change"
               tickets={tickets}
               rules={filterRules}
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
@@ -512,10 +388,11 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
           {/* The AI grouping banner is about triaging a QUEUE — on a calendar its four
               clusters have no place to land, and it eats the height the month grid
               needs. Hidden there, kept everywhere else. */}
-          {!drillFrom && view !== 'calendar' && <TicketGroupSuggestions />}
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
+            noun="change"
+            viewsStore="change"
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -553,13 +430,10 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
           />
           </div>
           {view === 'calendar' ? (
-            <TicketCalendarView
-              tickets={CHANGE_CAL.rows}
-              noun="change"
-              onTicketClick={(t) => openInStack('change', t.id, t.subject, CHANGE_CAL.byId.get(t.id))}
-            />
+            <TicketCalendarView tickets={sortedTickets} noun="change" onTicketClick={handleOpenTicket} />
           ) : view === 'kanban' ? (
             <TicketKanban
+              noun="change"
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
@@ -575,6 +449,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
                  filters here would silently redraw every chart with no way to see why. */
               tickets={tickets}
               scope={dashScope}
+              noun="change"
               onTicketClick={handleOpenTicket}
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules
@@ -587,6 +462,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
             />
           ) : (
             <TicketTable
+              noun="change"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}
@@ -638,7 +514,7 @@ export function ViewsLabListPage({ onNavigate }: { onNavigate?: (page: string) =
             footerGroup && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                 <span className="text-[12px] text-[#64748B] tabular-nums">
-                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> requests in{' '}
+                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> changes in{' '}
                   <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">

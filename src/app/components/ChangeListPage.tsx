@@ -26,6 +26,64 @@ export interface Change {
   changeRisk: 'Low' | 'Medium' | 'High' | null;
 }
 
+/* ── Planned change window ───────────────────────────────────────────────────
+   One deterministic schedule per change, shared by the detail page's Planning tab
+   ("Change Schedule") and the Change listing's calendar, so the two can never
+   disagree. Most changes are short evening windows; some run into the next
+   morning; a few are multi-day rollouts, and one is a week-long freeze — the
+   realistic Outlook-style mix a change calendar has to render. */
+export const changeScheduleOf = (c: Change): { start: Date; end: Date } => {
+  let i = mockChanges.findIndex((x) => x.id === c.id);
+  if (i < 0) i = c.id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 97, 7);
+  const start = new Date(c.createdDate);
+  start.setDate(start.getDate() + (i % 6) + 1);
+  start.setHours(i % 7 === 3 ? 9 + (i % 4) : 17 + (i % 3), (i % 4) * 15, 0, 0);
+  /* Every third change lands in one release window — the freeze-weekend pile-up that
+     makes June 2026 the busiest month and exercises the calendar's "+N more" overflow. */
+  if (i % 3 === 0) {
+    start.setFullYear(2026, 5, 15);
+    start.setHours([9, 11, 14, 16, 18, 19, 20, 21, 22][Math.floor(i / 3) % 9], (i % 4) * 15, 0, 0);
+  }
+  const p = i % 10;
+  const durH =
+    p < 5 ? 2 + (i % 3)        // a same-evening window, 2–4 h
+    : p < 8 ? 26 + (i % 14)    // an overnight-into-next-day window
+    : p === 8 ? 72 + (i % 9)   // a multi-day rollout
+    : 148;                     // the week-long freeze
+  return { start, end: new Date(start.getTime() + durH * 3600e3) };
+};
+
+/* The schedule's impact statement — what this window MEANS for users. Themed to the
+   subject so a firewall change talks about sessions and a patch run about reboots.
+   Shared by the Planning tab's Impact field, the calendar tooltip and the calendar
+   rail, so all three always tell the same story. */
+export const changeImpactOf = (c: Change): string => {
+  const s = c.subject.toLowerCase();
+  if (/firewall|waf|dmz/.test(s))
+    return 'Active sessions through the affected rules drop briefly (~2 min) while the new set propagates across both firewall pairs. Site-to-site tunnels renegotiate automatically; partner-facing APIs may see a short burst of retries, and no data loss is expected at any point.';
+  if (/patch|security patching|os /.test(s))
+    return 'Rolling node reboots inside the window; services stay up behind failover with reduced single-node capacity. Batch jobs scheduled during the window are queued and resume automatically, and users may notice slightly slower responses while each node drains and rejoins the cluster.';
+  if (/migrat|cutover|cluster/.test(s))
+    return 'Short service freeze at cutover (up to 15 min) while the final delta sync completes; users may need to sign in again on the new platform. Mail in transit is queued by the upstream gateway and delivered after cutover, so nothing is lost — delivery is simply delayed for the freeze window.';
+  if (/certificate|ssl|tls/.test(s))
+    return 'A brief TLS blip (<1 min) as the new certificate loads across the load-balancer fleet; cached sessions may prompt one refresh. Legacy clients pinning the old intermediate chain will need the updated bundle, which has been pre-published to the endpoint management baseline.';
+  if (/storage|san|capacity/.test(s))
+    return 'No planned outage — the expansion is online; brief latency spikes possible while volumes rebalance across the new shelves. Thin-provisioned datastores will report changed capacity as the pool grows, and replication to the DR array pauses briefly at each rebalance checkpoint before resuming.';
+  if (/schema|active directory/.test(s))
+    return 'Directory writes pause briefly during the schema extension; sign-ins and reads continue unaffected throughout. Downstream provisioning jobs that write new attributes are held until replication converges on every domain controller, expected within 30 minutes of completion.';
+  if (/decommission|retire|legacy/.test(s))
+    return 'The retiring system goes read-only, then offline; historical data stays available from the archive share. Integrations still pointing at the old endpoints will begin failing after shutdown, so the final dependency sweep must be clear before the power-down step is approved.';
+  if (/dns|network|switch|wireless|access point|vpn/.test(s))
+    return 'Short connectivity blips (1–5 min) as devices re-home to the new configuration; remote users may need to reconnect once. Voice and video calls in progress during a blip may drop and need redialling; the rollout is sequenced site by site to keep the blast radius small.';
+  if (/database|index|sql/.test(s))
+    return 'Queries may run slower while online maintenance executes; no downtime and writes are never blocked. Reporting extracts that touch the affected tables are expected to run 20–30% longer during the window, and replication lag to read replicas may grow temporarily before catching up.';
+  if (/backup|retention/.test(s))
+    return 'No user-facing impact; backup jobs run longer on the first cycle while the new policy takes effect. Restore points created under the old retention scheme stay valid until natural expiry, and storage consumption steps down gradually as the shortened windows roll through.';
+  if (/deploy|release|module|application|portal|policy/.test(s))
+    return 'Blue-green switchover — a sub-second traffic flip, with an instant rollback path if error rates rise. In-flight transactions complete on the old version before it drains, background workers restart against the new build, and API consumers see no contract changes in this release.';
+  return 'Low user impact expected; short interruptions possible inside the window, monitored end to end. The service desk has a heads-up notice prepared, monitoring thresholds are tightened for the duration, and the implementation team stays on the bridge until post-change checks pass.';
+};
+
 export const mockChanges: Change[] = [
   { id: 'CHG-993', subject: 'Firewall rule update for production DMZ',          requester: 'Sophie Laurent',   createdDate: new Date(2026,5,9,15,2),   assignee: { name: 'Unassigned',       initials: 'UN', color: '#D1D5DB' }, status: 'Submitted: Requested',       priority: 'P1',     changeType: null,        changeRisk: 'Low'  },
   { id: 'CHG-992', subject: 'Database server OS security patching',             requester: 'Sakshi Gupta',     createdDate: new Date(2026,4,27,18,56), assignee: { name: 'Mehmet Can Dut',   initials: 'MD', color: '#6366F1' }, status: 'Approval: Pending',          priority: 'Medium', changeType: null,        changeRisk: 'Low'  },

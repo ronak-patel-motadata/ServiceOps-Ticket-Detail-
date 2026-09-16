@@ -70,11 +70,15 @@ export function TicketStatsRow({
   tickets,
   rules,
   onApplyFilter,
+  noun = 'request',
 }: {
   tickets: Ticket[];
   rules: FilterRule[];
   onApplyFilter: (rules: FilterRule[]) => void;
+  /** What one record is called — the Change listing renders this row as "changes". */
+  noun?: string;
 }) {
+  const ns = `${noun}s`;
   /* Edge fades: a soft white gradient at whichever side still hides cards — the
      scroll hint that replaced the scrollbar. Recomputed on scroll and resize. */
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,11 +132,11 @@ export function TicketStatsRow({
     hint?: string;
   }[] = [
     {
-      label: 'Open requests',
+      label: `Open ${ns}`,
       value: openOnly.length,
       sub: `${open.length} unresolved · ${tickets.length} total`,
       filter: [{ field: 'status', condition: 'is', values: ['Open'] }],
-      hint: 'Show requests with status Open',
+      hint: `Show ${ns} with status Open`,
     },
     {
       label: 'SLA compliance',
@@ -145,14 +149,14 @@ export function TicketStatsRow({
       gauge: slaPct,
       wide: true,
       filter: [{ field: 'sla', condition: 'is', values: ['Breached'] }],
-      hint: 'Show breached requests',
+      hint: `Show breached ${ns}`,
     },
     {
       label: 'Due today',
       value: dueSoon,
       sub: <span className="text-[#B45309]">resolution due &lt; 24h</span>,
       filter: [{ field: 'sla', condition: 'is', values: ['Due soon'] }],
-      hint: 'Show requests due within 24 hours',
+      hint: `Show ${ns} due within 24 hours`,
     },
     {
       label: 'Penalty exposure',
@@ -160,7 +164,7 @@ export function TicketStatsRow({
       sub: `${breached} breached × $250`,
       trend: { pct: '8%', up: true, good: false },
       filter: [{ field: 'sla', condition: 'is', values: ['Breached'] }],
-      hint: 'Show the breached requests carrying a penalty',
+      hint: `Show the breached ${ns} carrying a penalty`,
     },
     {
       label: 'Urgent priority',
@@ -171,38 +175,38 @@ export function TicketStatsRow({
         { field: 'priority', condition: 'is', values: ['Urgent'] },
         { field: 'status', condition: 'is', values: OPEN_STATES },
       ],
-      hint: 'Show unresolved urgent requests',
+      hint: `Show unresolved urgent ${ns}`,
     },
     {
       label: 'Pending approval',
       value: pendingApproval,
       sub: 'awaiting approvers',
       filter: [{ field: 'approval', condition: 'is', values: ['Pending approval'] }],
-      hint: 'Show requests awaiting an approver',
+      hint: `Show ${ns} awaiting an approver`,
     },
     {
       label: 'Waiting on requester',
       value: waitingRequester,
       sub: 'no reply yet',
       filter: [{ field: 'status', condition: 'is', values: ['Pending'] }],
-      hint: 'Show requests waiting on the requester',
+      hint: `Show ${ns} waiting on the requester`,
     },
     {
       label: 'Unread updates',
       value: unreadTotal,
-      sub: `across ${unreadRows.length} requests`,
+      sub: `across ${unreadRows.length} ${ns}`,
       filter: [{ field: 'unread', condition: 'is', values: ['Has unread'] }],
-      hint: 'Show requests with unread replies',
+      hint: `Show ${ns} with unread replies`,
     },
     {
       label: 'Open tasks',
       value: openTasks,
-      sub: `in ${taskRows.length} requests`,
+      sub: `in ${taskRows.length} ${ns}`,
       filter: [
         { field: 'openTasks', condition: 'is', values: ['Has open tasks'] },
         { field: 'status', condition: 'is', values: OPEN_STATES },
       ],
-      hint: 'Show unresolved requests with open tasks',
+      hint: `Show unresolved ${ns} with open tasks`,
     },
     // Flow: how much is leaving the queue and how fast (resolution avg from the detail page).
     {
@@ -211,7 +215,7 @@ export function TicketStatsRow({
       sub: 'avg 4d 11h to resolve',
       trend: { pct: '12%', up: true, good: true },
       filter: [{ field: 'status', condition: 'is', values: ['Completed', 'Closed'] }],
-      hint: 'Show resolved and closed requests',
+      hint: `Show resolved and closed ${ns}`,
     },
   ];
 
