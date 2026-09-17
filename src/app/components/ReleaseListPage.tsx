@@ -30,7 +30,65 @@ export interface Release {
 
 const UN = { name: 'Unassigned', initials: 'UN', color: '#9CA3AF' };
 
+/* ── Planned go-live window ──────────────────────────────────────────────────
+   One deterministic schedule per release, shared by the listing's calendar, rail,
+   tooltip and Gantt. Unlike a change (an evening window), a release RUNS: build,
+   staged deploy, verify — days to weeks. Every release is planned into the
+   May–July 2026 release train, June heaviest, so the Gantt shows a realistic
+   quarter of overlapping rollouts rather than two years of archaeology. */
+export const releaseScheduleOf = (r: Release): { start: Date; end: Date } => {
+  let i = mockReleases.findIndex((x) => x.id === r.id);
+  if (i < 0) i = r.id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 97, 7);
+  const start = new Date(2026, [5, 5, 4, 5, 6][i % 5], 1 + ((i * 7) % 27));
+  start.setHours([9, 11, 14, 17, 19, 21][i % 6], (i % 4) * 15, 0, 0);
+  const q = i % 10;
+  const durH =
+    q === 0 ? 8 + (i % 10)          // the odd same-day hotfix window
+    : q < 4 ? 24 * 2 + (i % 24)     // a 2–3 day deploy-and-verify window
+    : q < 7 ? 24 * 5 + (i % 48)     // a 5–7 day staged rollout
+    : q < 9 ? 24 * 10 + (i % 96)    // a 1.5–2 week phased program
+    : 24 * 21 + (i % 48);           // a three-week ramp, ring by ring
+  return { start, end: new Date(start.getTime() + durH * 3600e3) };
+};
+
+/* What the go-live window MEANS for users — themed to what the release touches
+   and written for a PHASED, multi-day process (waves, rings, cohorts), matching
+   the longer windows above. Shared by the calendar tooltip and the rail. */
+export const releaseImpactOf = (r: Release): string => {
+  const s = r.subject.toLowerCase();
+  if (/kubernetes|cluster/.test(s))
+    return 'The cluster upgrades in waves over several days — control plane first, then node pools one by one, so pods reschedule with brief restarts while the API stays up. Capacity runs one node short per wave, and autoscaling stays frozen until the final pool completes.';
+  if (/hotfix/.test(s))
+    return 'A same-day window: the fix ships dark behind a flag, is verified against the reported case in the morning, then ramps to all tenants through the afternoon. A targeted service restart (~2 min) applies it; rollback is a flag flip, not a redeploy.';
+  if (/mobile|app release/.test(s))
+    return 'The build ramps through the app stores across the window — 10% on day one, 50% mid-week, 100% at close — halting automatically if crash rates rise. The API serves both app versions throughout, so users update at their own pace with no forced upgrade.';
+  if (/security|patch deployment/.test(s))
+    return 'The fleet patches in nightly batches across the window; each batch reboots behind failover, verifies, and returns to the pool before the next begins. Users see reduced single-node capacity overnight and no daytime interruptions.';
+  if (/sso|identity|sign-on|entra/.test(s))
+    return 'Sign-in switches to the new provider in cohorts across the window; each cohort re-authenticates once and existing sessions stay valid until natural expiry. The legacy provider stays on as fallback until the final cohort completes.';
+  if (/payment|gateway/.test(s))
+    return 'Transactions migrate to the new gateway in traffic slices across the window, with dual-running reconciliation at every step. A slice rolls back independently if decline rates rise; settlement reports may arrive split across both processors mid-window.';
+  if (/esg|reporting|analytics|warehouse|etl|data/.test(s))
+    return 'Pipelines cut over stage by stage across the window; scheduled reports queue at each step and run once that stage is live. Dashboards may show partial data for up to a day mid-window while historical loads backfill against the new schema.';
+  if (/observability|telemetry|monitoring|logging/.test(s))
+    return 'Agents roll out fleet-wide in daily waves; hosts report to both stacks during their wave, so dashboards stay continuous. Alert routing switches per service as its wave verifies — expect duplicate notifications for a short overlap.';
+  if (/infrastructure|server/.test(s))
+    return 'Workloads move to the upgraded infrastructure in planned batches over the window, each batch a sub-minute failover with automatic failback verification. Batch processing pauses during its own slot only; the wider service keeps running throughout.';
+  if (/upgrade|version|platform/.test(s))
+    return 'The platform upgrades ring by ring across the window — internal users first, then customer cohorts — so issues surface small. Each ring sees one forced re-login at its switch, and background jobs pause briefly per ring at the version boundary.';
+  if (/deployment|rollout|module|pipeline|api|framework/.test(s))
+    return 'Blue-green waves across the window: each service group flips traffic sub-second with an instant rollback path, soak-tests for a day, then the next group follows. API consumers see no contract changes at any wave.';
+  return 'Low user impact expected across the window; the rollout advances in verified stages with an agreed hold point each day. The service desk gets a stage-by-stage notice, and the release team reviews health checks before each stage proceeds.';
+};
+
 export const mockReleases: Release[] = [
+  { id: 'REL-63', subject: 'Customer portal redesign rollout - wave 1',            requester: 'Ronak Patel',            createdDate: new Date(2026,5,4,10,12),   assignee: { name: 'Dilip Mehta',        initials: 'DM', color: '#6366F1' }, status: 'Build: In Progress',      priority: 'High',   releaseType: 'Major',       releaseRisk: 'Medium' },
+  { id: 'REL-62', subject: 'Payment gateway v2 migration',                         requester: 'Sakshi Gupta',           createdDate: new Date(2026,5,2,15,40),   assignee: { name: 'Shiv Sharma',        initials: 'SH', color: '#10B981' }, status: 'Approval: Pending',       priority: 'P1',     releaseType: 'Major',       releaseRisk: 'High'   },
+  { id: 'REL-61', subject: 'SSO provider migration to Entra ID',                   requester: 'Saahil Joshi',           createdDate: new Date(2026,4,28,11,25),  assignee: { name: 'Manasvi Shah',       initials: 'MS', color: '#F97316' }, status: 'Testing: In Progress',    priority: 'High',   releaseType: 'Significant', releaseRisk: 'Medium' },
+  { id: 'REL-60', subject: 'Observability stack rollout (OpenTelemetry)',          requester: 'Pavan Mehta',            createdDate: new Date(2026,4,26,9,50),   assignee: { name: 'Vaibhav Prajapati',  initials: 'VP', color: '#A78BFA' }, status: 'Deployment: In Progress', priority: 'Medium', releaseType: 'Standard',    releaseRisk: 'Low'    },
+  { id: 'REL-59', subject: 'Data warehouse ETL platform upgrade',                  requester: 'Sharad Patil',           createdDate: new Date(2026,4,22,14,5),   assignee: UN,                                                              status: 'Planning: In Progress',   priority: 'P2',     releaseType: 'Major',       releaseRisk: 'Medium' },
+  { id: 'REL-58', subject: 'API rate-limit policy release for partner tier',       requester: 'Shailendra Verma',       createdDate: new Date(2026,4,20,17,30),  assignee: { name: 'Dilip Mehta',        initials: 'DM', color: '#6366F1' }, status: 'Review: Failed',          priority: 'P2',     releaseType: 'Minor',       releaseRisk: 'Low'    },
+  { id: 'REL-57', subject: 'Monitoring agent fleet upgrade to v12',                requester: 'Ashutosh Kumar',         createdDate: new Date(2026,4,18,12,10),  assignee: { name: 'Mehmet Can Dut',     initials: 'MD', color: '#6366F1' }, status: 'Submitted: Requested',    priority: 'Medium', releaseType: 'Standard',    releaseRisk: 'Low'    },
   { id: 'REL-56', subject: 'ServiceOps platform patch upgrade to v8.7.4.22',              requester: 'Diksha Patel',          createdDate: new Date(2026,5,1,18,16),   assignee: { name: 'Dilip Mehta',        initials: 'DM', color: '#6366F1' }, status: 'Planning: In Progress',   priority: 'High',   releaseType: 'Minor',       releaseRisk: 'Low'   },
   { id: 'REL-55', subject: 'Kubernetes cluster upgrade to v1.29',                         requester: 'Manasvi Shah',           createdDate: new Date(2026,4,29,17,4),   assignee: { name: 'Manasvi Shah',       initials: 'MS', color: '#F97316' }, status: 'Submitted: Requested',    priority: 'Medium', releaseType: null,          releaseRisk: 'Low'   },
   { id: 'REL-53', subject: 'Production server infrastructure upgrade',                    requester: 'Pavan Mehta',            createdDate: new Date(2026,3,22,11,31),  assignee: { name: 'Pavan Mehta',        initials: 'PM', color: '#10B981' }, status: 'Planning: Cancelled',     priority: 'P1',     releaseType: 'Major',       releaseRisk: 'Low'   },

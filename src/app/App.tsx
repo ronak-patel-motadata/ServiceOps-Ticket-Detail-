@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TicketListPage } from './components/TicketListPage';
 import { ProblemListPage } from './components/ProblemListPage';
-import { ReleaseListPage } from './components/ReleaseListPage';
+import { ReleaseListingPage } from './components/ReleaseListingPage';
 import { HardwareAssetsListPage } from './components/HardwareAssetsListPage';
 import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
 import { NonItAssetsListPage } from './components/NonItAssetsListPage';
@@ -42,7 +42,7 @@ export default function App() {
       {activePage === 'views-lab' && <ViewsLabListPage onNavigate={navigate} />}
       {activePage === 'problem' && <ProblemListPage onNavigate={navigate} />}
       {activePage === 'change' && <ChangeListingPage onNavigate={navigate} />}
-      {activePage === 'release' && <ReleaseListPage onNavigate={navigate} />}
+      {activePage === 'release' && <ReleaseListingPage onNavigate={navigate} />}
       {activePage === 'hardware-assets' && <HardwareAssetsListPage onNavigate={navigate} />}
       {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}
       {activePage === 'non-it-assets' && <NonItAssetsListPage onNavigate={navigate} />}

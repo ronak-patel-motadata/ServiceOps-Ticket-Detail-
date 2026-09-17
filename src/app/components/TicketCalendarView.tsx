@@ -23,8 +23,9 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/** SLA tone drives the chip colour — the same rule the grid's Due By pill uses. */
-const TONE: Record<string, { dot: string; bg: string; fg: string }> = {
+/** SLA tone drives the chip colour — the same rule the grid's Due By pill uses.
+    Exported with the helpers below: the Gantt view speaks this same vocabulary. */
+export const TONE: Record<string, { dot: string; bg: string; fg: string }> = {
   breached: { dot: '#EF4444', bg: '#FEF2F2', fg: '#B42318' },
   due: { dot: '#F59E0B', bg: '#FFFAEB', fg: '#B54708' },
   ok: { dot: '#22C55E', bg: '#F0FDF4', fg: '#15803D' },
@@ -52,17 +53,17 @@ const sameDay = (a: Date, b: Date) =>
 
 const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
-const fmtTime = (d: Date) => {
+export const fmtTime = (d: Date) => {
   const h = d.getHours();
   const m = String(d.getMinutes()).padStart(2, '0');
   const ampm = h >= 12 ? 'PM' : 'AM';
   return `${((h + 11) % 12) + 1}:${m} ${ampm}`;
 };
 
-const fmtDay = (d: Date) => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
-const dayFloor = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+export const fmtDay = (d: Date) => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+export const dayFloor = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 /** The scheduled end — a missing or inverted end falls back to the start (a point event). */
-const endOf = (t: Ticket) => (t.dueEnd && t.dueEnd.getTime() > t.dueBy.getTime() ? t.dueEnd : t.dueBy);
+export const endOf = (t: Ticket) => (t.dueEnd && t.dueEnd.getTime() > t.dueBy.getTime() ? t.dueEnd : t.dueBy);
 const isMultiDay = (t: Ticket) => !sameDay(t.dueBy, endOf(t));
 const coversDay = (t: Ticket, d: Date) => {
   const x = dayFloor(d).getTime();
@@ -121,6 +122,98 @@ const CardTip = ({ tip, align = 'center', children }: { tip: string; align?: 'ce
       <span className={`absolute top-full border-4 border-transparent border-t-[#1E293B] ${align === 'right' ? 'right-2' : 'left-1/2 -ml-1'}`} />
     </span>
   </span>
+);
+
+/* One tooltip for every calendar surface — chip, bar, banner — so the hover card
+   never depends on which rendering the record happened to get. */
+export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) => (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={6}
+        className="max-w-none rounded-lg border border-[#E5E7EB] bg-white p-0 text-wrap text-[#364658] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+        arrowClassName="border-b border-r border-[#E5E7EB] bg-white fill-white"
+      >
+        <div className="w-max min-w-[286px] max-w-[360px] px-3 py-2.5">
+          <div className="flex items-start gap-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-medium text-[#94A3B8]">{t.id}</div>
+              <div className="mt-0.5 text-[12.5px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
+            </div>
+            {/* The kanban card's corner-avatar recipe: face only, name on hover. */}
+            <CardTip
+              align="right"
+              tip={t.assignedTo.name && t.assignedTo.name !== 'Unassigned' ? `Assigned to ${t.assignedTo.name}` : 'Unassigned'}
+            >
+              {t.assignedTo.name && t.assignedTo.name !== 'Unassigned' ? (
+                <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
+                  {t.assignedTo.initials}
+                </span>
+              ) : (
+                <span className="size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
+              )}
+            </CardTip>
+          </div>
+          {(endOf(t).getTime() > t.dueBy.getTime() || t.windowNote) && (
+            <div className="mt-2 grid grid-cols-[58px_1fr] items-start gap-x-3 gap-y-2 border-t border-[#F0F1F3] pt-2.5 text-[11px]">
+              {/* First fact on a calendar: the window is WHY the pill sits where it does. */}
+              {endOf(t).getTime() > t.dueBy.getTime() && (
+                <>
+                  <span className="text-[#7B8FA5]">Schedule</span>
+                  <span className="min-w-0 font-medium text-[#475569]">{windowLabel(t)}</span>
+                </>
+              )}
+              {t.windowNote && (
+                <>
+                  <span className="text-[#7B8FA5]">Impact</span>
+                  <span className="min-w-0 text-[#475569] line-clamp-3">{t.windowNote}</span>
+                </>
+              )}
+            </div>
+          )}
+          {/* The glanceable facts share one chip row — the kanban card's meta recipe
+              translated to the dark card. The SLA pill keeps its own tint;
+              the full deadline stays one click away on the record. */}
+          <div className="mt-2 flex items-center gap-1.5 border-t border-[#F0F1F3] pt-2.5">
+            {(() => {
+              const staged = t.stageStatus?.includes(': ') ? t.stageStatus.split(': ') : null;
+              return (
+                <CardTip tip={staged ? `Stage: ${staged[0]} · ${staged.slice(1).join(': ')}` : `Status: ${t.status}`}>
+                  <span className="inline-flex h-[22px] max-w-[190px] items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
+                    <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: STATUS_DOT[t.status] ?? '#94A3B8' }} />
+                    {staged ? (
+                      <span className="inline-flex min-w-0 items-center gap-1">
+                        <span className="flex-shrink-0 text-[#7B8FA5]">{staged[0]}</span>
+                        <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
+                        <span className="truncate">{staged.slice(1).join(': ')}</span>
+                      </span>
+                    ) : (
+                      t.status
+                    )}
+                  </span>
+                </CardTip>
+              );
+            })()}
+            <CardTip tip={`Priority: ${t.priority}`}>
+              <span className="inline-flex h-[22px] items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
+                <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: PRIORITY_DOT[t.priority] ?? '#94A3B8' }} />
+                {t.priority}
+              </span>
+            </CardTip>
+            {(() => {
+              const sla = dueBySla(t);
+              const dl = slaDeadline(t);
+              return (
+                <CardTip tip={`${sla.tone === 'done' ? 'SLA met' : 'SLA due'} ${fmtDay(dl)}, ${fmtTime(dl)}`}>
+                  <DueByPill tone={sla.tone} label={sla.label} compact className="h-[22px] flex-shrink-0" />
+                </CardTip>
+              );
+            })()}
+          </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
 );
 
 /** Month cells keep this many bar lanes; anything deeper folds into "+N more". */
@@ -226,85 +319,6 @@ export function TicketCalendarView({
     const b = dayFloor(days[days.length - 1]).getTime();
     return events.filter((t) => dayFloor(t.dueBy).getTime() <= b && dayFloor(endOf(t)).getTime() >= a).length;
   }, [events, days]);
-
-  /* One tooltip for every calendar surface — chip, bar, banner — so the hover card
-     never depends on which rendering the record happened to get. */
-  const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) => (
-      <Tooltip delayDuration={300}>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent
-          side="top"
-          sideOffset={6}
-          className="max-w-none rounded-lg border border-[#E5E7EB] bg-white p-0 text-wrap text-[#364658] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
-          arrowClassName="border-b border-r border-[#E5E7EB] bg-white fill-white"
-        >
-          <div className="w-[286px] px-3 py-2.5">
-            <div className="flex items-start gap-2.5">
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-medium text-[#94A3B8]">{t.id}</div>
-                <div className="mt-0.5 text-[12.5px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
-              </div>
-              {/* The kanban card's corner-avatar recipe: face only, name on hover. */}
-              <CardTip
-                align="right"
-                tip={t.assignedTo.name && t.assignedTo.name !== 'Unassigned' ? `Assigned to ${t.assignedTo.name}` : 'Unassigned'}
-              >
-                {t.assignedTo.name && t.assignedTo.name !== 'Unassigned' ? (
-                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">
-                    {t.assignedTo.initials}
-                  </span>
-                ) : (
-                  <span className="size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
-                )}
-              </CardTip>
-            </div>
-            {(endOf(t).getTime() > t.dueBy.getTime() || t.windowNote) && (
-              <div className="mt-2 grid grid-cols-[58px_1fr] items-start gap-x-3 gap-y-2 border-t border-[#F0F1F3] pt-2.5 text-[11px]">
-                {/* First fact on a calendar: the window is WHY the pill sits where it does. */}
-                {endOf(t).getTime() > t.dueBy.getTime() && (
-                  <>
-                    <span className="text-[#7B8FA5]">Schedule</span>
-                    <span className="min-w-0 font-medium text-[#475569]">{windowLabel(t)}</span>
-                  </>
-                )}
-                {t.windowNote && (
-                  <>
-                    <span className="text-[#7B8FA5]">Impact</span>
-                    <span className="min-w-0 text-[#475569] line-clamp-3">{t.windowNote}</span>
-                  </>
-                )}
-              </div>
-            )}
-            {/* The glanceable facts share one chip row — the kanban card's meta recipe
-                translated to the dark card. The SLA pill keeps its own tint;
-                the full deadline stays one click away on the record. */}
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[#F0F1F3] pt-2.5">
-              <CardTip tip={`Status: ${t.status}`}>
-                <span className="inline-flex h-[22px] items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
-                  <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: STATUS_DOT[t.status] ?? '#94A3B8' }} />
-                  {t.status}
-                </span>
-              </CardTip>
-              <CardTip tip={`Priority: ${t.priority}`}>
-                <span className="inline-flex h-[22px] items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
-                  <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: PRIORITY_DOT[t.priority] ?? '#94A3B8' }} />
-                  {t.priority}
-                </span>
-              </CardTip>
-              {(() => {
-                const sla = dueBySla(t);
-                const dl = slaDeadline(t);
-                return (
-                  <CardTip tip={`${sla.tone === 'done' ? 'SLA met' : 'SLA due'} ${fmtDay(dl)}, ${fmtTime(dl)}`}>
-                    <DueByPill tone={sla.tone} label={sla.label} compact className="h-[22px] flex-shrink-0" />
-                  </CardTip>
-                );
-              })()}
-            </div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-  );
 
   /* One chip = one record sitting at its start time. Colour carries the SLA state, so a
      week of red reads as trouble before a single word is parsed. */
@@ -485,11 +499,18 @@ export function TicketCalendarView({
                   const day = i - monthDays.lead + 1;
                   const d = new Date(cursor.getFullYear(), cursor.getMonth(), day);
                   const n = eventsOn(d).length;
-                  const sel = picked ? sameDay(d, picked) : false;
+                  const sel = picked ? sameDay(d, picked) : mode === 'day' && sameDay(d, cursor);
                   return (
                     <button
                       key={day}
-                      onClick={() => setPicked(sel ? null : d)}
+                      onClick={() => {
+                        if (mode === 'month') {
+                          setPicked(sel ? null : d);
+                        } else {
+                          setPicked(new Date(d));
+                          setCursor(new Date(d));
+                        }
+                      }}
                       className={`relative flex h-7 items-center justify-center rounded text-[12px] transition-colors ${
                         sel
                           ? 'bg-[#3D8BD0] font-semibold text-white'
@@ -679,8 +700,13 @@ export function TicketCalendarView({
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
                       {WEEKDAYS[d.getDay()]}
                     </div>
+                    {/* The date is the drill-down here too: click opens that day in Day view. */}
                     <button
-                      onClick={() => setPicked(isPicked ? null : new Date(d))}
+                      onClick={() => {
+                        setPicked(new Date(d));
+                        setCursor(new Date(d));
+                        setMode('day');
+                      }}
                       className={`mt-0.5 inline-flex size-7 items-center justify-center rounded-full text-[15px] font-semibold tabular-nums transition-colors ${
                         isPicked
                           ? 'bg-[#1E293B] text-white'
@@ -770,10 +796,15 @@ export function TicketCalendarView({
                         }`}
                       >
                         <div className="flex flex-shrink-0 items-center justify-between px-0.5">
-                          {/* The date is the handle: clicking it loads that day into the rail
-                              instead of navigating away from the month you are reading. */}
+                          {/* The date is the drill-down: click → the Day view of that day,
+                              with the rail's schedule loaded to match. (The mini month keeps
+                              the quieter load-into-rail behaviour for scanning.) */}
                           <button
-                            onClick={() => setPicked(picked && sameDay(d, picked) ? null : new Date(d))}
+                            onClick={() => {
+                              setPicked(new Date(d));
+                              setCursor(new Date(d));
+                              setMode('day');
+                            }}
                             className={`inline-flex size-6 items-center justify-center rounded-full text-[12px] tabular-nums transition-colors ${
                               picked && sameDay(d, picked)
                                 ? 'bg-[#1E293B] font-semibold text-white'

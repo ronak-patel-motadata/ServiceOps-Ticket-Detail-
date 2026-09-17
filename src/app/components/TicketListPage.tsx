@@ -25,6 +25,9 @@ export interface Ticket {
   dueEnd?: Date;
   /** What the window means for users — the Change Schedule's impact statement. */
   windowNote?: string;
+  /** The record's lifecycle stage + status ("Planning: In Progress") — Change and
+      Release rows carry it; surfaces show it in place of the flattened status. */
+  stageStatus?: string;
   createdBy: Date;
   assignedTo: {
     name: string;

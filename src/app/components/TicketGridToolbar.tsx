@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
@@ -59,6 +59,8 @@ const LAYOUTS = [
 ];
 /** Opt-in extra — only the Views Lab passes `showCalendar`. */
 const CALENDAR_LAYOUT = { key: 'calendar' as const, label: 'Calendar', Icon: CalendarDays };
+/** Opt-in extra — only the Release listing passes `showGantt`. */
+const GANTT_LAYOUT = { key: 'gantt' as const, label: 'Gantt', Icon: ChartGantt };
 
 /** Closes a popup on any outside click — shared by the three right-hand menus. */
 function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
@@ -92,6 +94,7 @@ export function TicketGridToolbar({
   dashScope,
   setDashScope,
   showCalendar = false,
+  showGantt = false,
   kanbanGroup,
   setKanbanGroup,
   kanbanSubGroup,
@@ -115,12 +118,14 @@ export function TicketGridToolbar({
   onClearSorts: () => void;
   /** Current list grouping label, or null when ungrouped. */
   listGroupLabel?: string | null;
-  view: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar';
-  setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar') => void;
+  view: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt';
+  setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt') => void;
   dashScope: 'all' | 'mine';
   setDashScope: (s: 'all' | 'mine') => void;
   /** Offer the prototype Calendar layout (Views Lab only). */
   showCalendar?: boolean;
+  /** Offer the Gantt timeline layout (Release listing only). */
+  showGantt?: boolean;
   kanbanGroup: KanbanGroup;
   setKanbanGroup: (g: KanbanGroup) => void;
   kanbanSubGroup: KanbanGroup | null;
@@ -680,7 +685,7 @@ export function TicketGridToolbar({
         </div>
 
         {/* Exporting rows and column sorting mean nothing on a dashboard. */}
-        {view !== 'dashboard' && view !== 'calendar' && (
+        {view !== 'dashboard' && view !== 'calendar' && view !== 'gantt' && (
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((v) => !v)}
@@ -837,7 +842,7 @@ export function TicketGridToolbar({
                     Layout
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
-                    {[...LAYOUTS, ...(showCalendar ? [CALENDAR_LAYOUT] : [])].map(({ key, label, Icon }) => (
+                    {[...LAYOUTS, ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => (
                       <Tooltip key={key} delayDuration={400}>
                         <TooltipTrigger asChild>
                           <button

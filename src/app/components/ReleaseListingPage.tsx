@@ -1,10 +1,10 @@
-/* ── Change listing ──────────────────────────────────────────────────────────
-   The Views Lab recipe promoted to a real module: the Change queue rendered through the
-   shared listing chrome, with all five layouts — List, List + KPI, Kanban, Dashboard and
-   Calendar. The queue is the REAL mockChanges pool mapped onto the Ticket shape the grid
-   renders (status/priority translated, a derived evening scheduled-start as the calendar
-   axis); the original Change rides in a lookup so every click opens the real ChangeDrawer.
-   File-per-module clone, per the project rule — divergence here can never break Requests. */
+/* ── Release listing ─────────────────────────────────────────────────────────
+   The Change listing recipe cloned onto the Release queue: the shared listing chrome
+   with all five layouts — List, List + KPI, Kanban, Dashboard and Calendar. The queue
+   is the REAL mockReleases pool mapped onto the Ticket shape the grid renders
+   (status/priority translated, a shared go-live window as the calendar axis); the
+   original Release rides in a lookup so every click opens the real ReleaseDrawer.
+   File-per-module clone, per the project rule — divergence here can never break Changes. */
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -19,7 +19,8 @@ import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { TicketCalendarView } from './TicketCalendarView';
-import { changeImpactOf, changeScheduleOf, mockChanges, type Change } from './ChangeListPage';
+import { TicketGanttView } from './TicketGanttView';
+import { releaseImpactOf, releaseScheduleOf, mockReleases, type Release } from './ReleaseListPage';
 import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
@@ -62,34 +63,42 @@ function DrillCrumb({
         <h1 className="truncate text-[17px] font-semibold text-[#1E293B]">{label}</h1>
         <span className="h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />
         <span className="flex-shrink-0 text-[12px] text-[#7B8FA5]">
-          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} changes
+          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} releases
         </span>
       </div>
     </div>
   );
 }
 
-/* The queue: mockChanges mapped onto the Ticket shape the shared chrome renders, with
-   the ORIGINAL Change kept aside so clicks open the real ChangeDrawer. Scheduled starts
-   are evenings after creation — change windows, not office hours. */
-const CHANGE_STATUS = (st: string): Ticket['status'] =>
-  /pending/i.test(st) ? 'Pending' : /progress|implementation/i.test(st) ? 'In Progress' : /closed|completed/i.test(st) ? 'Completed' : 'Open';
-const CHANGE_PRIORITY = (pr: string): Ticket['priority'] =>
+/* The queue: mockReleases mapped onto the Ticket shape the shared chrome renders, with
+   the ORIGINAL Release kept aside so clicks open the real ReleaseDrawer. Go-live windows
+   come from the shared schedule helper — evenings and release weekends, not office hours. */
+const RELEASE_STATUS = (st: string): Ticket['status'] =>
+  /cancel/i.test(st)
+    ? 'Cancelled'
+    : /pending|approval/i.test(st)
+      ? 'Pending'
+      : /progress|build|testing|deployment/i.test(st)
+        ? 'In Progress'
+        : /closed|completed/i.test(st)
+          ? 'Completed'
+          : 'Open';
+const RELEASE_PRIORITY = (pr: string): Ticket['priority'] =>
   /p1|urgent/i.test(pr) ? 'Urgent' : /high|p2/i.test(pr) ? 'High' : /low|p4/i.test(pr) ? 'Low' : 'Medium';
-const CHANGES: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
-  const byId = new Map<string, Change>();
-  const rows = mockChanges.map((c, i) => {
+const RELEASES: { rows: Ticket[]; byId: Map<string, Release> } = (() => {
+  const byId = new Map<string, Release>();
+  const rows = mockReleases.map((c, i) => {
     byId.set(c.id, c);
-    /* The planned window comes from the shared schedule helper, so the calendar and
-       the Planning tab's Change Schedule can never disagree. */
-    const win = changeScheduleOf(c);
+    /* The planned go-live window comes from the shared schedule helper — one source
+       of truth for the calendar grid, the rail and the tooltip. */
+    const win = releaseScheduleOf(c);
     return {
       id: c.id,
       subject: c.subject,
       requester: c.requester,
       dueBy: win.start,
       dueEnd: win.end,
-      windowNote: changeImpactOf(c),
+      windowNote: releaseImpactOf(c),
       createdBy: c.createdDate,
       /* A slice of the queue belongs to the signed-in technician, so the "My …" views
          and the dashboard's My-view scope have something real to show. */
@@ -97,16 +106,16 @@ const CHANGES: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
         i % 5 === 2
           ? { name: CURRENT_USER, initials: CURRENT_USER_INITIALS }
           : { name: c.assignee.name, initials: c.assignee.initials },
-      status: CHANGE_STATUS(c.status),
+      status: RELEASE_STATUS(c.status),
       stageStatus: c.status,
-      priority: CHANGE_PRIORITY(c.priority),
+      priority: RELEASE_PRIORITY(c.priority),
     } as Ticket;
   });
   return { rows, byId };
 })();
 
-export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
-  const [tickets, setTickets] = useState<Ticket[]>(CHANGES.rows);
+export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const [tickets, setTickets] = useState<Ticket[]>(RELEASES.rows);
   // Assignee / Status / Priority are editable straight from the grid.
   const updateTicket = (id: string, patch: Partial<Ticket>) =>
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -123,11 +132,11 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const startView = getDefaultView('change');
+  const startView = getDefaultView('release');
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list-kpi');
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt'>('list-kpi');
   /* Set only when the list was reached by clicking something on the dashboard. It carries the
      trail back: what was clicked, and the filters that were in force before the drill. */
   const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
@@ -160,7 +169,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
   const sortDirection = sorts[0]?.dir ?? 'asc';
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState(startView?.name ?? 'All Changes');
+  const [activeView, setActiveView] = useState(startView?.name ?? 'All Releases');
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -172,8 +181,8 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
   const { open: openInStack } = useDrawerStack();
 
   const handleOpenTicket = (ticket: Ticket) => {
-    // Every row is a change — open the real ChangeDrawer with the original record.
-    openInStack('change', ticket.id, ticket.subject, CHANGES.byId.get(ticket.id) ?? ticket);
+    // Every row is a release — open the real ReleaseDrawer with the original record.
+    openInStack('release', ticket.id, ticket.subject, RELEASES.byId.get(ticket.id) ?? ticket);
   };
 
   const handleCloseDrawer = () => {
@@ -331,7 +340,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
 
   return (
     <div className="flex h-screen bg-[#f9fafb]">
-      <Sidebar activePage="change" onNavigate={onNavigate} />
+      <Sidebar activePage="release" onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -340,7 +349,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
               restores it exactly as it was. */}
           {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
-              store="change"
+              store="release"
               active={activeView}
               onSelect={(v: TicketView) => {
                 setActiveView(v.name);
@@ -371,7 +380,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
         <main className="flex-1 overflow-hidden flex flex-col">
           <div
             className={`flex-1 bg-white min-h-0 ${
-              view === 'kanban' || view === 'calendar' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
+              view === 'kanban' || view === 'calendar' || view === 'gantt' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
             }`}
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
@@ -380,7 +389,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
               screen that is only ever about the thing the user clicked. */}
           {view === 'list-kpi' && !drillFrom && (
             <TicketStatsRow
-              noun="change"
+              noun="release"
               tickets={tickets}
               rules={filterRules}
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
@@ -392,8 +401,8 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
-            noun="change"
-            viewsStore="change"
+            noun="release"
+            viewsStore="release"
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -428,13 +437,16 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             dashScope={dashScope}
             setDashScope={setDashScope}
             showCalendar
+            showGantt
           />
           </div>
-          {view === 'calendar' ? (
-            <TicketCalendarView tickets={sortedTickets} noun="change" onTicketClick={handleOpenTicket} />
+          {view === 'gantt' ? (
+            <TicketGanttView tickets={sortedTickets} noun="release" onTicketClick={handleOpenTicket} />
+          ) : view === 'calendar' ? (
+            <TicketCalendarView tickets={sortedTickets} noun="release" onTicketClick={handleOpenTicket} />
           ) : view === 'kanban' ? (
             <TicketKanban
-              noun="change"
+              noun="release"
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
@@ -450,7 +462,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
                  filters here would silently redraw every chart with no way to see why. */
               tickets={tickets}
               scope={dashScope}
-              noun="change"
+              noun="release"
               onTicketClick={handleOpenTicket}
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules
@@ -463,7 +475,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             />
           ) : (
             <TicketTable
-              noun="change"
+              noun="release"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}
@@ -515,7 +527,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             footerGroup && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                 <span className="text-[12px] text-[#64748B] tabular-nums">
-                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> changes in{' '}
+                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> releases in{' '}
                   <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
