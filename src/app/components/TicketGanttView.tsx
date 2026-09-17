@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf } from './TicketTable';
-import { EventTip, TONE, dayFloor, endOf, fmtDay, fmtTime } from './TicketCalendarView';
+import { EventTip, TONE, dayFloor, endOf, fmtDay, fmtTime, readinessOf } from './TicketCalendarView';
 
 /* ── Gantt view ──────────────────────────────────────────────────────────────
    The queue on a time axis — the release-timeline pattern the ITSM field leads
@@ -29,6 +29,8 @@ const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 type Grain = 'month' | 'quarter';
+
+/* readinessOf is shared with the hover card — it lives beside EventTip now. */
 
 export function TicketGanttView({
   tickets,
@@ -89,7 +91,7 @@ export function TicketGanttView({
   /* Each day keeps a readable minimum width. On a wide screen the columns still
      stretch to fill (the % maths is width-agnostic); on a small one the timeline
      overflows into horizontal scroll under the frozen rail instead of shrinking. */
-  const tlMin = Math.round(dayCount * (grain === 'month' ? 44 : 13.5));
+  const tlMin = Math.round(dayCount * (grain === 'month' ? 64 : 18));
 
   /* Every record whose window touches the period, earliest start first — the reading
      order a timeline promises. */
@@ -248,17 +250,47 @@ export function TicketGanttView({
                rather than a squashed pill full of clipped text. */
             const slim = width < 3;
             return (
-              <div key={t.id} className="group relative flex h-[46px] items-center border-b border-[#F5F7FA] transition-colors hover:bg-[#64748B]/[0.05]">
+              <div key={t.id} className="group relative flex h-[76px] items-center border-b border-[#F5F7FA] transition-colors hover:bg-[#64748B]/[0.05]">
                 <button
                   onClick={() => onTicketClick(t)}
-                  className="sticky left-0 z-10 flex h-full flex-shrink-0 items-center gap-2 border-r border-[#E5E7EB] bg-white px-4 text-left transition-colors group-hover:bg-[#F3F5F8]"
+                  className="sticky left-0 z-10 flex h-full flex-shrink-0 flex-col justify-center border-r border-[#E5E7EB] bg-white px-4 text-left transition-colors group-hover:bg-[#F3F5F8]"
                   style={{ width: RAIL_W }}
                 >
-                  <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: tone.dot }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12px] font-medium text-[#364658]">{t.subject}</span>
-                    <span className="block text-[10.5px] font-medium text-[#94A3B8]">{t.id}</span>
-                  </span>
+                  {(() => {
+                    const r = readinessOf(t);
+                    return (
+                      <>
+                        <span className="flex w-full items-center gap-2">
+                          <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: tone.dot }} />
+                          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{t.subject}</span>
+                        </span>
+                        <span className="mt-1 flex w-full items-center gap-1.5 pl-[14px]">
+                          <span className="flex-shrink-0 text-[10.5px] font-medium text-[#94A3B8]">{t.id}</span>
+                          {r?.note && (
+                            <>
+                              <span className="text-[10px] text-[#CBD5E1]">·</span>
+                              <span className="truncate text-[10px] font-medium" style={{ color: r.color }}>
+                                {r.note}
+                              </span>
+                            </>
+                          )}
+                          {r && (
+                            <span className="ml-auto flex-shrink-0 text-[10.5px] font-medium tabular-nums text-[#64748B]">
+                              {Math.min(r.pct, 100)}%
+                            </span>
+                          )}
+                        </span>
+                        {r && (
+                          <span className="mt-1.5 ml-[14px] block h-[4px] overflow-hidden rounded-full bg-[#EEF1F4]" style={{ width: RAIL_W - 32 - 14 }}>
+                            <span
+                              className="block h-full rounded-full"
+                              style={{ width: `${Math.min(r.pct, 100)}%`, backgroundColor: r.color }}
+                            />
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </button>
                 <div className="relative h-full min-w-0 flex-1">
                   <EventTip t={t}>

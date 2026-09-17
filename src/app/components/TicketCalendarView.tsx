@@ -155,6 +155,28 @@ export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) =>
               )}
             </CardTip>
           </div>
+          {(() => {
+            const r = readinessOf(t);
+            if (!r) return null;
+            const sp = stageProgress(t);
+            return (
+              <div className="mt-2 rounded-md px-2.5 py-2" style={{ backgroundColor: r.bg }}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: r.fg }}>
+                    Readiness
+                  </span>
+                  {r.note && (
+                    <span className="text-[10px] font-semibold" style={{ color: r.fg }}>
+                      {r.note}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[12px] font-semibold" style={{ color: r.fg }}>
+                  {Math.min(r.pct, 100)}%{sp ? ` — ${sp.n} of ${sp.m} stages complete` : ''}
+                </div>
+              </div>
+            );
+          })()}
           {(endOf(t).getTime() > t.dueBy.getTime() || t.windowNote) && (
             <div className="mt-2 grid grid-cols-[58px_1fr] items-start gap-x-3 gap-y-2 border-t border-[#F0F1F3] pt-2.5 text-[11px]">
               {/* First fact on a calendar: the window is WHY the pill sits where it does. */}
@@ -215,6 +237,46 @@ export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) =>
       </TooltipContent>
     </Tooltip>
 );
+
+/* Where the record sits on its module's stage ladder — "3 of 8 stages complete".
+   The ladder comes from the id family: CHG- walks the change lifecycle, REL- the
+   release one (the stages the detail pages show). */
+const stageProgress = (t: Ticket): { n: number; m: number } | null => {
+  const stg = t.stageStatus?.split(':')[0]?.trim();
+  if (!stg) return null;
+  const ladder = t.id.startsWith('CHG')
+    ? ['Submitted', 'Planning', 'Approval', 'Implementation', 'Review', 'Completed']
+    : ['Submitted', 'Planning', 'Approval', 'Build', 'Testing', 'Deployment', 'Review', 'Completed'];
+  const idx = ladder.indexOf(stg);
+  if (idx < 0) return null;
+  return { n: stg === 'Completed' ? ladder.length : idx, m: ladder.length };
+};
+
+/* ── Readiness, derived from the record's lifecycle stage ──────────────────────
+   Deterministic per record: the stage sets the band (planning low, build mid,
+   testing high, deployment nearly done), an id hash adds realistic jitter. A
+   failed review or a rejection reads as BLOCKED in red — the state a manager
+   must see from across the room. Records without a stage return null. Shared
+   by the Gantt rail and the hover card, so the two can never disagree. */
+export const readinessOf = (
+  t: Ticket,
+): { pct: number; color: string; bg: string; fg: string; note?: string } | null => {
+  const st = t.stageStatus;
+  if (!st) return null;
+  const sp = stageProgress(t);
+  if (!sp) return null;
+  const pct = Math.round((sp.n / sp.m) * 100);
+  const red = { color: '#EF4444', bg: '#FEF2F2', fg: '#B42318' };
+  const amber = { color: '#F59E0B', bg: '#FFFAEB', fg: '#B54708' };
+  const green = { color: '#22C55E', bg: '#F0FDF4', fg: '#15803D' };
+  const gray = { color: '#94A3B8', bg: '#F8FAFC', fg: '#64748B' };
+  if (/completed|closed/i.test(st)) return { pct: 100, ...green };
+  if (/review: failed/i.test(st)) return { pct, ...red, note: 'blocked' };
+  if (/rejected/i.test(st)) return { pct, ...red, note: 'rejected' };
+  if (/cancel/i.test(st)) return { pct, ...gray, note: 'cancelled' };
+  if (/deployment/i.test(st)) return { pct, ...green };
+  return { pct, ...amber };
+};
 
 /** Month cells keep this many bar lanes; anything deeper folds into "+N more". */
 const MAX_MONTH_LANES = 4;
