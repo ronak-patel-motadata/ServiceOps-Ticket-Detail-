@@ -1118,7 +1118,9 @@ export function TicketTable({
     setInsertAt(null);
     setPhQ('');
   };
-  const MAX_FROZEN = 3;
+  /* Freeze cap: the first TWO columns (ID + Subject) — enough to keep a row
+     identifiable while scrolling, without eating the viewport. */
+  const MAX_FROZEN = 2;
   const [frozenUpTo, setFrozenUpTo] = useState<string | null>(null);
   // Grouping — toggled from any column header menu; every group band is collapsible.
   const [groupBy, setGroupBy] = useState<string | null>(null);
