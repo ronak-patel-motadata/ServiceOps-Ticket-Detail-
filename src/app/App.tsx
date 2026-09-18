@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TicketListPage } from './components/TicketListPage';
-import { ProblemListPage } from './components/ProblemListPage';
+import { ProblemListingPage } from './components/ProblemListingPage';
 import { ReleaseListingPage } from './components/ReleaseListingPage';
 import { HardwareAssetsListPage } from './components/HardwareAssetsListPage';
 import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
@@ -40,7 +40,7 @@ export default function App() {
     <DrawerStackProvider activePage={activePage}>
       {activePage === 'request' && <TicketListPage onNavigate={navigate} />}
       {activePage === 'views-lab' && <ViewsLabListPage onNavigate={navigate} />}
-      {activePage === 'problem' && <ProblemListPage onNavigate={navigate} />}
+      {activePage === 'problem' && <ProblemListingPage onNavigate={navigate} />}
       {activePage === 'change' && <ChangeListingPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListingPage onNavigate={navigate} />}
       {activePage === 'hardware-assets' && <HardwareAssetsListPage onNavigate={navigate} />}

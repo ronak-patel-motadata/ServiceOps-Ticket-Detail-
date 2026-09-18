@@ -428,7 +428,17 @@ function AddRecordButton({
   );
 }
 
-export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: boolean } = {}) {
+export function TicketGroupSuggestions({
+  panelOnly = false,
+  soloMode = false,
+  onGroupConsumed,
+}: {
+  panelOnly?: boolean;
+  /** Host opens ONE group: resolving it closes the panel instead of showing the list. */
+  soloMode?: boolean;
+  /** Fired when a group is merged / created / ignored, so the host can clear its entry point. */
+  onGroupConsumed?: (id: string) => void;
+} = {}) {
   const [groups, setGroups] = useState<SuggestedGroup[]>(GROUP_SEEDS);
   const [dismissed, setDismissed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -505,10 +515,11 @@ export function TicketGroupSuggestions({ panelOnly = false }: { panelOnly?: bool
   const consumeGroup = (id: string) => {
     setGroups((prev) => {
       const next = prev.filter((g) => g.id !== id);
-      if (next.length === 0) setPanelOpen(false);
+      if (next.length === 0 || soloMode) setPanelOpen(false);
       return next;
     });
     setOpenGroupId(null);
+    onGroupConsumed?.(id);
   };
 
   const removeTicket = (groupId: string, ticketId: string) => {

@@ -28,6 +28,10 @@ export interface Ticket {
   /** The record's lifecycle stage + status ("Planning: In Progress") — Change and
       Release rows carry it; surfaces show it in place of the flattened status. */
   stageStatus?: string;
+  /** Module taxonomy (Change Type/Risk, Release Type/Risk) — Change and Release
+      rows carry these; null = not set yet. */
+  changeType?: string | null;
+  changeRisk?: string | null;
   createdBy: Date;
   assignedTo: {
     name: string;

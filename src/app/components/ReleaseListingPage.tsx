@@ -108,6 +108,8 @@ const RELEASES: { rows: Ticket[]; byId: Map<string, Release> } = (() => {
           : { name: c.assignee.name, initials: c.assignee.initials },
       status: RELEASE_STATUS(c.status),
       stageStatus: c.status,
+      changeType: c.releaseType,
+      changeRisk: c.releaseRisk,
       priority: RELEASE_PRIORITY(c.priority),
     } as Ticket;
   });
@@ -476,6 +478,7 @@ export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string)
           ) : (
             <TicketTable
               noun="release"
+              moduleCols="release"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}

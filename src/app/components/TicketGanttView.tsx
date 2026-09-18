@@ -91,7 +91,8 @@ export function TicketGanttView({
   /* Each day keeps a readable minimum width. On a wide screen the columns still
      stretch to fill (the % maths is width-agnostic); on a small one the timeline
      overflows into horizontal scroll under the frozen rail instead of shrinking. */
-  const tlMin = Math.round(dayCount * (grain === 'month' ? 64 : 18));
+  /* 76px = the row height, so a month cell reads as a clean square. */
+  const tlMin = Math.round(dayCount * (grain === 'month' ? 76 : 18));
 
   /* Every record whose window touches the period, earliest start first — the reading
      order a timeline promises. */

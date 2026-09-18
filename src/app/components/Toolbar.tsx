@@ -9,9 +9,12 @@ interface ToolbarProps {
   activeView: string;
   viewsOpen: boolean;
   onToggleViews: () => void;
+  /** Page-supplied AI pill (the "Suggested groups" recipe) — the Problem listing
+      parks its suggestion here after "Not now". */
+  suggestPill?: { label: string; count: number; onClick: () => void };
 }
 
-export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews }: ToolbarProps) {
+export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews, suggestPill }: ToolbarProps) {
   // Mirrors the AI grouping banner: when the user hits "Not now", this compact
   // AI pill appears here so the suggestions stay one click away.
   const [aiGroups, setAiGroups] = useState<{ hidden: boolean; count: number }>({ hidden: false, count: 0 });
@@ -37,6 +40,25 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
         </div>
         
         <div className="flex items-center gap-2">
+          {suggestPill && (
+            <button
+              onClick={suggestPill.onClick}
+              className="mr-1 inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded px-3 text-[12px] font-medium text-[#364658] transition-all duration-200 hover:text-[#3D8BD0] hover:shadow-sm"
+              style={{
+                background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, rgba(76, 177, 254, 0.80) 0%, rgba(115, 30, 251, 0.80) 41.49%, rgba(249, 17, 227, 0.80) 100%) border-box',
+                border: '1px solid transparent',
+              }}
+            >
+              <AiSparkle size={13} />
+              {suggestPill.label}
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#364658]"
+                style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%)' }}
+              >
+                {suggestPill.count}
+              </span>
+            </button>
+          )}
           {aiGroups.hidden && aiGroups.count > 0 && (
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('open-suggested-groups'))}

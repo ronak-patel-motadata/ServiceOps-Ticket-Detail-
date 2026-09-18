@@ -196,6 +196,23 @@ const PRIORITY_OPTIONS: CellOption[] = [
   { label: 'High', color: '#ef4444' },
   { label: 'Urgent', color: '#dc2626' },
 ];
+const CHANGE_TYPE_OPTIONS: CellOption[] = [
+  { label: 'Normal', color: '#3D8BD0' },
+  { label: 'Standard', color: '#22c55e' },
+  { label: 'Emergency', color: '#ef4444' },
+];
+const RELEASE_TYPE_OPTIONS: CellOption[] = [
+  { label: 'Minor', color: '#94A3B8' },
+  { label: 'Major', color: '#fb923c' },
+  { label: 'Standard', color: '#ef4444' },
+  { label: 'Significant', color: '#84CC16' },
+];
+/* One risk palette serves both modules — Low green, Medium amber, High red. */
+const CHANGE_RISK_OPTIONS: CellOption[] = [
+  { label: 'Low', color: '#22c55e' },
+  { label: 'Medium', color: '#fb923c' },
+  { label: 'High', color: '#ef4444' },
+];
 const IMPACT_OPTIONS: CellOption[] = [
   { label: 'Low', color: '#22c55e' },
   { label: 'On Users', color: '#fb923c' },
@@ -863,6 +880,10 @@ interface TicketTableProps {
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
   /** What one record is called — the Change listing renders this grid as "changes". */
   noun?: string;
+  /** Module column set: SLA Status out; editable Type / Risk sit after Priority
+      ("Change Type/Risk" or "Release Type/Risk"). Each module gets its own storage
+      key, so request column prefs stay intact. */
+  moduleCols?: 'change' | 'release';
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
@@ -873,6 +894,7 @@ interface TicketTableProps {
 export function TicketTable({
   tickets,
   noun = 'request',
+  moduleCols,
   selectedTickets,
   allSelected,
   onSelectAll,
@@ -1015,19 +1037,34 @@ export function TicketTable({
   /* Columns are drag-to-reorder from the header (tab-strip DnD recipe: dimmed source,
      blue left drop indicator); the order persists like the Customize Layout sections.
      `flex` columns share out leftover width; the rest hold the width they were given. */
-  const COL_DEFS: ColDef[] = [
-    { key: 'id', label: 'ID', w: 96 },
-    { key: 'subject', label: 'Subject', flex: true, w: 460 },
-    { key: 'requester', label: 'Requester', flex: true, w: 170 },
-    { key: 'assignee', label: 'Assigned to', flex: true, w: 170 },
-    { key: 'dueStatus', label: 'SLA Status', w: 142 },
-    { key: 'status', label: 'Status', w: 152 },
-    { key: 'priority', label: 'Priority', w: 132 },
-    { key: 'created', label: 'Created Date', flex: true, w: 190 },
-  ];
+  const TYPE_OPTS = moduleCols === 'release' ? RELEASE_TYPE_OPTIONS : CHANGE_TYPE_OPTIONS;
+  const Mod = moduleCols === 'release' ? 'Release' : 'Change';
+  const COL_DEFS: ColDef[] = moduleCols
+    ? [
+        { key: 'id', label: 'ID', w: 96 },
+        { key: 'subject', label: 'Subject', flex: true, w: 460 },
+        { key: 'requester', label: 'Requester', flex: true, w: 170 },
+        { key: 'assignee', label: 'Assigned to', flex: true, w: 170 },
+        { key: 'dueStatus', label: 'SLA Status', w: 142 },
+        { key: 'status', label: 'Status', w: 152 },
+        { key: 'priority', label: 'Priority', w: 132 },
+        { key: 'changeType', label: `${Mod} Type`, w: 150 },
+        { key: 'changeRisk', label: `${Mod} Risk`, w: 140 },
+        { key: 'created', label: 'Created Date', flex: true, w: 190 },
+      ]
+    : [
+        { key: 'id', label: 'ID', w: 96 },
+        { key: 'subject', label: 'Subject', flex: true, w: 460 },
+        { key: 'requester', label: 'Requester', flex: true, w: 170 },
+        { key: 'assignee', label: 'Assigned to', flex: true, w: 170 },
+        { key: 'dueStatus', label: 'SLA Status', w: 142 },
+        { key: 'status', label: 'Status', w: 152 },
+        { key: 'priority', label: 'Priority', w: 132 },
+        { key: 'created', label: 'Created Date', flex: true, w: 190 },
+      ];
   const CATALOG: ColDef[] = [...COL_DEFS, ...EXTRA_COLS];
   // The stored value is the ordered VISIBLE set — removing a column persists too.
-  const COL_ORDER_KEY = 'ticketListColumnsV2';
+  const COL_ORDER_KEY = moduleCols ? `${moduleCols}ListColumnsV2` : 'ticketListColumnsV2';
   const [colOrder, setColOrder] = useState<string[]>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(COL_ORDER_KEY) || 'null');
@@ -1130,6 +1167,7 @@ export function TicketTable({
   const SORT_FIELD: Record<string, keyof Ticket> = {
     id: 'id', subject: 'subject', requester: 'requester', assignee: 'assignedTo',
     dueStatus: 'dueBy', status: 'status', priority: 'priority', created: 'createdBy',
+    changeType: 'changeType', changeRisk: 'changeRisk',
   };
   const hideColumn = (key: string) => applyColumns(colOrder.filter((k) => k !== key));
 
@@ -1346,6 +1384,40 @@ export function TicketTable({
                 </InlineSelect>
               </td>
         );
+      case 'changeType': {
+        const v = ticket.changeType;
+        return (
+              <td className="px-2 py-0 whitespace-nowrap">
+                <InlineSelect options={TYPE_OPTS} value={v ?? undefined} onPick={(label) => onUpdateTicket?.(ticket.id, { changeType: label } as Partial<Ticket>)}>
+                  {v ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: TYPE_OPTS.find((o) => o.label === v)?.color ?? '#94A3B8' }} />
+                      <span className="truncate text-[12px] text-[#4A5568]">{v}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[12px] text-[#B6C2D1]">---</span>
+                  )}
+                </InlineSelect>
+              </td>
+        );
+      }
+      case 'changeRisk': {
+        const v = ticket.changeRisk;
+        return (
+              <td className="px-2 py-0 whitespace-nowrap">
+                <InlineSelect options={CHANGE_RISK_OPTIONS} value={v ?? undefined} onPick={(label) => onUpdateTicket?.(ticket.id, { changeRisk: label } as Partial<Ticket>)}>
+                  {v ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: CHANGE_RISK_OPTIONS.find((o) => o.label === v)?.color ?? '#94A3B8' }} />
+                      <span className="truncate text-[12px] text-[#4A5568]">{v}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[12px] text-[#B6C2D1]">---</span>
+                  )}
+                </InlineSelect>
+              </td>
+        );
+      }
       case 'created':
         return (
               <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">

@@ -1,9 +1,9 @@
-/* ── Change listing ──────────────────────────────────────────────────────────
-   The Views Lab recipe promoted to a real module: the Change queue rendered through the
-   shared listing chrome, with all five layouts — List, List + KPI, Kanban, Dashboard and
-   Calendar. The queue is the REAL mockChanges pool mapped onto the Ticket shape the grid
-   renders (status/priority translated, a derived evening scheduled-start as the calendar
-   axis); the original Change rides in a lookup so every click opens the real ChangeDrawer.
+/* ── Problem listing ─────────────────────────────────────────────────────────
+   The ticket-listing recipe cloned onto the Problem queue: the shared listing chrome
+   with List, List + KPI, Kanban and Dashboard over the REAL mockProblems pool, every
+   click opening the real ProblemDrawer. The AI-SUGGESTED problem from the request-
+   grouping engine keeps its slot — an AI-gradient strip pinned above the grid that can
+   be created as a real problem or dismissed in place.
    File-per-module clone, per the project rule — divergence here can never break Requests. */
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
@@ -19,7 +19,9 @@ import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { TicketCalendarView } from './TicketCalendarView';
-import { changeImpactOf, changeScheduleOf, mockChanges, type Change } from './ChangeListPage';
+import { mockProblems, type Problem } from './ProblemListPage';
+import { AiSparkle } from './AiSparkle';
+import { TicketGroupSuggestions } from './TicketGroupSuggestions';
 import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
@@ -62,34 +64,34 @@ function DrillCrumb({
         <h1 className="truncate text-[17px] font-semibold text-[#1E293B]">{label}</h1>
         <span className="h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />
         <span className="flex-shrink-0 text-[12px] text-[#7B8FA5]">
-          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} changes
+          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} problems
         </span>
       </div>
     </div>
   );
 }
 
-/* The queue: mockChanges mapped onto the Ticket shape the shared chrome renders, with
-   the ORIGINAL Change kept aside so clicks open the real ChangeDrawer. Scheduled starts
-   are evenings after creation — change windows, not office hours. */
-const CHANGE_STATUS = (st: string): Ticket['status'] =>
-  /pending/i.test(st) ? 'Pending' : /progress|implementation/i.test(st) ? 'In Progress' : /closed|completed/i.test(st) ? 'Completed' : 'Open';
-const CHANGE_PRIORITY = (pr: string): Ticket['priority'] =>
-  /p1|urgent/i.test(pr) ? 'Urgent' : /high|p2/i.test(pr) ? 'High' : /low|p4/i.test(pr) ? 'Low' : 'Medium';
-const CHANGES: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
-  const byId = new Map<string, Change>();
-  const rows = mockChanges.map((c, i) => {
+/* The queue: mockProblems mapped onto the Ticket shape the shared chrome renders, with
+   the ORIGINAL Problem kept aside so clicks open the real ProblemDrawer. */
+const PROBLEM_STATUS = (st: string): Ticket['status'] =>
+  /qa|pending/i.test(st)
+    ? 'Pending'
+    : /progress/i.test(st)
+      ? 'In Progress'
+      : /resolved/i.test(st)
+        ? 'Completed'
+        : /closed/i.test(st)
+          ? 'Closed'
+          : 'Open';
+const PROBLEMS: { rows: Ticket[]; byId: Map<string, Problem> } = (() => {
+  const byId = new Map<string, Problem>();
+  const rows = mockProblems.map((c, i) => {
     byId.set(c.id, c);
-    /* The planned window comes from the shared schedule helper, so the calendar and
-       the Planning tab's Change Schedule can never disagree. */
-    const win = changeScheduleOf(c);
     return {
       id: c.id,
       subject: c.subject,
       requester: c.requester,
-      dueBy: win.start,
-      dueEnd: win.end,
-      windowNote: changeImpactOf(c),
+      dueBy: c.createdDate,
       createdBy: c.createdDate,
       /* A slice of the queue belongs to the signed-in technician, so the "My …" views
          and the dashboard's My-view scope have something real to show. */
@@ -97,18 +99,21 @@ const CHANGES: { rows: Ticket[]; byId: Map<string, Change> } = (() => {
         i % 5 === 2
           ? { name: CURRENT_USER, initials: CURRENT_USER_INITIALS }
           : { name: c.assignee.name, initials: c.assignee.initials },
-      status: CHANGE_STATUS(c.status),
-      stageStatus: c.status,
-      changeType: c.changeType,
-      changeRisk: c.changeRisk,
-      priority: CHANGE_PRIORITY(c.priority),
+      status: PROBLEM_STATUS(c.status),
+      priority: c.priority,
     } as Ticket;
   });
   return { rows, byId };
 })();
 
-export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
-  const [tickets, setTickets] = useState<Ticket[]>(CHANGES.rows);
+export function ProblemListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const [tickets, setTickets] = useState<Ticket[]>(PROBLEMS.rows);
+  /* The AI-suggested problem: expanded strip, parked as the toolbar pill after
+     "Not now" (still one click away), or 'done' once it has been created or
+     ignored in the review panel — resolved suggestions never come back. */
+  const [aiStrip, setAiStrip] = useState<'open' | 'pill' | 'done'>('open');
+  const openSuggestedGroup = () =>
+    window.dispatchEvent(new CustomEvent('open-suggested-group', { detail: 'grp-2' }));
   // Assignee / Status / Priority are editable straight from the grid.
   const updateTicket = (id: string, patch: Partial<Ticket>) =>
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -125,7 +130,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const startView = getDefaultView('change');
+  const startView = getDefaultView('problem');
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
@@ -162,7 +167,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
   const sortDirection = sorts[0]?.dir ?? 'asc';
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState(startView?.name ?? 'All Changes');
+  const [activeView, setActiveView] = useState(startView?.name ?? 'All Problems');
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -174,8 +179,8 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
   const { open: openInStack } = useDrawerStack();
 
   const handleOpenTicket = (ticket: Ticket) => {
-    // Every row is a change — open the real ChangeDrawer with the original record.
-    openInStack('change', ticket.id, ticket.subject, CHANGES.byId.get(ticket.id) ?? ticket);
+    // Every row is a problem — open the real ProblemDrawer with the original record.
+    openInStack('problem', ticket.id, ticket.subject, PROBLEMS.byId.get(ticket.id) ?? ticket);
   };
 
   const handleCloseDrawer = () => {
@@ -333,7 +338,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
 
   return (
     <div className="flex h-screen bg-[#f9fafb]">
-      <Sidebar activePage="change" onNavigate={onNavigate} />
+      <Sidebar activePage="problem" onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -342,7 +347,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
               restores it exactly as it was. */}
           {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
-              store="change"
+              store="problem"
               active={activeView}
               onSelect={(v: TicketView) => {
                 setActiveView(v.name);
@@ -363,6 +368,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
           />
         ) : (
           <Toolbar
+            suggestPill={aiStrip === 'pill' ? { label: 'Suggested problem', count: 1, onClick: openSuggestedGroup } : undefined}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             activeView={activeView}
@@ -382,7 +388,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
               screen that is only ever about the thing the user clicked. */}
           {view === 'list-kpi' && !drillFrom && (
             <TicketStatsRow
-              noun="change"
+              noun="problem"
               tickets={tickets}
               rules={filterRules}
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
@@ -394,8 +400,8 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
-            noun="change"
-            viewsStore="change"
+            noun="problem"
+            viewsStore="problem"
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -429,14 +435,59 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             setCardFields={setCardFields}
             dashScope={dashScope}
             setDashScope={setDashScope}
-            showCalendar
           />
           </div>
+          {/* The AI-suggested problem — the request-grouping engine's proposal, pinned
+              above the queue. The WHOLE row is the click target and opens the group
+              review popup (the engine's panel, Create Problem only on this page); the
+              lone inline action is "Not now", which parks the suggestion as a quiet
+              top-right pill instead of losing it. Hidden on board/dashboard and drills. */}
+          {!drillFrom && (view === 'list' || view === 'list-kpi') && aiStrip === 'open' && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={openSuggestedGroup}
+              onKeyDown={(e) => e.key === 'Enter' && openSuggestedGroup()}
+              className="cursor-pointer border-b border-[#EFE4FE] transition-shadow hover:shadow-[inset_0_0_0_1px_rgba(115,30,251,0.25)]"
+              style={{ background: 'linear-gradient(90deg, rgba(76,177,254,0.05) 0%, rgba(115,30,251,0.05) 41.49%, rgba(249,17,227,0.05) 100%), #FFF' }}
+            >
+              <div className="flex min-w-0 items-center gap-3 px-6 py-2">
+                <span
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded px-2 py-0.5 text-[12px] font-semibold text-[#731EFB]"
+                  style={{ background: 'rgba(115, 30, 251, 0.08)' }}
+                >
+                  <AiSparkle size={12} />
+                  AI
+                </span>
+                <span className="min-w-0 truncate text-[12px] font-medium text-[#364658]">
+                  Onboarding requests stalled at AD account creation
+                </span>
+                <span className="flex-shrink-0 rounded-sm bg-[#FEF3C7] px-1.5 py-0.5 text-[11px] font-semibold text-[#B45309]">
+                  Medium · 78%
+                </span>
+                <span className="hidden h-3 w-px flex-shrink-0 bg-[#E5E7EB] sm:block" />
+                <span className="hidden flex-shrink-0 items-center gap-1.5 text-[12px] font-medium text-[#731EFB] sm:inline-flex">
+                  <span className="size-2 rounded-full bg-[#731EFB]" />
+                  Suggested
+                </span>
+                <span className="hidden flex-shrink-0 text-[12px] text-[#64748B] md:block">5h ago</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAiStrip('pill');
+                  }}
+                  className="ml-auto h-7 flex-shrink-0 rounded px-2.5 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-white/70 hover:text-[#364658]"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
           {view === 'calendar' ? (
-            <TicketCalendarView tickets={sortedTickets} noun="change" onTicketClick={handleOpenTicket} />
+            <TicketCalendarView tickets={sortedTickets} noun="problem" onTicketClick={handleOpenTicket} />
           ) : view === 'kanban' ? (
             <TicketKanban
-              noun="change"
+              noun="problem"
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
@@ -452,7 +503,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
                  filters here would silently redraw every chart with no way to see why. */
               tickets={tickets}
               scope={dashScope}
-              noun="change"
+              noun="problem"
               onTicketClick={handleOpenTicket}
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules
@@ -465,8 +516,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             />
           ) : (
             <TicketTable
-              noun="change"
-              moduleCols="change"
+              noun="problem"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}
@@ -518,7 +568,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             footerGroup && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                 <span className="text-[12px] text-[#64748B] tabular-nums">
-                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> changes in{' '}
+                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> problems in{' '}
                   <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
@@ -592,6 +642,9 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
         </div>
       </div>
 
+      {/* The group-review popup — listens for open-suggested-group; on this page it
+          offers Create Problem only (panelOnly hides Merge Requests). */}
+      <TicketGroupSuggestions panelOnly soloMode onGroupConsumed={() => setAiStrip('done')} />
       <TicketDrawer
         openTickets={openTickets}
         activeTicketId={activeTicketId}

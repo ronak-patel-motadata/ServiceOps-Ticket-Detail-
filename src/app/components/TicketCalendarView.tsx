@@ -804,7 +804,12 @@ export function TicketCalendarView({
                       {((h + 11) % 12) + 1}:00 {h >= 12 ? 'PM' : 'AM'}
                     </span>
                     {days.map((d) => (
-                      <span key={keyOf(d)} className="min-w-0 flex-1 border-l border-[#EEF1F4]" />
+                      <span
+                        key={keyOf(d)}
+                        className={`min-w-0 flex-1 border-l border-[#EEF1F4] ${
+                          d.getDay() === 0 || d.getDay() === 6 ? 'bg-[#FAFBFC]' : ''
+                        }`}
+                      />
                     ))}
                     {placed.map((q) => (
                       <div
@@ -829,7 +834,12 @@ export function TicketCalendarView({
           {/* Weekday rail */}
           <div className="grid flex-shrink-0 grid-cols-7 border-b border-[#EEF1F4]">
             {WEEKDAYS.map((w) => (
-              <div key={w} className="px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+              <div
+                key={w}
+                className={`px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${
+                  w === 'Sun' || w === 'Sat' ? 'text-[#B6C2D1]' : 'text-[#7B8FA5]'
+                }`}
+              >
                 {w}
               </div>
             ))}
@@ -847,6 +857,7 @@ export function TicketCalendarView({
                 <div key={keyOf(week[0])} className="relative grid min-h-[150px] flex-1 grid-cols-7">
                   {week.map((d, idx) => {
                     const outside = d.getMonth() !== cursor.getMonth();
+                    const wknd = d.getDay() === 0 || d.getDay() === 6;
                     const isToday = sameDay(d, today);
                     const count = eventsOn(d).length;
                     const hidden = hiddenOn(idx);
@@ -854,7 +865,7 @@ export function TicketCalendarView({
                       <div
                         key={keyOf(d)}
                         className={`flex min-h-0 min-w-0 flex-col overflow-hidden border-b border-r border-[#EEF1F4] p-1.5 ${
-                          outside ? 'bg-[#FCFDFE]' : 'bg-white'
+                          wknd ? 'bg-[#FAFBFC]' : outside ? 'bg-[#FCFDFE]' : 'bg-white'
                         }`}
                       >
                         <div className="flex flex-shrink-0 items-center justify-between px-0.5">
