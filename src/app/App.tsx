@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TicketListPage } from './components/TicketListPage';
 import { ProblemListingPage } from './components/ProblemListingPage';
 import { ReleaseListingPage } from './components/ReleaseListingPage';
-import { HardwareAssetsListPage } from './components/HardwareAssetsListPage';
+import { HardwareAssetsListingPage } from './components/HardwareAssetsListingPage';
 import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
 import { NonItAssetsListPage } from './components/NonItAssetsListPage';
 import { ConsumableAssetsListPage } from './components/ConsumableAssetsListPage';
@@ -43,7 +43,7 @@ export default function App() {
       {activePage === 'problem' && <ProblemListingPage onNavigate={navigate} />}
       {activePage === 'change' && <ChangeListingPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListingPage onNavigate={navigate} />}
-      {activePage === 'hardware-assets' && <HardwareAssetsListPage onNavigate={navigate} />}
+      {activePage === 'hardware-assets' && <HardwareAssetsListingPage onNavigate={navigate} />}
       {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}
       {activePage === 'non-it-assets' && <NonItAssetsListPage onNavigate={navigate} />}
       {activePage === 'consumable-assets' && <ConsumableAssetsListPage onNavigate={navigate} />}

@@ -1,3 +1,12 @@
+/* ── Hardware Assets listing ─────────────────────────────────────────────────
+   The shared listing chrome over the REAL mockAssets pool: the data-grid with the
+   Hardware Assets' OWN columns (moduleCols="asset" — Asset Type · Status · Host Name ·
+   IP · Used By · Managed By Group · Managed By · Serial) and an asset KPI strip
+   (AssetStatsRow: fleet lifecycle + the detail page's Warranty / Patch / Antivirus /
+   Impact story rolled up). Layouts are List + List & KPI — an asset register has no
+   work-in-flight axis, so Kanban/Dashboard/Calendar/Gantt are deliberately not offered.
+   Every click opens the real HardwareAssetDrawer.
+   File-per-module clone, per the project rule — divergence here can never break Requests. */
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -5,179 +14,23 @@ import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
-import { TicketGroupSuggestions } from './TicketGroupSuggestions';
-import { TicketStatsRow } from './TicketStatsRow';
+import { AssetStatsRow } from './AssetStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
+import { TicketCalendarView } from './TicketCalendarView';
+import { mockAssets, type HardwareAsset } from './HardwareAssetsListPage';
+import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import { TicketDrawer } from './TicketDrawer';
 
-export interface Ticket {
-  id: string;
-  subject: string;
-  requester: string;
-  dueBy: Date;
-  /** Optional planned END of the record's window (the Change queue's schedule). */
-  dueEnd?: Date;
-  /** What the window means for users — the Change Schedule's impact statement. */
-  windowNote?: string;
-  /** The record's lifecycle stage + status ("Planning: In Progress") — Change and
-      Release rows carry it; surfaces show it in place of the flattened status. */
-  stageStatus?: string;
-  /** Module taxonomy (Change Type/Risk, Release Type/Risk) — Change and Release
-      rows carry these; null = not set yet. */
-  changeType?: string | null;
-  changeRisk?: string | null;
-  /** Hardware-asset columns — only asset rows carry these (moduleCols="asset"). */
-  assetType?: string;
-  hostName?: string;
-  ipAddress?: string;
-  usedByLabel?: string;
-  usedByMore?: number;
-  managedByGroup?: string;
-  serialNo?: string;
-  createdBy: Date;
-  assignedTo: {
-    name: string;
-    initials: string;
-    avatar?: string;
-  };
-  status: 'Open' | 'In Progress' | 'Completed' | 'Pending' | 'Closed' | 'Cancelled';
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-  /** Optional-column value; unset rows derive it deterministically in the grid. */
-  impact?: string;
-  /** Unread conversation replies — drives the blue chip + bold subject on the listing. */
-  unread?: number;
-  lastMsg?: { from: string; snippet: string; time: string };
-  /** Task progress mirrored from the detail page (every request seeds 3-4; INC-35 = 13 staged). */
-  tasksDone?: number;
-  tasksTotal?: number;
-  /** A pending approval on the detail page — the amber chip on the listing. */
-  approval?: { approver: string; level: number; totalLevels: number; waiting: string };
-}
+// The Ticket shape stays canonical — imported, never re-declared, so the bench and the
+// real listing can never drift apart on what a request IS.
+import type { Ticket } from './TicketListPage';
 
-// Mock data
-/* Requests per day across 19 Apr – 2 May 2022, shaped like a real intake week:
-   busy at the start of the week, quiet over the weekend (indexes 5-6 and 12-13). */
-const DAY_VOLUME = [11, 8, 9, 6, 7, 2, 1, 12, 10, 7, 5, 6, 2, 1];
-const DAY_SPREAD: number[] = DAY_VOLUME.flatMap((count, day) => Array.from({ length: count }, () => day));
-
-export const generateMockTickets = (): Ticket[] => {
-  /* Indices 0–16 are fixed: they are the members of the AI suggested groups and the
-     three requests with bespoke detail-page content (INC-32/33/35). The rest are a
-     realistic spread of service-desk work so the queue never reads as one repeated row. */
-  const subjects = [
-    "Outlook keeps crashing when opening attachments",
-    "Employee Onboarding",
-    "My Internet Down",
-    "WiFi is not working",
-    "Employee Onboarding",
-    "Request for Apple MacBook Pro Allocation",
-    "Employee Onboarding",
-    "Unable to log in to the HR portal",
-    "Employee Onboarding",
-    "Laptop charger not working",
-    "WiFi is not working",
-    "Internet dropping every few minutes",
-    "Charger stopped charging the laptop",
-    "Cannot open shared drive from Floor 3",
-    "Password reset for Active Directory account",
-    "Employee Onboarding",
-    "Burnt smell from power adapter",
-    "VPN disconnects when working from home",
-    "Request access to Salesforce CRM",
-    "Printer on 2nd floor not responding",
-    "Outlook not syncing emails since morning",
-    "New laptop setup for marketing hire",
-    "Software license renewal — Adobe Creative Cloud",
-    "Blue screen error on Windows startup",
-    "Microsoft Teams audio not working in meetings",
-    "Request for an additional monitor",
-    "Shared mailbox access for finance team",
-    "SAP login fails with authentication error",
-    "Slow system performance after latest update",
-    "Mobile device enrollment for new phone",
-    "Request for Zoom license upgrade",
-    "Email quota exceeded — unable to send mail",
-    "Data restore request from last week's backup",
-    "Employee Offboarding — access revocation",
-    "Website not loading on corporate network",
-    "Request for additional OneDrive storage",
-    "Keyboard keys not responding on laptop",
-    "Two-factor authentication device replacement",
-    "Conference room projector not connecting",
-    "Bulk user creation for new department"
-  ];
-  
-  const requesters = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç'];
-  const assignees = [
-    { name: 'Amou Desai', initials: 'AD' },
-    { name: 'Keetion Dale', initials: 'KD' },
-    { name: 'Shreyak Dalal', initials: 'SD' },
-    { name: 'Kaison Potai', initials: 'KP' },
-    { name: 'Novak Potai', initials: 'NP' },
-    { name: 'Rahul Shukla', initials: 'RS' },
-    { name: 'Sarah Johnson', initials: 'SJ' },
-    { name: 'Pratik Patial', initials: 'PP' }
-  ];
-  
-  const statuses: Ticket['status'][] = ['Open', 'In Progress', 'Completed', 'Pending', 'Closed'];
-  const priorities: Ticket['priority'][] = ['Low', 'Medium', 'High', 'Urgent'];
-  
-  const MSG_SNIPPETS = [
-    "I'm still seeing the same error after the restart — sharing a screenshot now.",
-    'This started happening again after the latest update. Can someone take a look today?',
-    'Thanks for the quick fix yesterday — unfortunately it is back again this morning.',
-    'Adding my manager here. We need this resolved before the client call at 4 PM.',
-    'Tried the steps you shared, but step 3 fails with "access denied".',
-  ];
-  const MSG_TIMES = ['8m ago', '24m ago', '1h ago', '2h ago', '4h ago'];
-  const APPROVERS = ['Rakesh Rathod', 'Priya Nair', 'Vikram Sethi', 'Sarah Johnson'];
-  const APPROVAL_WAITS = ['2d', '5h', '1d', '3d'];
-
-  return Array.from({ length: 84 }, (_, i) => {
-    const requester = requesters[i % requesters.length];
-    const assignee = assignees[i % assignees.length];
-    // New replies on a handful of rows per page — badges should be the exception a
-    // technician scans FOR, not row furniture.
-    const unread = i % 7 === 0 ? (i % 14 === 0 ? 3 : 2) : 0;
-    // Tasks exist on roughly half the queue (irregular spacing so it reads organic);
-    // counts vary 2-5, 13 staged on INC-35. No-task rows show no Tasks row in the peek.
-    const hasTasks = i === 5 || [0, 2, 6, 9].includes(i % 11);
-    const tasksTotal = i === 5 ? 13 : hasTasks ? 2 + (i % 4) : 0;
-    const status = i === 9 ? ('Closed' as const) : i === 2 ? ('Open' as const) : statuses[i % statuses.length]; // INC-39 (index 9) should be Closed, INC-32 (index 2) should be Open
-    // A pending approval blocks OPEN work only — settled rows never carry one.
-    const hasApproval =
-      i % 11 === 3 && status !== 'Closed' && status !== 'Completed';
-    /* Fresh intake nobody has picked up yet — only OPEN work can be ownerless, and the
-       first 17 indices stay assigned (they anchor the AI groups and bespoke demos). */
-    const unassigned =
-      i >= 17 && (i % 9 === 7 || i % 9 === 2) && (status === 'Open' || status === 'In Progress' || status === 'Pending');
-    return {
-      id: `INC-${String(i + 30).padStart(2, '0')}`,
-      subject: subjects[i % subjects.length],
-      requester,
-      dueBy: new Date(2022, 3, 20 + (i % 10), 2 + (i % 12), 34),
-      createdBy: new Date(2022, 3, 19 + DAY_SPREAD[i % DAY_SPREAD.length], 3 + (i % 12), 30),
-      assignedTo: unassigned ? { name: 'Unassigned', initials: '' } : assignee,
-      status,
-      priority: priorities[i % priorities.length],
-      unread,
-      lastMsg: unread > 0
-        ? { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
-        : undefined,
-      tasksTotal: hasTasks ? tasksTotal : undefined,
-      tasksDone: !hasTasks ? undefined : i === 5 ? 6 : i % (tasksTotal + 1),
-      approval: hasApproval
-        ? { approver: APPROVERS[i % APPROVERS.length], level: 1 + (i % 2), totalLevels: 2, waiting: APPROVAL_WAITS[i % APPROVAL_WAITS.length] }
-        : undefined,
-    };
-  });
-};
 
 /* A drill-down REPLACES the listing's own header rather than stacking on top of it. Arriving
    from a dashboard tile, the answer to "what am I looking at" is the tile — not "All Requests",
@@ -211,15 +64,67 @@ function DrillCrumb({
         <h1 className="truncate text-[17px] font-semibold text-[#1E293B]">{label}</h1>
         <span className="h-4 w-px flex-shrink-0 bg-[#E5E7EB]" />
         <span className="flex-shrink-0 text-[12px] text-[#7B8FA5]">
-          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} requests
+          <span className="font-medium tabular-nums text-[#364658]">{shown}</span> of {total} assets
         </span>
       </div>
     </div>
   );
 }
 
-export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
-  const [tickets, setTickets] = useState<Ticket[]>(generateMockTickets());
+/* The queue: mockAssets mapped onto the Ticket shape the shared chrome renders, with
+   the ORIGINAL HardwareAsset kept aside so clicks open the real HardwareAssetDrawer.
+   Asset statuses ride t.status AS-IS ('In Use'/'Available'/'In Store') — the asset
+   column set renders them with its own palette, and the views/KPIs filter on the
+   raw values, so no lossy translation is needed. */
+const HW: { rows: Ticket[]; byId: Map<string, HardwareAsset> } = (() => {
+  const byId = new Map<string, HardwareAsset>();
+  const hash = (id: string) => id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 997, 7);
+  const rows = mockAssets.map((a, i) => {
+    byId.set(a.id, a);
+    const h = hash(a.id);
+    const created = new Date(2026, h % 8, 1 + (h % 27), 9 + (h % 8), (h % 4) * 15);
+    const usedByName = a.usedBy ? a.usedBy.label.split(' (')[0] : 'Unassigned';
+    const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    return {
+      id: a.id,
+      subject: a.name,
+      requester: usedByName,
+      dueBy: created,
+      createdBy: created,
+      /* A slice of the fleet is managed by the signed-in technician, so the
+         "Assets Managed by Me" view has something real to show. */
+      assignedTo:
+        i % 5 === 2
+          ? { name: CURRENT_USER, initials: CURRENT_USER_INITIALS }
+          : { name: a.managedBy.name, initials: a.managedBy.initials ?? initials(a.managedBy.name) },
+      /* mockAssets only knows In Use / Available / In Store — translate onto the
+         product's real catalog (In Stock covers the shelf states) and sprinkle a
+         deterministic few of the lifecycle states so the register reads lived-in. */
+      status: (() => {
+        let st: string = a.status === 'In Use' ? 'In Use' : 'In Stock';
+        if (st === 'In Use') {
+          if (h % 8 === 1) st = 'In Repair';
+          else if (h % 9 === 4) st = 'Faulty';
+          else if (h % 10 === 7) st = 'Retired';
+          else if (h % 12 === 5) st = 'Missing';
+        }
+        return st;
+      })() as Ticket['status'],
+      priority: 'Medium',
+      assetType: a.assetType,
+      hostName: a.hostName,
+      ipAddress: a.ipAddress,
+      usedByLabel: a.usedBy?.label ?? '',
+      usedByMore: a.usedBy?.more,
+      managedByGroup: a.managedByGroup,
+      serialNo: a.serialNumber,
+    } as Ticket;
+  });
+  return { rows, byId };
+})();
+
+export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const [tickets, setTickets] = useState<Ticket[]>(HW.rows);
   // Assignee / Status / Priority are editable straight from the grid.
   const updateTicket = (id: string, patch: Partial<Ticket>) =>
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -236,11 +141,11 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
      click cycles that column asc → desc → off, appending to the chain rather than
      replacing it, so sorting by assignee THEN priority is one click each. */
   const [sorts, setSorts] = useState<{ column: keyof Ticket; dir: 'asc' | 'desc' }[]>([]);
-  const startView = getDefaultView();
+  const startView = getDefaultView('hwasset');
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard'>('list-kpi');
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list-kpi');
   /* Set only when the list was reached by clicking something on the dashboard. It carries the
      trail back: what was clicked, and the filters that were in force before the drill. */
   const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
@@ -273,7 +178,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const sortDirection = sorts[0]?.dir ?? 'asc';
   const [openTickets, setOpenTickets] = useState<Ticket[]>([]);
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState(startView?.name ?? 'All Requests');
+  const [activeView, setActiveView] = useState(startView?.name ?? 'All Hardware IT Assets');
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -285,9 +190,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const { open: openInStack } = useDrawerStack();
 
   const handleOpenTicket = (ticket: Ticket) => {
-    // INC-33 opens the SECOND design option of the detail page (TicketDrawerV2);
-    // every other ticket keeps the existing V1 TicketDrawer.
-    openInStack(ticket.id === 'INC-33' ? 'request-v2' : 'request', ticket.id, ticket.subject, ticket);
+    // Every row is an asset — open the real HardwareAssetDrawer with the original record.
+    openInStack('hardware-assets', ticket.id, ticket.subject, HW.byId.get(ticket.id) ?? ticket);
   };
 
   const handleCloseDrawer = () => {
@@ -445,7 +349,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
 
   return (
     <div className="flex h-screen bg-[#f9fafb]">
-      <Sidebar activePage="request" onNavigate={onNavigate} />
+      <Sidebar activePage="hardware-assets" onNavigate={onNavigate} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -454,6 +358,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               restores it exactly as it was. */}
           {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
+              store="hwasset"
               active={activeView}
               onSelect={(v: TicketView) => {
                 setActiveView(v.name);
@@ -484,7 +389,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
         <main className="flex-1 overflow-hidden flex flex-col">
           <div
             className={`flex-1 bg-white min-h-0 ${
-              view === 'kanban' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
+              view === 'kanban' || view === 'calendar' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
             }`}
             style={{ ['--tb' as any]: `${stickyH}px` }}
           >
@@ -492,16 +397,21 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
           {/* Both of these speak for the WHOLE queue, so a drill-down hides them — leaving one
               screen that is only ever about the thing the user clicked. */}
           {view === 'list-kpi' && !drillFrom && (
-            <TicketStatsRow
+            <AssetStatsRow
               tickets={tickets}
               rules={filterRules}
               onApplyFilter={(r) => { setFilterRules(r); setCurrentPage(1); }}
             />
           )}
-          {!drillFrom && <TicketGroupSuggestions />}
+          {/* The AI grouping banner is about triaging a QUEUE — on a calendar its four
+              clusters have no place to land, and it eats the height the month grid
+              needs. Hidden there, kept everywhere else. */}
           </div>
           <div ref={stickyRef} className="sticky left-0 top-0 z-[45] bg-white pt-0.5">
           <TicketGridToolbar
+            noun="asset"
+            viewsStore="hwasset"
+            layouts={['list', 'list-kpi']}
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -537,8 +447,11 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             setDashScope={setDashScope}
           />
           </div>
-          {view === 'kanban' ? (
+          {view === 'calendar' ? (
+            <TicketCalendarView tickets={sortedTickets} noun="asset" onTicketClick={handleOpenTicket} />
+          ) : view === 'kanban' ? (
             <TicketKanban
+              noun="asset"
               tickets={sortedTickets}
               group={kanbanGroup}
               subGroup={kanbanSubGroup}
@@ -554,6 +467,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
                  filters here would silently redraw every chart with no way to see why. */
               tickets={tickets}
               scope={dashScope}
+              noun="asset"
               onTicketClick={handleOpenTicket}
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules
@@ -566,6 +480,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             />
           ) : (
             <TicketTable
+              noun="asset"
+              moduleCols="asset"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}
@@ -617,7 +533,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             footerGroup && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                 <span className="text-[12px] text-[#64748B] tabular-nums">
-                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> requests in{' '}
+                  Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> assets in{' '}
                   <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                 </span>
                 <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
@@ -702,4 +618,4 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     </div>
   );
 }
-export const MOCK_TICKETS: Ticket[] = generateMockTickets();
+

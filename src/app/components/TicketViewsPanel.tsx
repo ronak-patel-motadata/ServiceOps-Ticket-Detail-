@@ -115,6 +115,16 @@ export const PROBLEM_VIEWS: TicketView[] = [
   { name: 'All Resolved Problems', rules: [{ field: 'status', condition: 'is', values: ['Completed', 'Closed'] }] },
 ];
 
+/* The Hardware Assets listing's predefined catalog. */
+export const HWASSET_VIEWS: TicketView[] = [
+  { name: 'All Hardware IT Assets', rules: [] },
+  { name: 'In Use Assets', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
+  { name: 'In Stock Assets', rules: [{ field: 'status', condition: 'is', values: ['In Stock'] }] },
+  { name: 'Assets Needing Attention', rules: [{ field: 'status', condition: 'is', values: ['In Repair', 'Faulty', 'Missing', 'Theft'] }] },
+  { name: 'Retired & Disposed Assets', rules: [{ field: 'status', condition: 'is', values: ['Retired', 'Disposed', 'Expired'] }] },
+  { name: 'Assets Managed by Me', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
+];
+
 /* A colleague's view is only visible to me when they shared it beyond themselves. */
 const visibleToMe = (v: TicketView) => v.owner === CURRENT_USER || v.visibility !== 'My Self';
 const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) === CURRENT_USER;
@@ -122,7 +132,7 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
 /* Which module's catalog + storage the rail serves. 'ticket' keeps the legacy keys so
    existing saves survive; other stores namespace their own, so favourites, saved views
    and the default view never leak between the Request and Change listings. */
-export type ViewStore = 'ticket' | 'change' | 'release' | 'problem';
+export type ViewStore = 'ticket' | 'change' | 'release' | 'problem' | 'hwasset';
 const builtinsFor = (store: ViewStore) =>
   store === 'change'
     ? CHANGE_VIEWS
@@ -130,7 +140,9 @@ const builtinsFor = (store: ViewStore) =>
       ? RELEASE_VIEWS
       : store === 'problem'
         ? PROBLEM_VIEWS
-        : TICKET_VIEWS;
+        : store === 'hwasset'
+          ? HWASSET_VIEWS
+          : TICKET_VIEWS;
 /* The seeded shared views are request-flavoured — other modules start with none. */
 const seedsFor = (store: ViewStore) => (store === 'ticket' ? CUSTOM_VIEW_SEEDS : []);
 const favKey = (store: ViewStore) => (store === 'ticket' ? 'ticketViewFavs' : `${store}ViewFavs`);

@@ -103,6 +103,7 @@ export function TicketGridToolbar({
   setCardFields,
   noun = 'request',
   viewsStore = 'ticket',
+  layouts,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -136,6 +137,8 @@ export function TicketGridToolbar({
   noun?: string;
   /** Which module's saved-view storage the Save-view actions write to. */
   viewsStore?: ViewStore;
+  /** Restrict the layout picker — the Asset listing offers list + list-kpi only. */
+  layouts?: ('list' | 'list-kpi' | 'kanban' | 'dashboard')[];
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -842,7 +845,7 @@ export function TicketGridToolbar({
                     Layout
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
-                    {[...LAYOUTS, ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => (
+                    {[...LAYOUTS.filter((l) => !layouts || layouts.includes(l.key)), ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => (
                       <Tooltip key={key} delayDuration={400}>
                         <TooltipTrigger asChild>
                           <button

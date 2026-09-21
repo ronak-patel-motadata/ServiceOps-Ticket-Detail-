@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
+import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
 import { describeSubject } from './requestDescriptions';
 import { groupOfTechnician } from './technicianRoster';
 import { similarityClusters } from './TicketGroupSuggestions';
@@ -14,11 +15,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
    that fills on hover with a chevron appearing at its right, click opens the option list.
    The menu renders in a body PORTAL because the grid scrolls on both axes and would
    otherwise clip it. */
-interface CellOption { label: string; color?: string; initials?: string; statusColor?: string }
+interface CellOption { label: string; color?: string; initials?: string; statusColor?: string; icon?: React.ReactNode }
 function InlineSelect({
   options,
   value,
   onPick,
+  menuWidth,
   user,
   accent = '#3D8BD0',
   showUnassigned = true,
@@ -27,6 +29,8 @@ function InlineSelect({
 }: {
   options: CellOption[];
   value?: string;
+  /** Minimum menu width — long option catalogs opt out of trigger-hugging. */
+  menuWidth?: number;
   onPick: (label: string) => void;
   /* User picker — the detail-page Assignee menu: search box, an Unassigned row, avatars,
      a presence dot and a check on the current person. `accent` colours the avatars
@@ -48,7 +52,7 @@ function InlineSelect({
     const r = btnRef.current?.getBoundingClientRect();
     if (!r) return;
     const menuH = user ? 300 : Math.min(options.length * 38 + 16, 260);
-    const w = user ? 288 : Math.max(r.width, 190);
+    const w = user ? 288 : Math.max(r.width, menuWidth ?? 190);
     const below = window.innerHeight - r.bottom > menuH + 8;
     setPos({
       top: below ? r.bottom + 4 : Math.max(8, r.top - 4 - menuH),
@@ -166,7 +170,11 @@ function InlineSelect({
                       onClick={(e) => { e.stopPropagation(); onPick(o.label); setOpen(false); }}
                       className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${active ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'}`}
                     >
-                      <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                      {o.icon ? (
+                        <span className="flex-shrink-0 text-[#6B7280]">{o.icon}</span>
+                      ) : o.color ? (
+                        <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                      ) : null}
                       <span className={`min-w-0 flex-1 truncate text-[13px] ${active ? 'font-medium text-[#1E293B]' : 'text-[#364658]'}`}>{o.label}</span>
                       <Check size={15} className={`flex-shrink-0 ${active ? 'text-[#3D8BD0]' : 'invisible'}`} />
                     </button>
@@ -201,6 +209,11 @@ const CHANGE_TYPE_OPTIONS: CellOption[] = [
   { label: 'Standard', color: '#22c55e' },
   { label: 'Emergency', color: '#ef4444' },
 ];
+/* The DETAIL page's own status catalog (In Stock … Expired) — one list, both surfaces. */
+const ASSET_STATUS_OPTIONS: CellOption[] = ASSET_STATUS_CATALOG;
+/* The listing's dropdowns are the detail page's catalogs, as CellOptions. */
+const ASSET_TYPE_CELL_OPTIONS: CellOption[] = ASSET_TYPE_OPTIONS.map((l) => ({ label: l, icon: assetTypeIcon(l) }));
+const ASSET_GROUP_CELL_OPTIONS: CellOption[] = ASSET_GROUP_OPTIONS.map((l) => ({ label: l }));
 const RELEASE_TYPE_OPTIONS: CellOption[] = [
   { label: 'Minor', color: '#94A3B8' },
   { label: 'Major', color: '#fb923c' },
@@ -880,10 +893,11 @@ interface TicketTableProps {
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
   /** What one record is called — the Change listing renders this grid as "changes". */
   noun?: string;
-  /** Module column set: SLA Status out; editable Type / Risk sit after Priority
-      ("Change Type/Risk" or "Release Type/Risk"). Each module gets its own storage
-      key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release';
+  /** Module column set: change/release swap SLA for editable Type/Risk columns;
+      'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
+      IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
+      own storage key, so request column prefs stay intact. */
+  moduleCols?: 'change' | 'release' | 'asset';
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
@@ -1039,7 +1053,20 @@ export function TicketTable({
      `flex` columns share out leftover width; the rest hold the width they were given. */
   const TYPE_OPTS = moduleCols === 'release' ? RELEASE_TYPE_OPTIONS : CHANGE_TYPE_OPTIONS;
   const Mod = moduleCols === 'release' ? 'Release' : 'Change';
-  const COL_DEFS: ColDef[] = moduleCols
+  const COL_DEFS: ColDef[] = moduleCols === 'asset'
+    ? [
+        { key: 'id', label: 'ID', w: 96 },
+        { key: 'subject', label: 'Name', flex: true, w: 320 },
+        { key: 'assetType', label: 'Asset Type', w: 160 },
+        { key: 'status', label: 'Status', w: 130 },
+        { key: 'hostName', label: 'Host Name', w: 150 },
+        { key: 'ipAddress', label: 'IP Address', w: 140 },
+        { key: 'usedBy', label: 'Used By', flex: true, w: 200 },
+        { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
+        { key: 'serialNo', label: 'Serial Number', w: 150 },
+      ]
+    : moduleCols
     ? [
         { key: 'id', label: 'ID', w: 96 },
         { key: 'subject', label: 'Subject', flex: true, w: 460 },
@@ -1170,6 +1197,8 @@ export function TicketTable({
     id: 'id', subject: 'subject', requester: 'requester', assignee: 'assignedTo',
     dueStatus: 'dueBy', status: 'status', priority: 'priority', created: 'createdBy',
     changeType: 'changeType', changeRisk: 'changeRisk',
+    assetType: 'assetType', hostName: 'hostName', ipAddress: 'ipAddress',
+    usedBy: 'requester', managedByGroup: 'managedByGroup', serialNo: 'serialNo',
   };
   const hideColumn = (key: string) => applyColumns(colOrder.filter((k) => k !== key));
 
@@ -1364,17 +1393,23 @@ export function TicketTable({
                 <SlaPill ticket={ticket} />
               </td>
         );
-      case 'status':
+      case 'status': {
+        const sOpts = moduleCols === 'asset' ? ASSET_STATUS_OPTIONS : STATUS_OPTIONS;
+        const sDot =
+          moduleCols === 'asset'
+            ? ASSET_STATUS_OPTIONS.find((o) => o.label === (ticket.status as string))?.color ?? '#94A3B8'
+            : statusColor(ticket.status);
         return (
               <td className="px-2 py-0 whitespace-nowrap">
-                <InlineSelect options={STATUS_OPTIONS} value={ticket.status} onPick={(label) => onUpdateTicket?.(ticket.id, { status: label as Ticket['status'] })}>
+                <InlineSelect options={sOpts} value={ticket.status} onPick={(label) => onUpdateTicket?.(ticket.id, { status: label as Ticket['status'] })}>
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(ticket.status) }} />
+                    <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: sDot }} />
                     <span className="truncate text-[12px] text-[#4A5568]">{ticket.status}</span>
                   </span>
                 </InlineSelect>
               </td>
         );
+      }
       case 'priority':
         return (
               <td className="px-2 py-0">
@@ -1384,6 +1419,62 @@ export function TicketTable({
                     <span className="truncate text-[12px] text-[#4A5568]">{ticket.priority}</span>
                   </span>
                 </InlineSelect>
+              </td>
+        );
+      case 'assetType':
+        return (
+              <td className="px-2 py-0 whitespace-nowrap">
+                <InlineSelect options={ASSET_TYPE_CELL_OPTIONS} menuWidth={230} value={ticket.assetType} onPick={(label) => onUpdateTicket?.(ticket.id, { assetType: label } as Partial<Ticket>)}>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex-shrink-0 text-[#6B7280]">{assetTypeIcon(ticket.assetType ?? '')}</span>
+                    <span className="truncate text-[12px] text-[#4A5568]">{ticket.assetType ?? '—'}</span>
+                  </span>
+                </InlineSelect>
+              </td>
+        );
+      case 'hostName':
+        return (
+              <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">
+                <span className="text-[12px] text-[#364658]">{ticket.hostName ?? '—'}</span>
+              </td>
+        );
+      case 'ipAddress':
+        return (
+              <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">
+                <span className="text-[12px] tabular-nums text-[#364658]">{ticket.ipAddress ?? '—'}</span>
+              </td>
+        );
+      case 'usedBy':
+        return (
+              <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+                {ticket.usedByLabel ? (
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <span className="min-w-0 truncate rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] text-[#364658]">
+                      {ticket.usedByLabel}
+                    </span>
+                    {(ticket.usedByMore ?? 0) > 0 && (
+                      <span className="flex-shrink-0 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[#64748B]">
+                        +{ticket.usedByMore}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[12px] text-[#B6C2D1]">—</span>
+                )}
+              </td>
+        );
+      case 'managedByGroup':
+        return (
+              <td className="px-2 py-0 whitespace-nowrap">
+                <InlineSelect options={ASSET_GROUP_CELL_OPTIONS} menuWidth={320} value={ticket.managedByGroup} onPick={(label) => onUpdateTicket?.(ticket.id, { managedByGroup: label } as Partial<Ticket>)}>
+                  <span className="truncate text-[12px] text-[#4A5568]">{ticket.managedByGroup ?? '—'}</span>
+                </InlineSelect>
+              </td>
+        );
+      case 'serialNo':
+        return (
+              <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">
+                <span className="text-[12px] tabular-nums text-[#64748B]">{ticket.serialNo ?? '—'}</span>
               </td>
         );
       case 'changeType': {

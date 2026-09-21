@@ -180,6 +180,11 @@ export const STATUS_OPTIONS = [
   { label: 'In Use', color: '#22C55E' },
   { label: 'Missing', color: '#EF4444' },
   { label: 'Retired', color: '#EAB308' },
+  { label: 'Theft', color: '#93C5FD' },
+  { label: 'Faulty', color: '#F87171' },
+  { label: 'In Repair', color: '#1E40AF' },
+  { label: 'Disposed', color: '#6B7280' },
+  { label: 'Expired', color: '#64748B' },
 ];
 
 export const IMPACT_OPTIONS = [
@@ -189,7 +194,7 @@ export const IMPACT_OPTIONS = [
   { label: 'On Business', color: '#EF4444' },
 ];
 
-const GROUP_OPTIONS = [
+export const GROUP_OPTIONS = [
   'Unassigned',
   'Network Operations Group',
   'IT Support Group',
@@ -233,6 +238,9 @@ const TYPE_TREE: { label: string; children: string[] }[] = [
   { label: 'Mobile Device', children: ['iOS Device', 'Android Device'] },
   { label: 'SNMP Devices', children: ['Router', 'Switch', 'Firewall'] },
 ];
+/** The flat Asset Type catalog the detail page's Asset Type dropdown offers —
+    shared with the Hardware Assets listing's inline editor. */
+export const ASSET_TYPE_OPTIONS = TYPE_TREE.flatMap((t) => t.children);
 
 /** What the expand popup calls a "Key Information" field. Mirrors ExpandKeyField. */
 export interface AssetKeyInfoField {

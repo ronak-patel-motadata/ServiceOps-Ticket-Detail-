@@ -24,11 +24,13 @@ const MONTHS = [
 ];
 const DAY_MS = 864e5;
 const RAIL_W = 280;
+/** Week-grain weekday labels — those columns have room for more than a letter. */
+const WD3 = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-type Grain = 'month' | 'quarter';
+type Grain = 'week' | 'month' | 'quarter';
 
 /* readinessOf is shared with the hover card — it lives beside EventTip now. */
 
@@ -64,6 +66,13 @@ export function TicketGanttView({
   const today = new Date();
 
   const range = useMemo(() => {
+    if (grain === 'week') {
+      const start = new Date(cursor);
+      start.setDate(start.getDate() - start.getDay());
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return { start, end };
+    }
     if (grain === 'month') {
       return {
         start: new Date(cursor.getFullYear(), cursor.getMonth(), 1),
@@ -91,8 +100,9 @@ export function TicketGanttView({
   /* Each day keeps a readable minimum width. On a wide screen the columns still
      stretch to fill (the % maths is width-agnostic); on a small one the timeline
      overflows into horizontal scroll under the frozen rail instead of shrinking. */
-  /* 76px = the row height, so a month cell reads as a clean square. */
-  const tlMin = Math.round(dayCount * (grain === 'month' ? 76 : 18));
+  /* Month: 76px = the row height, so a cell reads as a clean square. Week: roomy
+     120px columns where the windows' hour-level starts become visible. */
+  const tlMin = Math.round(dayCount * (grain === 'week' ? 120 : grain === 'month' ? 76 : 18));
 
   /* Every record whose window touches the period, earliest start first — the reading
      order a timeline promises. */
@@ -109,12 +119,23 @@ export function TicketGanttView({
   );
 
   const title =
-    grain === 'month'
-      ? `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
+    grain === 'week'
+      ? days[0].getMonth() === days[6].getMonth()
+        ? `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} – ${days[6].getDate()}, ${days[0].getFullYear()}`
+        : `${MONTHS[days[0].getMonth()]} ${days[0].getDate()} – ${MONTHS[days[6].getMonth()]} ${days[6].getDate()}, ${days[6].getFullYear()}`
+      : grain === 'month'
+        ? `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
       : `Q${Math.floor(cursor.getMonth() / 3) + 1} ${cursor.getFullYear()} · ${MONTHS[Math.floor(cursor.getMonth() / 3) * 3].slice(0, 3)} – ${MONTHS[Math.floor(cursor.getMonth() / 3) * 3 + 2].slice(0, 3)}`;
 
-  const step = (dir: 1 | -1) =>
+  const step = (dir: 1 | -1) => {
+    if (grain === 'week') {
+      const d = new Date(cursor);
+      d.setDate(d.getDate() + dir * 7);
+      setCursor(d);
+      return;
+    }
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + dir * (grain === 'month' ? 1 : 3), 1));
+  };
 
   /* A moment's horizontal position, clamped to the visible period. */
   const pct = (ms: number) => Math.max(0, Math.min(100, ((ms - rangeStartMs) / spanMs) * 100));
@@ -161,6 +182,7 @@ export function TicketGanttView({
             </button>
           </div>
           <div className="flex items-center gap-0.5 rounded border border-[#DFE5ED] bg-[#F8FAFC] p-0.5">
+            {segBtn('week', 'Week')}
             {segBtn('month', 'Month')}
             {segBtn('quarter', 'Quarter')}
           </div>
@@ -181,7 +203,7 @@ export function TicketGanttView({
           {`${noun.charAt(0).toUpperCase() + noun.slice(1)}s`}
         </div>
         <div className="relative h-[44px] min-w-0 flex-1">
-          {grain === 'month'
+          {grain !== 'quarter'
             ? days.map((d) => {
                 const isToday = sameDay(d, today);
                 const wknd = d.getDay() === 0 || d.getDay() === 6;
@@ -191,7 +213,9 @@ export function TicketGanttView({
                     className="absolute inset-y-0 flex flex-col items-center justify-center gap-0.5"
                     style={{ left: `${pct(dayFloor(d).getTime())}%`, width: `${100 / dayCount}%` }}
                   >
-                    <span className="text-[9px] font-semibold uppercase text-[#C3CDD9]">{'SMTWTFS'[d.getDay()]}</span>
+                    <span className="text-[9px] font-semibold uppercase text-[#C3CDD9]">
+                      {grain === 'week' ? WD3[d.getDay()] : 'SMTWTFS'[d.getDay()]}
+                    </span>
                     <span
                       className={`inline-flex size-[18px] items-center justify-center rounded-full text-[11px] tabular-nums ${
                         isToday ? 'bg-[#3D8BD0] font-semibold text-white' : wknd ? 'text-[#B6C2D1]' : 'text-[#64748B]'
@@ -219,7 +243,7 @@ export function TicketGanttView({
           {/* The timeline's backdrop: weekend wash, column hairlines, the today rule.
               Absolute inside the scrolled content, so it spans every row exactly. */}
           <div className="pointer-events-none absolute inset-y-0 right-0" style={{ left: RAIL_W }}>
-            {grain === 'month' &&
+            {grain !== 'quarter' &&
               days
                 .filter((d) => d.getDay() === 0 || d.getDay() === 6)
                 .map((d) => (
@@ -229,7 +253,7 @@ export function TicketGanttView({
                     style={{ left: `${pct(dayFloor(d).getTime())}%`, width: `${100 / dayCount}%` }}
                   />
                 ))}
-            {(grain === 'month' ? days : weeks).map((d) => (
+            {(grain === 'quarter' ? weeks : days).map((d) => (
               <span
                 key={d.getTime()}
                 className="absolute inset-y-0 border-l border-[#F5F7FA]"
