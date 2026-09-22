@@ -191,6 +191,15 @@ export function TicketGridToolbar({
   const ns = `${noun}s`;
   const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
   const canUpdate = isMyCustomView(activeView, viewsStore);
+  /* The AI grouping menu — labels must match the grid registry's labels (checks),
+     keys must match its axis keys (the set-group-by event). */
+  const AI_GROUP_MENU = [
+    { key: 'similarity', label: 'Similarity', tip: `Stacks ${ns} that share one underlying cause, so you can merge them or raise a problem instead of working each one.` },
+    { key: 'efforts', label: 'Efforts', tip: `Bands ${ns} by estimated effort — start with Quick Resolve and clear a run of sub-20-minute wins in one sitting.` },
+    { key: 'breachRisk', label: 'SLA Breach Risk', tip: `Forecasts which ${ns} will miss SLA — time left weighed against estimated effort — so you start the ones that can still be saved.` },
+    { key: 'sentiment', label: 'Sentiment', tip: `Reads each conversation's tone and surfaces frustrated requesters before they escalate.` },
+    { key: 'automation', label: 'Automation', tip: `Flags ${ns} the bot can close on its own, with an AI draft ready for the rest.` },
+  ];
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const isList = view === 'list' || view === 'list-kpi';
   useEffect(() => {
@@ -1038,47 +1047,57 @@ export function TicketGridToolbar({
                           <span className="flex-1">None</span>
                           {!listGroupLabel && <Check size={14} className="text-[#3D8BD0]" />}
                         </button>
-                        {/* Not a column — the AI's similarity clusters as a grouping axis.
-                            Listed first because it answers a different question from the
-                            column groupings below it. */}
-                        {noun === 'request' && 'similarity'.includes(groupQuery.trim().toLowerCase()) && (
-                          <button
-                            onClick={() => {
-                              window.dispatchEvent(new CustomEvent('set-group-by', { detail: 'similarity' }));
-                              setGearView('main');
-                            }}
-                            /* The product AI tint at 5% over white — the same wash the
-                               suggestions detail card uses, so an AI-derived grouping is
-                               recognisable as one without shouting in a plain menu. */
-                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'linear-gradient(90deg, rgba(76, 177, 254, 0.11) 0%, rgba(115, 30, 251, 0.11) 41.49%, rgba(249, 17, 227, 0.11) 100%), #FFF'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'linear-gradient(90deg, rgba(76, 177, 254, 0.05) 0%, rgba(115, 30, 251, 0.05) 41.49%, rgba(249, 17, 227, 0.05) 100%), #FFF'; }}
-                            className="flex w-full items-center gap-2 border-b border-[#F0F2F5] px-3 py-2 text-left text-[13px] text-[#364658] transition-[background] duration-150"
+                        {/* The AI axes are not columns — they answer a different question
+                            from the field groupings, so they live in ONE softly AI-tinted
+                            zone (4% product gradient). The rows render from AI_GROUP_MENU:
+                            a future axis is one more entry here + one registry entry in
+                            the grid — the zone grows, the visual weight doesn't. */}
+                        {noun === 'request' && AI_GROUP_MENU.some((o) => o.label.toLowerCase().includes(groupQuery.trim().toLowerCase())) && (
+                          <div
+                            className="mx-1.5 my-1 overflow-hidden rounded-md pb-1"
+                            style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.04) 0%, rgba(115, 30, 251, 0.04) 41.49%, rgba(249, 17, 227, 0.04) 100%), #FFF' }}
                           >
-                            <AiSparkle size={13} className="flex-shrink-0" />
-                            <span className="truncate">Similarity</span>
-                            <Tooltip delayDuration={200}>
-                              <TooltipTrigger asChild>
-                                <span
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex size-5 flex-shrink-0 cursor-default items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-white/70 hover:text-[#64748B]"
-                                >
-                                  <Info size={13} />
-                                </span>
-                              </TooltipTrigger>
-                              {/* The product standard black tooltip, one sentence. The long
-                                  explainer card belongs on the AI banner, where there is room
-                                  for it — a menu needs the answer, not a briefing. */}
-                              <TooltipContent side="left" sideOffset={10} className="max-w-[248px] text-wrap">
-                                Stacks {ns} that share one underlying cause, so you can merge them or raise a
-                                problem instead of working each one.
-                              </TooltipContent>
-                            </Tooltip>
-                            <span className="flex-1" />
-                            {listGroupLabel === 'Similarity' && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
-                          </button>
+                            <div className="flex items-center gap-1.5 px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                              <AiSparkle size={12} className="flex-shrink-0" />
+                              AI Grouping
+                            </div>
+                            {AI_GROUP_MENU.filter((o) => o.label.toLowerCase().includes(groupQuery.trim().toLowerCase())).map((o) => (
+                              <button
+                                key={o.key}
+                                onClick={() => {
+                                  window.dispatchEvent(new CustomEvent('set-group-by', { detail: o.key }));
+                                  setGearView('main');
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-white/70"
+                              >
+                                <span className="truncate">{o.label}</span>
+                                <Tooltip delayDuration={200}>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex size-5 flex-shrink-0 cursor-default items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-white/70 hover:text-[#64748B]"
+                                    >
+                                      <Info size={13} />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" sideOffset={10} className="max-w-[248px] text-wrap">
+                                    {o.tip}
+                                  </TooltipContent>
+                                </Tooltip>
+                                <span className="flex-1" />
+                                {listGroupLabel === o.label && <Check size={14} className="flex-shrink-0 text-[#3D8BD0]" />}
+                              </button>
+                            ))}
+                          </div>
                         )}
                         {/* Group by any column currently in the grid. */}
+                        {gridCols
+                          .filter((c) => c.key !== 'id' && c.key !== 'subject')
+                          .some((c) => c.label.toLowerCase().includes(groupQuery.trim().toLowerCase())) && (
+                          <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                            Fields
+                          </div>
+                        )}
                         {gridCols
                           // ID and Subject are unique per request — never groupable.
                           .filter((c) => c.key !== 'id' && c.key !== 'subject')

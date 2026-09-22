@@ -267,6 +267,130 @@ interface ColDef { key: string; label: string; flex?: boolean; w?: number }
 /* ── Similarity grouping ──────────────────────────────────────────────────────
    A grouping axis that is NOT a column: the clusters the AI suggestions panel found.
    Built once at module scope so every group header can look up its cluster copy. */
+/* ── AI Efforts grouping ─────────────────────────────────────────────────────
+   A deterministic estimated-effort model (minutes per record: an id-hash base,
+   scaled by priority, plus open checklist steps) banded into TIME FRAMES — the
+   point is the first band: a run of quick wins a technician can clear in one
+   sitting. Groups order fastest-first. */
+export const effortMinutesOf = (t: Ticket): number => {
+  let n = 11;
+  for (const ch of t.id) n = (n * 31 + ch.charCodeAt(0)) % 997;
+  const base = 6 + (n % 110);
+  const pr = t.priority === 'Urgent' ? 1.8 : t.priority === 'High' ? 1.4 : 1;
+  const openTasks = Math.max(0, (t.tasksTotal ?? 0) - (t.tasksDone ?? 0));
+  return Math.round(base * pr) + openTasks * 25;
+};
+const EFFORT_BANDS: { key: string; max: number }[] = [
+  { key: 'Quick Resolve · under 20 min', max: 20 },
+  { key: 'Short · 20–60 min', max: 60 },
+  { key: 'Focused · 1–4 hours', max: 240 },
+  { key: 'Deep work · 4+ hours', max: Infinity },
+];
+const effortBandOf = (t: Ticket) => EFFORT_BANDS.find((b) => effortMinutesOf(t) <= b.max)!.key;
+const fmtEffort = (min: number) => (min < 90 ? `${min} min` : `${Math.round(min / 6) / 10} h`);
+
+/* Remaining SLA time in minutes, parsed from the SAME deterministic labels the
+   grid's pills show — so the breach forecast can never disagree with a pill. */
+const slaRemainingMinutes = (t: Ticket): number => {
+  const info = dueBySla(t);
+  if (info.tone === 'done' || info.tone === 'breached') return 0;
+  const UNIT: Record<string, number> = { w: 10080, d: 1440, h: 60, m: 1 };
+  return info.label.split(' ').reduce((n, part) => {
+    const m = part.match(/^(\d+)([wdhm])$/);
+    return m ? n + Number(m[1]) * UNIT[m[2]] : n;
+  }, 0);
+};
+const breachBandOf = (t: Ticket): string => {
+  const info = dueBySla(t);
+  if (info.tone === 'done') return 'Met · resolved in SLA';
+  if (info.tone === 'breached') return 'Breached · past SLA';
+  const left = slaRemainingMinutes(t);
+  if (left <= 120) return 'Breach imminent · under 2 hours';
+  if (left <= 1440 || left < effortMinutesOf(t) * 3) return 'At risk · due inside a day';
+  return 'Safe · comfortable buffer';
+};
+const BREACH_ORDER = [
+  'Breached · past SLA',
+  'Breach imminent · under 2 hours',
+  'At risk · due inside a day',
+  'Safe · comfortable buffer',
+  'Met · resolved in SLA',
+];
+
+/* Requester tone, blended from a deterministic hash and the REAL signals the row
+   already carries (unread replies, priority) — frustration correlates with both. */
+const sentimentBandOf = (t: Ticket): string => {
+  let n = 5;
+  for (const ch of t.id) n = (n * 29 + ch.charCodeAt(0)) % 991;
+  const heat = (n % 10) + ((t.unread ?? 0) > 0 ? 3 : 0) + (t.priority === 'Urgent' ? 2 : t.priority === 'High' ? 1 : 0);
+  return heat >= 11 ? 'Frustrated · reply first' : heat >= 8 ? 'Escalation risk' : heat >= 4 ? 'Neutral' : 'Positive';
+};
+const SENTIMENT_ORDER = ['Frustrated · reply first', 'Escalation risk', 'Neutral', 'Positive'];
+
+/* What the automation bot could do with the request, from its subject. */
+const automationBandOf = (t: Ticket): string => {
+  const s = t.subject.toLowerCase();
+  if (/password|login|account|access|vpn|unlock|reset/.test(s)) return 'Auto-resolvable · run automation';
+  if (/install|software|license|printer|driver|mailbox|charger|adapter/.test(s)) return 'AI-assisted · draft ready';
+  return 'Manual handling';
+};
+const AUTOMATION_ORDER = ['Auto-resolvable · run automation', 'AI-assisted · draft ready', 'Manual handling'];
+
+/* ── The AI grouping registry ────────────────────────────────────────────────
+   Every AI axis except Similarity (which carries per-cluster summaries and its
+   own header actions) is one entry here: band fn, band order, menu label, and a
+   LIVE per-band summary. Adding a future axis = one more entry + a menu row. */
+const AI_AXES: Record<
+  string,
+  { label: string; order: string[]; valueOf: (t: Ticket) => string; summary: (g: { key: string; all: Ticket[] }, noun: string) => string }
+> = {
+  efforts: {
+    label: 'Efforts',
+    order: EFFORT_BANDS.map((b) => b.key),
+    valueOf: effortBandOf,
+    summary: (g, noun) => {
+      const tot = g.all.reduce((n, t) => n + effortMinutesOf(t), 0);
+      return g.key.startsWith('Quick')
+        ? `≈ ${fmtEffort(tot)} of estimated work — clear the whole band in one sitting.`
+        : `≈ ${fmtEffort(tot)} of estimated effort across ${g.all.length} ${noun}s.`;
+    },
+  },
+  breachRisk: {
+    label: 'SLA Breach Risk',
+    order: BREACH_ORDER,
+    valueOf: breachBandOf,
+    summary: (g, noun) => {
+      if (g.key.startsWith('Breached')) return `Already past SLA — damage control across ${g.all.length} ${noun}s.`;
+      if (g.key.startsWith('Breach imminent')) return 'These miss SLA within 2 hours unless someone starts now.';
+      if (g.key.startsWith('At risk'))
+        return `Due inside a day — ≈ ${fmtEffort(g.all.reduce((n, t) => n + effortMinutesOf(t), 0))} of estimated work to clear.`;
+      if (g.key.startsWith('Safe')) return 'Comfortable buffer — nothing here needs to jump the queue.';
+      return 'Resolved inside SLA.';
+    },
+  },
+  sentiment: {
+    label: 'Sentiment',
+    order: SENTIMENT_ORDER,
+    valueOf: sentimentBandOf,
+    summary: (g) => {
+      if (g.key.startsWith('Frustrated')) return 'Tone analysis flags these requesters as frustrated — a reply here buys the most goodwill.';
+      if (g.key.startsWith('Escalation')) return 'Language points to escalation risk — keep these visibly moving.';
+      if (g.key === 'Neutral') return 'Even-toned conversations — business as usual.';
+      return 'Happy requesters — protect the streak.';
+    },
+  },
+  automation: {
+    label: 'Automation',
+    order: AUTOMATION_ORDER,
+    valueOf: automationBandOf,
+    summary: (g, noun) => {
+      if (g.key.startsWith('Auto')) return `The bot can close these unattended — approve the run to clear ${g.all.length} ${noun}s.`;
+      if (g.key.startsWith('AI-assisted')) return 'AI drafts are ready — review and send.';
+      return 'No automation match — classic hands-on handling.';
+    },
+  },
+};
+
 const UNCLUSTERED = 'No similar requests';
 const SIM_CLUSTERS = similarityClusters();
 const SIMILARITY_OF = new Map<string, string>(
@@ -1600,7 +1724,7 @@ export function TicketTable({
     const ks = [...counts.keys()].sort((a, b) => (ord ? ord.indexOf(a) - ord.indexOf(b) : a.localeCompare(b)));
     onGroupedChange?.(true, {
       // 'similarity' is not in CATALOG — it is a virtual axis, so it names itself.
-      label: key === 'similarity' ? 'Similarity' : CATALOG.find((c) => c.key === key)?.label ?? key,
+      label: key === 'similarity' ? 'Similarity' : AI_AXES[key]?.label ?? CATALOG.find((c) => c.key === key)?.label ?? key,
       groups: counts.size,
       total: src.length,
       list: ks.map((k) => ({ key: k, count: counts.get(k)! })),
@@ -1608,6 +1732,8 @@ export function TicketTable({
   };
 
   const groupValueOf = (key: string, t: Ticket): string => {
+    const ax = AI_AXES[key];
+    if (ax) return ax.valueOf(t);
     switch (key) {
       /* Not a column — a virtual axis over the AI's clusters. Anything the model didn't
          cluster falls into one explicit bucket rather than a group of one each. */
@@ -1629,6 +1755,7 @@ export function TicketTable({
     priority: ['Urgent', 'High', 'Medium', 'Low'],
     dueStatus: ['SLA Breached', 'Due Soon', 'On Track', 'Met'],
     impact: ['On Business', 'On Department', 'On Users', 'Low'],
+    ...Object.fromEntries(Object.entries(AI_AXES).map(([k, a]) => [k, a.order])),
   };
   // The band shows the value in its column's own visual language.
   const groupBand = (colKey: string, value: string) => {
@@ -2132,6 +2259,8 @@ export function TicketTable({
                   Every other grouping stays the compact single-line band. */}
               {(() => {
                 const sim = g.colKey === 'similarity' && g.key !== UNCLUSTERED;
+                const axis = AI_AXES[g.colKey];
+                const ai = sim || !!axis;
                 const toggle = () =>
                   setCollapsed((p) => {
                     const n = new Set(p);
@@ -2142,15 +2271,15 @@ export function TicketTable({
                 return (
                   <div
                     className={`sticky left-0 top-[var(--tb,0px)] z-40 flex items-center gap-3 px-6 transition-colors duration-500 ${
-                      sim ? 'py-2.5 hover:bg-[#F5F7FA]' : 'h-12'
+                      ai ? 'py-2.5 hover:bg-[#F5F7FA]' : 'h-12'
                     } ${flashGroup === g.key ? 'bg-[#EBF5FF]' : 'bg-white'}`}
                   >
                     <button
                       onClick={toggle}
-                      className={`flex min-w-0 items-center gap-2 rounded px-1.5 py-1 text-left transition-colors ${sim ? 'flex-1' : 'hover:bg-[#F5F7FA]'}`}
+                      className={`flex min-w-0 items-center gap-2 rounded px-1.5 py-1 text-left transition-colors ${ai ? 'flex-1' : 'hover:bg-[#F5F7FA]'}`}
                     >
                       <ChevronDown size={14} className={`mt-px flex-shrink-0 self-start text-[#9CA3AF] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                      {sim ? (
+                      {ai ? (
                         /* The sparkle sits OUTSIDE the text column, so title and summary share
                            one left edge by construction. A padding offset can't be right here:
                            AiSparkle renders at size × 1.2 (48/40 viewBox), so a "13px" icon is
@@ -2165,7 +2294,7 @@ export function TicketTable({
                               </span>
                             </span>
                             <span className="mt-0.5 block truncate text-[12px] font-normal text-[#7B8FA5]">
-                              {SIM_SUMMARY.get(g.key)}
+                              {sim ? SIM_SUMMARY.get(g.key) : axis?.summary({ key: g.key, all: g.all }, noun)}
                             </span>
                           </span>
                         </span>
