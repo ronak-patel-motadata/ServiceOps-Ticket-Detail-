@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
@@ -1027,6 +1027,10 @@ interface TicketTableProps {
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
   /** Bump to clear grouping from outside (the pinned footer's Clear link). */
   clearGroupingSignal?: number;
+  /** Empty-grid context: true while a search or filter is narrowing the list — the
+      empty state then explains why and offers a one-click clear via onClearFilters. */
+  emptyFiltered?: boolean;
+  onClearFilters?: () => void;
 }
 
 export function TicketTable({
@@ -1045,7 +1049,9 @@ export function TicketTable({
   onUpdateTicket,
   allTickets,
   onGroupedChange,
-  clearGroupingSignal
+  clearGroupingSignal,
+  emptyFiltered,
+  onClearFilters
 }: TicketTableProps) {
   const formatDateTime = (date: Date) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -2086,6 +2092,41 @@ export function TicketTable({
     );
   };
 
+  /* Empty grid — same empty-state recipe as the detail-page tabs (Software /
+     Tasks / Notifications): tinted icon disc, short title, one-line hint. An
+     active search/filter gets a SearchX + "Clear search & filters"; a module
+     with no records at all just says what will appear here. */
+  const emptyState = (
+    <div className="flex min-h-[380px] items-center justify-center px-6 py-10">
+      <div className="text-center">
+        <div className="mb-4 inline-flex size-16 items-center justify-center rounded-full bg-[#F5F7FA]">
+          {emptyFiltered ? (
+            <SearchX className="size-8 text-[#7B8FA5]" />
+          ) : (
+            <Inbox className="size-8 text-[#7B8FA5]" />
+          )}
+        </div>
+        <h3 className="mb-2 text-[14px] font-semibold text-[#364658]">
+          {emptyFiltered ? `No matching ${noun}s` : `No ${noun}s yet`}
+        </h3>
+        <p className="mx-auto mb-4 max-w-md text-[13px] text-[#7B8FA5]">
+          {emptyFiltered
+            ? 'Nothing matches the current search and filters. Try different keywords, or widen the filters.'
+            : `New ${noun}s will show up here as soon as they are created.`}
+        </p>
+        {emptyFiltered && onClearFilters && (
+          <button
+            onClick={onClearFilters}
+            className="inline-flex items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3 py-2 text-sm font-medium text-[#364658] transition-colors hover:border-[#3D8BD0] hover:bg-[#F5F7FA]"
+          >
+            <X size={15} />
+            Clear search & filters
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   const renderTicketRow = (ticket: Ticket) => {
     const picked = selectedTickets.has(ticket.id);
     const kbFocus = ticket.id === kbFocusId;
@@ -2239,6 +2280,11 @@ export function TicketTable({
             and pagers stay line-free. */}
         <tbody>
           {tickets.map((ticket) => renderTicketRow(ticket))}
+          {tickets.length === 0 && (
+            <tr>
+              <td colSpan={cols.length + 2} className="bg-white">{emptyState}</td>
+            </tr>
+          )}
         </tbody>
       </table>
       ) : (
@@ -2247,6 +2293,7 @@ export function TicketTable({
             max-content parent leaves their widths unresolvable — every column collapses to
             the checkbox. A definite width is both resolvable and wide enough for the header
             and pager to pin against. */}
+        {groupBlocks.length === 0 && emptyState}
         {groupBlocks.map((g) => {
           const isCollapsed = collapsed.has(g.key);
           const allSel = g.all.every((t) => selectedTickets.has(t.id));

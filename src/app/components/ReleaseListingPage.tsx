@@ -20,7 +20,7 @@ import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKan
 import { TicketDashboardView } from './TicketDashboardView';
 import { TicketCalendarView } from './TicketCalendarView';
 import { TicketGanttView } from './TicketGanttView';
-import { releaseImpactOf, releaseScheduleOf, mockReleases, type Release } from './ReleaseListPage';
+import { releaseDowntimeOf, releaseImpactOf, releaseRolloutOf, releaseRolloutPlanOf, releaseScheduleOf, mockReleases, type Release } from './ReleaseListPage';
 import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
@@ -99,6 +99,8 @@ const RELEASES: { rows: Ticket[]; byId: Map<string, Release> } = (() => {
       dueBy: win.start,
       dueEnd: win.end,
       windowNote: releaseImpactOf(c),
+      rollout: { ...releaseRolloutOf(c), note: releaseRolloutPlanOf(c) },
+      downtime: releaseDowntimeOf(c) ?? undefined,
       createdBy: c.createdDate,
       /* A slice of the queue belongs to the signed-in technician, so the "My …" views
          and the dashboard's My-view scope have something real to show. */
@@ -493,6 +495,8 @@ export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string)
               allTickets={sortedTickets}
               onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
               clearGroupingSignal={clearGroupTick}
+              emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0}
+              onClearFilters={() => { setSearchQuery(''); setFilterRules([]); setCurrentPage(1); }}
             />
           )}
             

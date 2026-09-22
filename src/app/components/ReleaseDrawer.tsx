@@ -18,7 +18,7 @@ import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { toast } from 'sonner';
-import type { Release } from './ReleaseListPage';
+import { releaseDowntimeOf, releaseImpactOf, releaseRolloutOf, releaseRolloutPlanOf, releaseScheduleOf, type Release } from './ReleaseListPage';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -393,8 +393,8 @@ function CustomGroupBlock({
 
 /** Down Times manager — add downtime windows under the Rollout Plan.
     Saved entries are edited inline; the "+" icon opens a form to add more. */
-function DownTimesSection({ drawerWidth, onScheduleEntriesChange }: { drawerWidth: number; onScheduleEntriesChange?: (entries: CalendarScheduleEntry[]) => void }) {
-  const [items, setItems] = useState<DownTime[]>([]);
+function DownTimesSection({ drawerWidth, seed, onScheduleEntriesChange }: { drawerWidth: number; seed?: DownTime[]; onScheduleEntriesChange?: (entries: CalendarScheduleEntry[]) => void }) {
+  const [items, setItems] = useState<DownTime[]>(seed ?? []);
   const [draft, setDraft] = useState({ start: '', end: '', description: '' });
   const [showForm, setShowForm] = useState(false);
   const [customGroups, setCustomGroups] = useState<CustomGroup[]>([]);
@@ -673,12 +673,41 @@ onStackActiveGroupChange,
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
   const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
-  const [analysis, setAnalysis] = useState({ impact: '', rolloutPlan: '', backoutPlan: '', buildPlan: '', testPlan: '' });
-  // Planning tab — Change Schedule (all stages) + Rollout Plan (Implementation, In Review, Closed)
-  const [changeScheduleStart, setChangeScheduleStart] = useState('2026-06-09T23:10');
-  const [changeScheduleEnd, setChangeScheduleEnd] = useState('2026-07-01T12:11');
-  const [plannedRolloutStart, setPlannedRolloutStart] = useState('');
-  const [plannedRolloutEnd, setPlannedRolloutEnd] = useState('');
+  const [analysis, setAnalysis] = useState({
+    /* Seeded per release (shared helpers — same data the listing's Gantt segments). */
+    impact: activeChange ? releaseImpactOf(activeChange) : '',
+    rolloutPlan: activeChange ? releaseRolloutPlanOf(activeChange) : '',
+    backoutPlan: '',
+    buildPlan: '',
+    testPlan: '',
+  });
+  // Planning tab — Release Schedule + Rollout Plan, seeded from this release's own
+  // planned windows (releaseScheduleOf / releaseRolloutOf) and re-seeded on swap.
+  const toScheduleInput = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const [changeScheduleStart, setChangeScheduleStart] = useState(() =>
+    activeChange ? toScheduleInput(releaseScheduleOf(activeChange).start) : '2026-06-09T23:10',
+  );
+  const [changeScheduleEnd, setChangeScheduleEnd] = useState(() =>
+    activeChange ? toScheduleInput(releaseScheduleOf(activeChange).end) : '2026-07-01T12:11',
+  );
+  const [plannedRolloutStart, setPlannedRolloutStart] = useState(() =>
+    activeChange ? toScheduleInput(releaseRolloutOf(activeChange).start) : '',
+  );
+  const [plannedRolloutEnd, setPlannedRolloutEnd] = useState(() =>
+    activeChange ? toScheduleInput(releaseRolloutOf(activeChange).end) : '',
+  );
+  useEffect(() => {
+    if (!activeChange) return;
+    const win = releaseScheduleOf(activeChange);
+    const ro = releaseRolloutOf(activeChange);
+    setChangeScheduleStart(toScheduleInput(win.start));
+    setChangeScheduleEnd(toScheduleInput(win.end));
+    setPlannedRolloutStart(toScheduleInput(ro.start));
+    setPlannedRolloutEnd(toScheduleInput(ro.end));
+    setAnalysis((a) => ({ ...a, impact: releaseImpactOf(activeChange), rolloutPlan: releaseRolloutPlanOf(activeChange) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChange?.id]);
   const [actualRolloutStart, setActualRolloutStart] = useState('');
   const [actualRolloutEnd, setActualRolloutEnd] = useState('');
   // Down Time + Custom group schedule windows, surfaced up from the Rollout Plan for the Change Calendar.
@@ -5556,7 +5585,15 @@ onStackActiveGroupChange,
 
                   {/* Rollout additions (Down Time / Custom) */}
                   <div className="mt-8">
-                    <DownTimesSection drawerWidth={drawerWidth} onScheduleEntriesChange={setExtraScheduleEntries} />
+                    <DownTimesSection
+                      key={activeChangeId ?? 'none'}
+                      drawerWidth={drawerWidth}
+                      seed={(() => {
+                        const dt = activeChange ? releaseDowntimeOf(activeChange) : null;
+                        return dt ? [{ id: 'dt-seed', start: toScheduleInput(dt.start), end: toScheduleInput(dt.end), description: dt.note }] : [];
+                      })()}
+                      onScheduleEntriesChange={setExtraScheduleEntries}
+                    />
                   </div>
                 </div>
 

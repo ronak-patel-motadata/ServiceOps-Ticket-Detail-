@@ -496,6 +496,8 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
               allTickets={sortedTickets}
               onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
               clearGroupingSignal={clearGroupTick}
+              emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0}
+              onClearFilters={() => { setSearchQuery(''); setFilterRules([]); setCurrentPage(1); }}
             />
           )}
             

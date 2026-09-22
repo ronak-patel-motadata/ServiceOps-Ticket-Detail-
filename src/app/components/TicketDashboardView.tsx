@@ -856,6 +856,15 @@ export function TicketDashboardView({
         <Card
           title="Technician workload"
           sub={`Top ${topTechs.length} of ${techRows.length} technicians by open work`}
+          action={
+            <button
+              onClick={() => setRosterOpen(true)}
+              className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+            >
+              View all
+              <ChevronRight size={13} />
+            </button>
+          }
         >
           <div className="space-y-0.5 pt-1">
             {topTechs.map(([name, v]) => (
@@ -881,18 +890,7 @@ export function TicketDashboardView({
             ))}
           </div>
           <div className="mt-auto border-t border-[#F1F5F9] pt-2.5">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-[11px] text-[#64748B]">
-                {techRows.length} technicians on the roster
-              </span>
-              <button
-                onClick={() => setRosterOpen(true)}
-                className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
-              >
-                View all
-                <ChevronRight size={13} />
-              </button>
-            </div>
+            <div className="truncate text-[11px] text-[#64748B]">{techRows.length} technicians on the roster</div>
             <div className="mt-1 text-[11px] text-[#94A3B8]">{`Red bars carry at least one breached ${noun}.`}</div>
           </div>
         </Card>
@@ -948,7 +946,21 @@ export function TicketDashboardView({
         {/* Checklist work is the quiet reason requests sit still: the ticket is "In Progress"
             but the thing actually blocking it is a task nobody has picked up. The source
             split that used to live here answered a question nobody acts on. */}
-        <Card title="Open tasks" sub={mine ? 'Your checklist work still outstanding' : 'Checklist work still outstanding'}>
+        <Card
+          title="Open tasks"
+          sub={mine ? 'Your checklist work still outstanding' : 'Checklist work still outstanding'}
+          action={
+            onDrillDown && (
+              <button
+                onClick={() => drillTo([{ field: 'openTasks', condition: 'is', values: ['Has open tasks'] }], 'Open tasks')}
+                className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+              >
+                View all
+                <ChevronRight size={13} />
+              </button>
+            )
+          }
+        >
           <div className="flex items-center gap-4 pb-3">
             <div className="flex-shrink-0">
               <div className="text-[26px] font-semibold leading-none tabular-nums text-[#1E293B]">{taskOpen}</div>
@@ -1009,19 +1021,8 @@ export function TicketDashboardView({
           </div>
 
           <div className="mt-auto border-t border-[#F1F5F9] pt-2.5">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-[11px] text-[#64748B]">
-                {taskRows.length} of {open.length} open {ns} are waiting on tasks
-              </span>
-              {onDrillDown && (
-                <button
-                  onClick={() => drillTo([{ field: 'openTasks', condition: 'is', values: ['Has open tasks'] }], 'Open tasks')}
-                  className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
-                >
-                  View all
-                  <ChevronRight size={13} />
-                </button>
-              )}
+            <div className="truncate text-[11px] text-[#64748B]">
+              {taskRows.length} of {open.length} open {ns} are waiting on tasks
             </div>
           </div>
         </Card>
@@ -1198,6 +1199,15 @@ export function TicketDashboardView({
                 ? `Top ${DEPT_TOP} of ${deptRows.length} departments`
                 : 'Where the work comes from'
             }
+            action={
+              <button
+                onClick={() => setDeptOpen(true)}
+                className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+              >
+                View all
+                <ChevronRight size={13} />
+              </button>
+            }
           >
             <div className="h-[204px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -1238,17 +1248,8 @@ export function TicketDashboardView({
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-auto flex items-center gap-2 border-t border-[#F1F5F9] pt-2.5">
-              <span className="min-w-0 flex-1 truncate text-[11px] text-[#64748B]">
-                {deptRows.length} departments raising {ns}
-              </span>
-              <button
-                onClick={() => setDeptOpen(true)}
-                className="inline-flex flex-shrink-0 items-center gap-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
-              >
-                View all
-                <ChevronRight size={13} />
-              </button>
+            <div className="mt-auto border-t border-[#F1F5F9] pt-2.5">
+              <div className="truncate text-[11px] text-[#64748B]">{deptRows.length} departments raising {ns}</div>
             </div>
           </Card>
 

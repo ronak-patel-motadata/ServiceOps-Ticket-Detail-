@@ -81,6 +81,61 @@ export const releaseImpactOf = (r: Release): string => {
   return 'Low user impact expected across the window; the rollout advances in verified stages with an agreed hold point each day. The service desk gets a stage-by-stage notice, and the release team reviews health checks before each stage proceeds.';
 };
 
+/* ── Rollout window + planned downtime ──────────────────────────────────────
+   Deterministic sub-windows INSIDE the go-live schedule: the Planned Rollout is
+   the middle stretch of the window, and roughly four releases in five carry a
+   short planned DOWNTIME inside that rollout (the cutover moment) — blue-green
+   style releases have none. Shared by the Planning tab and the Gantt's
+   segmented bars, so detail page and timeline always agree. */
+export const releaseRolloutOf = (r: Release): { start: Date; end: Date } => {
+  let i = mockReleases.findIndex((x) => x.id === r.id);
+  if (i < 0) i = r.id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 97, 7);
+  const { start, end } = releaseScheduleOf(r);
+  const span = end.getTime() - start.getTime();
+  return {
+    start: new Date(start.getTime() + span * (0.15 + (i % 4) * 0.05)),
+    end: new Date(start.getTime() + span * (0.6 + (i % 5) * 0.07)),
+  };
+};
+/* The Planning tab's ROLLOUT PLAN paragraph — subject-themed like the impact
+   statements, so the detail page and the Gantt segment tooltip tell one story. */
+export const releaseRolloutPlanOf = (r: Release): string => {
+  let i = mockReleases.findIndex((x) => x.id === r.id);
+  if (i < 0) i = r.id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 97, 7);
+  const first = ['a 5% canary ring', 'the IT pilot group', 'one region at a time', 'a 10% early cohort'][i % 4];
+  const s2 = r.subject.toLowerCase();
+  if (/gateway|api/.test(s2))
+    return `Blue-green rollout: the new build runs in parallel and traffic shifts to ${first} first, then 25% and 100% as error rates hold steady. Routes flip back instantly if latency regresses.`;
+  if (/database|warehouse|etl|storage|data/.test(s2))
+    return `Staged migration: replicas upgrade first and ${first} validates against them before the primary cutover after the final sync. The old cluster stays warm as a read-only fallback until sign-off.`;
+  if (/security|patch|hardening|compliance|firewall/.test(s2))
+    return `Ringed deployment: ${first} takes the update first with a soak period between rings; monitoring gates each promotion and any blocking alert pauses the next ring automatically.`;
+  if (/network|vpn|wifi|wireless/.test(s2))
+    return `Site-by-site rollout during low-traffic windows, starting with ${first}. Rollback configuration is staged on every device so a failed site reverts in minutes without touching the rest.`;
+  if (/portal|app|application|module|platform|upgrade/.test(s2))
+    return `Feature-flagged rollout: the release ships dark, then enables for ${first} and widens to all users once health checks and session metrics stay green for the soak window.`;
+  return `Wave-based rollout starting with ${first}; each wave soak-tests before the next proceeds, and the deployment pipeline halts automatically on failed health checks.`;
+};
+
+export const releaseDowntimeOf = (r: Release): { start: Date; end: Date; note: string } | null => {
+  let i = mockReleases.findIndex((x) => x.id === r.id);
+  if (i < 0) i = r.id.split('').reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 97, 7);
+  if (i % 5 === 4) return null;
+  const { start, end } = releaseRolloutOf(r);
+  const span = end.getTime() - start.getTime();
+  const ds = start.getTime() + span * (0.35 + (i % 3) * 0.18);
+  const de = Math.min(ds + (1 + (i % 4)) * 3600e3, end.getTime());
+  const s2 = r.subject.toLowerCase();
+  const note = /gateway|api/.test(s2)
+    ? 'Traffic cutover — API responses pause while routes flip to the new gateway.'
+    : /database|warehouse|etl|storage/.test(s2)
+      ? 'Final data sync — writes are frozen while the last delta copies across.'
+      : /portal|app|application|module/.test(s2)
+        ? 'Switchover window — the application is briefly unavailable while versions swap.'
+        : 'Service window — the system restarts onto the new build.';
+  return { start: new Date(ds), end: new Date(de), note };
+};
+
 export const mockReleases: Release[] = [
   { id: 'REL-63', subject: 'Customer portal redesign rollout - wave 1',            requester: 'Ronak Patel',            createdDate: new Date(2026,5,4,10,12),   assignee: { name: 'Dilip Mehta',        initials: 'DM', color: '#6366F1' }, status: 'Build: In Progress',      priority: 'High',   releaseType: 'Major',       releaseRisk: 'Medium' },
   { id: 'REL-62', subject: 'Payment gateway v2 migration',                         requester: 'Sakshi Gupta',           createdDate: new Date(2026,5,2,15,40),   assignee: { name: 'Shiv Sharma',        initials: 'SH', color: '#10B981' }, status: 'Approval: Pending',       priority: 'P1',     releaseType: 'Major',       releaseRisk: 'Medium'   },

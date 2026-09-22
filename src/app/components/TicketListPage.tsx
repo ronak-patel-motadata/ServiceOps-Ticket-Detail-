@@ -40,6 +40,10 @@ export interface Ticket {
   usedByMore?: number;
   managedByGroup?: string;
   serialNo?: string;
+  /** Planned rollout + downtime sub-windows (Release rows) — drive the Gantt's
+      segmented bars and the hover card's phase rows. */
+  rollout?: { start: Date; end: Date; note?: string };
+  downtime?: { start: Date; end: Date; note: string };
   createdBy: Date;
   assignedTo: {
     name: string;
@@ -580,6 +584,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               allTickets={sortedTickets}
               onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
               clearGroupingSignal={clearGroupTick}
+              emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0}
+              onClearFilters={() => { setSearchQuery(''); setFilterRules([]); setCurrentPage(1); }}
             />
           )}
             

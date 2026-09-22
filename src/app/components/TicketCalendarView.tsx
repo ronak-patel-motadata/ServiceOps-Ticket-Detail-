@@ -186,6 +186,22 @@ export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) =>
                   <span className="min-w-0 font-medium text-[#475569]">{windowLabel(t)}</span>
                 </>
               )}
+              {t.rollout && (
+                <>
+                  <span className="text-[#7B8FA5]">Rollout</span>
+                  <span className="min-w-0 text-[#475569]">
+                    {fmtDay(t.rollout.start)}, {fmtTime(t.rollout.start)} – {fmtDay(t.rollout.end)}, {fmtTime(t.rollout.end)}
+                  </span>
+                </>
+              )}
+              {t.downtime && (
+                <>
+                  <span className="text-[#7B8FA5]">Down time</span>
+                  <span className="min-w-0 font-medium text-[#B42318]">
+                    {fmtDay(t.downtime.start)}, {fmtTime(t.downtime.start)} – {fmtDay(t.downtime.end)}, {fmtTime(t.downtime.end)}
+                  </span>
+                </>
+              )}
               {t.windowNote && (
                 <>
                   <span className="text-[#7B8FA5]">Impact</span>
