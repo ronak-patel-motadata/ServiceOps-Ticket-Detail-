@@ -182,10 +182,12 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
   const [view, setView] = useState<'list' | 'gantt'>('list');
   const [q, setQ] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [planFilter, setPlanFilter] = useState<'all' | 'unresolved' | 'closed'>('all');
+  const [planFilter, setPlanFilter] = useState<'all' | 'tasks' | 'milestones' | 'unassigned' | 'overdue'>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [items, setItems] = useState<PlanItem[]>(() => seedPlan(project));
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  /* Which parent TASKS have their sub-task group folded (default: open). */
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>({ name: '', assignee: '', start: '', end: '', progress: '0', status: 'Open', priority: 'Medium' });
   const freshRef = useRef<string | null>(null);
@@ -197,6 +199,7 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
     lastProjectId.current = project?.id;
     setItems(seedPlan(project));
     setCollapsed(new Set());
+    setCollapsedTasks(new Set());
     setEditingId(null);
     setProjStart(toInput(project?.start ?? new Date()));
     setProjEnd(toInput(project?.end ?? new Date(Date.now() + 90 * DAY)));
@@ -221,7 +224,10 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
 
   const matches = (i: PlanItem) => {
     if (i.kind !== 'summary' && planFilter !== 'all') {
-      if (planFilter === 'closed' ? i.status !== 'Closed' : i.status === 'Closed') return false;
+      if (planFilter === 'tasks' && i.kind !== 'task') return false;
+      if (planFilter === 'milestones' && i.kind !== 'milestone') return false;
+      if (planFilter === 'unassigned' && i.assignee) return false;
+      if (planFilter === 'overdue' && !(i.status !== 'Closed' && dayFloor(i.end).getTime() < today.getTime())) return false;
     }
     const s = q.trim().toLowerCase();
     if (!s) return true;
@@ -508,7 +514,7 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
           setDragId(null);
           setDragOver(null);
         }}
-        className={`group/row relative flex items-center gap-3 rounded-lg border border-[#E6EAF0] py-4 pl-8 pr-4 transition-all hover:border-[#D5DDE7] hover:shadow-[0_1px_3px_rgba(16,24,40,0.06)] ${subCard ? 'bg-[#FAFBFC]' : 'bg-white'} ${depth === 1 ? 'ml-7' : depth >= 2 ? 'ml-14' : ''} ${dragId === i.id ? 'opacity-40' : ''}`}
+        className={`group/row relative flex items-center gap-3 rounded-lg border border-[#E6EAF0] py-4 pl-12 pr-4 transition-all hover:border-[#D5DDE7] hover:shadow-[0_1px_3px_rgba(16,24,40,0.06)] ${subCard ? 'bg-[#FAFBFC]' : 'bg-white'} ${depth === 1 ? 'ml-7' : depth >= 2 ? 'ml-14' : ''} ${dragId === i.id ? 'opacity-40' : ''}`}
       >
         {dragOver?.id === i.id && !dragOver.after && (
           <span className="pointer-events-none absolute inset-x-2 -top-[6px] h-[3px] rounded-full bg-[#3D8BD0]" />
@@ -516,13 +522,31 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
         {dragOver?.id === i.id && dragOver.after && (
           <span className="pointer-events-none absolute inset-x-2 -bottom-[6px] h-[3px] rounded-full bg-[#3D8BD0]" />
         )}
-        {/* The grip is the affordance; the WHOLE card is the drag surface. */}
-        <span
-          title="Drag to reorder"
-          className="absolute left-1.5 top-1/2 -translate-y-1/2 cursor-grab p-0.5 text-[#9CA3AF] opacity-0 transition-opacity active:cursor-grabbing group-hover/row:opacity-100"
-        >
-          <GripVertical size={13} />
-        </span>
+        {/* Parent tasks trade the grip for the expand/collapse chevron (the whole
+            card is the drag surface anyway); leaf cards keep the hover grip. */}
+        {i.kind === 'task' && childrenOf(i.id).length > 0 ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCollapsedTasks((prev) => {
+                const n = new Set(prev);
+                n.has(i.id) ? n.delete(i.id) : n.add(i.id);
+                return n;
+              });
+            }}
+            title={collapsedTasks.has(i.id) ? 'Expand sub tasks' : 'Collapse sub tasks'}
+            className="absolute left-2.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#EBEFF3]"
+          >
+            {collapsedTasks.has(i.id) ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          </button>
+        ) : (
+          <span
+            title="Drag to reorder"
+            className="absolute left-3 top-1/2 -translate-y-1/2 cursor-grab p-0.5 text-[#9CA3AF] opacity-0 transition-opacity active:cursor-grabbing group-hover/row:opacity-100"
+          >
+            <GripVertical size={13} />
+          </span>
+        )}
         {/* Two-line body: identity on top, meta beneath — stays readable at any width. */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -575,6 +599,23 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
             />
             <span className="whitespace-nowrap rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0]">{i.id}</span>
             <span className={`min-w-0 truncate text-[13px] font-medium ${i.status === 'Closed' ? 'text-[#94A3B8] line-through' : 'text-[#364658]'}`}>{i.name}</span>
+            {(() => {
+              const subs = childrenOf(i.id);
+              if (!subs.length) return null;
+              const done = subs.filter((x) => x.status === 'Closed').length;
+              return (
+                <span
+                  title="Sub tasks"
+                  className={`inline-flex flex-shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${done === subs.length ? 'bg-[#E7F6EE] text-[#16A34A]' : 'bg-[#F1F5F9] text-[#64748B]'}`}
+                >
+                  <ListTree size={11} />
+                  {done}/{subs.length}
+                </span>
+              );
+            })()}
+            {od && (
+              <span className="flex-shrink-0 rounded-sm bg-[#FDECEC] px-1.5 py-0.5 text-[10px] font-medium text-[#DC2626]">Overdue</span>
+            )}
           </div>
           {/* pl = shape slot (16) + gap (8) + checkbox (14) + gap (8) — flush with the ID chip. */}
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-[46px]">
@@ -753,20 +794,6 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
                       {durLabel(i.start, i.end)}
                     </span>
                   )}
-                  {(() => {
-                    const subs = childrenOf(i.id);
-                    if (!subs.length) return null;
-                    const done = subs.filter((x) => x.status === 'Closed').length;
-                    return (
-                      <span title="Sub tasks" className={`inline-flex items-center gap-1 text-[12px] tabular-nums ${done === subs.length ? 'text-[#16A34A]' : 'text-[#7B8FA5]'}`}>
-                        <ListTree size={12} />
-                        {done}/{subs.length}
-                      </span>
-                    );
-                  })()}
-                  {od && (
-                    <span className="rounded-sm bg-[#FDECEC] px-1.5 py-0.5 text-[10px] font-medium text-[#DC2626]">Overdue</span>
-                  )}
                 </>
               );
             })()}
@@ -809,17 +836,19 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
          sides, so parent+subs read apart from neighbouring single tasks. */
       <div key={k.id} className="space-y-3 py-1.5">
         {itemRow(k, depth)}
-        <div className={`space-y-3 ${depth === 1 ? 'ml-14' : 'ml-7'}`}>
+        {!collapsedTasks.has(k.id) && (
+        <div className={`space-y-3 ${depth === 1 ? 'ml-[68px]' : 'ml-10'}`}>
           {subs.map((st, si) => (
             <div key={st.id} className="relative">
               <span
-                className={`pointer-events-none absolute -left-5 -top-3 w-px bg-[#DFE5ED] ${si === subs.length - 1 ? 'h-[38px]' : '-bottom-3'}`}
+                className={`pointer-events-none absolute -left-[18px] -top-3 w-px bg-[#DFE5ED] ${si === subs.length - 1 ? 'h-[38px]' : '-bottom-3'}`}
               />
-              <span className="pointer-events-none absolute -left-5 top-[26px] h-px w-5 bg-[#DFE5ED]" />
+              <span className={`pointer-events-none absolute -left-[18px] w-[18px] top-[26px] h-px bg-[#DFE5ED]`} />
               {itemRow(st, 0, true)}
             </div>
           ))}
         </div>
+        )}
       </div>
     );
   };
@@ -859,10 +888,6 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
                     <span className="inline-flex items-center gap-1">
                       <Calendar size={12} />
                       {fmtD(meta.start)} – {fmtDY(meta.end)}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Clock size={12} />
-                      {durLabel(meta.start, meta.end)}
                     </span>
                     {od && <span className="rounded-sm bg-[#FDECEC] px-1.5 py-0.5 text-[10px] font-medium text-[#DC2626]">Overdue</span>}
                   </div>
@@ -1023,25 +1048,6 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
     <div className="px-6 py-5">
       {/* Toolbar: view toggle · search · project window · Add */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-0.5 rounded border border-[#DFE5ED] bg-[#F8FAFC] p-0.5">
-          {(
-            [
-              ['list', 'List', ListIcon],
-              ['gantt', 'Gantt', ChartGantt],
-            ] as const
-          ).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              onClick={() => setView(id)}
-              className={`inline-flex h-7 items-center gap-1.5 rounded px-3 text-[12px] font-medium transition-colors ${
-                view === id ? 'bg-white text-[#3D8BD0] shadow-sm' : 'text-[#64748B] hover:text-[#364658]'
-              }`}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </div>
         {/* Icon-expand search + filter — the Tasks-tab toolbar recipe. */}
         {!searchOpen ? (
           <button
@@ -1096,9 +1102,11 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
               <div className="app-menu absolute left-0 top-full z-50 mt-2 w-48 rounded-lg border border-[#DFE5ED] bg-white py-2 shadow-lg">
                 {(
                   [
-                    ['unresolved', 'Unresolved Items'],
-                    ['closed', 'Closed Items'],
-                    ['all', 'All Items'],
+                    ['all', 'All'],
+                    ['tasks', 'Task Only'],
+                    ['milestones', 'Milestone Only'],
+                    ['unassigned', 'Unassigned'],
+                    ['overdue', 'Overdue'],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -1119,14 +1127,45 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
             </>
           )}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* The project window, edited RIGHT HERE — the old flow hid it behind Edit Planning. */}
-          <span className="inline-flex items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2 py-1">
-            <span className="text-[11px] text-[#7B8FA5]">{wide ? 'Project window' : 'Window'}</span>
-            <input type="date" value={projStart} onChange={(e) => setProjStart(e.target.value)} className="h-6 rounded bg-transparent text-[12px] text-[#364658] focus:outline-none" />
-            <span className="text-[11px] text-[#9CA3AF]">→</span>
-            <input type="date" value={projEnd} onChange={(e) => setProjEnd(e.target.value)} className="h-6 rounded bg-transparent text-[12px] text-[#364658] focus:outline-none" />
+        {planFilter !== 'all' && (
+          <span className="inline-flex h-8 items-center gap-1 rounded-md bg-[#EAF2FB] pl-2.5 pr-1.5 text-[12px] font-medium text-[#3D8BD0]">
+            {planFilter === 'tasks' ? 'Task Only' : planFilter === 'milestones' ? 'Milestone Only' : planFilter === 'unassigned' ? 'Unassigned' : 'Overdue'}
+            <button onClick={() => setPlanFilter('all')} title="Clear filter" className="rounded p-0.5 transition-colors hover:bg-[#3D8BD0]/10">
+              <X size={13} />
+            </button>
           </span>
+        )}
+        {/* The project window, edited RIGHT HERE — the old flow hid it behind Edit Planning. */}
+        <span className="inline-flex h-8 items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2">
+          <span className="text-[11px] text-[#7B8FA5]">{wide ? 'Project window' : 'Window'}</span>
+          <input type="date" value={projStart} onChange={(e) => setProjStart(e.target.value)} onClick={(e) => { try { (e.currentTarget as HTMLInputElement).showPicker?.(); } catch {} }} className="h-6 cursor-pointer rounded bg-transparent text-[12px] text-[#364658] focus:outline-none" />
+          <span className="text-[11px] text-[#9CA3AF]">→</span>
+          <input type="date" value={projEnd} onChange={(e) => setProjEnd(e.target.value)} onClick={(e) => { try { (e.currentTarget as HTMLInputElement).showPicker?.(); } catch {} }} className="h-6 cursor-pointer rounded bg-transparent text-[12px] text-[#364658] focus:outline-none" />
+        </span>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            {(
+              [
+                ['list', 'List view', ListIcon],
+                ['gantt', 'Gantt view', ChartGantt],
+              ] as const
+            ).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                onClick={() => setView(id)}
+                title={label}
+                className={`flex size-8 items-center justify-center rounded border transition-colors ${
+                  view === id
+                    ? 'border-[#3D8BD0] bg-[#EAF2FB] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] text-[#7B8FA5] hover:bg-[#F5F7FA] hover:text-[#364658]'
+                }`}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
+
           <div className="relative">
             <button
               onClick={() => setShowAddMenu((v) => !v)}

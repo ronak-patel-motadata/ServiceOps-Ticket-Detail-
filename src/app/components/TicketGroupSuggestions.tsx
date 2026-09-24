@@ -1109,9 +1109,9 @@ export function TicketGroupSuggestions({
               className="z-[10000] max-w-none border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-xl"
             >
               <div className="w-[360px] px-4 py-3.5">
-                <div className="text-[13px] font-semibold text-[#1E293B]">How ServiceOps groups requests</div>
+                <div className="text-[13px] font-semibold text-[#1E293B]">How ServiceOps makes clusters</div>
                 <p className="mt-1 text-[12px] leading-relaxed text-[#64748B]">
-                  Open requests are compared on five signals. A group forms when enough of them line up.
+                  Open requests are compared on five signals. A cluster forms when enough of them line up.
                 </p>
                 <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
                   {['Symptom text', 'Site', 'Workflow step', 'Affected asset', 'Time window'].map((sig) => (
@@ -1132,10 +1132,10 @@ export function TicketGroupSuggestions({
                   </div>
                   <div className="flex items-start gap-2 text-[12px] leading-relaxed text-[#64748B]">
                     <User size={13} className="mt-0.5 flex-shrink-0 text-[#9CA3AF]" />
-                    You only see groups containing requests you have access to.
+                    You only see clusters containing requests you have access to.
                   </div>
                 </div>
-                <div className="mt-2.5 text-[12px] font-medium text-[#3D8BD0]">How grouping works →</div>
+                <div className="mt-2.5 text-[12px] font-medium text-[#3D8BD0]">How clustering works →</div>
               </div>
             </TooltipContent>
           </Tooltip>
