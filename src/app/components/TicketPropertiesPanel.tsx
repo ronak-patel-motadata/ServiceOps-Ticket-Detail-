@@ -2146,11 +2146,31 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               {suggestOpen && createPortal(
                 <div className="fixed inset-0 z-[9998]">
                   <div className="absolute inset-0 bg-black/20" onClick={() => setSuggestOpen(false)} />
-                  <div className="absolute right-0 top-0 flex h-full w-[480px] max-w-full flex-col bg-white shadow-2xl">
+                  {/* OPTION 2 (INC-31 only): a CENTER modal wearing the AI gradient as a
+                      full four-side border; every other ticket keeps the side panel with
+                      its left gradient rule. Same content either way. */}
+                  <div
+                    className={
+                      ticketId === 'INC-31'
+                        ? 'absolute left-1/2 top-1/2 flex max-h-[86vh] w-[560px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl shadow-2xl'
+                        : 'absolute right-0 top-0 flex h-full w-[480px] max-w-full flex-col bg-white shadow-2xl'
+                    }
+                    style={
+                      ticketId === 'INC-31'
+                        ? {
+                            background:
+                              'linear-gradient(white, white) padding-box, linear-gradient(135deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                            border: '2px solid transparent',
+                          }
+                        : undefined
+                    }
+                  >
+                    {ticketId !== 'INC-31' && (
                     <span
                       className="pointer-events-none absolute inset-y-0 left-0 w-[2px]"
                       style={{ background: 'linear-gradient(180deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)' }}
                     />
+                    )}
                     {/* Header */}
                     <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-5 py-3.5">
                       <AiSparkle size={16} className="flex-shrink-0" />

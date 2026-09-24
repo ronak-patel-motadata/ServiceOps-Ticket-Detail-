@@ -169,6 +169,12 @@ const GROUP_SOLUTIONS: Record<string, string> = {
     'One fault, not four tickets: the FortiOS 7.4.4 update broke IKE re-key. Raise a Problem, apply the vendor hotfix (or roll back) tonight, and all four requests close together.',
 };
 
+/* The Create Problem card one-liner, per cluster. */
+const CREATE_BLURBS: Record<string, string> = {
+  'grp-4': 'Raise one Problem to fix the shared root cause — a firmware regression on the VPN gateway.',
+};
+const CREATE_BLURB_FALLBACK = 'Raise one Problem to own the shared root cause — every linked request closes with it.';
+
 const SOLUTION_FALLBACK =
   'The evidence points to one underlying fault. Raise a Problem to own the fix and link these requests \u2014 resolving it closes them together.';
 
@@ -472,7 +478,7 @@ export function TicketGroupSuggestions({
       : openGroup.tickets
     : [];
   // Option-2 layout (group 2, and group 4 which clones it): Why band leads and carries the actions.
-  const detailV4 = openGroup?.id === 'grp-4';
+  const detailV4 = openGroup != null; // the FINAL detail layout — every cluster uses it
   const detailV2 = openGroup?.id === 'grp-2' || detailV4;
   // Option-3 layout demo (group 3): the footer actions become self-explaining choice cards.
   const detailV3 = openGroup?.id === 'grp-3';
@@ -776,7 +782,7 @@ export function TicketGroupSuggestions({
                                     toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                                     consumeGroup(openGroup.id);
                                   }}
-                                  className="flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
+                                  className={`flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)] ${panelOnly ? 'max-w-[calc(50%-6px)]' : ''}`}
                                   style={{
                                     background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                                   }}
@@ -786,7 +792,7 @@ export function TicketGroupSuggestions({
                                     Create Problem
                                   </span>
                                   <span className="pl-[23px] text-[12px] leading-snug text-white/90">
-                                    Raise one Problem to fix the shared root cause — a firmware regression on the VPN gateway.
+                                    {CREATE_BLURBS[openGroup.id] ?? CREATE_BLURB_FALLBACK}
                                   </span>
                                 </button>
                                 {!panelOnly && (
