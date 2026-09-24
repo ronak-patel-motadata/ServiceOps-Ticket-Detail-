@@ -227,6 +227,7 @@ function TimelineStep({
   last,
   ai,
   sparkle,
+  noWash,
   children,
 }: {
   icon: typeof Layers;
@@ -237,6 +238,8 @@ function TimelineStep({
   ai?: boolean;
   /** Render the gradient AI sparkle as this step’s rail icon. */
   sparkle?: boolean;
+  /** Drop the gradient wash behind an AI step (kept elsewhere). */
+  noWash?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -256,7 +259,7 @@ function TimelineStep({
         {sparkle ? <AiSparkle size={17} /> : <Icon size={17} />}
       </span>
       {/* Gradient wash (AI Summary recipe): tint only, no border. */}
-      {ai && (
+      {ai && !noWash && (
         <span
           className={`pointer-events-none absolute -left-3 -top-3 right-0 rounded-lg ${last ? '-bottom-4' : 'bottom-4'}`}
           style={{
@@ -478,7 +481,8 @@ export function TicketGroupSuggestions({
       : openGroup.tickets
     : [];
   // Option-2 layout (group 2, and group 4 which clones it): Why band leads and carries the actions.
-  const detailV4 = openGroup != null; // the FINAL detail layout — every cluster uses it
+  // Clusters 1 & 2 keep their ORIGINAL design options as review backups; 3 & 4 use the final layout.
+  const detailV4 = openGroup?.id === 'grp-3' || openGroup?.id === 'grp-4';
   const detailV2 = openGroup?.id === 'grp-2' || detailV4;
   // Option-3 layout demo (group 3): the footer actions become self-explaining choice cards.
   const detailV3 = openGroup?.id === 'grp-3';
@@ -769,9 +773,10 @@ export function TicketGroupSuggestions({
 
                       /* ── Option 4: one AI narrative read top to bottom ── */
                       if (detailV4) {
+                        const altActions = openGroup.id === 'grp-3';
                         return (
                           <div className="pt-1">
-                            <TimelineStep icon={Target} title="AI analysis & recommendation" ai sparkle>
+                            <TimelineStep icon={Target} title="AI analysis & recommendation" ai sparkle noWash={altActions}>
                               <p className="text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
                               <p className="mt-2.5 text-[13px] leading-relaxed text-[#475569]">{GROUP_SOLUTIONS[openGroup.id] ?? SOLUTION_FALLBACK}</p>
                               {/* The whole page builds to this decision, so it closes on the
@@ -782,16 +787,23 @@ export function TicketGroupSuggestions({
                                     toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                                     consumeGroup(openGroup.id);
                                   }}
-                                  className={`flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)] ${panelOnly ? 'max-w-[calc(50%-6px)]' : ''}`}
-                                  style={{
-                                    background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
-                                  }}
+                                  className={`flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all ${altActions ? 'duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]' : 'hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]'} ${panelOnly ? 'max-w-[calc(50%-6px)]' : ''}`}
+                                  style={
+                                    altActions
+                                      ? {
+                                          background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                                          border: '1px solid transparent',
+                                        }
+                                      : {
+                                          background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
+                                        }
+                                  }
                                 >
-                                  <span className="flex w-full items-center gap-2 text-[13px] font-semibold leading-none text-white">
-                                    <TriangleAlert size={15} className="text-white" />
+                                  <span className={`flex w-full items-center gap-2 text-[13px] font-semibold leading-none ${altActions ? 'text-[#1E293B]' : 'text-white'}`}>
+                                    <TriangleAlert size={15} className={altActions ? 'text-[#1E293B]' : 'text-white'} />
                                     Create Problem
                                   </span>
-                                  <span className="pl-[23px] text-[12px] leading-snug text-white/90">
+                                  <span className={`pl-[23px] text-[12px] leading-snug ${altActions ? 'text-[#64748B]' : 'text-white/90'}`}>
                                     {CREATE_BLURBS[openGroup.id] ?? CREATE_BLURB_FALLBACK}
                                   </span>
                                 </button>
@@ -801,14 +813,21 @@ export function TicketGroupSuggestions({
                                       toast.success(`${v2Requests.length} requests merged into ${v2Requests[0]?.id ?? 'one request'}`);
                                       consumeGroup(openGroup.id);
                                     }}
-                                    style={{
-                                      background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
-                                      border: '1px solid transparent',
-                                    }}
+                                    style={
+                                      altActions
+                                        ? {
+                                            background:
+                                              'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF',
+                                          }
+                                        : {
+                                            background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
+                                            border: '1px solid transparent',
+                                          }
+                                    }
                                     className="flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                                   >
                                     <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
-                                      <GitMerge size={15} className="text-[#3D8BD0]" />
+                                      <GitMerge size={15} className="text-[#1E293B]" />
                                       Merge Requests
                                     </span>
                                     <span className="pl-[23px] text-[12px] leading-snug text-[#64748B]">
@@ -928,7 +947,7 @@ export function TicketGroupSuggestions({
                           className="order-2 flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                         >
                           <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
-                            <GitMerge size={15} className="text-[#3D8BD0]" />
+                            <GitMerge size={15} className="text-[#1E293B]" />
                             Merge Requests
                           </span>
                           <span className="pl-[23px] text-[12px] leading-snug text-[#64748B]">

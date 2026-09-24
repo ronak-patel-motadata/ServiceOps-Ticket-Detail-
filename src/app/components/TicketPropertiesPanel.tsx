@@ -2160,7 +2160,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         ? {
                             background:
                               'linear-gradient(white, white) padding-box, linear-gradient(135deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
-                            border: '2px solid transparent',
+                            border: '1px solid transparent',
                           }
                         : undefined
                     }
@@ -2175,12 +2175,6 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-5 py-3.5">
                       <AiSparkle size={16} className="flex-shrink-0" />
                       <h2 className="flex-1 text-[15px] font-semibold text-[#1E293B]">Suggested field updates</h2>
-                      <span
-                        className="rounded-full px-1.5 py-px text-[10px] font-semibold text-[#364658]"
-                        style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%), #FFF' }}
-                      >
-                        {ACTIVE.length}
-                      </span>
                       <button
                         onClick={() => setSuggestOpen(false)}
                         className="flex size-8 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F3F4F6]"
