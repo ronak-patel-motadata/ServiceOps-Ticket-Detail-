@@ -745,13 +745,13 @@ export function TicketGroupSuggestions({
                       const assetGrid = (
                         <div>
                           <div className="grid grid-cols-2 gap-2.5">{(showAllAssets ? v2Assets : v2Assets.slice(0, 4)).map(renderAssetCard)}</div>
-                          {v2Assets.length > 4 && !showAllAssets && (
+                          {v2Assets.length > 4 && (
                             <button
-                              onClick={() => setShowAllAssets(true)}
+                              onClick={() => setShowAllAssets((v) => !v)}
                               className="mt-2.5 flex items-center gap-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
                             >
-                              Show all
-                              <ChevronDown size={14} />
+                              {showAllAssets ? 'Show less' : 'Show all'}
+                              {showAllAssets ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </button>
                           )}
                         </div>
@@ -759,13 +759,13 @@ export function TicketGroupSuggestions({
                       const requestList = (
                         <div className="-mt-2">
                           {(showAllRequests ? v2Requests : v2Requests.slice(0, 6)).map(renderItem)}
-                          {v2Requests.length > 6 && !showAllRequests && (
+                          {v2Requests.length > 6 && (
                             <button
-                              onClick={() => setShowAllRequests(true)}
+                              onClick={() => setShowAllRequests((v) => !v)}
                               className="mt-2 flex items-center gap-1 px-1.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
                             >
-                              Show all
-                              <ChevronDown size={14} />
+                              {showAllRequests ? 'Show less' : 'Show all'}
+                              {showAllRequests ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </button>
                           )}
                         </div>
