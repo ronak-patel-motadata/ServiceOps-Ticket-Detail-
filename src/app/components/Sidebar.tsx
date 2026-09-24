@@ -280,7 +280,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <VulnerabilityNavItem activePage={activePage} onNavigate={onNavigate} />
         <PatchNavItem activePage={activePage} onNavigate={onNavigate} />
         <PackageNavItem activePage={activePage} onNavigate={onNavigate} />
-        <NavItem icon={<IconProject size={20} />} title="Project" />
+        <NavItem icon={<IconProject size={20} />} title="Project" active={activePage === 'projects'} onClick={() => onNavigate?.('projects')} />
         <NavItem icon={<IconKnowledge size={20} />} title="Knowledge" active={activePage === 'knowledge'} onClick={() => onNavigate('knowledge')} />
         <NavItem icon={<IconReport size={20} />} title="Report" active={activePage === 'reports'} onClick={() => onNavigate?.('reports')} />
         <NavItem icon={<IconMyApproval size={20} />} title="My Approval" />

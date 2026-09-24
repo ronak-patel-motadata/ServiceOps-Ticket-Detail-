@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useRef } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf } from './TicketTable';
 import { EventTip, TONE, dayFloor, endOf, fmtDay, fmtTime, readinessOf } from './TicketCalendarView';
@@ -83,7 +83,13 @@ export function TicketGanttView({
      double-click widens the view one step. */
   const [customRange, setCustomRange] = useState<{ start: Date; end: Date } | null>(null);
   const [brush, setBrush] = useState<{ a: number; b: number } | null>(null);
+  /* Rail search — the icon in the RELEASES header expands over the title; the
+     query filters the rows, closing clears it. */
+  const [railSearchOpen, setRailSearchOpen] = useState(false);
+  const [railSearch, setRailSearch] = useState('');
+  const railSearchRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const didBrushRef = useRef(false);
   const today = new Date();
 
@@ -106,9 +112,15 @@ export function TicketGanttView({
     return { start: new Date(cursor.getFullYear(), q, 1), end: new Date(cursor.getFullYear(), q + 3, 0) };
   }, [cursor, grain, customRange]);
 
-  const rangeStartMs = dayFloor(range.start).getTime();
-  const dayCount = Math.round((dayFloor(range.end).getTime() - rangeStartMs) / DAY_MS) + 1;
-  const spanMs = dayCount * DAY_MS;
+  /* Custom ranges keep RAW edges — fractional spans are what make the pinch
+     glide; grain ranges stay day-aligned exactly as before. */
+  const rangeStartMs = customRange ? range.start.getTime() : dayFloor(range.start).getTime();
+  const spanMs = customRange
+    ? Math.max(DAY_MS, range.end.getTime() - range.start.getTime())
+    : (Math.round((dayFloor(range.end).getTime() - dayFloor(range.start).getTime()) / DAY_MS) + 1) * DAY_MS;
+  /* Days TOUCHED by the window — edge days may be partial while zoomed. */
+  const dayCount = Math.ceil((rangeStartMs + spanMs - dayFloor(range.start).getTime()) / DAY_MS);
+  const dayPct = (DAY_MS / spanMs) * 100;
   const days = useMemo(
     () =>
       Array.from(
@@ -128,21 +140,24 @@ export function TicketGanttView({
      overflows into horizontal scroll under the frozen rail instead of shrinking. */
   /* Month: 76px = the row height, so a cell reads as a clean square. Week: roomy
      120px columns where the windows' hour-level starts become visible. */
-  const tlMin = Math.round(dayCount * (presGrain === 'week' ? 120 : presGrain === 'month' ? 76 : 18));
+  const spanDays = spanMs / DAY_MS;
+  const tlMin = Math.round(
+    customRange
+      ? spanDays * Math.max(18, Math.min(120, 2280 / spanDays))
+      : dayCount * (presGrain === 'week' ? 120 : presGrain === 'month' ? 76 : 18),
+  );
 
   /* Every record whose window touches the period, earliest start first — the reading
      order a timeline promises. */
-  const rows = useMemo(
-    () =>
-      tickets
-        .filter(
-          (t) =>
-            dayFloor(t.dueBy).getTime() <= dayFloor(range.end).getTime() &&
-            dayFloor(endOf(t)).getTime() >= rangeStartMs,
-        )
-        .sort((a, b) => a.dueBy.getTime() - b.dueBy.getTime() || endOf(b).getTime() - endOf(a).getTime()),
-    [tickets, range, rangeStartMs],
-  );
+  const rows = useMemo(() => {
+    const q = railSearch.trim().toLowerCase();
+    return tickets
+      .filter(
+        (t) => t.dueBy.getTime() < rangeStartMs + spanMs && endOf(t).getTime() > rangeStartMs,
+      )
+      .filter((t) => !q || t.subject.toLowerCase().includes(q) || t.id.toLowerCase().includes(q))
+      .sort((a, b) => a.dueBy.getTime() - b.dueBy.getTime() || endOf(b).getTime() - endOf(a).getTime());
+  }, [tickets, range, rangeStartMs, railSearch]);
 
   const title = customRange
     ? `${fmtDay(days[0])} – ${fmtDay(days[days.length - 1])}, ${days[days.length - 1].getFullYear()}`
@@ -156,11 +171,10 @@ export function TicketGanttView({
 
   const step = (dir: 1 | -1) => {
     if (customRange) {
-      const s0 = new Date(customRange.start);
-      const e0 = new Date(customRange.end);
-      s0.setDate(s0.getDate() + dir * dayCount);
-      e0.setDate(e0.getDate() + dir * dayCount);
-      setCustomRange({ start: s0, end: e0 });
+      setCustomRange({
+        start: new Date(customRange.start.getTime() + dir * spanMs),
+        end: new Date(customRange.end.getTime() + dir * spanMs),
+      });
       return;
     }
     if (grain === 'week') {
@@ -211,25 +225,57 @@ export function TicketGanttView({
       const hi = Math.max(a0, b);
       const s0 = dayFloor(new Date(rangeStartMs + lo * spanMs));
       const e0 = dayFloor(new Date(rangeStartMs + Math.max(hi * spanMs - 1, lo * spanMs)));
-      setCustomRange({ start: s0, end: e0.getTime() < s0.getTime() ? s0 : e0 });
+      const eDay = e0.getTime() < s0.getTime() ? s0 : e0;
+      setCustomRange({ start: s0, end: new Date(eDay.getTime() + DAY_MS - 1) });
       setCursor(new Date(s0));
     };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
+  useEffect(() => {
+    if (railSearchOpen) railSearchRef.current?.focus();
+  }, [railSearchOpen]);
+
+  const pinchRef = useRef({ rangeStartMs, spanMs });
+  pinchRef.current = { rangeStartMs, spanMs };
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return; // plain wheel keeps scrolling the canvas
+      e.preventDefault();
+      const body = bodyRef.current;
+      if (!body) return;
+      const r = body.getBoundingClientRect();
+      const w = r.width - RAIL_W;
+      if (w <= 0) return;
+      const f = Math.max(0, Math.min(1, (e.clientX - r.left - RAIL_W) / w));
+      const { rangeStartMs: startMs, spanMs: span } = pinchRef.current;
+      const scale = Math.exp(e.deltaY * 0.0045);
+      const newSpan = Math.max(DAY_MS, Math.min(366 * DAY_MS, span * scale));
+      if (Math.abs(newSpan - span) < 1) return;
+      const anchor = startMs + f * span;
+      const s0 = anchor - f * newSpan;
+      setCustomRange({ start: new Date(s0), end: new Date(s0 + newSpan - 1) });
+      setCursor(new Date(s0));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   const zoomOut = (e: React.MouseEvent) => {
     const el = bodyRef.current;
     if (!el || e.clientX - el.getBoundingClientRect().left < RAIL_W) return;
     const newSpan = Math.min(dayCount * 2, 366);
     const s0 = dayFloor(new Date(rangeStartMs + spanMs / 2 - (newSpan / 2) * DAY_MS));
-    const e0 = new Date(s0);
-    e0.setDate(s0.getDate() + newSpan - 1);
-    setCustomRange({ start: s0, end: e0 });
+    setCustomRange({ start: s0, end: new Date(s0.getTime() + newSpan * DAY_MS - 1) });
     setCursor(new Date(s0));
   };
 
   /* A moment's horizontal position, clamped to the visible period. */
   const pct = (ms: number) => Math.max(0, Math.min(100, ((ms - rangeStartMs) / spanMs) * 100));
+  /* Grid variant — no clamp: a zoomed window's first/last day sit partly outside. */
+  const pctRaw = (ms: number) => ((ms - rangeStartMs) / spanMs) * 100;
   const todayPct =
     dayFloor(today).getTime() >= rangeStartMs && dayFloor(today).getTime() <= dayFloor(range.end).getTime()
       ? ((dayFloor(today).getTime() + DAY_MS / 2 - rangeStartMs) / spanMs) * 100
@@ -258,7 +304,7 @@ export function TicketGanttView({
           <div className="truncate text-[15px] font-semibold text-[#1E293B]">{title}</div>
           <div className="mt-0.5 text-[11px] text-[#94A3B8]">
             {rows.length} {rows.length === 1 ? noun : `${noun}s`} in this {customRange ? 'range' : grain}
-            {customRange ? ' · double-click the timeline to widen' : ' · drag across the timeline to zoom'}
+            {customRange ? ' · pinch or double-click to zoom out' : ' · drag or pinch the timeline to zoom'}
           </div>
         </div>
         <div className="ml-auto flex flex-shrink-0 items-center gap-2">
@@ -308,15 +354,56 @@ export function TicketGanttView({
       {/* One scroller for BOTH axes: the header row sticks to the top, the record
           rail sticks to the left (the corner cell to both), and the timeline pans
           beneath that frozen frame. */}
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto">
         <div className="relative min-h-full" style={{ minWidth: RAIL_W + tlMin }}>
       {/* Axis header: the record rail's title, then the time scale. */}
       <div className="sticky top-0 z-30 flex border-b border-[#E5E7EB] bg-white">
         <div
-          className="sticky left-0 z-10 flex flex-shrink-0 items-center border-r border-[#E5E7EB] bg-white px-4 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]"
+          className="sticky left-0 z-10 flex flex-shrink-0 items-center justify-between gap-2 border-r border-[#E5E7EB] bg-white px-4"
           style={{ width: RAIL_W }}
         >
-          {`${noun.charAt(0).toUpperCase() + noun.slice(1)}s`}
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+            {`${noun.charAt(0).toUpperCase() + noun.slice(1)}s`}
+          </span>
+          <button
+            onClick={() => setRailSearchOpen(true)}
+            title={`Search ${noun}s`}
+            className="flex size-6 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F5F8] hover:text-[#3D8BD0]"
+          >
+            <Search size={14} />
+          </button>
+          {/* Expanded: the input overlays the whole title cell (Tasks-tab recipe). */}
+          {railSearchOpen && (
+            <div className="absolute inset-0 z-10 flex items-center gap-2 border-r border-[#E5E7EB] bg-white pl-4 pr-3 shadow-[inset_0_-2px_0_#3D8BD0]">
+              <Search size={14} className="flex-shrink-0 text-[#3D8BD0]" />
+              <input
+                ref={railSearchRef}
+                value={railSearch}
+                onChange={(e) => setRailSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setRailSearch('');
+                    setRailSearchOpen(false);
+                  }
+                }}
+                onBlur={() => {
+                  if (!railSearch.trim()) setRailSearchOpen(false);
+                }}
+                placeholder={`Search ${noun}s...`}
+                className="min-w-0 flex-1 bg-transparent text-[12px] text-[#364658] placeholder:text-[#9CA3AF] focus:outline-none"
+              />
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setRailSearch('');
+                  setRailSearchOpen(false);
+                }}
+                className="flex size-6 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#F3F5F8] hover:text-[#364658]"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
         <div className="relative h-[44px] min-w-0 flex-1">
           {presGrain !== 'quarter'
@@ -327,7 +414,7 @@ export function TicketGanttView({
                   <div
                     key={d.getTime()}
                     className="absolute inset-y-0 flex flex-col items-center justify-center gap-0.5"
-                    style={{ left: `${pct(dayFloor(d).getTime())}%`, width: `${100 / dayCount}%` }}
+                    style={{ left: `${pctRaw(dayFloor(d).getTime())}%`, width: `${dayPct}%` }}
                   >
                     <span className="text-[9px] font-semibold uppercase text-[#C3CDD9]">
                       {presGrain === 'week' ? WD3[d.getDay()] : 'SMTWTFS'[d.getDay()]}
@@ -346,7 +433,7 @@ export function TicketGanttView({
                 <div
                   key={d.getTime()}
                   className="absolute inset-y-0 flex items-center pl-2 text-[11px] font-medium text-[#64748B]"
-                  style={{ left: `${pct(dayFloor(d).getTime())}%` }}
+                  style={{ left: `${pctRaw(dayFloor(d).getTime())}%` }}
                 >
                   {fmtDay(d)}
                 </div>
@@ -378,14 +465,14 @@ export function TicketGanttView({
                   <span
                     key={`w${d.getTime()}`}
                     className="absolute inset-y-0 bg-[#FAFBFC]"
-                    style={{ left: `${pct(dayFloor(d).getTime())}%`, width: `${100 / dayCount}%` }}
+                    style={{ left: `${pctRaw(dayFloor(d).getTime())}%`, width: `${dayPct}%` }}
                   />
                 ))}
             {(presGrain === 'quarter' ? weeks : days).map((d) => (
               <span
                 key={d.getTime()}
                 className="absolute inset-y-0 border-l border-[#F5F7FA]"
-                style={{ left: `${pct(dayFloor(d).getTime())}%` }}
+                style={{ left: `${pctRaw(dayFloor(d).getTime())}%` }}
               />
             ))}
             {todayPct !== null && (
@@ -559,7 +646,9 @@ export function TicketGanttView({
 
           {rows.length === 0 && (
             <div className="px-6 py-16 text-center text-[13px] text-[#94A3B8]">
-              Nothing scheduled in this {customRange ? 'range' : grain}.
+              {railSearch.trim()
+                ? `No ${noun}s match "${railSearch.trim()}"`
+                : `Nothing scheduled in this ${customRange ? 'range' : grain}.`}
             </div>
           )}
           {/* The live selection — a chart brush: tinted span, edge rules, and a

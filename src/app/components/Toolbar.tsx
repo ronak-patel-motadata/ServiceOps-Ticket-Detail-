@@ -9,7 +9,7 @@ interface ToolbarProps {
   activeView: string;
   viewsOpen: boolean;
   onToggleViews: () => void;
-  /** Page-supplied AI pill (the "Suggested groups" recipe) — the Problem listing
+  /** Page-supplied AI pill (the "Suggested clusters" recipe) — the Problem listing
       parks its suggestion here after "Not now". */
   suggestPill?: { label: string; count: number; onClick: () => void };
 }
@@ -69,7 +69,7 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
               }}
             >
               <AiSparkle size={13} />
-              Suggested groups
+              Suggested clusters
               <span
                 className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums text-[#364658]"
                 style={{ background: 'linear-gradient(90deg, rgba(76, 177, 254, 0.12) 0%, rgba(115, 30, 251, 0.12) 41.49%, rgba(249, 17, 227, 0.12) 100%)' }}

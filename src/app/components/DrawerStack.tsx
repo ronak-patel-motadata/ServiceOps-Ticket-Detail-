@@ -31,11 +31,13 @@ import { mockPurchases } from './PurchasesListPage';
 import { mockCis } from './CmdbListPage';
 import { DrawerShortcuts } from './DrawerShortcuts';
 import { TaskDrawer } from './TaskDrawer';
+import { ProjectDrawer, projectToProblemShape } from './ProjectDrawer';
+import { mockProjects } from './ProjectsListPage';
 
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'report';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'report' | 'projects';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -51,6 +53,7 @@ const REL_MAP: Record<string, { module: StackModule; pool: () => any[]; disp: st
   CI: { module: 'cmdb', pool: () => mockCis, disp: 'name' },
   Contract: { module: 'contracts', pool: () => mockContracts, disp: 'name' },
   Purchase: { module: 'purchases', pool: () => mockPurchases, disp: 'name' },
+  Project: { module: 'projects', pool: () => mockProjects, disp: 'name' },
 };
 
 interface DrawerStackApi {
@@ -228,6 +231,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       // V2 design option of the Ticket detail page — INC-33 routes here from the listing page.
       case 'request-v2': drawer = <TicketDrawerV2 openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;
       case 'problem': drawer = <ProblemDrawer openProblems={[active.data]} activeProblemId={active.id} {...shared} />; break;
+      case 'projects': drawer = <ProjectDrawer openProblems={[projectToProblemShape(active.data)]} activeProblemId={active.id} {...shared} />; break;
       case 'change': drawer = <ChangeDrawer openChanges={[active.data]} activeChangeId={active.id} {...shared} />; break;
       case 'release': drawer = <ReleaseDrawer openReleases={[active.data]} activeReleaseId={active.id} {...shared} />; break;
       case 'hardware-assets': drawer = <HardwareAssetDrawer openAssets={[active.data]} activeAssetId={active.id} {...shared} />; break;

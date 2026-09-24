@@ -17,6 +17,8 @@ import { MiniCalendar, type CalendarEvent } from './MiniCalendar';
 import { useState, useEffect, useRef } from 'react';
 import { Minus, X as XIcon, Send, Image, Smile, Bot, ShieldCheck, ShieldAlert, ShieldX, KeyRound, BadgeCheck, ScanLine, Eye, SquareCheckBig } from 'lucide-react';
 import { NotificationsPanel } from './NotificationsPanel';
+import { AddMembersPanel, memberAvatarColor, memberInitials, type DirectoryUser } from './AddMembersPanel';
+import { ProjectKeyInfo } from './ProjectKeyInfo';
 import { toast } from 'sonner';
 import { EditorQuickActions, EditorFormattingRow, EditorSendActions, EditorAiAssist } from './EditorToolbar';
 import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
@@ -49,6 +51,15 @@ interface TicketPropertiesPanelProps {
   statusGroupLabel?: string;
   // Show the SLA Status card (hidden on the Hardware Asset detail page)
   showSla?: boolean;
+  // Drop the Requester Information accordion entirely (Project detail page)
+  hideRequesterInfo?: boolean;
+  // Drop the AI Suggestions rail group (Project detail page)
+  hideSuggestions?: boolean;
+  // Show the asset Users group on a non-asset page, titled Members (Project detail page)
+  showMembers?: boolean;
+  // Replace the ticket Key Information fields with the PROJECT field set
+  projectMode?: boolean;
+  projectInfo?: any;
   // Append the 50+ demo custom form fields to Additional Fields (ticket page only)
   demoCustomFields?: boolean;
   // Render the Hardware Asset field set in the fields accordion instead of ticket fields
@@ -394,6 +405,11 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     showProblemFields = false,
     statusGroupLabel,
     showSla = true,
+    hideRequesterInfo = false,
+    hideSuggestions = false,
+    showMembers = false,
+    projectMode = false,
+    projectInfo = null,
     demoCustomFields = false,
     assetMode = false,
     softwareMode = false,
@@ -833,6 +849,34 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
 
   // Add User side drawer (asset Users group)
   const [showAddUser, setShowAddUser] = useState(false);
+  // Add Member picker (Project page's Members group) + the people it added.
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [addedMembers, setAddedMembers] = useState<
+    { name: string; initials: string; color: string; dept: string; accountType: string; domain: string; sid: string; disabled: boolean; description: string }[]
+  >([]);
+  /* Project-member details (Members group): role is editable, tasks/milestones are
+     deterministic per member — people added from the picker start fresh at Default 0/0,
+     matching how a new member joins in the product. */
+  const MEMBER_ROLES = ['Default', 'Project Manager', 'Contributor', 'Reviewer', 'Viewer'];
+  const [memberRoles, setMemberRoles] = useState<Record<string, string>>({});
+  const memberMeta = (name: string) => {
+    if (addedMembers.some((m) => m.name === name)) return { role: 'Default', tasksDone: 0, tasksTotal: 0, msDone: 0, msTotal: 0 };
+    const h = [...name].reduce((a, c) => a + c.charCodeAt(0), 0);
+    const tasksTotal = 3 + (h % 7);
+    const tasksDone = Math.min(tasksTotal, h % 5);
+    const msTotal = 1 + (h % 3);
+    const msDone = Math.min(msTotal, (h >> 2) % 3);
+    return { role: ['Project Manager', 'Contributor', 'Contributor', 'Reviewer', 'Viewer'][h % 5], tasksDone, tasksTotal, msDone, msTotal };
+  };
+  const memberRoleOf = (name: string) => memberRoles[name] ?? memberMeta(name).role;
+  const memberRoleTint = (r: string) =>
+    r === 'Project Manager'
+      ? 'bg-[#EBF5FF] text-[#3D8BD0]'
+      : r === 'Contributor'
+        ? 'bg-[#E7F6EE] text-[#22A06B]'
+        : r === 'Reviewer'
+          ? 'bg-[#FEF6E6] text-[#B54708]'
+          : 'bg-[#F1F5F9] text-[#64748B]';
   const [newUser, setNewUser] = useState({ name: '', accountType: '', domain: '', disabled: '', sid: '', description: '' });
   // Accordion: which asset users are expanded (showing account type / domain / SID / description)
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
@@ -910,7 +954,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         : showChangeCalendar
           ? 'changePropertiesSectionOrderV4'
           : 'ticketPropertiesSectionOrderV3';
-  const defaultSectionOrder = patchMode
+  const defaultSectionOrderRaw = patchMode
     ? (taskMode ? ['Ticket Fields', 'Additional Fields'] : endpointMode ? ['Ticket Fields', 'Scan Info'] : knowledgeMode ? ['Analytics', 'Ticket Fields'] : ['Ticket Fields']) // Patch page: single accordion; Endpoint page adds Scan Info
     : hideAdditionalFields
       ? ['Ticket Fields', 'Requester Information'] // V2 ticket page — Additional Fields live in the Incident Details tab
@@ -921,6 +965,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         : assetMode
           ? ['Ticket Fields', 'Additional Fields']
           : ['Ticket Fields', 'Additional Fields', 'Requester Information'];
+  const defaultSectionOrder = hideRequesterInfo
+    ? defaultSectionOrderRaw.filter((s) => s !== 'Requester Information')
+    : defaultSectionOrderRaw;
   const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
     // Load from localStorage on initial mount
     if (typeof window !== 'undefined') {
@@ -942,7 +989,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           if (patchMode && knowledgeMode) { cleaned = ['Analytics', ...cleaned.filter((x) => x !== 'Analytics')]; }
           if (!knowledgeMode) cleaned = cleaned.filter((s) => s !== 'Analytics');
           // Agent Information is pinned at the top on the asset page — not a reorderable section.
-          return assetMode ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
+          return assetMode || hideRequesterInfo ? cleaned.filter((s) => s !== 'Requester Information') : cleaned;
         } catch (e) {
           return defaultSectionOrder;
         }
@@ -1675,7 +1722,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
               </div>
             )}
             {activeGroup === 'users' && (
-              <button title="Add User" onClick={openAddUser} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
+              <button title={showMembers ? 'Add Member' : 'Add User'} onClick={() => (showMembers ? setShowAddMembers(true) : openAddUser())} className="size-7 flex-shrink-0 rounded bg-[#3D8BD0] text-white flex items-center justify-center hover:bg-[#2F7AB8] transition-colors">
                 <Plus size={15} />
               </button>
             )}
@@ -2387,6 +2434,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         {sectionOrder.map((section) => {
           if (section === 'Change Calendar') {
             return showChangeCalendar ? <MiniCalendar key="change-calendar" events={changeCalendarEvents} title={changeCalendarTitle} /> : null;
+          }
+          if (section === 'Ticket Fields' && projectMode) {
+            return <ProjectKeyInfo key='ticket-fields' project={projectInfo} title={fieldsTitle ?? 'Key Information'} />;
           }
           if (section === 'Ticket Fields' && (hasTicketFieldsMatch() || (!!propertiesSearchQuery && (getFilteredAdditionalFields().length > 0 || 'system fields'.includes(propertiesSearchQuery.toLowerCase()))))) {
             return (
@@ -3285,7 +3335,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 { name: 'Rahul Verma', initials: 'RV', color: '#EC4899', dept: 'Customer Support', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-501', disabled: true, description: 'Local user account for Rahul Verma.' },
                 { name: 'Sara Williams', initials: 'SW', color: '#8B5CF6', dept: 'Finance', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-503', disabled: true, description: 'Local user account for Sara Williams.' },
                 { name: 'Vikram Singh', initials: 'VS', color: '#EF4444', dept: 'Operations', accountType: 'Normal Account', domain: 'DESKTOP-7ABJPOF', sid: 'S-1-5-21-2223866533-3979566758-1394323533-500', disabled: true, description: 'Local user account for Vikram Singh.' },
-              ].map((u) => {
+              ].concat(addedMembers).map((u) => {
                 const open = expandedUsers.has(u.name);
                 return (
                 <div key={u.name} className="group relative rounded-[10px] bg-[#F9FAFB]">
@@ -3297,19 +3347,74 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-medium text-[#364658] truncate">{u.name}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${u.disabled ? 'bg-[#FDECEC] text-[#DC2626]' : 'bg-[#E7F6EE] text-[#22A06B]'}`}>{u.disabled ? 'Disabled' : 'Active'}</span>
+                        {showMembers ? (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${memberRoleTint(memberRoleOf(u.name))}`}>{memberRoleOf(u.name)}</span>
+                        ) : (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${u.disabled ? 'bg-[#FDECEC] text-[#DC2626]' : 'bg-[#E7F6EE] text-[#22A06B]'}`}>{u.disabled ? 'Disabled' : 'Active'}</span>
+                        )}
                         <div className="ml-auto flex items-center gap-1 flex-shrink-0">
-                          <span className="hidden group-hover:flex items-center gap-0.5">
-                            <button title="Edit" onClick={(e) => e.stopPropagation()} className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Edit size={13} /></button>
-                            <button title="Delete" onClick={(e) => e.stopPropagation()} className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] hover:bg-[#FDECEC] transition-colors"><Trash2 size={13} /></button>
+                          {/* Icons live in an always-rendered INVISIBLE slot (not hidden) so the
+                              row height never changes on hover — no dancing cards. */}
+                          <span className="invisible flex items-center gap-0.5 group-hover:visible">
+                            {/* Member cards (Project page): no Edit, and the delete keeps a quiet
+                                color-only hover — no gray fills darkening the card. */}
+                            {!showMembers && (
+                              <button title="Edit" onClick={(e) => e.stopPropagation()} className="size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#EBEFF3] transition-colors"><Edit size={13} /></button>
+                            )}
+                            <button title="Delete" onClick={(e) => { e.stopPropagation(); setAddedMembers((prev) => prev.filter((m) => m.name !== u.name)); }} className={`size-6 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#DC2626] transition-colors ${showMembers ? '' : 'hover:bg-[#FDECEC]'}`}><Trash2 size={13} /></button>
                           </span>
                           <span className="text-[#9CA3AF]">{open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
                         </div>
                       </div>
-                      <div className="text-[12px] text-[#7B8FA5] truncate">{u.dept}</div>
+                      <div className="text-[12px] text-[#7B8FA5] truncate">
+                        {showMembers ? (
+                          (() => {
+                            const m = memberMeta(u.name);
+                            return <span className="tabular-nums">{m.tasksDone}/{m.tasksTotal} tasks · {m.msDone}/{m.msTotal} milestones</span>;
+                          })()
+                        ) : (
+                          u.dept
+                        )}
+                      </div>
                     </div>
                   </div>
                   {open && (
+                    showMembers ? (
+                      (() => {
+                        const m = memberMeta(u.name);
+                        return (
+                          <div className="px-3 pb-3 space-y-2.5 border-t border-[#EEF1F4] pt-2.5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[11px] text-[#7B8FA5] flex-shrink-0 w-[90px]">Project Role</span>
+                              <select
+                                value={memberRoleOf(u.name)}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => setMemberRoles((prev) => ({ ...prev, [u.name]: e.target.value }))}
+                                className="app-select h-7 min-w-0 flex-1 cursor-pointer rounded border border-[#DFE5ED] bg-white pl-2 text-[12px] text-[#364658] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
+                              >
+                                {MEMBER_ROLES.map((r) => (
+                                  <option key={r}>{r}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {([['Tasks', m.tasksDone, m.tasksTotal], ['Milestones', m.msDone, m.msTotal]] as const).map(([label, done, total]) => (
+                              <div key={label} className="flex items-center gap-3">
+                                <span className="text-[11px] text-[#7B8FA5] flex-shrink-0 w-[90px]">{label}</span>
+                                <div className="flex min-w-0 flex-1 items-center gap-2">
+                                  <span className="block h-[4px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+                                    <span
+                                      className="block h-full rounded-full"
+                                      style={{ width: total ? `${(done / total) * 100}%` : '0%', backgroundColor: total && done === total ? '#16A34A' : '#3D8BD0' }}
+                                    />
+                                  </span>
+                                  <span className="flex-shrink-0 text-[12px] tabular-nums text-[#364658]">{done}/{total}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
                     <div className="px-3 pb-3 space-y-2 border-t border-[#EEF1F4] pt-2.5">
                       {[
                         ['Account Type', u.accountType],
@@ -3323,6 +3428,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                         </div>
                       ))}
                     </div>
+                    )
                   )}
                 </div>
                 );
@@ -4572,6 +4678,30 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipContent>{propertiesTitle ?? (assetMode ? 'Asset Properties' : 'Request Properties')}</TooltipContent>
         </Tooltip>
 
+        {/* Members group (Project page) — the asset Users panel, directly under Properties. */}
+        {showMembers && !assetMode && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  if (isAccordionCollapsed) {
+                    expandAccordion();
+                  }
+                  setActiveGroup('users');
+                }}
+                className={`size-8 flex items-center justify-center rounded border transition-all ${
+                  activeGroup === 'users'
+                    ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658]'
+                }`}
+              >
+                <Users size={16} className={activeGroup === 'users' ? 'text-[#3D8BD0]' : 'text-[#364658]'} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Members</TooltipContent>
+          </Tooltip>
+        )}
+
         {/* Asset-only groups: Users + Notes (ordered between Properties and Activity) */}
         {assetMode && (
         <>
@@ -4700,8 +4830,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
         </Tooltip>
         )}
 
-        {/* Group 3: AI Suggestions Icon (hidden for hardware assets) */}
-        {!assetMode && (
+        {/* Group 3: AI Suggestions Icon (hidden for hardware assets + projects) */}
+        {!assetMode && !hideSuggestions && (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -4926,6 +5056,31 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
       )}
 
       {/* Add User — side drawer (asset Users group) */}
+      {showAddMembers && (
+        <AddMembersPanel
+          existingNames={[
+            'Karan Malhotra', 'Aarav Sharma', 'Daniel Cooper', 'Emily Watson', 'Rahul Verma', 'Sara Williams', 'Vikram Singh',
+            ...addedMembers.map((m) => m.name),
+          ]}
+          onClose={() => setShowAddMembers(false)}
+          onAdd={(users: DirectoryUser[]) =>
+            setAddedMembers((prev) => [
+              ...prev,
+              ...users.map((u) => ({
+                name: u.name,
+                initials: memberInitials(u.name),
+                color: memberAvatarColor(u.name),
+                dept: u.dept,
+                accountType: 'Normal Account',
+                domain: 'MOTADATA',
+                sid: `S-1-5-21-2223866533-3979566758-1394323533-${1100 + [...u.name].reduce((a, c) => a + c.charCodeAt(0), 0) % 800}`,
+                disabled: false,
+                description: `Project member — ${u.dept}.`,
+              })),
+            ])
+          }
+        />
+      )}
       {showAddUser && (
         <>
           <div className="fixed inset-0 bg-black/30 z-[10000]" onClick={cancelAddUser} />

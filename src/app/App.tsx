@@ -9,6 +9,7 @@ import { ConsumableAssetsListPage } from './components/ConsumableAssetsListPage'
 import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage';
 import { ContractsListPage } from './components/ContractsListPage';
 import { PurchasesListPage } from './components/PurchasesListPage';
+import { ProjectsListPage } from './components/ProjectsListPage';
 import { CmdbListPage } from './components/CmdbListPage';
 import { PatchesListPage } from './components/PatchesListPage';
 import { PatchDeploymentsListPage } from './components/PatchDeploymentsListPage';
@@ -26,7 +27,7 @@ import { DetectedCvesListPage } from './components/DetectedCvesListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'icons' | 'views-lab';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'icons' | 'views-lab';
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('request');
@@ -50,6 +51,7 @@ export default function App() {
       {activePage === 'software-licenses' && <SoftwareLicensesListPage onNavigate={navigate} onOpenSoftwareAsset={openSoftwareAsset} />}
       {activePage === 'contracts' && <ContractsListPage onNavigate={navigate} />}
       {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
+      {activePage === 'projects' && <ProjectsListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
       {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
       {activePage === 'patch-deployments' && <PatchDeploymentsListPage onNavigate={navigate} />}

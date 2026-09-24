@@ -66,7 +66,7 @@ const GROUP_SEEDS: SuggestedGroup[] = [
     description:
       'A burst of connectivity requests from the same floor of Ahmedabad HO. All five requesters report Wi-Fi dropping or fully unavailable, starting around 13:30. No other floor or office has raised a connectivity request in the same window. Network monitoring shows access point AP-AMD-3F-04 restarted its radio six times between 13:25 and 15:00, and the two neighbouring APs on Floor 3 absorbed roughly 60 extra clients in the same period — consistent with a single flapping AP rather than a building-wide outage. The switch port feeding that AP (SW-AMD-3F-01, port 14) has been logging CRC errors since the morning, which points at a cabling or SFP fault rather than a controller misconfiguration. Impact is contained to Floor 3, but that floor hosts the Finance and HR bays, and two of the affected requesters are processing month-end payroll today.',
     reason:
-      'Same site and floor, same symptom category, raised within a 96-minute window. Four of the five requests name access point AP-AMD-3F-04, which logged 6 radio resets in the same period — a strong signal of one underlying network issue.',
+      'Same floor, same symptom, one 96-minute window — four of the five requests name AP-AMD-3F-04, which reset 6 times in that period.',
     tickets: [
       { id: 'INC-32', subject: 'My Internet Down', status: 'Open', priority: 'High', assignee: 'Shreyak Dalal', requester: 'Darshak Modi' },
       { id: 'INC-33', subject: 'WiFi is not working', status: 'Pending', priority: 'Urgent', assignee: 'Kaison Potai', requester: 'Meera Iyer' },
@@ -87,7 +87,7 @@ const GROUP_SEEDS: SuggestedGroup[] = [
     description:
       'Five onboarding requests share the same catalog workflow and every one of them is parked on the "Create AD account" task. The approver queue is identical across all five, and no task in that queue has closed since 20/Apr. The identity technician who normally clears AD-account tasks is on leave this week, and the backup approver was never added to the queue — so all five tasks are waiting on a person who will not action them. Each stalled request is a new joiner with a confirmed start date; two of them start on Monday, and their laptops cannot be imaged until the AD account exists. Reassigning the approver once would release all five workflows in a single step.',
     reason:
-      'Same service-catalog workflow, same open task, same approver group, and identical stall duration. When one workflow step blocks many requests at once, clearing the step (or its approver) resolves the whole set.',
+      'Same catalog workflow, all parked on the same "Create AD account" task and approver — clearing that one step releases all five.',
     tickets: [
       { id: 'INC-31', subject: 'Employee Onboarding', status: 'In Progress', priority: 'Medium', assignee: 'Keetion Dale', requester: 'Nandini Patel' },
       { id: 'INC-34', subject: 'Employee Onboarding', status: 'Open', priority: 'Low', assignee: 'Novak Potai', requester: 'Samuel Githugu' },
@@ -109,7 +109,7 @@ const GROUP_SEEDS: SuggestedGroup[] = [
     description:
       'Three hardware requests describe the same failure mode — the laptop charger stops charging or overheats. Asset records tie all three adapters to purchase batch DLC-2231, issued in January. The baseline failure rate for this model is one per quarter, so three failures inside four days is roughly twelve times the expected rate. All three adapters shipped in the same procurement order of 40 units, meaning around 37 potentially faulty units are still in circulation across the Ahmedabad and Pune offices. One requester also reported a burnt smell, which raises this from an inconvenience to a potential safety issue worth flagging to the vendor alongside a batch recall.',
     reason:
-      'Same asset model, same procurement batch, same failure symptom, and a failure rate 12× above baseline. A batch-level hardware fault is the likely root cause — worth a Problem and possibly a vendor claim.',
+      'Same adapter model, same procurement batch, same failure — at 12× the normal failure rate, a batch fault is the likely cause.',
     tickets: [
       { id: 'INC-39', subject: 'Laptop charger not working', status: 'Closed', priority: 'Medium', assignee: 'Keetion Dale', requester: 'Jainam Shah' },
       { id: 'INC-42', subject: 'Charger stopped charging the laptop', status: 'Open', priority: 'Low', assignee: 'Novak Potai', requester: 'Meera Iyer' },
@@ -128,14 +128,21 @@ const GROUP_SEEDS: SuggestedGroup[] = [
     description:
       'Four requests describe the same remote-access failure — the VPN client connects, then drops after a few minutes, or refuses to re-authenticate. Every affected user routes through the Ahmedabad VPN gateway, which was updated to FortiOS 7.4.4 during the 05:30 maintenance window. The first request arrived at 06:12, roughly forty minutes after the update completed, and no similar request was raised in the preceding two weeks. Session logs on the gateway show IKE re-key failures against the RADIUS host, which is consistent with a known regression in this firmware build. Rolling back the gateway (or applying the vendor hotfix) would clear all four requests at once.',
     reason:
-      'Same gateway, same failure mode, and all four requests began within an hour of a firmware change on that device. A configuration change that immediately precedes a burst of identical requests is the strongest root-cause signal available.',
+      'Same gateway, same failure mode — all four requests began within an hour of the firmware change on that device.',
     tickets: [
       { id: 'INC-51', subject: 'VPN disconnects every few minutes', status: 'Open', priority: 'Urgent', assignee: 'Shreyak Dalal', requester: 'Darshak Modi' },
       { id: 'INC-52', subject: 'Cannot reconnect to VPN after drop', status: 'In Progress', priority: 'High', assignee: 'Kaison Potai', requester: 'Meera Iyer' },
       { id: 'INC-53', subject: 'Remote access keeps asking for credentials', status: 'Open', priority: 'High', assignee: 'Shreyak Dalal', requester: 'Samuel Githugu' },
       { id: 'INC-54', subject: 'VPN client times out from home', status: 'Pending', priority: 'Medium', assignee: 'Rahul Shukla', requester: 'Rohit Kulkarni' },
+      { id: 'INC-55', subject: 'VPN asks for credentials in a loop', status: 'Open', priority: 'High', assignee: 'Keetion Dale', requester: 'Nandini Patel' },
+      { id: 'INC-56', subject: 'Remote session drops during file transfer', status: 'Open', priority: 'Medium', assignee: 'Novak Potai', requester: 'Hetal Mori' },
+      { id: 'INC-57', subject: 'VPN tunnel unstable since this morning', status: 'In Progress', priority: 'High', assignee: 'Shreyak Dalal', requester: 'Samuel Githugu' },
+      { id: 'INC-58', subject: 'Cannot reach intranet over VPN', status: 'Pending', priority: 'Low', assignee: 'Rahul Shukla', requester: 'Ersin Sevinç' },
       { id: 'CI-176', subject: 'FW-AMD-01 — Ahmedabad VPN Gateway', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Darshak Modi', itemType: 'CI', assetType: 'Server' },
       { id: 'CI-289', subject: 'RADIUS Authentication Service', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Meera Iyer', itemType: 'CI', assetType: 'Application' },
+      { id: 'CI-301', subject: 'RADIUS-02 — Secondary Auth Node', status: 'Operational', priority: '', assignee: 'Rahul Shukla', requester: 'Meera Iyer', itemType: 'CI', assetType: 'Server' },
+      { id: 'CI-118', subject: 'SW-AMD-CORE-01 — Ahmedabad Core Switch', status: 'Operational', priority: '', assignee: 'Shreyak Dalal', requester: 'Darshak Modi', itemType: 'CI', assetType: 'Switch' },
+      { id: 'AST-2210', subject: 'FortiGate 100F — spare unit (Ahmedabad DC)', status: 'In Stock', priority: '', assignee: 'Keetion Dale', requester: 'Darshak Modi', itemType: 'Asset', assetType: 'Hardware' },
     ],
   },
 ];
@@ -159,11 +166,11 @@ const CANDIDATE_POOL: GroupTicket[] = [
 /** What the AI recommends doing about each group — the closing step of the timeline. */
 const GROUP_SOLUTIONS: Record<string, string> = {
   'grp-4':
-    'This is one fault, not four tickets — the FortiOS 7.4.4 update on FW-AMD-01 broke IKE re-key against the RADIUS host. Raise a Problem on the gateway and apply the vendor hotfix (or roll back to 7.4.3) in tonight\u2019s change window. Link these four requests to it, verify one user reconnects, and all four close together.',
+    'One fault, not four tickets: the FortiOS 7.4.4 update broke IKE re-key. Raise a Problem, apply the vendor hotfix (or roll back) tonight, and all four requests close together.',
 };
 
 const SOLUTION_FALLBACK =
-  'The evidence points to a single underlying fault rather than separate incidents. Raise a Problem to own the fix, link these requests to it, and every requester is updated from one thread \u2014 resolving the Problem closes them together.';
+  'The evidence points to one underlying fault. Raise a Problem to own the fix and link these requests \u2014 resolving it closes them together.';
 
 const STATUS_DOT: Record<string, string> = {
   Open: '#3D8BD0',
@@ -443,6 +450,13 @@ export function TicketGroupSuggestions({
   const [dismissed, setDismissed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  /* Long clusters open folded: 4 items / 6 requests, then a one-way load-more. */
+  const [showAllAssets, setShowAllAssets] = useState(false);
+  const [showAllRequests, setShowAllRequests] = useState(false);
+  useEffect(() => {
+    setShowAllAssets(false);
+    setShowAllRequests(false);
+  }, [openGroupId]);
   const [itemTypeFilter, setItemTypeFilter] = useState('All');
 
   const openGroup = groups.find((g) => g.id === openGroupId) ?? null;
@@ -583,7 +597,7 @@ export function TicketGroupSuggestions({
               ) : (
                 <>
                   <AiSparkle size={16} className="flex-shrink-0" />
-                  <h2 className="flex-1 text-[15px] font-semibold text-[#1E293B]">Suggested request groups</h2>
+                  <h2 className="flex-1 text-[15px] font-semibold text-[#1E293B]">Suggested Clusters</h2>
                   <span className="rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-semibold text-[#64748B]">{groups.length}</span>
                 </>
               )}
@@ -718,24 +732,42 @@ export function TicketGroupSuggestions({
                           onAdd={(t) => addTicket(openGroup.id, t)}
                         />
                       );
-                      const assetGrid = <div className="grid grid-cols-2 gap-2.5">{v2Assets.map(renderAssetCard)}</div>;
-                      const requestList = <div className="-mt-2">{v2Requests.map(renderItem)}</div>;
+                      const assetGrid = (
+                        <div>
+                          <div className="grid grid-cols-2 gap-2.5">{(showAllAssets ? v2Assets : v2Assets.slice(0, 4)).map(renderAssetCard)}</div>
+                          {v2Assets.length > 4 && !showAllAssets && (
+                            <button
+                              onClick={() => setShowAllAssets(true)}
+                              className="mt-2.5 flex items-center gap-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+                            >
+                              Show all
+                              <ChevronDown size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                      const requestList = (
+                        <div className="-mt-2">
+                          {(showAllRequests ? v2Requests : v2Requests.slice(0, 6)).map(renderItem)}
+                          {v2Requests.length > 6 && !showAllRequests && (
+                            <button
+                              onClick={() => setShowAllRequests(true)}
+                              className="mt-2 flex items-center gap-1 px-1.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8]"
+                            >
+                              Show all
+                              <ChevronDown size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
 
                       /* ── Option 4: one AI narrative read top to bottom ── */
                       if (detailV4) {
                         return (
                           <div className="pt-1">
-                            <TimelineStep icon={AlignLeft} title="Why ServiceOps grouped these" ai>
+                            <TimelineStep icon={Target} title="AI analysis & recommendation" ai sparkle>
                               <p className="text-[13px] leading-relaxed text-[#475569]">{openGroup.reason}</p>
-                            </TimelineStep>
-                            <TimelineStep icon={Layers} title={`Affected items (${v2Assets.length})`} action={addItemsBtn}>
-                              {assetGrid}
-                            </TimelineStep>
-                            <TimelineStep icon={TicketCheck} title={`Impacted requests (${v2Requests.length})`} action={addRequestBtn}>
-                              {requestList}
-                            </TimelineStep>
-                            <TimelineStep icon={Target} title="Suggested solution" ai sparkle last>
-                              <p className="text-[13px] leading-relaxed text-[#475569]">{GROUP_SOLUTIONS[openGroup.id] ?? SOLUTION_FALLBACK}</p>
+                              <p className="mt-2.5 text-[13px] leading-relaxed text-[#475569]">{GROUP_SOLUTIONS[openGroup.id] ?? SOLUTION_FALLBACK}</p>
                               {/* The whole page builds to this decision, so it closes on the
                                   self-explaining choice cards rather than bare buttons. */}
                               <div className="mt-3.5 flex gap-3">
@@ -744,7 +776,7 @@ export function TicketGroupSuggestions({
                                     toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                                     consumeGroup(openGroup.id);
                                   }}
-                                  className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
+                                  className="flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
                                   style={{
                                     background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                                   }}
@@ -752,11 +784,8 @@ export function TicketGroupSuggestions({
                                   <span className="flex w-full items-center gap-2 text-[13px] font-semibold leading-none text-white">
                                     <TriangleAlert size={15} className="text-white" />
                                     Create Problem
-                                    <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-white px-1.5 py-1 text-[10px] font-semibold leading-none text-[#731EFB]">
-                                      Recommended
-                                    </span>
                                   </span>
-                                  <span className="pl-[23px] text-[12px] leading-relaxed text-white/90">
+                                  <span className="pl-[23px] text-[12px] leading-snug text-white/90">
                                     Raise one Problem to fix the shared root cause — a firmware regression on the VPN gateway.
                                   </span>
                                 </button>
@@ -770,18 +799,24 @@ export function TicketGroupSuggestions({
                                       background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
                                       border: '1px solid transparent',
                                     }}
-                                    className="flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                                    className="flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                                   >
                                     <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
                                       <GitMerge size={15} className="text-[#3D8BD0]" />
                                       Merge Requests
                                     </span>
-                                    <span className="pl-[23px] text-[12px] leading-relaxed text-[#64748B]">
+                                    <span className="pl-[23px] text-[12px] leading-snug text-[#64748B]">
                                       Combine all {v2Requests.length} requests into one and resolve them together.
                                     </span>
                                   </button>
                                 )}
                               </div>
+                            </TimelineStep>
+                            <TimelineStep icon={Layers} title={`Affected items (${v2Assets.length})`} action={addItemsBtn}>
+                              {assetGrid}
+                            </TimelineStep>
+                            <TimelineStep icon={TicketCheck} title={`Impacted requests (${v2Requests.length})`} action={addRequestBtn} last>
+                              {requestList}
                             </TimelineStep>
                           </div>
                         );
@@ -884,13 +919,13 @@ export function TicketGroupSuggestions({
                             background: 'linear-gradient(white, white) padding-box, linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%) border-box',
                             border: '1px solid transparent',
                           }}
-                          className="order-2 flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
+                          className="order-2 flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all duration-200 hover:shadow-[0_2px_10px_rgba(115,30,251,0.14)]"
                         >
                           <span className="flex items-center gap-2 text-[13px] font-semibold leading-none text-[#1E293B]">
                             <GitMerge size={15} className="text-[#3D8BD0]" />
                             Merge Requests
                           </span>
-                          <span className="pl-[23px] text-[12px] leading-relaxed text-[#64748B]">
+                          <span className="pl-[23px] text-[12px] leading-snug text-[#64748B]">
                             Combine all {openGroup.tickets.length} requests into one and resolve them together.
                           </span>
                         </button>
@@ -900,7 +935,7 @@ export function TicketGroupSuggestions({
                           toast.success(`Problem PRB-2119 created from "${openGroup.name}"`);
                           consumeGroup(openGroup.id);
                         }}
-                        className="order-1 flex flex-1 flex-col items-start gap-1 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
+                        className="order-1 flex flex-1 flex-col items-start gap-2 rounded-lg p-3.5 text-left transition-all hover:brightness-[0.95] hover:shadow-[0_2px_10px_rgba(115,30,251,0.25)]"
                         style={{
                           background: 'linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)), linear-gradient(90deg, #4CB1FE 0%, #731EFB 41.49%, #F911E3 100%)',
                         }}
@@ -912,7 +947,7 @@ export function TicketGroupSuggestions({
                             Recommended
                           </span>
                         </span>
-                        <span className="pl-[23px] text-[12px] leading-relaxed text-white/90">
+                        <span className="pl-[23px] text-[12px] leading-snug text-white/90">
                           Raise one Problem to investigate the shared root cause — a batch-level hardware fault.
                         </span>
                       </button>
@@ -1026,7 +1061,7 @@ export function TicketGroupSuggestions({
         <div className="flex items-center gap-2">
           <AiSparkle size={16} className="flex-shrink-0" />
           <span className="text-[14px] font-semibold text-[#1E293B]">
-            Grouped by AI: {groups.length} {groups.length === 1 ? 'group' : 'groups'} ready to review
+            Clustered by AI: {groups.length} {groups.length === 1 ? 'cluster' : 'clusters'} ready to review
           </span>
           <span
             className="rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#731EFB]"
@@ -1083,7 +1118,7 @@ export function TicketGroupSuggestions({
         {/* pl-6 = icon (16) + gap (8): row 2 aligns under the title text. */}
         <div className="mt-1 flex items-center gap-4 pl-6">
           <p className="min-w-0 max-w-[680px] text-[12px] leading-relaxed text-[#64748B]">
-            ServiceOps watches your open requests for repeats and groups the ones that share a cause, so you triage the pattern
+            ServiceOps watches your open requests for repeats and clusters the ones that share a cause, so you triage the pattern
             instead of the tickets.
           </p>
           <span className="h-8 w-px flex-shrink-0 bg-[#E5E7EB]" />
@@ -1102,7 +1137,7 @@ export function TicketGroupSuggestions({
               onClick={() => setPanelOpen(true)}
               className="h-8 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
             >
-              Review groups ({groups.length})
+              Review clusters ({groups.length})
             </button>
           </div>
         </div>
