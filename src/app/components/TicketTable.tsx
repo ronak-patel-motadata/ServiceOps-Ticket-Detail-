@@ -2675,40 +2675,37 @@ export function TicketPeekCard({
       style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}
     >
       <div className="px-4 pb-3.5 pt-3.5">
-        <div className="flex items-center gap-3">
-          <span className="rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{t.id}</span>
-          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium text-[#94A3B8]">{t.id}</span>
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#364658]">
-                <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(t.status) }} />
+              <span className="inline-flex h-[22px] flex-shrink-0 items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
+                <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: statusColor(t.status) }} />
                 {t.status}
               </span>
             </TooltipTrigger>
             <TooltipContent>Status: {t.status}</TooltipContent>
           </Tooltip>
-          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
-              <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[#364658]">
-                <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{t.assignedTo.initials || 'UA'}</span>
-                <span className="truncate">{t.assignedTo.name || 'Unassigned'}</span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Assignee: {t.assignedTo.name || 'Unassigned'}</TooltipContent>
-          </Tooltip>
-          <span className="h-3 w-px flex-shrink-0 bg-[#E5E7EB]" />
-          <Tooltip delayDuration={200}>
-            <TooltipTrigger asChild>
-              <span className="inline-flex flex-shrink-0 items-center gap-1 text-[12px] font-medium text-[#364658]">
-                <Flag size={12} fill="currentColor" style={{ color: priorityColor(t.priority) }} />
+              <span className="inline-flex h-[22px] flex-shrink-0 items-center gap-1.5 rounded border border-[#E5E7EB] px-1.5 text-[11px] text-[#364658]">
+                <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: priorityColor(t.priority) }} />
                 {t.priority}
               </span>
             </TooltipTrigger>
             <TooltipContent>Priority: {t.priority}</TooltipContent>
           </Tooltip>
-          <span className="ml-auto flex-shrink-0">
-            <SlaPill ticket={t} />
+          <SlaPill ticket={t} compact className="h-[22px] flex-shrink-0" />
+          <span className="ml-auto flex flex-shrink-0 items-center gap-2">
+            {/* Corner avatar, calendar-card style — name lives in its tooltip. */}
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <span className={`flex size-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-semibold text-white ${t.assignedTo.name ? 'bg-[#3D8BD0]' : 'bg-[#9CA3AF]'}`}>
+                  {t.assignedTo.initials || 'UA'}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Assignee: {t.assignedTo.name || 'Unassigned'}</TooltipContent>
+            </Tooltip>
           </span>
         </div>
         <div className="mt-2.5 text-[13px] font-semibold leading-snug text-[#1E293B]">{t.subject}</div>
@@ -2742,21 +2739,6 @@ export function TicketPeekCard({
                 </div>
               </div>
             </div>
-            <div className="mt-3 text-[11px] font-medium text-[#64748B]">Suggested Actions</div>
-            {ai.actions.map((a) => (
-              <button
-                key={a.label}
-                onClick={() => toast(`${a.label} — coming soon`)}
-                className="mt-1.5 flex w-full items-center gap-2 rounded border border-[#DFE5ED] bg-white px-2.5 py-2 text-left transition-colors hover:bg-[#F5F7FA]"
-              >
-                <AiSparkle size={12} />
-                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{a.label}</span>
-                <span className="h-1 w-12 flex-shrink-0 overflow-hidden rounded-full bg-[#EEF1F4]">
-                  <span className="block h-full rounded-full bg-[#8B5CF6]" style={{ width: `${a.conf}%` }} />
-                </span>
-                <span className="flex-shrink-0 text-[11px] font-semibold text-[#8B5CF6]">{a.conf}%</span>
-              </button>
-            ))}
           </>
         ) : (
           <>

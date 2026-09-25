@@ -20,10 +20,12 @@ import {
   SquarePen,
   Trash2,
   User,
+  Waypoints,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Project } from './ProjectsListPage';
+import { DepGraphModal, DepPickerPanel } from './PlanDependencies';
 
 /* ── Project Planning tab ────────────────────────────────────────────────────
    Replaces the product's two-screen "Edit Planning" flow: everything — tasks,
@@ -43,6 +45,8 @@ export interface PlanItem {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   /** Task dot color — user-pickable label color (tasks only; milestones stay amber). */
   color?: string;
+  /** Dependency links: ids of items THIS one depends on (its predecessors). */
+  preds?: string[];
   parentId: string | null;
 }
 
@@ -188,6 +192,9 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   /* Which parent TASKS have their sub-task group folded (default: open). */
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  /* Dependency UI: the picker (per task + direction) and the graph modal. */
+  const [depPicker, setDepPicker] = useState<{ id: string; dir: 'pred' | 'succ' } | null>(null);
+  const [depGraphId, setDepGraphId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>({ name: '', assignee: '', start: '', end: '', progress: '0', status: 'Open', priority: 'Medium' });
   const freshRef = useRef<string | null>(null);
@@ -200,6 +207,8 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
     setItems(seedPlan(project));
     setCollapsed(new Set());
     setCollapsedTasks(new Set());
+    setDepPicker(null);
+    setDepGraphId(null);
     setEditingId(null);
     setProjStart(toInput(project?.start ?? new Date()));
     setProjEnd(toInput(project?.end ?? new Date(Date.now() + 90 * DAY)));
@@ -312,16 +321,16 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
   /* 3-dot actions — kind-aware option sets (visual-only, like Add/Edit). */
   const moreMenu = (id: string, kind: PlanKind) => {
     const moreOpen = openMenu?.id === id && openMenu.field === 'more';
-    const options: [typeof ListChecks, string][] =
+    const options: [typeof ListChecks, string, (() => void) | null][] =
       kind === 'summary'
         ? [
-            [ListChecks, 'Add Task'],
-            [Diamond, 'Add Milestone'],
+            [ListChecks, 'Add Task', null],
+            [Diamond, 'Add Milestone', null],
           ]
         : [
-            [ListTree, 'Add Sub Task'],
-            [ArrowLeftToLine, 'Add Predecessors'],
-            [ArrowRightToLine, 'Add Successors'],
+            [ListTree, 'Add Sub Task', null],
+            [ArrowLeftToLine, 'Add Predecessors', () => setDepPicker({ id, dir: 'pred' })],
+            [ArrowRightToLine, 'Add Successors', () => setDepPicker({ id, dir: 'succ' })],
           ];
     return (
       <span className="relative">
@@ -339,12 +348,13 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
           <>
             <span className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setOpenMenu(null); }} />
             <div className="app-menu absolute right-0 top-full z-50 mt-1 w-[184px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-lg">
-              {options.map(([Icon, label]) => (
+              {options.map(([Icon, label, action]) => (
                 <button
                   key={label}
                   onClick={(e) => {
                     e.stopPropagation();
                     setOpenMenu(null);
+                    action?.();
                   }}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-[#F9FAFB]"
                 >
@@ -616,6 +626,23 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
             {od && (
               <span className="flex-shrink-0 rounded-sm bg-[#FDECEC] px-1.5 py-0.5 text-[10px] font-medium text-[#DC2626]">Overdue</span>
             )}
+            {(() => {
+              const total = (i.preds ?? []).length + items.filter((x) => (x.preds ?? []).includes(i.id)).length;
+              if (!total) return null;
+              return (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDepGraphId(i.id);
+                  }}
+                  title="View dependencies"
+                  className="inline-flex flex-shrink-0 items-center gap-1 rounded-sm bg-[#EEF4FB] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#3D8BD0] transition-colors hover:bg-[#DCEBFA]"
+                >
+                  <Waypoints size={11} />
+                  {total}
+                </button>
+              );
+            })()}
           </div>
           {/* pl = shape slot (16) + gap (8) + checkbox (14) + gap (8) — flush with the ID chip. */}
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-[46px]">
@@ -1203,6 +1230,49 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
       </div>
 
       {view === 'list' ? listView : ganttView}
+
+      {depPicker &&
+        (() => {
+          const t = items.find((x) => x.id === depPicker.id);
+          if (!t) return null;
+          const existing =
+            depPicker.dir === 'pred'
+              ? new Set(t.preds ?? [])
+              : new Set(items.filter((x) => (x.preds ?? []).includes(t.id)).map((x) => x.id));
+          return (
+            <DepPickerPanel
+              task={t}
+              dir={depPicker.dir}
+              candidates={items.filter((x) => x.kind === 'task' && x.id !== t.id)}
+              existing={existing}
+              onClose={() => setDepPicker(null)}
+              onApply={(addIds, removeIds) => {
+                if (depPicker.dir === 'pred') {
+                  setField(t.id, { preds: [...(t.preds ?? []).filter((id) => !removeIds.includes(id)), ...addIds] });
+                } else {
+                  setItems((prev) =>
+                    prev.map((x) =>
+                      addIds.includes(x.id)
+                        ? { ...x, preds: [...(x.preds ?? []), t.id] }
+                        : removeIds.includes(x.id)
+                          ? { ...x, preds: (x.preds ?? []).filter((pid) => pid !== t.id) }
+                          : x,
+                    ),
+                  );
+                }
+                setDepPicker(null);
+              }}
+            />
+          );
+        })()}
+      {depGraphId &&
+        (() => {
+          const t = items.find((x) => x.id === depGraphId);
+          if (!t) return null;
+          const preds = (t.preds ?? []).map((id) => items.find((x) => x.id === id)).filter(Boolean) as PlanItem[];
+          const succs = items.filter((x) => (x.preds ?? []).includes(t.id));
+          return <DepGraphModal task={t} preds={preds} succs={succs} onClose={() => setDepGraphId(null)} />;
+        })()}
     </div>
   );
 }

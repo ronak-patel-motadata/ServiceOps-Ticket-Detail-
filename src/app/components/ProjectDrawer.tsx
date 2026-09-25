@@ -2474,39 +2474,51 @@ onStackActiveGroupChange,
             </h1>
             {/* Main properties — quick-glance KPIs below the subject */}
             {(() => {
+              const proj = (activeProblem as any)?.project as Project | undefined;
+              const PS: Record<string, string> = { Open: '#3D8BD0', Planning: '#8B5CF6', Implementation: '#22C55E', 'On Hold': '#D97706', Completed: '#94A3B8', Cancelled: '#EF4444' };
+              const PP: Record<string, string> = { Critical: '#DC2626', High: '#F97316', Medium: '#94A3B8', Low: '#22C55E' };
+              const AV = ['#3D8BD0', '#7C3AED', '#0EA5E9', '#16A34A', '#D97706', '#DC2626', '#0D9488'];
+              const chip = (label: string, node: React.ReactNode) => (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#7B8FA5]">{label}</span>
+                  {node}
+                </span>
+              );
+              const val = (text: string, color = '#364658') => (
+                <span className="text-[12px] font-medium" style={{ color }}>{text}</span>
+              );
+              if (!proj) return null;
+              const closedP = proj.status === 'Completed' || proj.status === 'Cancelled';
+              const dd = proj.end ? Math.round((proj.end.getTime() - Date.now()) / 864e5) : null;
+              const spanTxt = (n: number) => (Math.abs(n) >= 60 ? `${Math.round(Math.abs(n) / 30)} months` : `${Math.abs(n)} day${Math.abs(n) === 1 ? '' : 's'}`);
+              const dueColor = closedP || dd === null ? '#364658' : dd < 0 ? '#DC2626' : dd <= 30 ? '#D97706' : '#364658';
+              const dueTip = dd === null ? 'No end date set' : closedP ? 'Project closed' : dd < 0 ? `Overdue by ${spanTxt(dd)}` : `${spanTxt(dd)} left`;
+              const fmtEnd = proj.end ? proj.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
               const items: HeaderKpiItem[] = [
-                { key: 'status', tip: `Status: ${selectedStatus}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Status</span>
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentStatusColorWrapper() }} />
-                    <span className="text-[12px] font-medium text-[#364658]">{selectedStatus}</span>
-                  </span>
-                ) },
-                { key: 'priority', tip: `Priority: ${selectedPriority}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Priority</span>
-                    <span className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getCurrentPriorityColorWrapper() }} />
-                    <span className="text-[12px] font-medium text-[#364658]">{selectedPriority}</span>
-                  </span>
-                ) },
-                { key: 'assignee', tip: `Assignee: ${selectedAssignee}`, node: (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[11px] text-[#7B8FA5]">Assignee</span>
-                    <span className="size-4 rounded flex items-center justify-center text-white text-[8px] font-semibold flex-shrink-0" style={{ backgroundColor: getCurrentAssigneeColorWrapper() }}>
-                      {selectedAssignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
+                { key: 'status', tip: `Status: ${proj.status}`, node: chip('Status', (<><span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: PS[proj.status] ?? '#94A3B8' }} />{val(proj.status)}</>)) },
+                { key: 'priority', tip: `Priority: ${proj.priority}`, node: chip('Priority', (<><span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: PP[proj.priority] ?? '#94A3B8' }} />{val(proj.priority)}</>)) },
+                { key: 'owner', tip: `Project Owner: ${proj.owner ?? 'Unassigned'}`, node: chip('Owner', proj.owner ? (
+                  <>
+                    <span className="flex size-4 flex-shrink-0 items-center justify-center rounded text-[8px] font-semibold text-white" style={{ backgroundColor: AV[[...proj.owner].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length] }}>
+                      {proj.owner.split(' ').filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase()}
                     </span>
-                    <span className="text-[12px] font-medium text-[#364658]">{selectedAssignee}</span>
+                    {val(proj.owner)}
+                  </>
+                ) : (
+                  <span className="text-[12px] text-[#9CA3AF]">Unassigned</span>
+                )) },
+                { key: 'due', tip: `End date ${fmtEnd} — ${dueTip}`, node: chip('Due', val(fmtEnd, dueColor)) },
+                { key: 'completion', tip: `Completion: ${proj.completion}%`, node: chip('Completion', (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="block h-[4px] w-14 overflow-hidden rounded-full bg-[#EEF1F4]">
+                      <span className="block h-full rounded-full" style={{ width: `${proj.completion}%`, backgroundColor: proj.completion === 100 ? '#16A34A' : '#3D8BD0' }} />
+                    </span>
+                    {val(`${proj.completion}%`)}
                   </span>
-                ) },
+                )) },
+                { key: 'milestones', tip: `Milestones: ${proj.milestonesDone} of ${proj.milestonesTotal} complete`, node: chip('Milestones', val(`${proj.milestonesDone}/${proj.milestonesTotal}`, proj.milestonesTotal > 0 && proj.milestonesDone === proj.milestonesTotal ? '#16A34A' : '#364658')) },
+                { key: 'tasks', tip: `Tasks: ${proj.tasksDone} of ${proj.tasksTotal} complete`, node: chip('Tasks', val(`${proj.tasksDone}/${proj.tasksTotal}`, proj.tasksTotal > 0 && proj.tasksDone === proj.tasksTotal ? '#16A34A' : '#364658')) },
               ];
-              /* SLA / approval state reads as tinted alert pills, not label:value KPIs.
-                 "Awaiting Requester" is dropped here — a problem record is worked by engineering
-                 against a root cause, not held open waiting on a requester to reply. */
-              items.push(...alertKpiItems(getHeaderAlerts({
-                id: activeProblem?.id,
-                status: selectedStatus,
-                approvalsPending: approvalsCount,
-              }).filter((a) => a.key !== 'awaiting')));
               return <HeaderKpiRow items={items} />;
             })()}
           </div>

@@ -498,11 +498,17 @@ export function TicketKanban({
               isPinned
                 ? {
                     left: pinOffset(col),
-                    boxShadow: lastPinned ? '10px 0 14px -10px rgba(16,24,40,0.16)' : undefined,
+                    boxShadow: lastPinned && !collapsed ? '10px 0 14px -10px rgba(16,24,40,0.16)' : undefined,
                   }
                 : undefined
             }
           >
+            {isPinned && (
+              <span
+                aria-hidden
+                className={`pointer-events-none absolute inset-y-0 right-full bg-[#F7F9FB] ${pinned[0] === col ? 'w-10' : 'w-1'}`}
+              />
+            )}
             {/* Full-height insertion line, on the side the pointer is closest to, so "move it
                 to the end" is a real drop and not a guess. */}
             {dragCol && dragCol !== col && dropCol?.col === col && (
@@ -517,6 +523,7 @@ export function TicketKanban({
               <Tip text={`Show ${col}`}>
                 <button
                   onClick={() => toggleCol(col)}
+                  style={{ boxShadow: lastPinned ? '10px 0 14px -10px rgba(16,24,40,0.16)' : undefined }}
                   className={`mt-4 flex ${
                     scroll ? 'min-h-0 flex-1' : 'min-h-[140px] flex-1'
                   } flex-col items-center gap-2.5 rounded-lg border border-[#EEF1F4] bg-white py-3 transition-colors hover:border-[#DFE5ED] hover:bg-[#FBFCFD] ${
