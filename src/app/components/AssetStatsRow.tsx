@@ -23,40 +23,30 @@ export const assetHealthOf = (id: string) => ({
   incidents: hx(id, 17) % 5 === 0 ? 1 + (hx(id, 19) % 3) : 0,
 });
 
-/** Semi-circle gauge — fleet patch compliance, colour-graded like the SLA pills. */
-function ComplianceGauge({ pct }: { pct: number }) {
-  const r = 42;
-  const len = Math.PI * r;
-  const color = pct >= 90 ? '#22C55E' : pct >= 75 ? '#F59E0B' : '#EF4444';
-  return (
-    <div className="relative h-[62px] w-[96px] flex-shrink-0">
-      <svg width="96" height="54" viewBox="0 0 96 54" aria-hidden>
-        <path d="M6 50 A42 42 0 0 1 90 50" fill="none" stroke="#E5E7EB" strokeWidth="8" strokeLinecap="round" />
-        <path
-          d="M6 50 A42 42 0 0 1 90 50"
-          fill="none"
-          stroke={color}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={`${(len * pct) / 100} ${len}`}
-        />
-      </svg>
-      <div className="absolute inset-x-0 bottom-1 text-center">
-        <span className="text-[15px] font-semibold tabular-nums" style={{ color }}>
-          {pct}%
-        </span>
-        <span className="block text-[9px] font-medium uppercase tracking-wide text-[#94A3B8]">patched</span>
-      </div>
-    </div>
-  );
-}
+/** Compliance grading for percentage KPIs — the SLA pills' thresholds. */
+export const pctGrade = (pct: number) => (pct >= 90 ? '#15803D' : pct >= 75 ? '#B45309' : '#B42318');
 
-export function AssetStatsRow({
-  tickets,
+/** One KPI card in a listing stats strip — shared by every asset-module listing.
+    Every card is the same shape (label → headline value → supporting line), so a
+    percentage KPI leads with its percentage rather than growing its own chart. */
+export type StatCard = {
+  label: string;
+  value: string | number;
+  sub: string;
+  hint?: string;
+  filter?: Omit<FilterRule, 'id'>[];
+  valueColor?: string;
+};
+
+/* The strip renderer, extracted so every module's listing builds its OWN card set
+   (from its detail page's KPI story) over one shared chrome: scrollable row,
+   edge fades, clickable cards that apply/clear a filter. */
+export function StatsCardsRow({
+  cards,
   rules,
   onApplyFilter,
 }: {
-  tickets: Ticket[];
+  cards: StatCard[];
   rules: FilterRule[];
   onApplyFilter: (rules: FilterRule[]) => void;
 }) {
@@ -79,6 +69,63 @@ export function AssetStatsRow({
     return () => ro.disconnect();
   }, []);
 
+  const isApplied = (label: string) => rules.some((r) => r.id.startsWith(`kpi-${label}-`));
+  const label = 'text-[12px] font-medium text-[#64748B]';
+  const valueCls = 'mt-1 text-[22px] font-semibold leading-7 text-[#1E293B] tabular-nums';
+  const subCls = 'mt-0.5 text-[11px] text-[#94A3B8]';
+
+  return (
+    <div className="relative">
+      <div ref={scrollRef} onScroll={updateFades} className="no-scrollbar-ever flex gap-3 overflow-x-auto pb-3 pl-6 pr-4">
+        {cards.map((c) => {
+          const on = isApplied(c.label);
+          return (
+            <div
+              key={c.label}
+              role={c.filter ? 'button' : undefined}
+              tabIndex={c.filter ? 0 : undefined}
+              title={c.filter ? (on ? 'Showing this view — click to clear' : c.hint) : undefined}
+              onClick={() =>
+                c.filter && onApplyFilter(on ? [] : c.filter.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })))
+              }
+              onKeyDown={(e) => {
+                if (c.filter && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onApplyFilter(on ? [] : c.filter!.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })));
+                }
+              }}
+              className={`flex flex-[1_0_196px] items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all ${
+                on
+                  ? 'border-[#3D8BD0] bg-[#F5FAFF] shadow-[0_1px_3px_rgba(61,139,208,0.15)]'
+                  : 'border-[#E5E7EB] bg-white'
+              } ${c.filter ? 'cursor-pointer hover:border-[#C9D4E0] hover:shadow-sm' : ''}`}
+            >
+              <div>
+                <div className={label}>{c.label}</div>
+                <div className={valueCls} style={c.valueColor ? { color: c.valueColor } : undefined}>
+                  {c.value}
+                </div>
+                <div className={subCls}>{c.sub}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {fadeL && <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-white to-transparent" />}
+      {fadeR && <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />}
+    </div>
+  );
+}
+
+export function AssetStatsRow({
+  tickets,
+  rules,
+  onApplyFilter,
+}: {
+  tickets: Ticket[];
+  rules: FilterRule[];
+  onApplyFilter: (rules: FilterRule[]) => void;
+}) {
   const total = tickets.length;
   const health = tickets.map((t) => assetHealthOf(t.id));
   const inUse = tickets.filter((t) => (t.status as string) === 'In Use').length;
@@ -97,22 +144,8 @@ export function AssetStatsRow({
   const statusFilter = (value: string): Omit<FilterRule, 'id'>[] => [
     { field: 'status', condition: 'is', values: [value] },
   ];
-  const isApplied = (label: string) => rules.some((r) => r.id.startsWith(`kpi-${label}-`));
 
-  const label = 'text-[12px] font-medium text-[#64748B]';
-  const valueCls = 'mt-1 text-[22px] font-semibold leading-7 text-[#1E293B] tabular-nums';
-  const subCls = 'mt-0.5 text-[11px] text-[#94A3B8]';
-
-  const cards: {
-    label: string;
-    value: string | number;
-    sub: string;
-    hint?: string;
-    filter?: Omit<FilterRule, 'id'>[];
-    valueColor?: string;
-    gauge?: number;
-    wide?: boolean;
-  }[] = [
+  const cards: StatCard[] = [
     {
       label: 'Total assets',
       value: total,
@@ -148,10 +181,9 @@ export function AssetStatsRow({
     },
     {
       label: 'Patch compliance',
-      value: total - missingPatch,
+      value: `${compliancePct}%`,
       sub: `${missingPatch} asset${missingPatch === 1 ? '' : 's'} missing patches`,
-      gauge: compliancePct,
-      wide: true,
+      valueColor: pctGrade(compliancePct),
     },
     {
       label: 'Unprotected',
@@ -167,48 +199,5 @@ export function AssetStatsRow({
     },
   ];
 
-  return (
-    <div className="relative">
-      <div ref={scrollRef} onScroll={updateFades} className="no-scrollbar-ever flex gap-3 overflow-x-auto pb-3 pl-6 pr-4">
-        {cards.map((c) => {
-          const on = isApplied(c.label);
-          return (
-            <div
-              key={c.label}
-              role={c.filter ? 'button' : undefined}
-              tabIndex={c.filter ? 0 : undefined}
-              title={c.filter ? (on ? 'Showing this view — click to clear' : c.hint) : undefined}
-              onClick={() =>
-                c.filter && onApplyFilter(on ? [] : c.filter.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })))
-              }
-              onKeyDown={(e) => {
-                if (c.filter && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  onApplyFilter(on ? [] : c.filter!.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })));
-                }
-              }}
-              className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all ${
-                c.wide ? 'flex-[1_0_268px]' : 'flex-[1_0_196px]'
-              } ${
-                on
-                  ? 'border-[#3D8BD0] bg-[#F5FAFF] shadow-[0_1px_3px_rgba(61,139,208,0.15)]'
-                  : 'border-[#E5E7EB] bg-white'
-              } ${c.filter ? 'cursor-pointer hover:border-[#C9D4E0] hover:shadow-sm' : ''}`}
-            >
-              <div>
-                <div className={label}>{c.label}</div>
-                <div className={valueCls} style={c.valueColor ? { color: c.valueColor } : undefined}>
-                  {c.value}
-                </div>
-                <div className={subCls}>{c.sub}</div>
-              </div>
-              {c.gauge !== undefined && <ComplianceGauge pct={c.gauge} />}
-            </div>
-          );
-        })}
-      </div>
-      {fadeL && <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-white to-transparent" />}
-      {fadeR && <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />}
-    </div>
-  );
+  return <StatsCardsRow cards={cards} rules={rules} onApplyFilter={onApplyFilter} />;
 }

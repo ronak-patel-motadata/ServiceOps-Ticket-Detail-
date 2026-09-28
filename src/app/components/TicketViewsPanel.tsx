@@ -125,6 +125,54 @@ export const HWASSET_VIEWS: TicketView[] = [
   { name: 'Assets Managed by Me', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
 ];
 
+/* The other asset/procurement registers' predefined catalogs. Band fields
+   (x_compliance / x_expiryBand / x_stockBand / x_dueBand) are pre-computed
+   strings on each listing's row adapter, so the rules engine needs nothing new. */
+export const SWASSET_VIEWS: TicketView[] = [
+  { name: 'All Software IT Assets', rules: [] },
+  { name: 'Managed Software', rules: [{ field: 'x_softwareType', condition: 'is', values: ['Managed'] }] },
+  { name: 'Discovered Software', rules: [{ field: 'x_softwareType', condition: 'is', values: ['Discovered'] }] },
+  { name: 'In Use Software', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
+  { name: 'Retired Software', rules: [{ field: 'status', condition: 'is', values: ['Retired'] }] },
+];
+export const NONIT_VIEWS: TicketView[] = [
+  { name: 'All Non-IT Assets', rules: [] },
+  { name: 'In Use Assets', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
+  { name: 'In Stock / In Store', rules: [{ field: 'status', condition: 'is', values: ['In Stock', 'In Store'] }] },
+  { name: 'Not Working Assets', rules: [{ field: 'status', condition: 'is', values: ['Not Working'] }] },
+  { name: 'Assets Managed by Me', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
+];
+export const CONSUMABLE_VIEWS: TicketView[] = [
+  { name: 'All Consumable Assets', rules: [] },
+  { name: 'Out of Stock', rules: [{ field: 'x_stockBand', condition: 'is', values: ['Out of stock'] }] },
+  { name: 'Low Stock', rules: [{ field: 'x_stockBand', condition: 'is', values: ['Low stock'] }] },
+  { name: 'Healthy Stock', rules: [{ field: 'x_stockBand', condition: 'is', values: ['Healthy'] }] },
+];
+export const LICENSE_VIEWS: TicketView[] = [
+  { name: 'All Software Licenses', rules: [] },
+  { name: 'Over-utilized Licenses', rules: [{ field: 'x_compliance', condition: 'is', values: ['Over-utilized'] }] },
+  { name: 'Under-utilized Licenses', rules: [{ field: 'x_compliance', condition: 'is', values: ['Under-utilized'] }] },
+  { name: 'Expiring in 30 Days', rules: [{ field: 'x_expiryBand', condition: 'is', values: ['Expiring soon'] }] },
+  { name: 'Expired Licenses', rules: [{ field: 'x_expiryBand', condition: 'is', values: ['Expired'] }] },
+];
+export const CONTRACT_VIEWS: TicketView[] = [
+  { name: 'All Contracts', rules: [] },
+  { name: 'Active Contracts', rules: [{ field: 'status', condition: 'is', values: ['Active'] }] },
+  { name: 'Expiring in 30 Days', rules: [{ field: 'x_expiryBand', condition: 'is', values: ['Expiring soon'] }] },
+  { name: 'Expired Contracts', rules: [{ field: 'status', condition: 'is', values: ['Expired'] }] },
+  { name: 'Not Started Contracts', rules: [{ field: 'status', condition: 'is', values: ['Not Started'] }] },
+];
+export const PURCHASE_VIEWS: TicketView[] = [
+  { name: 'All Purchase Orders', rules: [] },
+  { name: 'Awaiting Approval', rules: [{ field: 'status', condition: 'is', values: ['Sent For Approval'] }] },
+  {
+    name: 'Open Orders',
+    rules: [{ field: 'status', condition: 'is', values: ['Generated', 'Sent For Approval', 'Approved', 'Ordered', 'Partially Received'] }],
+  },
+  { name: 'Received Orders', rules: [{ field: 'status', condition: 'is', values: ['Received'] }] },
+  { name: 'Overdue Deliveries', rules: [{ field: 'x_dueBand', condition: 'is', values: ['Overdue'] }] },
+];
+
 /* A colleague's view is only visible to me when they shared it beyond themselves. */
 const visibleToMe = (v: TicketView) => v.owner === CURRENT_USER || v.visibility !== 'My Self';
 const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) === CURRENT_USER;
@@ -132,8 +180,20 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
 /* Which module's catalog + storage the rail serves. 'ticket' keeps the legacy keys so
    existing saves survive; other stores namespace their own, so favourites, saved views
    and the default view never leak between the Request and Change listings. */
-export type ViewStore = 'ticket' | 'change' | 'release' | 'problem' | 'hwasset';
+export type ViewStore =
+  | 'ticket' | 'change' | 'release' | 'problem' | 'hwasset'
+  | 'swasset' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
+const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
+  swasset: SWASSET_VIEWS,
+  nonit: NONIT_VIEWS,
+  consumable: CONSUMABLE_VIEWS,
+  license: LICENSE_VIEWS,
+  contract: CONTRACT_VIEWS,
+  purchase: PURCHASE_VIEWS,
+};
 const builtinsFor = (store: ViewStore) =>
+  MODULE_BUILTINS[store] ??
+  (
   store === 'change'
     ? CHANGE_VIEWS
     : store === 'release'
@@ -142,7 +202,7 @@ const builtinsFor = (store: ViewStore) =>
         ? PROBLEM_VIEWS
         : store === 'hwasset'
           ? HWASSET_VIEWS
-          : TICKET_VIEWS;
+          : TICKET_VIEWS);
 /* The seeded shared views are request-flavoured — other modules start with none. */
 const seedsFor = (store: ViewStore) => (store === 'ticket' ? CUSTOM_VIEW_SEEDS : []);
 const favKey = (store: ViewStore) => (store === 'ticket' ? 'ticketViewFavs' : `${store}ViewFavs`);

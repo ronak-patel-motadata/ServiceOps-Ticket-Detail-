@@ -671,7 +671,8 @@ export function TicketDashboardView({
   );
 
   return (
-    <div className="space-y-4 px-6 pb-8 pt-4">
+    /* Right edge is pr-4 so the last card lines up with the toolbar's icon cluster. */
+    <div className="space-y-4 pb-8 pl-6 pr-4 pt-4">
       {/* ── Headline tiles ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Tile

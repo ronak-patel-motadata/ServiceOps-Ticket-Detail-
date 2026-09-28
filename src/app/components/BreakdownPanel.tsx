@@ -16,6 +16,7 @@ export function BreakdownPanel({
   title,
   subject,
   columnLabel,
+  countLabel = 'Requests',
   rows,
   onClose,
   onPick,
@@ -25,6 +26,8 @@ export function BreakdownPanel({
   subject: string;
   /** Heading over the name column, e.g. "Department". */
   columnLabel: string;
+  /** Heading over the count column — the asset dashboards pass "Assets" etc. */
+  countLabel?: string;
   rows: BreakdownRow[];
   onClose: () => void;
   onPick?: (label: string) => void;
@@ -114,7 +117,7 @@ export function BreakdownPanel({
             <thead className="border-b border-[#e5e7eb]">
               <tr>
                 {header(true, columnLabel, 'text-left')}
-                {header(false, 'Requests', 'text-right')}
+                {header(false, countLabel, 'text-right')}
                 <th className="whitespace-nowrap px-3 py-2.5 text-left text-[12px] font-semibold tracking-wider text-[#364658]">
                   Share
                 </th>

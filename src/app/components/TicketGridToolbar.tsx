@@ -92,6 +92,7 @@ export function TicketGridToolbar({
   view,
   setView,
   dashScope,
+  dashScopeSwitch = true,
   setDashScope,
   showCalendar = false,
   showGantt = false,
@@ -122,6 +123,9 @@ export function TicketGridToolbar({
   view: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt';
   setView: (v: 'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt') => void;
   dashScope: 'all' | 'mine';
+  /** false hides the Overall/My switch (asset registers are always overall) and
+      shows a quiet dashboard byline in its place so the row stays anchored. */
+  dashScopeSwitch?: boolean;
   setDashScope: (s: 'all' | 'mine') => void;
   /** Offer the prototype Calendar layout (Views Lab only). */
   showCalendar?: boolean;
@@ -338,7 +342,20 @@ export function TicketGridToolbar({
       {/* The dashboard scopes itself with the Overall/Mine switch instead of ad-hoc filter
           rules — two ways to narrow the same charts would contradict each other, and a
           filtered dashboard with the filter row hidden would be a silent lie. */}
-      {view === 'dashboard' ? (
+      {view === 'dashboard' && !dashScopeSwitch ? (
+        /* No scope to switch — the register is always overall. A quiet byline
+           holds the slot and teaches the one interaction the page has. */
+        <div className="flex min-w-0 flex-shrink-0 items-center gap-2.5">
+          <span className="flex size-7 flex-shrink-0 items-center justify-center rounded bg-[#EAF2FB]">
+            <LayoutDashboard size={14} className="text-[#3D8BD0]" />
+          </span>
+          <span className="text-[13px] font-medium text-[#364658]">{Noun} overview</span>
+          <span className="h-3.5 w-px flex-shrink-0 bg-[#E5E7EB]" />
+          <span className="truncate text-[12px] text-[#94A3B8]">
+            Snapshot of every {noun} — click any chart to drill into the list
+          </span>
+        </div>
+      ) : view === 'dashboard' ? (
         <div className="flex flex-shrink-0 items-center gap-0.5 rounded border border-[#DFE5ED] bg-[#F8FAFC] p-0.5">
           {([
             { key: 'all', label: 'Overall view', Icon: Users, hint: `Every ${noun} across the desk` },

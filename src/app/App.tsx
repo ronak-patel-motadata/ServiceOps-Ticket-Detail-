@@ -3,12 +3,12 @@ import { TicketListPage } from './components/TicketListPage';
 import { ProblemListingPage } from './components/ProblemListingPage';
 import { ReleaseListingPage } from './components/ReleaseListingPage';
 import { HardwareAssetsListingPage } from './components/HardwareAssetsListingPage';
-import { SoftwareAssetsListPage } from './components/SoftwareAssetsListPage';
-import { NonItAssetsListPage } from './components/NonItAssetsListPage';
-import { ConsumableAssetsListPage } from './components/ConsumableAssetsListPage';
-import { SoftwareLicensesListPage } from './components/SoftwareLicensesListPage';
-import { ContractsListPage } from './components/ContractsListPage';
-import { PurchasesListPage } from './components/PurchasesListPage';
+import { SoftwareAssetsListingPage } from './components/SoftwareAssetsListingPage';
+import { NonItAssetsListingPage } from './components/NonItAssetsListingPage';
+import { ConsumableAssetsListingPage } from './components/ConsumableAssetsListingPage';
+import { SoftwareLicensesListingPage } from './components/SoftwareLicensesListingPage';
+import { ContractsListingPage } from './components/ContractsListingPage';
+import { PurchasesListingPage } from './components/PurchasesListingPage';
 import { ProjectsListPage } from './components/ProjectsListPage';
 import { CmdbListPage } from './components/CmdbListPage';
 import { PatchesListPage } from './components/PatchesListPage';
@@ -45,12 +45,12 @@ export default function App() {
       {activePage === 'change' && <ChangeListingPage onNavigate={navigate} />}
       {activePage === 'release' && <ReleaseListingPage onNavigate={navigate} />}
       {activePage === 'hardware-assets' && <HardwareAssetsListingPage onNavigate={navigate} />}
-      {activePage === 'software-assets' && <SoftwareAssetsListPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}
-      {activePage === 'non-it-assets' && <NonItAssetsListPage onNavigate={navigate} />}
-      {activePage === 'consumable-assets' && <ConsumableAssetsListPage onNavigate={navigate} />}
-      {activePage === 'software-licenses' && <SoftwareLicensesListPage onNavigate={navigate} onOpenSoftwareAsset={openSoftwareAsset} />}
-      {activePage === 'contracts' && <ContractsListPage onNavigate={navigate} />}
-      {activePage === 'purchases' && <PurchasesListPage onNavigate={navigate} />}
+      {activePage === 'software-assets' && <SoftwareAssetsListingPage onNavigate={navigate} initialOpenId={pendingSoftwareAssetId} onInitialOpenConsumed={() => setPendingSoftwareAssetId(null)} />}
+      {activePage === 'non-it-assets' && <NonItAssetsListingPage onNavigate={navigate} />}
+      {activePage === 'consumable-assets' && <ConsumableAssetsListingPage onNavigate={navigate} />}
+      {activePage === 'software-licenses' && <SoftwareLicensesListingPage onNavigate={navigate} />}
+      {activePage === 'contracts' && <ContractsListingPage onNavigate={navigate} />}
+      {activePage === 'purchases' && <PurchasesListingPage onNavigate={navigate} />}
       {activePage === 'projects' && <ProjectsListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
       {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}

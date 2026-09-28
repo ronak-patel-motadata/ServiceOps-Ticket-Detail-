@@ -14,7 +14,9 @@ import { Toolbar } from './Toolbar';
 import { TicketTable } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
-import { AssetStatsRow } from './AssetStatsRow';
+import { AssetStatsRow, assetHealthOf } from './AssetStatsRow';
+import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
+import { AlertTriangle, CalendarClock, CheckCircle2, Monitor } from 'lucide-react';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
@@ -118,10 +120,142 @@ const HW: { rows: Ticket[]; byId: Map<string, HardwareAsset> } = (() => {
       usedByMore: a.usedBy?.more,
       managedByGroup: a.managedByGroup,
       serialNo: a.serialNumber,
+      /* Health bands from the shared per-asset seed, plus location (seeded) and
+         vendor (read off the asset's own name), as ROW FIELDS so the dashboard's
+         segments (and KPI cards) can drill into them. */
+      ...(() => {
+        const hh = assetHealthOf(a.id);
+        const nm = a.name.toLowerCase();
+        const vendor = nm.includes('macbook') || nm.includes('imac')
+          ? 'Apple'
+          : nm.includes('dell')
+            ? 'Dell Technologies'
+            : nm.includes('hpe') || nm.includes('proliant')
+              ? 'HPE'
+              : nm.includes('hp ')
+                ? 'HP Inc.'
+                : nm.includes('lenovo') || nm.includes('thinkpad')
+                  ? 'Lenovo'
+                  : nm.includes('cisco') || nm.includes('catalyst')
+                    ? 'Cisco Systems'
+                    : nm.includes('fortinet') || nm.includes('fortigate')
+                      ? 'Fortinet'
+                      : 'Other OEMs';
+        const LOCATIONS = ['Ahmedabad HQ', 'Pune Office', 'Chennai DC', 'Bengaluru Office', 'Remote'];
+        return {
+          x_warrantyBand: hh.warrantyDays <= 0 ? 'Expired' : hh.warrantyDays <= 30 ? 'Expiring soon' : 'Covered',
+          x_patchBand: hh.patchesMissing > 0 ? 'Missing patches' : 'Patched',
+          x_avBand: hh.avOff ? 'Unprotected' : 'Protected',
+          x_location: LOCATIONS[h % LOCATIONS.length],
+          x_vendor: vendor,
+        };
+      })(),
     } as Ticket;
   });
   return { rows, byId };
 })();
+
+/* The Dashboard layout — the hardware detail page's Overview KPIs (lifecycle,
+   warranty, patch, antivirus, ownership) as fleet-wide charts, every segment
+   drilling into the filtered list. */
+const buildHwDashboard = (tickets: Ticket[]): DashConfig => {
+  const t = tickets as (Ticket & Record<string, any>)[];
+  const n = (f: (x: any) => boolean) => t.filter(f).length;
+  const is = (field: string, ...values: string[]) => [{ field, condition: 'is' as const, values }];
+  const seg = (label: string, value: number, color: string, field: string) => ({
+    label, value, color, filter: is(field, label),
+  });
+  const countBy = (field: string) => {
+    const m = new Map<string, number>();
+    t.forEach((x) => {
+      const v = x[field];
+      if (v) m.set(v, (m.get(v) ?? 0) + 1);
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const ATTENTION = ['In Repair', 'Faulty', 'Missing', 'Theft'];
+  return {
+    tiles: [
+      { icon: Monitor, color: '#3D8BD0', label: 'Total assets', value: t.length, sub: 'in the fleet' },
+      {
+        icon: CheckCircle2, color: '#22C55E', label: 'In Use', value: n((x) => x.status === 'In Use'),
+        sub: 'allocated and working', filter: is('status', 'In Use'), hint: 'Show assets in use',
+      },
+      {
+        icon: AlertTriangle, color: '#DC2626', label: 'Needs attention', value: n((x) => ATTENTION.includes(x.status)),
+        sub: 'in repair · faulty · missing', filter: is('status', ...ATTENTION), hint: 'Show assets needing attention',
+      },
+      {
+        icon: CalendarClock, color: '#F59E0B', label: 'Warranty expiring', value: n((x) => x.x_warrantyBand === 'Expiring soon'),
+        sub: 'within 30 days', filter: is('x_warrantyBand', 'Expiring soon'), hint: 'Show warranty expiring soon',
+      },
+    ],
+    sections: [
+      {
+        kind: 'donut', title: 'Asset by Status', centerLabel: 'assets',
+        segs: [
+          seg('In Use', n((x) => x.status === 'In Use'), '#22C55E', 'status'),
+          seg('In Stock', n((x) => x.status === 'In Stock'), '#3D8BD0', 'status'),
+          seg('In Repair', n((x) => x.status === 'In Repair'), '#6366F1', 'status'),
+          seg('Faulty', n((x) => x.status === 'Faulty'), '#EF4444', 'status'),
+          seg('Missing', n((x) => x.status === 'Missing'), '#DC2626', 'status'),
+          seg('Retired', n((x) => x.status === 'Retired'), '#F59E0B', 'status'),
+        ],
+      },
+      {
+        /* Composition at a glance — one segmented bar reads faster than a third ring. */
+        kind: 'stack', title: 'Warranty', sub: 'coverage across the fleet',
+        segs: [
+          seg('Covered', n((x) => x.x_warrantyBand === 'Covered'), '#22C55E', 'x_warrantyBand'),
+          seg('Expiring soon', n((x) => x.x_warrantyBand === 'Expiring soon'), '#F59E0B', 'x_warrantyBand'),
+          seg('Expired', n((x) => x.x_warrantyBand === 'Expired'), '#DC2626', 'x_warrantyBand'),
+        ],
+      },
+      {
+        kind: 'area', title: 'Asset intake', sub: 'assets registered per month', color: '#3D8BD0',
+        points: (() => {
+          const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+          const byMonth = MONTHS.map((label) => ({ label, value: 0 }));
+          t.forEach((x) => {
+            const m = (x.createdBy as Date)?.getMonth?.() ?? 0;
+            if (m < byMonth.length) byMonth[m].value += 1;
+          });
+          return byMonth;
+        })(),
+      },
+      ...(() => {
+        /* Top-N charts carry their FULL lists too, so the card's "View all"
+           opens the breakdown side panel with everything beyond the top few. */
+        const types = countBy('assetType').map(([label, value]) => ({ label, value, color: '#3D8BD0', filter: is('assetType', label) }));
+        const locations = countBy('x_location').map(([label, value]) => ({ label, value, color: '#0EA5E9', filter: is('x_location', label) }));
+        const vendors = countBy('x_vendor').map(([label, value]) => ({ label, value, color: '#F59E0B', filter: is('x_vendor', label) }));
+        return [
+          {
+            kind: 'columns' as const, title: 'Asset types', sub: 'by count',
+            rows: types.slice(0, 5), allRows: types,
+            panelSubject: 'asset types', panelColumnLabel: 'Asset Type', panelCountLabel: 'Assets',
+          },
+          {
+            kind: 'columns' as const, title: 'Assets by location', sub: 'where the fleet sits',
+            mapGeo: {
+              'Ahmedabad HQ': [23.0225, 72.5714] as [number, number],
+              'Pune Office': [18.5204, 73.8567] as [number, number],
+              'Chennai DC': [13.0827, 80.2707] as [number, number],
+              'Bengaluru Office': [12.9716, 77.5946] as [number, number],
+            },
+            rows: locations.slice(0, 4), allRows: locations,
+            panelSubject: 'locations', panelColumnLabel: 'Location', panelCountLabel: 'Assets',
+          },
+          {
+            kind: 'bars' as const, title: 'Assets by vendor', sub: 'who supplied the fleet',
+            rows: vendors.slice(0, 5), allRows: vendors,
+            panelSubject: 'vendors', panelColumnLabel: 'Vendor', panelCountLabel: 'Assets',
+          },
+        ];
+      })(),
+    ],
+  };
+};
 
 export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const [tickets, setTickets] = useState<Ticket[]>(HW.rows);
@@ -411,7 +545,7 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
           <TicketGridToolbar
             noun="asset"
             viewsStore="hwasset"
-            layouts={['list', 'list-kpi']}
+            layouts={['list', 'list-kpi', 'dashboard']}
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -445,6 +579,7 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
             setCardFields={setCardFields}
             dashScope={dashScope}
             setDashScope={setDashScope}
+            dashScopeSwitch={false}
           />
           </div>
           {view === 'calendar' ? (
@@ -461,14 +596,17 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
               onUpdateTicket={updateTicket}
             />
           ) : view === 'dashboard' ? (
-            <TicketDashboardView
-              /* Deliberately the UNFILTERED set: the dashboard narrows itself with the
-                 Overall/Mine switch, and its filter row is hidden, so honouring list
-                 filters here would silently redraw every chart with no way to see why. */
-              tickets={tickets}
-              scope={dashScope}
-              noun="asset"
-              onTicketClick={handleOpenTicket}
+            <AssetDashboardView
+              /* Deliberately the UNFILTERED set: the dashboard narrows itself with
+                 the Overall/Mine switch, never with the list filters. */
+              config={buildHwDashboard(
+                dashScope === 'mine' ? tickets.filter((t) => t.assignedTo.name === CURRENT_USER) : tickets,
+              )}
+              empty={
+                dashScope === 'mine' && !tickets.some((t) => t.assignedTo.name === CURRENT_USER)
+                  ? `Nothing here is managed by ${CURRENT_USER} yet.`
+                  : null
+              }
               onDrillDown={(r, label) => {
                 /* Remember what the list looked like BEFORE the drill — a saved view's rules
                    would otherwise be lost, and "back" has to put them back. */

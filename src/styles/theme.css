@@ -196,6 +196,24 @@
 }
 .app-select::-ms-expand { display: none; }
 
+/* Unread dot in the listing grid — a soft 2px ring in the dot's OWN colour (orange
+   requester / blue technician) plus a slow halo pulse, so a row with new replies
+   catches the eye without shouting. The row passes its colour in as
+   --dot-ring / --dot-pulse, and the pulse is dropped for reduced-motion users
+   while the ring stays, so nothing is lost. */
+@keyframes unread-dot-pulse {
+  0%   { box-shadow: 0 0 0 2px var(--dot-ring), 0 0 0 0 var(--dot-pulse); }
+  70%  { box-shadow: 0 0 0 2px var(--dot-ring), 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 2px var(--dot-ring), 0 0 0 0 transparent; }
+}
+.unread-dot {
+  box-shadow: 0 0 0 2px var(--dot-ring);
+  animation: unread-dot-pulse 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .unread-dot { animation: none; }
+}
+
 /* Quiet variant — the chevron stays hidden until the field row (or the select
    itself) is hovered/focused: the detail-page Key-Information recipe. Padding
    stays reserved so nothing shifts when it appears. */

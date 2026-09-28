@@ -139,6 +139,15 @@ export const generateMockTickets = (): Ticket[] => {
     'Adding my manager here. We need this resolved before the client call at 4 PM.',
     'Tried the steps you shared, but step 3 fails with "access denied".',
   ];
+  /* A queue's new replies come from BOTH sides of the desk — the listing colours
+     its unread dot by which, so the mock has to carry both voices. */
+  const TECH_SNIPPETS = [
+    'Ran a fresh scan on the endpoint — pushing the driver update now, please keep the machine on.',
+    'Raised this with the network team; the switch port is being replaced this evening.',
+    'I have applied the workaround on your profile. Could you sign out and back in to confirm?',
+    'Parts have arrived — booking a desk visit for tomorrow morning if that suits you.',
+    'Escalated to the vendor with the logs attached. Will update as soon as they respond.',
+  ];
   const MSG_TIMES = ['8m ago', '24m ago', '1h ago', '2h ago', '4h ago'];
   const APPROVERS = ['Rakesh Rathod', 'Priya Nair', 'Vikram Sethi', 'Sarah Johnson'];
   const APPROVAL_WAITS = ['2d', '5h', '1d', '3d'];
@@ -172,7 +181,11 @@ export const generateMockTickets = (): Ticket[] => {
       priority: priorities[i % priorities.length],
       unread,
       lastMsg: unread > 0
-        ? { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
+        ? /* Every third unread row is a TECHNICIAN reply, so both dot colours
+             (orange requester / blue technician) show up in the queue. */
+          i % 3 === 1 && !unassigned
+          ? { from: assignee.name, snippet: TECH_SNIPPETS[i % TECH_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
+          : { from: requester, snippet: MSG_SNIPPETS[i % MSG_SNIPPETS.length], time: MSG_TIMES[i % MSG_TIMES.length] }
         : undefined,
       tasksTotal: hasTasks ? tasksTotal : undefined,
       tasksDone: !hasTasks ? undefined : i === 5 ? 6 : i % (tasksTotal + 1),

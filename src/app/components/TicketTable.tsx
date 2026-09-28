@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, CheckCheck, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, Columns3, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
@@ -10,6 +10,14 @@ import { similarityClusters } from './TicketGroupSuggestions';
 import { DEPARTMENTS } from './orgDepartments';
 import type { Ticket } from './TicketListPage';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+
+/* ── ID hover peek — FEATURE FLAG ──────────────────────────────────────────
+   The quick-peek card that opened when the pointer rested on a row's ID pill.
+   Switched OFF for every listing page for now; flip this to `true` to bring it
+   back — nothing else was removed, the card and all its wiring stay intact.
+   The KEYBOARD quick-peek (Space on the focused row, SHORTCUTS.md §5) is not
+   affected by this flag and keeps working either way. */
+const ID_HOVER_PEEK = false;
 
 /* Inline-editable cell — the Key Information recipe from the detail page: borderless value
    that fills on hover with a chevron appearing at its right, click opens the option list.
@@ -190,6 +198,176 @@ function InlineSelect({
   );
 }
 
+/* Multi-user picker — the InlineSelect trigger chrome with CHECKBOX rows that
+   stay open on toggle, for cells that hold several people at once (the asset
+   register's Used By). Footer keeps a live count + Clear / Done. */
+function MultiUserSelect({
+  options,
+  values,
+  onChange,
+  accent = '#E67E22',
+  searchPlaceholder = 'Search users and groups...',
+  children,
+}: {
+  options: CellOption[];
+  values: string[];
+  onChange: (values: string[]) => void;
+  accent?: string;
+  searchPlaceholder?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const menuH = 336;
+    const w = 288;
+    const below = window.innerHeight - r.bottom > menuH + 8;
+    setPos({
+      top: below ? r.bottom + 4 : Math.max(8, r.top - 4 - menuH),
+      left: Math.min(r.left, window.innerWidth - w - 16),
+      width: w,
+    });
+    setQuery('');
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target && menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+  const toggleUser = (label: string) =>
+    onChange(values.includes(label) ? values.filter((v) => v !== label) : [...values, label]);
+  return (
+    <div className="group/cell relative w-full">
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        className={`flex h-12 w-full items-center gap-1.5 rounded-md border px-2 text-left transition-colors ${open ? 'border-[#DFE5ED] bg-white' : 'border-transparent hover:border-[#DFE5ED] hover:bg-[#F9FAFB]'}`}
+      >
+        <span className="min-w-0 truncate">{children}</span>
+        <ChevronDown
+          size={14}
+          className={`flex-shrink-0 text-[#7B8FA5] transition-opacity ${open ? 'opacity-100' : 'opacity-0 group-hover/cell:opacity-100'}`}
+        />
+      </button>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
+          <div
+            ref={menuRef}
+            style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+            className="app-menu z-[9999] rounded-lg border border-[#DFE5ED] bg-white py-2 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 pb-2">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] py-2 pl-9 pr-3 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#3D8BD0]"
+                />
+              </div>
+            </div>
+            <div className="max-h-[210px] overflow-y-auto py-1">
+              {(() => {
+                const match = (o: CellOption) => o.label.toLowerCase().includes(query.toLowerCase());
+                /* Selected users PIN to a section on top (the sort menu's
+                   "SELECTED SORT" recipe) so a long roster never hides who is
+                   already on the asset; the rest list below the divider. */
+                const selectedRows = values
+                  .map((v) => options.find((o) => o.label === v))
+                  .filter((o): o is CellOption => !!o)
+                  .filter(match);
+                const rest = options.filter((o) => !values.includes(o.label)).filter(match);
+                if (!selectedRows.length && !rest.length) {
+                  return <div className="px-3 py-6 text-center text-[12px] text-[#94A3B8]">No users found</div>;
+                }
+                const row = (o: CellOption, active: boolean) => (
+                  <button
+                    key={o.label}
+                    onClick={(e) => { e.stopPropagation(); toggleUser(o.label); }}
+                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${active ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      readOnly
+                      className="pointer-events-none h-3.5 w-3.5 flex-shrink-0 rounded border-[#d1d5db] text-[#3D8BD0] focus:ring-0"
+                    />
+                    <span
+                      className={`flex size-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-semibold text-white ${active ? 'ring-2 ring-[#3D8BD0]/30' : ''}`}
+                      style={{ backgroundColor: accent }}
+                    >
+                      {o.initials}
+                    </span>
+                    <span className={`min-w-0 flex-1 truncate text-[13px] ${active ? 'font-medium text-[#1E293B]' : 'text-[#364658]'}`}>{o.label}</span>
+                  </button>
+                );
+                return (
+                  <>
+                    {selectedRows.length > 0 && (
+                      <>
+                        <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#94A3B8]">Selected</div>
+                        {/* 2px breathing room between the filled rows so they read as chips, not a slab. */}
+                        <div className="space-y-0.5">{selectedRows.map((o) => row(o, true))}</div>
+                        {rest.length > 0 && <div className="my-1 border-t border-[#F0F1F3]" />}
+                      </>
+                    )}
+                    {rest.map((o) => row(o, false))}
+                  </>
+                );
+              })()}
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-[#F0F1F3] px-3 pt-2">
+              <span className={`text-[12px] ${values.length ? 'font-medium text-[#3D8BD0]' : 'text-[#94A3B8]'}`}>
+                {values.length ? `${values.length} selected` : 'No one selected'}
+              </span>
+              <span className="flex items-center gap-1.5">
+                {values.length > 0 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onChange([]); }}
+                    className="rounded px-2 py-1 text-[12px] font-medium text-[#64748B] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+                  className="h-7 rounded bg-[#3D8BD0] px-3 text-[12px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+                >
+                  Done
+                </button>
+              </span>
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 const STATUS_OPTIONS: CellOption[] = [
   { label: 'Open', color: '#3D8BD0' },
   { label: 'In Progress', color: '#3D8BD0' },
@@ -211,6 +389,34 @@ const CHANGE_TYPE_OPTIONS: CellOption[] = [
 ];
 /* The DETAIL page's own status catalog (In Stock … Expired) — one list, both surfaces. */
 const ASSET_STATUS_OPTIONS: CellOption[] = ASSET_STATUS_CATALOG;
+/* Status palettes for the other asset/procurement registers — each module's own
+   catalog, colored the way its detail page colors the same state. */
+const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
+  software: [
+    { label: 'In Use', color: '#22C55E' },
+    { label: 'In Store', color: '#3D8BD0' },
+    { label: 'Retired', color: '#94A3B8' },
+  ],
+  nonit: [
+    { label: 'In Use', color: '#22C55E' },
+    { label: 'In Stock', color: '#3D8BD0' },
+    { label: 'In Store', color: '#0EA5E9' },
+    { label: 'Not Working', color: '#DC2626' },
+  ],
+  contract: [
+    { label: 'Active', color: '#22C55E' },
+    { label: 'Not Started', color: '#F59E0B' },
+    { label: 'Expired', color: '#DC2626' },
+  ],
+  purchase: [
+    { label: 'Generated', color: '#94A3B8' },
+    { label: 'Sent For Approval', color: '#F59E0B' },
+    { label: 'Approved', color: '#3D8BD0' },
+    { label: 'Ordered', color: '#8B5CF6' },
+    { label: 'Partially Received', color: '#F97316' },
+    { label: 'Received', color: '#22C55E' },
+  ],
+};
 /* The listing's dropdowns are the detail page's catalogs, as CellOptions. */
 const ASSET_TYPE_CELL_OPTIONS: CellOption[] = ASSET_TYPE_OPTIONS.map((l) => ({ label: l, icon: assetTypeIcon(l) }));
 const ASSET_GROUP_CELL_OPTIONS: CellOption[] = ASSET_GROUP_OPTIONS.map((l) => ({ label: l }));
@@ -259,6 +465,16 @@ export const taskListFor = (subject: string): string[] => {
   return ['Initial diagnosis', 'Apply resolution steps', 'Verify with requester', 'Close with resolution note'];
 };
 const REQUESTER_OPTIONS: CellOption[] = ['Jainam Shah', 'Nandini Patel', 'Darshak Modi', 'Meera Iyer', 'Samuel Githugu', 'Kavit Gohel', 'Hetal Mori', 'Rohit Kulkarni', 'Ersin Sevinç', 'Ajay Kumar Rai', 'Dhaval Raval', 'Priya Mehta', 'Farhan Qureshi'].map((n) => ({
+  label: n,
+  initials: requesterAvatar(n).initials,
+}));
+/* Who an asset can be "Used By" — the register's end users plus the team-level
+   holders the hardware mock already shows. No presence dots: usage, not availability. */
+const USED_BY_OPTIONS: CellOption[] = [
+  'Aarav Sharma', 'Priya Nair', 'Karan Malhotra', 'Diya Kapoor', 'Ananya Iyer', 'Meera Joshi',
+  'Siddharth Rao', 'Rahul Verma', 'Farah Sheikh', 'Rohan Mehta', 'Neha Raje', 'Vikram Sethi',
+  'Datacenter Team', 'Network Team', 'IT Operations', 'End User Computing', 'Service Desk',
+].map((n) => ({
   label: n,
   initials: requesterAvatar(n).initials,
 }));
@@ -1021,7 +1237,7 @@ interface TicketTableProps {
       'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release' | 'asset';
+  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
@@ -1080,6 +1296,15 @@ export function TicketTable({
     </button>
   );
 
+  /* Opening a record IS reading it: clear its unread marks on the way through, so
+     coming back from the detail page leaves no dot, no row tint, no "N new" chip —
+     and the strip's Unread-updates count drops with it. Every open (row, ID pill,
+     the Open button, Enter on the focused row) goes through here. */
+  const openTicket = (t: Ticket) => {
+    if (t.unread) onUpdateTicket?.(t.id, { unread: 0, lastMsg: undefined });
+    onTicketClick(t);
+  };
+
   /* Column widths are drag-adjustable from the header dividers. Widths live in state as
      PROPORTIONS: the table runs `table-fixed` + a <colgroup>, and whenever the columns would
      leave slack the widths are scaled up to fit the container exactly — so the grid always
@@ -1089,7 +1314,6 @@ export function TicketTable({
   // in COL_DEFS actually take effect (a seeded map silently overrode them).
   const [colW, setColW] = useState<Record<string, number>>({});
   const CHECK_W = 52;
-  const ICON_W = 40; // manage-columns gutter at the right edge
   const MIN_W = 80;
   const wOf = (c: ColDef) => colW[c.key] ?? c.w ?? 150;
   const dragRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
@@ -1183,8 +1407,11 @@ export function TicketTable({
      `flex` columns share out leftover width; the rest hold the width they were given. */
   const TYPE_OPTS = moduleCols === 'release' ? RELEASE_TYPE_OPTIONS : CHANGE_TYPE_OPTIONS;
   const Mod = moduleCols === 'release' ? 'Release' : 'Change';
-  const COL_DEFS: ColDef[] = moduleCols === 'asset'
-    ? [
+  /* Per-module column sets for the asset/procurement registers — each mirrors its
+     OWN classic table. `x_*` keys are generic text columns: the listing's row
+     adapter pre-formats the value onto the Ticket row under the same key. */
+  const MODULE_COL_DEFS: Partial<Record<string, ColDef[]>> = {
+    asset: [
         { key: 'id', label: 'ID', w: 96 },
         { key: 'subject', label: 'Name', flex: true, w: 320 },
         { key: 'assetType', label: 'Asset Type', w: 160 },
@@ -1195,7 +1422,71 @@ export function TicketTable({
         { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
         { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
         { key: 'serialNo', label: 'Serial Number', w: 150 },
-      ]
+    ],
+    software: [
+        { key: 'id', label: 'ID', w: 116 },
+        { key: 'subject', label: 'Name', flex: true, w: 320 },
+        { key: 'x_version', label: 'Version', w: 150 },
+        { key: 'x_softwareType', label: 'Software Type', w: 130 },
+        { key: 'status', label: 'Status', w: 120 },
+        { key: 'x_softwareCategory', label: 'Category', w: 150 },
+        { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
+        { key: 'x_impact', label: 'Impact', w: 140 },
+    ],
+    nonit: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 340 },
+        { key: 'x_assetType', label: 'Asset Type', w: 150 },
+        { key: 'status', label: 'Status', w: 140 },
+        { key: 'usedBy', label: 'Used By', flex: true, w: 200 },
+        { key: 'x_impact', label: 'Impact', w: 150 },
+        { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
+    ],
+    consumable: [
+        { key: 'id', label: 'ID', w: 136 },
+        { key: 'subject', label: 'Name', flex: true, w: 320 },
+        { key: 'x_assetType', label: 'Asset Type', w: 150 },
+        { key: 'x_availableQty', label: 'Available Qty', w: 120 },
+        { key: 'x_assetGroup', label: 'Asset Group', w: 150 },
+        { key: 'x_department', label: 'Department', w: 130 },
+        { key: 'x_location', label: 'Location', w: 120 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
+        { key: 'created', label: 'Created Date', flex: true, w: 170 },
+    ],
+    license: [
+        { key: 'id', label: 'ID', w: 96 },
+        { key: 'subject', label: 'Name', flex: true, w: 300 },
+        { key: 'x_product', label: 'Product', flex: true, w: 220 },
+        { key: 'x_licenseType', label: 'License Type', w: 170 },
+        { key: 'x_purchaseCount', label: 'Purchase Count', w: 130 },
+        { key: 'x_allocationCount', label: 'Allocation Count', w: 140 },
+        { key: 'x_installationCount', label: 'Installation Count', w: 150 },
+        { key: 'x_expiryDate', label: 'Expiry Date', w: 130 },
+    ],
+    contract: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 300 },
+        { key: 'x_contractType', label: 'Contract Type', w: 150 },
+        { key: 'status', label: 'Status', w: 130 },
+        { key: 'x_vendor', label: 'Vendor', flex: true, w: 220 },
+        { key: 'x_cost', label: 'Cost', w: 160 },
+        { key: 'x_startDate', label: 'Start Date', w: 120 },
+        { key: 'x_endDate', label: 'End Date', w: 120 },
+    ],
+    purchase: [
+        { key: 'id', label: 'ID', w: 130 },
+        { key: 'subject', label: 'Name', flex: true, w: 320 },
+        { key: 'x_orderNumber', label: 'Order Number', w: 150 },
+        { key: 'status', label: 'Status', w: 170 },
+        { key: 'assignee', label: 'Owner', flex: true, w: 170 },
+        { key: 'x_vendor', label: 'Vendor', flex: true, w: 220 },
+        { key: 'x_requiredBy', label: 'Required By', w: 130 },
+    ],
+  };
+  const COL_DEFS: ColDef[] = moduleCols && MODULE_COL_DEFS[moduleCols]
+    ? MODULE_COL_DEFS[moduleCols]!
     : moduleCols
     ? [
         { key: 'id', label: 'ID', w: 96 },
@@ -1330,6 +1621,9 @@ export function TicketTable({
     assetType: 'assetType', hostName: 'hostName', ipAddress: 'ipAddress',
     usedBy: 'requester', managedByGroup: 'managedByGroup', serialNo: 'serialNo',
   };
+  /* Generic module columns sort on their own row field. */
+  const sortFieldOf = (key: string): keyof Ticket | undefined =>
+    SORT_FIELD[key] ?? (key.startsWith('x_') ? (key as keyof Ticket) : undefined);
   const hideColumn = (key: string) => applyColumns(colOrder.filter((k) => k !== key));
 
   const changeColumn = (fromKey: string, toKey: string) =>
@@ -1339,15 +1633,13 @@ export function TicketTable({
     const cols = colOrder.map((k) => ({ key: k, label: CATALOG.find((c) => c.key === k)?.label ?? k }));
     window.dispatchEvent(new CustomEvent('grid-columns', { detail: cols }));
   }, [colOrder]);
-  /* The grid toolbar's Settings menu asks for the column manager; anchor it to the
-     header gutter icon so it opens exactly where a direct click would put it. */
+  /* The grid toolbar's Settings menu is the ONLY way in now (the header gutter icon
+     was removed), so anchor the manager to the grid's own top-right corner — where
+     that icon used to sit. */
   useEffect(() => {
     const onOpen = () => {
-      const el = document.querySelector('[data-col-mgr-anchor]');
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setMgrRect({ right: r.right, bottom: r.bottom });
-      }
+      const r = wrapRef.current?.getBoundingClientRect();
+      if (r) setMgrRect({ right: r.right, bottom: r.top });
       setShowColMgr(true);
     };
     window.addEventListener('open-column-manager', onOpen);
@@ -1393,10 +1685,10 @@ export function TicketTable({
     e.dataTransfer.setDragImage(ghost, 18, 16);
     window.setTimeout(() => document.body.removeChild(ghost), 0);
   };
-  const baseTotal = CHECK_W + ICON_W + cols.reduce((n, c) => n + wOf(c), 0);
-  // The checkbox + icon gutters and the narrow columns keep their width; the flex columns
+  const baseTotal = CHECK_W + cols.reduce((n, c) => n + wOf(c), 0);
+  // The checkbox gutter and the narrow columns keep their width; the flex columns
   // split whatever is left over, so the grid still spans the container exactly.
-  const avail = wrapW - CHECK_W - ICON_W;
+  const avail = wrapW - CHECK_W;
   const fixedTotal = cols.filter((c) => !c.flex).reduce((n, c) => n + wOf(c), 0);
   const flexTotal = cols.filter((c) => c.flex).reduce((n, c) => n + wOf(c), 0);
   const room = avail - fixedTotal;
@@ -1417,31 +1709,41 @@ export function TicketTable({
   const frozenIdx = frozenUpTo ? cols.findIndex((c) => c.key === frozenUpTo) : -1;
   const leftOf = (i: number) => CHECK_W + fitted.slice(0, i).reduce((n, w) => n + w, 0);
   // The last frozen column carries the edge: a hairline + soft shadow over the scrolling side.
+  /* Frozen cells paint their own background so the scrolled columns can't show
+     through — so they take the row's unread tint (--row-tint, white when unset)
+     rather than hard white, or a tinted row would go stripey once a column is frozen. */
   const frozenCellCls = (i: number, picked: boolean, kbFocus = false) =>
-    `sticky z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}`;
+    `sticky z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-[var(--row-tint,#fff)] group-hover:bg-[#f9fafb]'}`;
 
   /* One renderer per column, so the body follows whatever order the header is dragged into. */
   const renderCell = (key: string, ticket: Ticket) => {
+    /* Generic module text column: any `x_<field>` key renders the row's own
+       pre-formatted string — how the asset/procurement listings add module
+       columns without new cell cases. */
+    if (key.startsWith('x_')) {
+      const v = (ticket as any)[key];
+      return (
+        <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">
+          <span className="text-[12px] tabular-nums text-[#364658]">
+            {v === null || v === undefined || v === '' ? '—' : String(v)}
+          </span>
+        </td>
+      );
+    }
     switch (key) {
       case 'id':
         return (
               <td data-col="id" className="overflow-hidden px-4 py-3">
-                {/* The peek is anchored to the PILL, not this wrapper — the attention badge
-                    overhangs the corner, and hovering it used to bubble up here and open the
-                    quick view behind its own tooltip. One hover target, one popup. */}
-                <span className="relative inline-block">
-                  <span
-                    className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
-                    onMouseEnter={() => hoverPeekStart(ticket.id)}
-                    onMouseLeave={hoverPeekEnd}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTicketClick(ticket);
-                    }}
-                  >
-                    {ticket.id}
-                  </span>
-                  <RowAttention ticket={ticket} />
+                <span
+                  className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
+                  onMouseEnter={() => hoverPeekStart(ticket.id)}
+                  onMouseLeave={hoverPeekEnd}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openTicket(ticket);
+                  }}
+                >
+                  {ticket.id}
                 </span>
               </td>
         );
@@ -1450,7 +1752,7 @@ export function TicketTable({
               <td
                 data-col="subject"
                 className="relative cursor-pointer overflow-hidden px-4 py-3 text-[12px] text-[#364658]"
-                onClick={() => onTicketClick(ticket)}
+                onClick={() => openTicket(ticket)}
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {/* Unread rows read bold, Gmail-style. */}
@@ -1461,7 +1763,7 @@ export function TicketTable({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTicketClick(ticket);
+                      openTicket(ticket);
                     }}
                     className="pointer-events-auto inline-flex h-6 flex-shrink-0 items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2 text-[11px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
                   >
@@ -1524,11 +1826,11 @@ export function TicketTable({
               </td>
         );
       case 'status': {
-        const sOpts = moduleCols === 'asset' ? ASSET_STATUS_OPTIONS : STATUS_OPTIONS;
-        const sDot =
-          moduleCols === 'asset'
-            ? ASSET_STATUS_OPTIONS.find((o) => o.label === (ticket.status as string))?.color ?? '#94A3B8'
-            : statusColor(ticket.status);
+        const modOpts = moduleCols === 'asset' ? ASSET_STATUS_OPTIONS : MODULE_STATUS_OPTS[moduleCols ?? ''];
+        const sOpts = modOpts ?? STATUS_OPTIONS;
+        const sDot = modOpts
+          ? modOpts.find((o) => o.label === (ticket.status as string))?.color ?? '#94A3B8'
+          : statusColor(ticket.status);
         return (
               <td className="px-2 py-0 whitespace-nowrap">
                 <InlineSelect options={sOpts} value={ticket.status} onPick={(label) => onUpdateTicket?.(ticket.id, { status: label as Ticket['status'] })}>
@@ -1574,25 +1876,71 @@ export function TicketTable({
                 <span className="text-[12px] tabular-nums text-[#364658]">{ticket.ipAddress ?? '—'}</span>
               </td>
         );
-      case 'usedBy':
+      case 'usedBy': {
+        /* Editable multi-user cell: until edited, the selection derives from the
+           mock label (name before the email paren); edits store the full list on
+           the row and refold it into "first + N" chips. */
+        const list: string[] =
+          (ticket as any).usedByList ?? (ticket.usedByLabel ? [ticket.usedByLabel.split(' (')[0]] : []);
+        const extra = (ticket as any).usedByList ? Math.max(list.length - 1, 0) : ticket.usedByMore ?? 0;
         return (
-              <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
-                {ticket.usedByLabel ? (
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                    <span className="min-w-0 truncate rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] text-[#364658]">
-                      {ticket.usedByLabel}
-                    </span>
-                    {(ticket.usedByMore ?? 0) > 0 && (
-                      <span className="flex-shrink-0 rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[#64748B]">
-                        +{ticket.usedByMore}
+              <td className="px-2 py-0 whitespace-nowrap">
+                <MultiUserSelect
+                  options={USED_BY_OPTIONS}
+                  values={list}
+                  onChange={(next) =>
+                    onUpdateTicket?.(ticket.id, {
+                      usedByList: next,
+                      usedByLabel: next[0] ?? '',
+                      usedByMore: Math.max(next.length - 1, 0),
+                    } as Partial<Ticket>)
+                  }
+                >
+                  {ticket.usedByLabel ? (
+                    <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                      <span className="min-w-0 truncate rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] text-[#364658]">
+                        {ticket.usedByLabel}
                       </span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-[12px] text-[#B6C2D1]">—</span>
-                )}
+                      {extra > 0 && (() => {
+                        /* Hovering +N names everyone: an edited row knows its real
+                           list; a mock row fills in deterministically from the
+                           roster (same-id ⇒ same names), capped with "+N more". */
+                        const first = ticket.usedByLabel.split(' (')[0];
+                        const all: string[] = (ticket as any).usedByList
+                          ? list
+                          : (() => {
+                              const pool = USED_BY_OPTIONS.map((o) => o.label).filter((l) => l !== first);
+                              const rot = hx(ticket.id, 5) % pool.length;
+                              return [first, ...Array.from({ length: Math.min(extra, 7) }, (_, i) => pool[(rot + i) % pool.length])];
+                            })();
+                        const shown = all.slice(0, 8);
+                        const more = 1 + extra - shown.length;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-shrink-0 cursor-default rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[#64748B]">
+                                +{extra}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-wrap">
+                              <div className="space-y-0.5">
+                                {shown.map((n) => (
+                                  <div key={n}>{n}</div>
+                                ))}
+                                {more > 0 && <div className="text-white/70">+{more} more</div>}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </span>
+                  ) : (
+                    <span className="text-[12px] text-[#B6C2D1]">—</span>
+                  )}
+                </MultiUserSelect>
               </td>
         );
+      }
       case 'managedByGroup':
         return (
               <td className="px-2 py-0 whitespace-nowrap">
@@ -1835,17 +2183,8 @@ export function TicketTable({
           <col key="__ph" style={{ width: PH_W }} />
         ),
       )}
-      <col style={{ width: ICON_W }} />
     </colgroup>
   );
-  /* Corner badge on the ID pill summarising what needs attention (unread replies, a
-     pending approval, open tasks). It is an arrival nudge, not a permanent marker:
-     every card row can be ACKNOWLEDGED — the count shrinks per ack and the badge
-     disappears once everything is cleared. Session-only state by design; the next
-     visit re-surfaces whatever is still genuinely pending. Keys are `id|signal`. */
-  const [ackedAttn, setAckedAttn] = useState<Set<string>>(new Set());
-  const ackAttn = (...keys: string[]) => setAckedAttn((prev) => new Set([...prev, ...keys]));
-
   const [kbFocusId, setKbFocusId] = useState<string | null>(null);
   const [kbPeek, setKbPeek] = useState(false);
   const peekRef = useRef<HTMLDivElement | null>(null);
@@ -1855,7 +2194,7 @@ export function TicketTable({
   const hoverOpenT = useRef<number | null>(null);
   const hoverCloseT = useRef<number | null>(null);
   const hoverPeekStart = (id: string) => {
-    if (kbPeek) return;
+    if (!ID_HOVER_PEEK || kbPeek) return;
     if (hoverCloseT.current) {
       clearTimeout(hoverCloseT.current);
       hoverCloseT.current = null;
@@ -1905,7 +2244,7 @@ export function TicketTable({
         document.querySelector(`[data-row-id="${id}"]`)?.scrollIntoView({ block: 'nearest' });
       } else if (idx >= 0 && e.key === 'Enter') {
         setKbPeek(false);
-        onTicketClick(tickets[idx]);
+        openTicket(tickets[idx]);
       } else if (idx >= 0 && e.key === ' ') {
         e.preventDefault();
         setKbPeek((v) => !v);
@@ -1967,130 +2306,6 @@ export function TicketTable({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [kbPeek]);
-  const RowAttention = ({ ticket }: { ticket: Ticket }) => {
-    const total = ticket.tasksTotal ?? 0;
-    const done = ticket.tasksDone ?? 0;
-    const hasUnread = !!ticket.unread && !ackedAttn.has(`${ticket.id}|unread`);
-    const hasApproval = !!ticket.approval && !ackedAttn.has(`${ticket.id}|approval`);
-    const openTasks = total > 0 && done < total && !ackedAttn.has(`${ticket.id}|tasks`);
-    /* Open tasks alone never badge a row (every request has tasks) — they only ride
-       along in the card once replies or an approval already earned the badge. */
-    if (!hasUnread && !hasApproval) return null;
-    const items = [hasUnread, hasApproval, openTasks].filter(Boolean).length;
-    // Dark slate so the tiny corner count stays legible; detail is the hover card’s job.
-    const tone = { bg: '#475569', fg: '#FFFFFF' };
-    const names = taskListFor(ticket.subject);
-    return (
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <span
-            /* Sliding off the pill onto the badge leaves an open peek behind — close it so
-               the attention card is the only thing on screen. */
-            onMouseEnter={hoverPeekEnd}
-            className="absolute -right-2 -top-1.5 z-10 flex size-4 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums ring-2 ring-white"
-            style={{ backgroundColor: tone.bg, color: tone.fg }}
-          >
-            {items}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="right" align="start" sideOffset={6} hideArrow className="w-[272px] border border-[#E5E7EB] bg-white p-0 text-[#364658] shadow-lg">
-          <div className="px-3 py-2.5 text-left">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Needs attention</div>
-            <div className="space-y-2.5">
-              {hasUnread && (
-                <div className="group/att flex items-start gap-2">
-                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#EBF5FF]">
-                    <MessageSquare size={11} className="text-[#3D8BD0]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-semibold">
-                      {ticket.unread} new message{ticket.unread === 1 ? '' : 's'}
-                    </div>
-                    {ticket.lastMsg && (
-                      <p className="mt-0.5 text-[11px] leading-snug text-[#64748B] line-clamp-2 text-wrap">
-                        {ticket.lastMsg.from}: {ticket.lastMsg.snippet}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    aria-label="Acknowledge messages"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      ackAttn(`${ticket.id}|unread`);
-                    }}
-                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
-                  >
-                    <Check size={12} />
-                  </button>
-                </div>
-              )}
-              {hasApproval && ticket.approval && (
-                <div className="group/att flex items-start gap-2">
-                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#FFF3E0]">
-                    <UserCheck size={11} className="text-[#F39C12]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-semibold">Approval pending</div>
-                    <p className="mt-0.5 text-[11px] text-[#64748B]">
-                      {ticket.approval.approver} · Level {ticket.approval.level} of {ticket.approval.totalLevels} · waiting {ticket.approval.waiting}
-                    </p>
-                  </div>
-                  <button
-                    aria-label="Acknowledge approval"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      ackAttn(`${ticket.id}|approval`);
-                    }}
-                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
-                  >
-                    <Check size={12} />
-                  </button>
-                </div>
-              )}
-              {openTasks && (
-                <div className="group/att flex items-start gap-2">
-                  <span className="mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F1F5F9]">
-                    <ListChecks size={11} className="text-[#64748B]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[12px] font-semibold">Tasks</span>
-                      <span className="text-[11px] font-semibold text-[#64748B]">{done} of {total} done</span>
-                    </div>
-                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[#EEF1F4]">
-                      <div className="h-full rounded-full bg-[#22A06B]" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 truncate text-[11px] text-[#64748B]">Next: {names[done] ?? names[0]}</p>
-                  </div>
-                  <button
-                    aria-label="Acknowledge tasks"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      ackAttn(`${ticket.id}|tasks`);
-                    }}
-                    className="invisible mt-0.5 flex size-5 flex-shrink-0 items-center justify-center rounded text-[#94A3B8] transition-colors hover:bg-[#EAF7F0] hover:text-[#22A06B] group-hover/att:visible"
-                  >
-                    <Check size={12} />
-                  </button>
-                </div>
-              )}
-            </div>
-            {/* One-click clear for the whole card. */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                ackAttn(`${ticket.id}|unread`, `${ticket.id}|approval`, `${ticket.id}|tasks`);
-              }}
-              className="-mx-3 -mb-2.5 mt-2.5 flex w-[calc(100%+24px)] items-center justify-center gap-1.5 rounded-b-md border-t border-[#F1F5F9] px-3 py-2 text-[11px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#F5FAFF]"
-            >
-              <CheckCheck size={13} />
-              Acknowledge all
-            </button>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  };
 
   /* Empty grid — same empty-state recipe as the detail-page tabs (Software /
      Tasks / Notifications): tinted icon disc, short title, one-line hint. An
@@ -2130,15 +2345,57 @@ export function TicketTable({
   const renderTicketRow = (ticket: Ticket) => {
     const picked = selectedTickets.has(ticket.id);
     const kbFocus = ticket.id === kbFocusId;
+    /* A row with new replies wears a 5% wash of the SAME colour as its dot, so an
+       unread row is findable while scrolling, not just at the left edge. Selection
+       and keyboard focus still win — they are about what you are doing now. */
+    const unreadColor = ticket.unread
+      ? !ticket.lastMsg?.from || ticket.lastMsg.from === ticket.requester
+        ? '#E67E22'
+        : '#3D8BD0'
+      : null;
+    const tinted = !!unreadColor && !picked && !kbFocus;
     return (
             <tr
               key={ticket.id}
               data-row-id={ticket.id}
-              className={`group scroll-mt-11 scroll-mb-1 border-b border-[#F1F5F9] transition-colors ${kbFocus ? 'bg-[#F5FAFF] [outline:1px_solid_#3D8BD0] [outline-offset:-1px]' : picked ? 'bg-[#f9fafb]' : 'hover:bg-[#f9fafb]'}`}
+              style={unreadColor ? ({ ['--row-tint' as string]: `${unreadColor}0D` } as React.CSSProperties) : undefined}
+              className={`group scroll-mt-11 scroll-mb-1 border-b border-[#F1F5F9] transition-colors ${kbFocus ? 'bg-[#F5FAFF] [outline:1px_solid_#3D8BD0] [outline-offset:-1px]' : picked ? 'bg-[#f9fafb]' : `${tinted ? 'bg-[var(--row-tint)]' : ''} hover:bg-[#f9fafb]`}`}
             >
-              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-white group-hover:bg-[#f9fafb]'}` : ''}`}>
+              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-[var(--row-tint,#fff)] group-hover:bg-[#f9fafb]'}` : ''}`}>
                 {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
                 {picked && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#DFE5ED]" />}
+                {/* Unread dot — the row has new replies waiting. It sits in the gutter
+                    BEFORE the checkbox (absolute, so the checkbox stays aligned with the
+                    header's select-all) and reads down the column like a mail client;
+                    the subject going semibold is its companion cue. Its colour says WHO
+                    replied, using the same role palette as the avatars: orange for the
+                    requester, blue for a technician. */}
+                {!!ticket.unread && (() => {
+                  const from = ticket.lastMsg?.from;
+                  const fromRequester = !from || from === ticket.requester;
+                  const color = fromRequester ? '#E67E22' : '#3D8BD0';
+                  return (
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="unread-dot absolute left-2 top-1/2 size-[7px] -translate-y-1/2 cursor-default rounded-full"
+                          style={{
+                            backgroundColor: color,
+                            /* Ring + halo take the dot's own hue at low alpha. */
+                            ['--dot-ring' as string]: `${color}33`,
+                            ['--dot-pulse' as string]: `${color}66`,
+                          } as React.CSSProperties}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {/* The dot's colour already says which side replied — the tip
+                            only needs to name the person. */}
+                        {ticket.unread} new message{ticket.unread === 1 ? '' : 's'}
+                        {from ? ` from ${from}` : ''}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })()}
                 <input
                   type="checkbox"
                   checked={picked}
@@ -2165,7 +2422,6 @@ export function TicketTable({
                 }
                 return <Fragment key={c.key}>{el}</Fragment>;
               })}
-              <td />
             </tr>
     );
   };
@@ -2248,30 +2504,12 @@ export function TicketTable({
                   <span className="truncate">{c.label}</span>
                   {/* One-click sort toggle — the most-used action lives on the header
                       itself; the menu keeps the rest. */}
-                  {SORT_FIELD[c.key] && sortButton(SORT_FIELD[c.key], 'group-hover/th:opacity-100')}
+                  {sortFieldOf(c.key) && sortButton(sortFieldOf(c.key)!, 'group-hover/th:opacity-100')}
                 </span>
                 {resizer(c.key)}
               </th>
               );
             })}
-            {/* Manage columns — pinned at the right edge of the header. */}
-            <th className="sticky right-0 top-[var(--tb,0px)] z-40 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white p-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setMgrRect({ right: r.right, bottom: r.bottom });
-                      setShowColMgr(true);
-                    }}
-                    className="flex h-full w-full items-center justify-center py-2.5 text-[#7B8FA5] transition-colors hover:bg-[#F7F9FB] hover:text-[#3D8BD0]"
-                  >
-                    <Columns3 size={15} data-col-mgr-anchor />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Manage columns</TooltipContent>
-              </Tooltip>
-            </th>
           </tr>
         </thead>
         )}
@@ -2442,7 +2680,7 @@ export function TicketTable({
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
                             <span className="flex items-center gap-0.5">
                               <span className="truncate">{m.col.label}</span>
-                              {SORT_FIELD[m.col.key] && sortButton(SORT_FIELD[m.col.key], 'group-hover/gh:opacity-100')}
+                              {sortFieldOf(m.col.key) && sortButton(sortFieldOf(m.col.key)!, 'group-hover/gh:opacity-100')}
                             </span>
                           </th>
                         ) : (
