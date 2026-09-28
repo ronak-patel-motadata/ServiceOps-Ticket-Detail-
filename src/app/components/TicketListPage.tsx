@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
@@ -307,6 +307,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
     openInStack(ticket.id === 'INC-33' ? 'request-v2' : 'request', ticket.id, ticket.subject, ticket);
   };
 
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(tickets, handleOpenTicket);
+
   const handleCloseDrawer = () => {
     setOpenTickets([]);
     setActiveTicketId(null);
@@ -552,6 +555,10 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             setCardFields={setCardFields}
             dashScope={dashScope}
             setDashScope={setDashScope}
+            /* Dashboard is not offered on the Requests queue — the KPI strip already
+               answers the same questions in-place. The view's code below stays put,
+               so putting it back is a one-word change to this list. */
+            layouts={['list', 'list-kpi', 'kanban']}
           />
           </div>
           {view === 'kanban' ? (
@@ -583,6 +590,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             />
           ) : (
             <TicketTable
+              openPage="request"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}

@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, PanelRightOpen, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
@@ -18,6 +18,32 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
    The KEYBOARD quick-peek (Space on the focused row, SHORTCUTS.md §5) is not
    affected by this flag and keeps working either way. */
 const ID_HOVER_PEEK = false;
+
+/* The other half of the row's "Open in a new tab" link: the fresh tab lands with
+   ?open=<id>, and the listing hands that row straight to its detail page.
+   It fires ONCE PER APP LOAD (module-level flag, not a per-mount ref) and strips
+   ?open= from the URL afterwards — otherwise leaving the module and coming back
+   remounts the listing and re-opens the record every single time. */
+let deepLinkConsumed = false;
+export function useOpenFromUrl(rows: Ticket[], open: (t: Ticket) => void) {
+  useEffect(() => {
+    if (deepLinkConsumed || !rows.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('open');
+    if (!id) {
+      deepLinkConsumed = true;
+      return;
+    }
+    // Another module's listing may own this id — leave it pending for them.
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    deepLinkConsumed = true;
+    open(row);
+    params.delete('open');
+    const qs = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [rows, open]);
+}
 
 /* Inline-editable cell — the Key Information recipe from the detail page: borderless value
    that fills on hover with a chevron appearing at its right, click opens the option list.
@@ -1238,6 +1264,8 @@ interface TicketTableProps {
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
   moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
+  /** Page slug for the row's "Open in a new tab" link (?page=<slug>&open=<id>). */
+  openPage?: string;
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
   allTickets?: Ticket[];
   onGroupedChange?: (grouped: boolean, info?: { label: string; groups: number; total: number; list?: { key: string; count: number }[] }) => void;
@@ -1253,6 +1281,7 @@ export function TicketTable({
   tickets,
   noun = 'request',
   moduleCols,
+  openPage,
   selectedTickets,
   allSelected,
   onSelectAll,
@@ -1758,18 +1787,25 @@ export function TicketTable({
                   {/* Unread rows read bold, Gmail-style. */}
                   <span className={`min-w-0 flex-1 truncate decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline ${ticket.unread ? 'font-semibold text-[#1E293B]' : 'font-medium'}`}>{ticket.subject}</span>
                 </span>
-                {/* Row hover: an explicit way in, so "click the row" is never the only clue. */}
+                {/* Row hover: the row itself opens the drawer, so this shortcut covers the
+                    OTHER intent — read it beside the queue. A real <a> (not a button) so
+                    ctrl/cmd-click, middle-click and "open link in new tab" all behave
+                    natively, and the browser previews the URL on hover. */}
                 <span className={`pointer-events-none absolute inset-y-[2px] right-0 hidden items-center pl-10 pr-4 group-hover:flex ${ticket.id === kbFocusId ? 'bg-gradient-to-l from-[#F5FAFF] via-[#F5FAFF] via-70% to-transparent' : 'bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent'}`}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openTicket(ticket);
-                    }}
-                    className="pointer-events-auto inline-flex h-6 flex-shrink-0 items-center gap-1 rounded border border-[#DFE5ED] bg-white px-2 text-[11px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
-                  >
-                    <PanelRightOpen size={12} className="flex-shrink-0" />
-                    Open
-                  </button>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <a
+                        href={`?${openPage ? `page=${openPage}&` : ''}open=${encodeURIComponent(ticket.id)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="pointer-events-auto inline-flex size-6 flex-shrink-0 items-center justify-center rounded border border-[#DFE5ED] bg-white text-[#64748B] transition-colors hover:border-[#C9D4E0] hover:bg-[#F5F7FA] hover:text-[#3D8BD0]"
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent>Open in a new browser tab</TooltipContent>
+                  </Tooltip>
                 </span>
               </td>
         );

@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketStatsRow } from './TicketStatsRow';
@@ -182,6 +182,9 @@ export function ProblemListingPage({ onNavigate }: { onNavigate?: (page: string)
     // Every row is a problem — open the real ProblemDrawer with the original record.
     openInStack('problem', ticket.id, ticket.subject, PROBLEMS.byId.get(ticket.id) ?? ticket);
   };
+
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(tickets, handleOpenTicket);
 
   const handleCloseDrawer = () => {
     setOpenTickets([]);
@@ -516,6 +519,7 @@ export function ProblemListingPage({ onNavigate }: { onNavigate?: (page: string)
             />
           ) : (
             <TicketTable
+              openPage="problem"
               noun="problem"
               tickets={paginatedTickets}
               selectedTickets={selectedTickets}

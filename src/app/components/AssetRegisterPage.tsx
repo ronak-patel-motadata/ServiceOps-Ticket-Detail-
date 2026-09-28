@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
 import { CURRENT_USER } from './technicianRoster';
@@ -157,6 +157,9 @@ export function AssetRegisterPage({
   const { open: openInStack } = useDrawerStack();
   const handleOpenTicket = (ticket: Ticket) =>
     openInStack(stackModule as any, ticket.id, ticket.subject, recordOf(ticket.id) ?? ticket);
+
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(rows, handleOpenTicket);
 
   // Deep link support (e.g. a Software License's "Managed Softwares" card).
   useEffect(() => {
@@ -352,6 +355,7 @@ export function AssetRegisterPage({
                 ) : (
                 <TicketTable
                   noun={noun}
+                  openPage={activePage}
                   moduleCols={moduleCols}
                   tickets={paginatedTickets}
                   selectedTickets={selectedTickets}

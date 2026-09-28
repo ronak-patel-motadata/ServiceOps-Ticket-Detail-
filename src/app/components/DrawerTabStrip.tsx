@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, ChevronDown, User } from 'lucide-react';
+import { X, ChevronDown, ExternalLink, User } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 interface TabKpi { label?: string; value: string; dot?: string; user?: boolean }
-interface TabItem { id: string; subject?: string; status?: string; priority?: string; technician?: string; kpis?: TabKpi[]; noIdPill?: boolean }
+interface TabItem { id: string; subject?: string; status?: string; priority?: string; technician?: string; kpis?: TabKpi[]; noIdPill?: boolean; page?: string }
 
 const TAB_W = 170;   // fixed tab width (matches the tab styling below)
 const MORE_W = 96;   // approx width reserved for the "More (N)" button
@@ -129,6 +129,20 @@ export function DrawerTabStrip({
                 <div className="flex items-center gap-2 mb-1.5">
                   {!t.noIdPill && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{t.id}</span>}
                   <span className="text-[12px] font-medium text-[#364658] truncate">{t.subject}</span>
+                  {/* Read this record on its own, away from the stack: a real link, so
+                      ctrl-click and "open link in new tab" behave natively too. */}
+                  {t.page && (
+                    <a
+                      href={`?page=${t.page}&open=${encodeURIComponent(t.id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in a new browser tab"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-auto flex size-5 flex-shrink-0 items-center justify-center rounded text-[#7B8FA5] transition-colors hover:bg-[#EAF2FB] hover:text-[#3D8BD0]"
+                    >
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
                 </div>
                 {t.kpis && t.kpis.length > 0 ? (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748B]">

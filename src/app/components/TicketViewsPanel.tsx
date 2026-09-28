@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronRight, CopyPlus, Home, LayoutList, MoreVertical, Search, Star, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, CopyPlus, Home, LayoutList, Lock, MoreVertical, Search, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { FilterRule } from './TicketFilterBar';
@@ -268,12 +268,16 @@ export const getDefaultView = (store: ViewStore = 'ticket'): TicketView | null =
 function RowMenu({
   view,
   isDefault,
+  isFav,
+  onToggleFav,
   onSetDefault,
   onClone,
   onDelete,
 }: {
   view: TicketView;
   isDefault: boolean;
+  isFav: boolean;
+  onToggleFav: () => void;
   onSetDefault: () => void;
   onClone: () => void;
   onDelete: () => void;
@@ -294,6 +298,10 @@ function RowMenu({
   }, [open]);
 
   const items = [
+    /* Favouriting moved off the row and into here: the row was carrying three
+       trailing glyphs and eating the view's name. A favourite still SHOWS on the
+       row — as the amber star in the leading status slot. */
+    { key: 'fav', label: isFav ? 'Remove from favourites' : 'Add to favourites', icon: Star, run: onToggleFav },
     { key: 'default', label: isDefault ? 'Remove as default view' : 'Set as default view', icon: Home, run: onSetDefault },
     { key: 'clone', label: 'Clone', icon: CopyPlus, run: onClone },
     // Predefined views ship with the product — only user-made copies can be removed.
@@ -307,7 +315,9 @@ function RowMenu({
         onClick={(e) => {
           e.stopPropagation();
           const r = btnRef.current?.getBoundingClientRect();
-          if (r) setPos({ top: r.bottom + 4, left: Math.min(r.left - 150, window.innerWidth - 210) });
+          /* 232px fits the longest label ("Remove from favourites") on one line —
+             keep this in sync with the popup's width class below. */
+          if (r) setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.left - 182, window.innerWidth - 242)) });
           setOpen((v) => !v);
         }}
         title="More actions"
@@ -320,7 +330,7 @@ function RowMenu({
           <div
             ref={popRef}
             style={{ top: pos.top, left: pos.left }}
-            className="app-menu fixed z-[9999] w-[200px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-xl"
+            className="app-menu fixed z-[9999] w-[232px] overflow-hidden rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-xl"
           >
             {items.map((it) => (
               <button
@@ -333,7 +343,7 @@ function RowMenu({
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[#F9FAFB] ${it.danger ? 'text-[#DC2626]' : 'text-[#364658]'}`}
               >
                 <it.icon size={14} className={`flex-shrink-0 ${it.danger ? 'text-[#DC2626]' : 'text-[#64748B]'}`} />
-                <span className="flex-1 truncate">{it.label}</span>
+                <span className="flex-1 whitespace-nowrap">{it.label}</span>
               </button>
             ))}
           </div>,
@@ -409,7 +419,7 @@ export function TicketViewsSidebar({
   const builtin = builtinsFor(store);
   const seedPool = seedsFor(store);
   const [q, setQ] = useState('');
-  const [tab, setTab] = useState<'all' | 'predefined' | 'mine' | 'shared'>('all');
+  const [tab, setTab] = useState<'all' | 'mine' | 'shared'>('all');
   const [favs, setFavs] = useState<string[]>(() => load(favKey(store)));
   const [customs, setCustoms] = useState<TicketView[]>(() => loadCustomViews(store));
   // A view saved from the toolbar must appear here immediately.
@@ -495,9 +505,7 @@ export function TicketViewsSidebar({
       ? saved.filter(ownedByMe)
       : tab === 'shared'
         ? saved.filter((v) => !ownedByMe(v) && visibleToMe(v))
-        : tab === 'predefined'
-          ? builtin
-          : [...builtin, ...saved.filter(visibleToMe)];
+        : [...builtin, ...saved.filter(visibleToMe)];
   const catalog = pool.filter(match);
   const favViews = catalog.filter((v) => favs.includes(v.name));
   const otherViews = catalog.filter((v) => !favs.includes(v.name));
@@ -513,33 +521,47 @@ export function TicketViewsSidebar({
         onClick={() => onSelect(v)}
         className={`group mx-2 flex cursor-pointer items-center gap-0 rounded py-1.5 pl-1.5 pr-1.5 transition-colors ${isActive ? 'bg-[#EBF5FF]' : 'hover:bg-[#F9FAFB]'}`}
       >
-        {/* Leading status slot — Home marks the view the listing opens on. */}
+        {/* Leading status slot — what this view IS: Home for the one the listing opens
+            on, else an amber star for a favourite. Default wins the slot when a view is
+            both; the My Favourite group above still collects it. Inside that group the
+            star would repeat the heading, so it is skipped there. */}
         <span className="flex w-4 flex-shrink-0 items-center justify-center">
-          {defaultView === v.name && (
+          {defaultView === v.name ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Home size={12} className="text-[#3D8BD0]" />
               </TooltipTrigger>
               <TooltipContent side="right">Default view</TooltipContent>
             </Tooltip>
-          )}
+          ) : fav && section !== 'fav' ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Star size={12} className="fill-[#F59E0B] text-[#F59E0B]" />
+              </TooltipTrigger>
+              <TooltipContent side="right">Favourite</TooltipContent>
+            </Tooltip>
+          ) : null}
         </span>
         <ViewName name={v.name} active={isActive} />
-        {/* Star marks a favourite in the catalog list; inside My Favourite every row is one,
-            so there it stays hover-only and the row reads as just the name. */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFav(v.name);
-          }}
-          title={fav ? 'Remove from favourites' : 'Add to favourites'}
-          className={`flex size-6 flex-shrink-0 items-center justify-center rounded transition-colors hover:bg-[#F1F5F9] ${fav && section !== 'fav' ? 'visible' : 'invisible group-hover:visible'}`}
-        >
-          <Star size={14} className={fav ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-[#94A3B8]'} />
-        </button>
+        {/* Predefined views ship with the product — a quiet lock says "yours to use,
+            not to change", which is why they need no tab of their own. */}
+        {!v.custom && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="mr-0.5 flex size-5 flex-shrink-0 items-center justify-center text-[#B6C2D1]">
+                <Lock size={11} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-wrap max-w-[240px]">
+              Predefined view — use it or make a copy, but it can’t be edited or deleted
+            </TooltipContent>
+          </Tooltip>
+        )}
         <RowMenu
           view={v}
           isDefault={defaultView === v.name}
+          isFav={fav}
+          onToggleFav={() => toggleFav(v.name)}
           onSetDefault={() => setAsDefault(v.name)}
           onClone={() => cloneView(v)}
           onDelete={() => deleteView(v)}
@@ -567,7 +589,8 @@ export function TicketViewsSidebar({
         </div>
       </div>
 
-      {/* Tabs — All / Predefined / My Views / Shared with me; scrolls when they overflow. */}
+      {/* Tabs — All / My Views / Shared with me; scrolls when they overflow. Predefined
+          views are NOT a tab of their own: they already sit in All, marked with a lock. */}
       <div className="relative flex-shrink-0 border-b border-[#E5E7EB]">
         <div
           ref={tabsRef}
@@ -579,7 +602,6 @@ export function TicketViewsSidebar({
             ['all', 'All'],
             ['mine', 'My Views'],
             ['shared', 'Shared with me'],
-            ['predefined', 'Predefined'],
           ] as const
         ).map(([key, label]) => (
           <button

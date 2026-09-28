@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Pin, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
@@ -51,14 +51,19 @@ const AUTO_REF_OPTS = [
 ];
 const AUTO_REF_MS: Record<string, number> = { '5m': 3e5, '10m': 6e5, '20m': 1.2e6, '25m': 1.5e6, '30m': 1.8e6 };
 
+/* List + KPI leads — it is the layout a queue opens on, so it reads first. */
 const LAYOUTS = [
-  { key: 'list' as const, label: 'List', Icon: LayoutList },
   { key: 'list-kpi' as const, label: 'List + KPI', Icon: LayoutPanelTop },
+  { key: 'list' as const, label: 'List', Icon: LayoutList },
   { key: 'kanban' as const, label: 'Kanban', Icon: SquareKanban },
   { key: 'dashboard' as const, label: 'Dashboard', Icon: LayoutDashboard },
 ];
 /** Opt-in extra — only the Views Lab passes `showCalendar`. */
 const CALENDAR_LAYOUT = { key: 'calendar' as const, label: 'Calendar', Icon: CalendarDays };
+/** Layout key → label, for the "default layout" confirmation toast. */
+const LAYOUT_LABEL: Record<string, string> = {
+  list: 'List', 'list-kpi': 'List + KPI', kanban: 'Kanban', dashboard: 'Dashboard', calendar: 'Calendar', gantt: 'Gantt',
+};
 /** Opt-in extra — only the Release listing passes `showGantt`. */
 const GANTT_LAYOUT = { key: 'gantt' as const, label: 'Gantt', Icon: ChartGantt };
 
@@ -195,6 +200,40 @@ export function TicketGridToolbar({
   const ns = `${noun}s`;
   const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
   const canUpdate = isMyCustomView(activeView, viewsStore);
+  /* Default layout — a module remembers how you like to SEE it, the same way the
+     views rail remembers a default view. Stored per module so Requests can open
+     on Kanban while Contracts opens on List + KPI. */
+  const layoutKey = `${viewsStore}LayoutDefault`;
+  const [defaultLayout, setDefaultLayout] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(layoutKey);
+    } catch {
+      return null;
+    }
+  });
+  const pinLayout = (key: string) => {
+    const next = defaultLayout === key ? null : key;
+    setDefaultLayout(next);
+    try {
+      if (next) localStorage.setItem(layoutKey, next);
+      else localStorage.removeItem(layoutKey);
+    } catch { /* private mode — the choice just won't survive the session */ }
+    toast.success(next ? `${LAYOUT_LABEL[key] ?? key} is now the default for ${ns}` : 'Default layout cleared');
+  };
+  /* Land on the remembered layout when the module opens — once, and only if this
+     page still offers it. */
+  const layoutRestored = useRef(false);
+  useEffect(() => {
+    if (layoutRestored.current) return;
+    layoutRestored.current = true;
+    if (!defaultLayout || defaultLayout === view) return;
+    const offered =
+      (LAYOUTS.some((l) => l.key === defaultLayout) && (!layouts || layouts.includes(defaultLayout as 'list'))) ||
+      (defaultLayout === 'calendar' && showCalendar) ||
+      (defaultLayout === 'gantt' && showGantt);
+    if (offered) setView(defaultLayout as typeof view);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /* The AI grouping menu — labels must match the grid registry's labels (checks),
      keys must match its axis keys (the set-group-by event). */
   const AI_GROUP_MENU = [
@@ -871,24 +910,48 @@ export function TicketGridToolbar({
                     Layout
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
-                    {[...LAYOUTS.filter((l) => !layouts || layouts.includes(l.key)), ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => (
-                      <Tooltip key={key} delayDuration={400}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => setView(key)}
-                            className={`flex flex-col items-center gap-1.5 rounded border py-2.5 text-[12px] font-medium transition-colors ${
-                              view === key
-                                ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
-                                : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#364658]'
-                            }`}
-                          >
-                            <Icon size={17} />
-                            {label}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Switch to the {label} layout</TooltipContent>
-                      </Tooltip>
-                    ))}
+                    {[...LAYOUTS.filter((l) => !layouts || layouts.includes(l.key)), ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => {
+                      const isDefault = defaultLayout === key;
+                      return (
+                      <div key={key} className="group/lay relative">
+                        <Tooltip delayDuration={400}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setView(key)}
+                              className={`flex w-full flex-col items-center gap-1.5 rounded border py-2.5 text-[12px] font-medium transition-colors ${
+                                view === key
+                                  ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                                  : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#364658]'
+                              }`}
+                            >
+                              <Icon size={17} />
+                              {label}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Switch to the {label} layout</TooltipContent>
+                        </Tooltip>
+                        {/* Pin = "open this module here next time". A fixed slot (invisible,
+                            never removed) so tiles never resize; the pinned one stays lit. */}
+                        <Tooltip delayDuration={400}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); pinLayout(key); }}
+                              className={`absolute right-1 top-1 flex size-5 items-center justify-center rounded transition-colors ${
+                                isDefault
+                                  ? 'text-[#3D8BD0] hover:bg-white/70'
+                                  : 'invisible text-[#9CA3AF] hover:bg-white/70 hover:text-[#3D8BD0] group-hover/lay:visible'
+                              }`}
+                            >
+                              <Pin size={12} className={isDefault ? 'fill-current' : ''} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isDefault ? `Default for ${ns} — click to unpin` : `Make ${label} the default for ${ns}`}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      );
+                    })}
                   </div>
                   <div className="border-t border-[#F0F2F5]" />
                   {view === 'kanban' && (

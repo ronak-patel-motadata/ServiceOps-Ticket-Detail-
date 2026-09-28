@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { slaInfoOf } from './TicketTable';
-import { EventTip, TONE, dayFloor, endOf, fmtDay, fmtTime, readinessOf } from './TicketCalendarView';
+import { EventTip, STATUS_DOT, TONE, dayFloor, endOf, fmtDay, fmtTime } from './TicketCalendarView';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* ── Gantt view ──────────────────────────────────────────────────────────────
@@ -47,7 +47,9 @@ const sameDay = (a: Date, b: Date) =>
 
 type Grain = 'week' | 'month' | 'quarter';
 
-/* readinessOf is shared with the hover card — it lives beside EventTip now. */
+/* Readiness (the stage-percentage model) is no longer surfaced: the rail and the
+   hover card both state the stage · status directly. `readinessOf` stays exported
+   from TicketCalendarView for anything that wants the derived number later. */
 
 export function TicketGanttView({
   tickets,
@@ -497,37 +499,45 @@ export function TicketGanttView({
                   style={{ width: RAIL_W }}
                 >
                   {(() => {
-                    const r = readinessOf(t);
+                    /* Where the record IS beats how far along it is: the rail carries the
+                       hover card's stage · status chip rather than a readiness meter, so
+                       the two surfaces say the same thing about the same row. */
+                    const staged = t.stageStatus?.includes(': ') ? t.stageStatus.split(': ') : null;
                     return (
                       <>
                         <span className="flex w-full items-center gap-2">
                           <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: tone.dot }} />
                           <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#364658]">{t.subject}</span>
                         </span>
-                        <span className="mt-1 flex w-full items-center gap-1.5 pl-[14px]">
+                        {/* Id and state share one line — the record's name above, what it
+                            IS below, in a single glance rather than three stacked rows. */}
+                        <span className="mt-1.5 flex w-full min-w-0 items-center gap-2 pl-[14px]">
                           <span className="flex-shrink-0 text-[10.5px] font-medium text-[#94A3B8]">{t.id}</span>
-                          {r?.note && (
-                            <>
-                              <span className="text-[10px] text-[#CBD5E1]">·</span>
-                              <span className="truncate text-[10px] font-medium" style={{ color: r.color }}>
-                                {r.note}
+                          {/* Same wording as the hover card's chip, so a truncated stage is
+                              always recoverable without opening the record. */}
+                          <Tooltip delayDuration={300}>
+                            <TooltipTrigger asChild>
+                              <span className="ml-auto inline-flex h-[22px] min-w-0 cursor-default items-center gap-1.5 rounded border border-[#E5E7EB] bg-white px-1.5 text-[11px] text-[#364658]">
+                                <span
+                                  className="size-1.5 flex-shrink-0 rounded-full"
+                                  style={{ backgroundColor: STATUS_DOT[t.status] ?? '#94A3B8' }}
+                                />
+                                {staged ? (
+                                  <>
+                                    <span className="flex-shrink-0 text-[#7B8FA5]">{staged[0]}</span>
+                                    <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
+                                    <span className="truncate">{staged.slice(1).join(': ')}</span>
+                                  </>
+                                ) : (
+                                  <span className="truncate">{t.status}</span>
+                                )}
                               </span>
-                            </>
-                          )}
-                          {r && (
-                            <span className="ml-auto flex-shrink-0 text-[10.5px] font-medium tabular-nums text-[#64748B]">
-                              {Math.min(r.pct, 100)}%
-                            </span>
-                          )}
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              {staged ? `Stage: ${staged[0]} · ${staged.slice(1).join(': ')}` : `Status: ${t.status}`}
+                            </TooltipContent>
+                          </Tooltip>
                         </span>
-                        {r && (
-                          <span className="mt-1.5 ml-[14px] block h-[4px] overflow-hidden rounded-full bg-[#EEF1F4]" style={{ width: RAIL_W - 32 - 14 }}>
-                            <span
-                              className="block h-full rounded-full"
-                              style={{ width: `${Math.min(r.pct, 100)}%`, backgroundColor: r.color }}
-                            />
-                          </span>
-                        )}
                       </>
                     );
                   })()}

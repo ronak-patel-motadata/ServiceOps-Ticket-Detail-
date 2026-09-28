@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketStatsRow } from './TicketStatsRow';
@@ -188,6 +188,9 @@ export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string)
     // Every row is a release — open the real ReleaseDrawer with the original record.
     openInStack('release', ticket.id, ticket.subject, RELEASES.byId.get(ticket.id) ?? ticket);
   };
+
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(tickets, handleOpenTicket);
 
   const handleCloseDrawer = () => {
     setOpenTickets([]);
@@ -440,6 +443,9 @@ export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string)
             setCardFields={setCardFields}
             dashScope={dashScope}
             setDashScope={setDashScope}
+            /* No Kanban here — a release train is read on its timeline, not as a
+               drag-between-columns board; Calendar and Gantt cover that need. */
+            layouts={['list', 'list-kpi', 'dashboard']}
             showCalendar
             showGantt
           />
@@ -479,6 +485,7 @@ export function ReleaseListingPage({ onNavigate }: { onNavigate?: (page: string)
             />
           ) : (
             <TicketTable
+              openPage="release"
               noun="release"
               moduleCols="release"
               tickets={paginatedTickets}

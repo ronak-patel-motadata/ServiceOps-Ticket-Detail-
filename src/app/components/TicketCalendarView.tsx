@@ -1,8 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { cloneElement, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarClock, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
 import { DueByPill, dueBySla, slaInfoOf } from './TicketTable';
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 /* Calendar view of the request queue — the same records the grid and board show, each placed
    on its own date. The SLA deadline stays a separate fact (the tooltip computes it from the
@@ -33,7 +33,7 @@ export const TONE: Record<string, { dot: string; bg: string; fg: string }> = {
 };
 
 /** Status and priority dots, same values the grid and board use. */
-const STATUS_DOT: Record<string, string> = {
+export const STATUS_DOT: Record<string, string> = {
   Open: '#3D8BD0',
   'In Progress': '#6366F1',
   Pending: '#fb923c',
@@ -126,15 +126,98 @@ const CardTip = ({ tip, align = 'center', children }: { tip: string; align?: 'ce
 
 /* One tooltip for every calendar surface — chip, bar, banner — so the hover card
    never depends on which rendering the record happened to get. */
-export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) => (
-    <Tooltip delayDuration={300}>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent
-        side="top"
-        sideOffset={6}
-        className="max-w-none rounded-lg border border-[#E5E7EB] bg-white p-0 text-wrap text-[#364658] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
-        arrowClassName="border-b border-r border-[#E5E7EB] bg-white fill-white"
-      >
+/* The record card, anchored to the POINTER rather than the element's centre: a
+   Gantt bar can run the width of the screen, and a centred card lands nowhere
+   near the hand that summoned it (or off-screen entirely). It stays hoverable —
+   a grace timer lets the pointer travel in — because the chips inside carry
+   their own CardTips. */
+export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElement }) => {
+  const [tip, setTip] = useState<{ x: number; top: number; bottom: number; below: boolean } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const showT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const posRef = useRef({ x: 0, top: 0, bottom: 0 });
+  const shownRef = useRef(false);
+  const EST_H = 260;
+
+  const open = () => {
+    shownRef.current = true;
+    const { x, top, bottom } = posRef.current;
+    setTip({
+      x: Math.min(Math.max(x, 190), window.innerWidth - 190),
+      top,
+      bottom,
+      below: top - EST_H < 8,
+    });
+  };
+  const close = () => {
+    shownRef.current = false;
+    setTip(null);
+  };
+  const cancelHide = () => {
+    if (hideT.current) clearTimeout(hideT.current);
+  };
+  const scheduleHide = () => {
+    if (showT.current) clearTimeout(showT.current);
+    cancelHide();
+    hideT.current = setTimeout(close, 180);
+  };
+  /* Correct the flip with the card's REAL height once it is laid out — the impact
+     paragraph makes the height vary a lot. Converges in one pass. */
+  useLayoutEffect(() => {
+    if (!tip || !cardRef.current) return;
+    const h = cardRef.current.offsetHeight;
+    const below = tip.top - h - 10 < 8;
+    if (below !== tip.below) setTip({ ...tip, below });
+  }, [tip]);
+
+  const cp = children.props as {
+    onMouseEnter?: (e: React.MouseEvent) => void;
+    onMouseMove?: (e: React.MouseEvent) => void;
+    onMouseLeave?: (e: React.MouseEvent) => void;
+  };
+  const trigger = cloneElement(children as React.ReactElement<any>, {
+    onMouseEnter: (e: React.MouseEvent) => {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      posRef.current = { x: e.clientX, top: r.top, bottom: r.bottom };
+      cancelHide();
+      if (showT.current) clearTimeout(showT.current);
+      showT.current = setTimeout(open, 300);
+      cp.onMouseEnter?.(e);
+    },
+    // Track the pointer until the card opens, then hold still so it reads calmly.
+    onMouseMove: (e: React.MouseEvent) => {
+      if (!shownRef.current) posRef.current.x = e.clientX;
+      cp.onMouseMove?.(e);
+    },
+    onMouseLeave: (e: React.MouseEvent) => {
+      scheduleHide();
+      cp.onMouseLeave?.(e);
+    },
+  });
+
+  return (
+    <>
+      {trigger}
+      {tip &&
+        createPortal(
+          <div
+            ref={cardRef}
+            onMouseEnter={cancelHide}
+            onMouseLeave={close}
+            style={{
+              left: tip.x,
+              top: tip.below ? tip.bottom + 10 : tip.top - 10,
+              transform: tip.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+            }}
+            className="fixed z-[10010] rounded-lg border border-[#E5E7EB] bg-white text-[#364658] shadow-[0_8px_24px_rgba(15,23,42,0.12)]"
+          >
+            {/* Pointer at the hovered spot, so the card reads as belonging to it. */}
+            <span
+              className={`absolute left-1/2 size-2.5 -translate-x-1/2 rotate-45 bg-white ${
+                tip.below ? '-top-[5px] border-l border-t border-[#E5E7EB]' : '-bottom-[5px] border-b border-r border-[#E5E7EB]'
+              }`}
+            />
         <div className="w-max min-w-[286px] max-w-[360px] px-3 py-2.5">
           <div className="flex items-start gap-2.5">
             <div className="min-w-0 flex-1">
@@ -155,28 +238,8 @@ export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) =>
               )}
             </CardTip>
           </div>
-          {(() => {
-            const r = readinessOf(t);
-            if (!r) return null;
-            const sp = stageProgress(t);
-            return (
-              <div className="mt-2 rounded-md px-2.5 py-2" style={{ backgroundColor: r.bg }}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: r.fg }}>
-                    Readiness
-                  </span>
-                  {r.note && (
-                    <span className="text-[10px] font-semibold" style={{ color: r.fg }}>
-                      {r.note}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5 text-[12px] font-semibold" style={{ color: r.fg }}>
-                  {Math.min(r.pct, 100)}%{sp ? ` — ${sp.n} of ${sp.m} stages complete` : ''}
-                </div>
-              </div>
-            );
-          })()}
+          {/* The Readiness band was removed: the stage · status chip below already says
+              where the record stands, and a percentage repeated the same fact. */}
           {(endOf(t).getTime() > t.dueBy.getTime() || t.windowNote) && (
             <div className="mt-2 grid grid-cols-[58px_1fr] items-start gap-x-3 gap-y-2 border-t border-[#F0F1F3] pt-2.5 text-[11px]">
               {/* First fact on a calendar: the window is WHY the pill sits where it does. */}
@@ -250,9 +313,12 @@ export const EventTip = ({ t, children }: { t: Ticket; children: ReactNode }) =>
             })()}
           </div>
         </div>
-      </TooltipContent>
-    </Tooltip>
-);
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+};
 
 /* Where the record sits on its module's stage ladder — "3 of 8 stages complete".
    The ladder comes from the id family: CHG- walks the change lifecycle, REL- the

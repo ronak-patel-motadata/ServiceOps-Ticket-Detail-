@@ -11,7 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { AssetStatsRow, assetHealthOf } from './AssetStatsRow';
@@ -328,6 +328,9 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
     openInStack('hardware-assets', ticket.id, ticket.subject, HW.byId.get(ticket.id) ?? ticket);
   };
 
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(tickets, handleOpenTicket);
+
   const handleCloseDrawer = () => {
     setOpenTickets([]);
     setActiveTicketId(null);
@@ -618,6 +621,7 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
             />
           ) : (
             <TicketTable
+              openPage="hardware-assets"
               noun="asset"
               moduleCols="asset"
               tickets={paginatedTickets}

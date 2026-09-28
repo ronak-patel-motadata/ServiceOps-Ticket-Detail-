@@ -29,8 +29,16 @@ import { Toaster } from 'sonner';
 
 type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'icons' | 'views-lab';
 
+/* A row's "Open in a new tab" link carries ?page=<slug>&open=<id>, so a fresh tab
+   lands on the right module's listing with that record's detail page already open. */
+const pageFromUrl = (): Page | null => {
+  if (typeof window === 'undefined') return null;
+  const p = new URLSearchParams(window.location.search).get('page');
+  return p ? (p as Page) : null;
+};
+
 export default function App() {
-  const [activePage, setActivePage] = useState<Page>('request');
+  const [activePage, setActivePage] = useState<Page>(() => pageFromUrl() ?? 'request');
   const navigate = (page: string) => setActivePage(page as Page);
   // A software asset id requested from elsewhere (e.g. the Software License "Managed Softwares" card),
   // consumed by the Software Assets list page to auto-open that asset's detail drawer.

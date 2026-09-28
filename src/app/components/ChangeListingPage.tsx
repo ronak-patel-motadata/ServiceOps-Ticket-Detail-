@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable } from './TicketTable';
+import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketStatsRow } from './TicketStatsRow';
@@ -177,6 +177,9 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
     // Every row is a change — open the real ChangeDrawer with the original record.
     openInStack('change', ticket.id, ticket.subject, CHANGES.byId.get(ticket.id) ?? ticket);
   };
+
+  /* A row opened in a new browser tab lands here with ?open=<id>. */
+  useOpenFromUrl(tickets, handleOpenTicket);
 
   const handleCloseDrawer = () => {
     setOpenTickets([]);
@@ -429,6 +432,9 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             setCardFields={setCardFields}
             dashScope={dashScope}
             setDashScope={setDashScope}
+            /* No Kanban here — a change queue is read on its schedule, not as a
+               drag-between-columns board; Calendar covers that need. */
+            layouts={['list', 'list-kpi', 'dashboard']}
             showCalendar
           />
           </div>
@@ -465,6 +471,7 @@ export function ChangeListingPage({ onNavigate }: { onNavigate?: (page: string) 
             />
           ) : (
             <TicketTable
+              openPage="change"
               noun="change"
               moduleCols="change"
               tickets={paginatedTickets}

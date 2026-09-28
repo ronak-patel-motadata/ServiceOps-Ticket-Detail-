@@ -207,7 +207,16 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     return kpis.length ? { kpis } : {};
   };
   // Reports have no user-facing id, so the drawer chrome (tabs, dock) hides the internal one.
-  const stackTabs = stack.map((s) => ({ id: s.id, subject: s.subject, noIdPill: s.module === 'report' || undefined, ...tabMeta(s.module, s.data) }));
+  /* `page` is the listing slug the record belongs to — the tab hover card turns it
+     into an "open in a new browser tab" link (?page=…&open=…). V2 is a design
+     option of the request page, not a page of its own. */
+  const stackTabs = stack.map((s) => ({
+    id: s.id,
+    subject: s.subject,
+    page: s.module === 'request-v2' ? 'request' : s.module,
+    noIdPill: s.module === 'report' || undefined,
+    ...tabMeta(s.module, s.data),
+  }));
 
   let drawer: ReactNode = null;
   if (active) {
