@@ -126,6 +126,24 @@ Also listed in the view's own ⌨ keyboard-shortcuts popup (top-right canvas con
 
 ---
 
+## 4b. Project plan Dependencies map (center popup)
+
+Works whenever the Dependencies graph modal is open (Project detail → Planning tab →
+a task's ⧉ chip). The modal is a full overlay with no text inputs, so the keys work
+immediately — no click-to-focus. Key hints also appear in the canvas-control tooltips.
+
+Implemented in **`src/app/components/PlanDependencies.tsx`** (`DepCanvasControls` keydown effect).
+
+| Shortcut | Action |
+|---|---|
+| `↑ ↓ ← →` | Pan the canvas |
+| `+` / `−` | Zoom in / out |
+| `F` | Fit & center all nodes |
+| `R` | Reset view (re-fit) |
+| `Esc` | Close the node hover card, then the popup |
+
+---
+
 ## 5. Ticket listing grid
 
 Works on the Requests listing (List view). Disabled while typing in any field and
@@ -148,8 +166,9 @@ Implemented in **`src/app/components/TicketTable.tsx`** (`kbFocusId` + window ke
 When you add, change, or remove a shortcut:
 1. Update the implementation (`DrawerShortcuts.tsx` for drawer-wide,
    `RelationshipGraph.tsx` for the Relationship/Dependency Map canvas,
-   `PatchSupersededTab.tsx` for the Superseded map, or
-   `DeploymentTopologyView.tsx` for the Deployment Topology canvas).
+   `PatchSupersededTab.tsx` for the Superseded map,
+   `DeploymentTopologyView.tsx` for the Deployment Topology canvas, or
+   `PlanDependencies.tsx` for the project-plan Dependencies map).
 2. Update the in-app cheat-sheet (`SHORTCUTS` array in `DrawerShortcuts.tsx`, and/or the
    matching canvas shortcuts popup).
 3. Update **this file**.

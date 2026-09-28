@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import type { Project } from './ProjectsListPage';
 import { DepGraphModal, DepPickerPanel } from './PlanDependencies';
+import { ProjectGanttView } from './ProjectGanttView';
 
 /* ── Project Planning tab ────────────────────────────────────────────────────
    Replaces the product's two-screen "Edit Planning" flow: everything — tasks,
@@ -837,16 +838,13 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
             </button>
             {moreMenu(i.id, i.kind)}
           </span>
-          {i.kind === 'task' ? (
-            <span className="flex w-[92px] items-center gap-2">
-              <span className="block h-[4px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
-                <span className="block h-full rounded-full" style={{ width: `${i.progress}%`, backgroundColor: i.progress === 100 ? '#16A34A' : '#3D8BD0' }} />
-              </span>
-              <span className="w-8 text-right text-[11px] tabular-nums text-[#64748B]">{i.progress}%</span>
+          {/* Tasks AND milestones share the same meter, so the column reads uniformly. */}
+          <span className="flex w-[92px] items-center gap-2">
+            <span className="block h-[4px] flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+              <span className="block h-full rounded-full" style={{ width: `${i.progress}%`, backgroundColor: i.progress === 100 ? '#16A34A' : '#3D8BD0' }} />
             </span>
-          ) : (
-            <span className="w-[92px] text-right text-[11px] tabular-nums text-[#64748B]">{i.status === 'Closed' ? 'Done' : ''}</span>
-          )}
+            <span className="w-8 text-right text-[11px] tabular-nums text-[#64748B]">{i.progress}%</span>
+          </span>
         </span>
       </div>
     );
@@ -972,145 +970,75 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
     </div>
   );
 
-  /* ── Gantt view — compact, read-focused; the List view is where you edit. ── */
-  const ganttView = (() => {
-    const all = items.filter((i) => i.kind !== 'summary');
-    if (!all.length) return <div className="py-16 text-center text-[13px] text-[#94A3B8]">Nothing planned yet.</div>;
-    const minMs = Math.min(...items.map((i) => i.start.getTime()), fromInput(projStart, new Date()).getTime()) - 2 * DAY;
-    const maxMs = Math.max(...items.map((i) => i.end.getTime()), fromInput(projEnd, new Date()).getTime()) + 2 * DAY;
-    const start = dayFloor(new Date(minMs));
-    const spanDays = Math.max(7, Math.ceil((maxMs - start.getTime()) / DAY));
-    const spanMs = spanDays * DAY;
-    const pct = (ms: number) => Math.max(0, Math.min(100, ((ms - start.getTime()) / spanMs) * 100));
-    const pxPerDay = Math.max(22, Math.min(90, Math.round(1800 / spanDays)));
-    const tlMin = spanDays * pxPerDay;
-    const RAIL = 240;
-    const days = Array.from({ length: spanDays }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
-    const showDayNums = spanDays <= 45;
-    const ticks = showDayNums ? days : days.filter((d) => d.getDay() === 1);
-    // Month bands for the top axis line.
-    const months: { d: Date; from: number; to: number }[] = [];
-    days.forEach((d, i) => {
-      const last = months[months.length - 1];
-      if (!last || d.getMonth() !== last.d.getMonth()) months.push({ d, from: i, to: i });
-      else last.to = i;
-    });
-    const todayIn = today.getTime() >= start.getTime() && today.getTime() <= start.getTime() + spanMs;
-    const rows: { item: PlanItem; indent: boolean; meta: { start: Date; end: Date; progress: number } }[] = [];
-    summaries.forEach((s) => {
-      rows.push({ item: s, indent: false, meta: summaryMeta(s) });
-      childrenOf(s.id).forEach((k) => rows.push({ item: k, indent: true, meta: { start: k.start, end: k.end, progress: k.progress } }));
-    });
-    topLevel.forEach((k) => rows.push({ item: k, indent: false, meta: { start: k.start, end: k.end, progress: k.progress } }));
-
-    return (
-      <div className="overflow-auto rounded-lg border border-[#E5E7EB]">
-        <div style={{ minWidth: RAIL + tlMin }}>
-          {/* Axis */}
-          <div className="sticky top-0 z-20 flex border-b border-[#E5E7EB] bg-white">
-            <div className="sticky left-0 z-10 flex flex-shrink-0 items-end border-r border-[#E5E7EB] bg-white px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]" style={{ width: RAIL }}>
-              Plan
-            </div>
-            <div className="relative h-[44px] min-w-0 flex-1">
-              {months.map((m) => (
-                <span key={m.d.getTime()} className="absolute top-1 border-l border-[#F1F5F9] pl-2 text-[11px] font-medium text-[#64748B]" style={{ left: `${(m.from / spanDays) * 100}%` }}>
-                  {m.d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </span>
-              ))}
-              {ticks.map((d) => (
-                <span key={d.getTime()} className="absolute bottom-1 -translate-x-1/2 text-[10px] tabular-nums text-[#94A3B8]" style={{ left: `${((days.indexOf(d) + 0.5) / spanDays) * 100}%` }}>
-                  {showDayNums ? d.getDate() : fmtD(d)}
-                </span>
-              ))}
-            </div>
-          </div>
-          {/* Rows over one backdrop */}
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 right-0" style={{ left: RAIL }}>
-              {spanDays <= 60 &&
-                days
-                  .filter((d) => d.getDay() === 0 || d.getDay() === 6)
-                  .map((d, i) => (
-                    <span key={`w${i}`} className="absolute inset-y-0 bg-[#FAFBFC]" style={{ left: `${(days.indexOf(d) / spanDays) * 100}%`, width: `${100 / spanDays}%` }} />
-                  ))}
-              {ticks.map((d) => (
-                <span key={`l${d.getTime()}`} className="absolute inset-y-0 border-l border-[#F5F7FA]" style={{ left: `${(days.indexOf(d) / spanDays) * 100}%` }} />
-              ))}
-              {todayIn && <span className="absolute inset-y-0 w-px bg-[#3D8BD0]" style={{ left: `${pct(today.getTime() + DAY / 2)}%` }} />}
-            </div>
-            {rows.map(({ item: i, indent, meta }) => {
-              const l = pct(meta.start.getTime());
-              const w = Math.max(pct(meta.end.getTime() + (i.kind === 'milestone' ? 0 : DAY)) - l, 0.4);
-              const od = overdueOf(i, meta.progress);
-              return (
-                <div key={i.id} className="group flex h-[40px] items-center border-b border-[#F5F7FA] transition-colors hover:bg-[#64748B]/[0.04]">
-                  <div className={`sticky left-0 z-10 flex h-full flex-shrink-0 items-center gap-2 border-r border-[#E5E7EB] bg-white px-3 transition-colors group-hover:bg-[#F8FAFC] ${indent ? 'pl-7' : ''}`} style={{ width: RAIL }}>
-                    {kindIcon(i)}
-                    <span className={`min-w-0 truncate text-[12px] ${i.kind === 'summary' ? 'font-semibold text-[#364658]' : 'text-[#475569]'}`}>{i.name}</span>
-                    {od && <span className="size-1.5 flex-shrink-0 rounded-full bg-[#DC2626]" />}
-                  </div>
-                  <div className="relative h-full min-w-0 flex-1" title={`${i.name} · ${i.kind === 'milestone' ? fmtDY(meta.start) : `${fmtD(meta.start)} – ${fmtDY(meta.end)}`}`}>
-                    {i.kind === 'milestone' ? (
-                      <span className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: `${l}%` }}>
-                        <span className="block size-[11px] rotate-45 rounded-[2px] bg-[#F59E0B] ring-2 ring-white" />
-                      </span>
-                    ) : i.kind === 'summary' ? (
-                      <span className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-[#64748B]/60" style={{ left: `${l}%`, width: `${w}%` }} />
-                    ) : (
-                      <span className="absolute top-1/2 h-[16px] -translate-y-1/2 overflow-hidden rounded bg-[#3D8BD0]/25" style={{ left: `${l}%`, width: `${w}%` }}>
-                        <span className="block h-full" style={{ width: `${meta.progress}%`, backgroundColor: od ? '#DC2626' : '#3D8BD0' }} />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  })();
+  /* ── Gantt view — the release-listing Gantt design, cloned for plan items
+     (ProjectGanttView): Week/Month/Quarter grains, brush/pinch zoom, frozen
+     rail with search, hover cards. Natural height — rows scroll with the PAGE
+     (no internal vertical scrollbar); only the timeline pans horizontally. ── */
+  const ganttView = (
+    <div className="overflow-hidden rounded-lg border border-[#E5E7EB] bg-white">
+      <ProjectGanttView items={items} />
+    </div>
+  );
 
   return (
     <div className="px-6 py-5">
-      {/* Toolbar: view toggle · search · project window · Add */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {/* Icon-expand search + filter — the Tasks-tab toolbar recipe. */}
-        {!searchOpen ? (
-          <button
-            onClick={() => setSearchOpen(true)}
-            title="Search"
-            className="flex size-8 items-center justify-center rounded border border-[#DFE5ED] text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]"
-          >
-            <Search size={16} />
-          </button>
-        ) : (
-          <div className="flex h-8 w-[240px] items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3">
-            <Search size={15} className="flex-shrink-0 text-[#7B8FA5]" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setQ('');
+      {/* Toolbar: view toggle · search · project window · Add — sticky under the
+          ~48px main tab strip while the plan scrolls (the V2 Conversation-row
+          recipe: full-bleed -mx-6 + white bg so rows pass cleanly beneath). */}
+      <div className="sticky top-[48px] z-30 -mx-6 mb-2 flex flex-wrap items-center gap-2 bg-white px-6 py-3">
+        {/* Icon-expand search — Tasks-tab recipe. FULL view expands inline
+            (240px, in flow); SMALL view instead OVERLAYS the whole left
+            cluster (filter + Project window, up to the view toggles) so the
+            sticky row never wraps to a second line. */}
+        {(() => {
+          const smallView = drawerWidth <= 1080;
+          const field = (
+            <>
+              <Search size={15} className="flex-shrink-0 text-[#7B8FA5]" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setQ('');
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Search plan..."
+                className="min-w-0 flex-1 bg-transparent text-[12px] text-[#364658] outline-none placeholder:text-[#9CA3AF]"
+              />
+              <button
+                onClick={() => {
                   setSearchOpen(false);
-                }
-              }}
-              placeholder="Search plan..."
-              className="min-w-0 flex-1 bg-transparent text-[12px] text-[#364658] outline-none placeholder:text-[#9CA3AF]"
-            />
-            <button
-              onClick={() => {
-                setSearchOpen(false);
-                setQ('');
-              }}
-              className="rounded p-0.5 transition-colors hover:bg-[#F5F7FA]"
-            >
-              <X size={14} className="text-[#7B8FA5]" />
-            </button>
-          </div>
-        )}
+                  setQ('');
+                }}
+                className="rounded p-0.5 transition-colors hover:bg-[#F5F7FA]"
+              >
+                <X size={14} className="text-[#7B8FA5]" />
+              </button>
+            </>
+          );
+          if (!smallView && searchOpen) {
+            return <div className="flex h-8 w-[240px] items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3">{field}</div>;
+          }
+          return (
+            <>
+              <button
+                onClick={() => setSearchOpen(true)}
+                title="Search"
+                className="flex size-8 items-center justify-center rounded border border-[#DFE5ED] text-[#7B8FA5] transition-colors hover:bg-[#F5F7FA] hover:text-[#364658]"
+              >
+                <Search size={16} />
+              </button>
+              {smallView && searchOpen && (
+                <div className="absolute left-6 right-[200px] top-1/2 z-20 flex h-8 -translate-y-1/2 items-center gap-2 rounded border border-[#DFE5ED] bg-white px-3 shadow-[0_4px_12px_rgba(16,24,40,0.10)]">
+                  {field}
+                </div>
+              )}
+            </>
+          );
+        })()}
         <div className="relative">
           <button
             onClick={() => setShowFilterMenu((v) => !v)}
@@ -1271,7 +1199,22 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
           if (!t) return null;
           const preds = (t.preds ?? []).map((id) => items.find((x) => x.id === id)).filter(Boolean) as PlanItem[];
           const succs = items.filter((x) => (x.preds ?? []).includes(t.id));
-          return <DepGraphModal task={t} preds={preds} succs={succs} onClose={() => setDepGraphId(null)} />;
+          return (
+            <DepGraphModal
+              task={t}
+              preds={preds}
+              succs={succs}
+              onClose={() => setDepGraphId(null)}
+              onRemove={(id, dir) => {
+                if (dir === 'pred') {
+                  setItems((prev) => prev.map((x) => (x.id === t.id ? { ...x, preds: (x.preds ?? []).filter((p) => p !== id) } : x)));
+                } else {
+                  setItems((prev) => prev.map((x) => (x.id === id ? { ...x, preds: (x.preds ?? []).filter((p) => p !== t.id) } : x)));
+                }
+                toast.success(`${id} removed as ${dir === 'pred' ? 'predecessor' : 'successor'} of ${t.id}`);
+              }}
+            />
+          );
         })()}
     </div>
   );

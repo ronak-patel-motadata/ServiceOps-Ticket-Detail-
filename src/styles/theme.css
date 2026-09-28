@@ -196,6 +196,16 @@
 }
 .app-select::-ms-expand { display: none; }
 
+/* Quiet variant — the chevron stays hidden until the field row (or the select
+   itself) is hovered/focused: the detail-page Key-Information recipe. Padding
+   stays reserved so nothing shifts when it appears. */
+.app-select.app-select-quiet { background-image: none; }
+.app-select.app-select-quiet:hover,
+.app-select.app-select-quiet:focus,
+.ki-row:hover .app-select.app-select-quiet {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237B8FA5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
 /* Rich reply-editor content — restore list/heading/hr styles stripped by the Tailwind preflight,
    so execCommand lists and blocks actually render inside contentEditable surfaces. */
 [contenteditable] ul { list-style: disc; padding-left: 1.5rem; margin: 4px 0; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Project } from './ProjectsListPage';
 
@@ -41,52 +41,86 @@ const fmtDT = (d: Date) =>
 
 /* One field row: quiet label column, value column. */
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex min-h-[28px] items-center gap-3">
+  <div className="ki-row flex min-h-[28px] items-center gap-3">
     <span className="w-[128px] flex-shrink-0 text-[12px] text-[#7B8FA5]">{label}</span>
     <div className="min-w-0 flex-1">{children}</div>
   </div>
 );
 
-/* Editable value: color dot + quiet borderless select that fills on hover. */
-const DotSelect = ({
+/* The TICKET page's Key-Information field dropdown, verbatim: quiet full-width
+   trigger (color dot at left-3, gray fill on hover/open, hover-reveal chevron)
+   opening the white app-menu with dot rows — NOT a native <select>, so the
+   open menu matches the product instead of the OS. */
+function FieldSelect({
   value,
   opts,
   onChange,
+  placeholder = 'Select',
 }: {
   value: string;
-  opts: { label: string; color: string }[];
+  opts: { label: string; color?: string }[];
   onChange: (v: string) => void;
-}) => (
-  <span className="-ml-1.5 inline-flex min-w-0 items-center gap-1.5">
-    <span className="ml-1.5 size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: opts.find((o) => o.label === value)?.color ?? '#94A3B8' }} />
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="app-select cursor-pointer rounded border border-transparent bg-transparent py-0.5 pl-1 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F3F5F8] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0]"
-    >
-      {opts.map((o) => (
-        <option key={o.label}>{o.label}</option>
-      ))}
-    </select>
-  </span>
-);
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+  const cur = opts.find((o) => o.label === value);
+  const dotted = !!cur?.color;
+  return (
+    <div ref={ref} className="group relative flex-1">
+      {dotted && (
+        <div
+          className="pointer-events-none absolute left-3 top-1/2 z-10 size-2 -translate-y-1/2 rounded-full"
+          style={{ backgroundColor: cur?.color }}
+        />
+      )}
+      <button
+        title={value || placeholder}
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full ${dotted ? 'pl-6' : 'pl-3'} cursor-pointer truncate rounded-md border-none py-2 pr-8 text-left text-[13px] transition-colors hover:bg-[#F3F4F6] focus:bg-[#F3F4F6] focus:outline-none ${
+          value ? 'text-[#364658]' : 'text-[#9CA3AF]'
+        } ${open ? 'bg-[#F3F4F6]' : 'bg-transparent'}`}
+      >
+        {value || placeholder}
+      </button>
+      <ChevronDown
+        size={14}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#7B8FA5] opacity-0 transition-opacity group-hover:opacity-100"
+      />
+      {open && (
+        <div className="app-menu absolute right-0 top-full z-50 mt-1 w-full rounded-lg border border-[#DFE5ED] bg-white py-2 shadow-lg">
+          {opts.map((o) => (
+            <button
+              key={o.label}
+              onClick={() => {
+                onChange(o.label);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[#F9FAFB]"
+            >
+              {o.color && <div className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />}
+              <span className="truncate text-[13px] text-[#364658]">{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-/* Plain quiet select, with a grey "Select" placeholder like the product. */
+const DotSelect = (p: { value: string; opts: { label: string; color: string }[]; onChange: (v: string) => void }) => (
+  <FieldSelect {...p} />
+);
 const PlainSelect = ({ value, opts, onChange, placeholder = 'Select' }: { value: string; opts: string[]; onChange: (v: string) => void; placeholder?: string }) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    className={`app-select -ml-1 cursor-pointer rounded border border-transparent bg-transparent py-0.5 pl-1 text-[13px] transition-colors hover:bg-[#F3F5F8] focus:border-[#3D8BD0] focus:outline-none focus:ring-1 focus:ring-[#3D8BD0] ${
-      value ? 'font-medium text-[#364658]' : 'text-[#9CA3AF]'
-    }`}
-  >
-    <option value="">{placeholder}</option>
-    {opts.map((o) => (
-      <option key={o} value={o} className="text-[#364658]">
-        {o}
-      </option>
-    ))}
-  </select>
+  <FieldSelect value={value} opts={opts.map((label) => ({ label }))} onChange={onChange} placeholder={placeholder} />
 );
 
 export function ProjectKeyInfo({ project, title = 'Key Information' }: { project: Project | null; title?: string }) {
