@@ -929,8 +929,8 @@ onStackActiveGroupChange,
       // Determine which tabs should be shown based on ticket type and state
       // Analysis leads; Resolution closes the row, after Audit Trails.
       // Projects carry no Approvals/Resolution tabs (removed from the Problem clone).
-      const baseTabsForOthers = ['planning', 'conversation', 'tasks', 'audit'];
-      const baseTabsForINC35 = ['service-request', 'planning', 'conversation', 'tasks', 'audit'];
+      const baseTabsForOthers = ['planning', 'conversation', 'audit'];
+      const baseTabsForINC35 = ['service-request', 'planning', 'conversation', 'audit'];
       
       // Build tabs list dynamically based on conditions
       let allTabs: string[] = [];
@@ -950,8 +950,10 @@ onStackActiveGroupChange,
         if (approvalsIndex !== -1) {
           allTabs.splice(approvalsIndex + 1, 0, 'relations');
         } else {
-          const tasksIndex = allTabs.indexOf('tasks');
-          allTabs.splice(tasksIndex + 1, 0, 'relations');
+          /* Relations follows Conversation now that the Tasks tab is gone — the
+             Planning tab owns the project's task list. */
+          const anchorIndex = allTabs.indexOf('conversation');
+          allTabs.splice(anchorIndex + 1, 0, 'relations');
         }
       }
 
@@ -966,7 +968,6 @@ onStackActiveGroupChange,
         'service-request': 130,
         'planning': 85,
         'conversation': 105,
-        'tasks': 60,
         'approvals': 85,
         'relations': 80,
         'audit': 100,
@@ -3452,7 +3453,6 @@ To bring it back on track:
                     { id: 'service-request', label: 'Service Request', condition: activeProblem?.id === 'PBM-608' },
                     { id: 'planning', label: 'Planning' },
                     { id: 'conversation', label: 'Conversation' },
-                    { id: 'tasks', label: 'Tasks' },
                     { id: 'relations', label: 'Relations', condition: true },
                     { id: 'audit', label: 'Audit Trails' },
                   ].filter(tab => tab.condition !== false);
@@ -3465,7 +3465,6 @@ To bring it back on track:
                     'service-request': 'Service Request',
                     'planning': 'Planning',
                     'conversation': 'Conversation',
-                    'tasks': 'Tasks',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'Audit Trails',
@@ -3482,11 +3481,6 @@ To bring it back on track:
                       {tabId === 'conversation' && activeProblem?.id !== 'PBM-627' && activeProblem?.id !== 'PBM-608' && (
                         <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
                           {conversationCount}
-                        </span>
-                      )}
-                      {tabId === 'tasks' && tasksCount > 0 && (
-                        <span className="text-[12px] font-medium text-[#364658] bg-[#E5E7EB] px-1 py-0.5 rounded">
-                          {tasksCount}
                         </span>
                       )}
                       {tabId === 'approvals' && activeProblem?.id !== 'PBM-627' && (
