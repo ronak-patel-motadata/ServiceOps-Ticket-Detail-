@@ -22,6 +22,7 @@ import { AiSparkle } from './AiSparkle';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect } from 'react';
+import { APPROVAL_TAB_IDS } from './approvalTabs';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { AssetAiSummary } from './AssetAiSummary';
@@ -124,6 +125,10 @@ interface SoftwareAssetDrawerProps {
   stackTabs?: { id: string; subject?: string }[];
   stackWidth?: number;
   onStackWidthChange?: (w: number) => void;
+  /** Opened from My Approvals — collapses the page to the approver's three tabs. */
+  approvalMode?: boolean;
+  /** The approver's decision buttons, rendered in place of the module's own header actions. */
+  approvalHeader?: import('react').ReactNode;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
 }
@@ -135,10 +140,19 @@ interface SoftwareAssetDrawerProps {
  * detail page is customized.
  */
 function softwareToAssetShape(s: SoftwareAsset): HardwareAsset {
-  const statusMap: Record<SoftwareAsset['status'], HardwareAsset['status']> = {
+  /* The cloned body only knows the hardware shape's three states, so the software
+     lifecycle collapses onto them: in service reads In Use, stock-like states read
+     In Store, and anything retired or written off reads Available. */
+  const statusMap: Partial<Record<SoftwareAsset['status'], HardwareAsset['status']>> = {
     'In Use': 'In Use',
-    'In Store': 'In Store',
+    'Allocated': 'In Use',
+    'In Stock': 'In Store',
+    'Decommission': 'In Store',
     'Retired': 'Available',
+    'Disposed': 'Available',
+    'Expired': 'Available',
+    'Missing': 'Available',
+    'In Repair': 'Available',
   };
   return {
     id: s.id,
@@ -205,6 +219,8 @@ export function SoftwareAssetDrawer({
 stackTabs,
 stackWidth,
 onStackWidthChange,
+approvalMode,
+approvalHeader,
 stackMinimized,
 onStackMinimizedChange,
 }: SoftwareAssetDrawerProps) {
@@ -274,7 +290,10 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  const [activeMainTabLocal, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  /* In approval mode only the three approver tabs render, so a module default of
+     Overview / Properties would land on a tab that is not on screen. */
+  const activeMainTab = approvalMode && !APPROVAL_TAB_IDS.includes(activeMainTabLocal) ? 'approvals' : activeMainTabLocal;
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Per-row Software Type for the Consolidated Software table (borderless field, hover-gray).
@@ -2151,7 +2170,10 @@ onStackMinimizedChange,
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* From My Approvals the header carries the DECISION and nothing else; the
+              module's own actions stay mounted but hidden so nothing else shifts. */}
+          {approvalMode && approvalHeader}
+          <div className={`flex items-center gap-2 flex-shrink-0${approvalMode ? ' hidden' : ''}`}>
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <div
               className="relative"
@@ -2627,9 +2649,12 @@ onStackMinimizedChange,
                     { id: 'audit', label: 'History' },
                   ].filter(tab => tab.condition !== false);
 
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  /* From My Approvals: the thread, the decision, and what the record
+                     touches — nothing else, in that fixed order whatever the module.
+                     Three tabs always fit, so the overflow split is skipped. */
+                  const allowedTabIds = approvalMode ? APPROVAL_TAB_IDS : tabConfig.map(tab => tab.id);
+                  const filteredVisibleTabs = approvalMode ? allowedTabIds : visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  const filteredOverflowTabs = approvalMode ? [] : overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
@@ -2643,6 +2668,7 @@ onStackMinimizedChange,
                     'relationship': 'Relationship',
                     'financials': 'Financials',
                     'service-request': 'Service Request',
+                    'conversation': 'Conversation',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'History'

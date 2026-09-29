@@ -1,15 +1,26 @@
-import { ChevronDown, ChevronRight, Mail, X, Clock, MoreVertical, Edit2, Plus, MessageSquare, Check, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, CornerUpLeft, Mail, X, Clock, MoreVertical, Edit2, Plus, MessageSquare, Check, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { CreateApprovalPopup } from './CreateApprovalPopup';
 import { ApprovalCommentPopup, ApprovalComment } from './ApprovalCommentPopup';
+import { CURRENT_USER } from './technicianRoster';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 interface Approver {
   id: string;
   name: string;
   email: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Ignored';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Ignored' | 'Referred Back';
   statusChangedAt?: string;
 }
+
+/* The decision an approver can take on their own row, as icon buttons in the same
+   tinted palette the My Approvals grid uses — so a decision looks the same wherever
+   it is taken. Icon-only keeps the row compact; each carries its name in a tooltip. */
+const ROW_ACTIONS: { status: Approver['status']; label: string; Icon: typeof Check; cls: string }[] = [
+  { status: 'Approved', label: 'Approve', Icon: Check, cls: 'border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D] hover:bg-[#DCFCE7]' },
+  { status: 'Rejected', label: 'Reject', Icon: X, cls: 'border-[#FECACA] bg-[#FEF2F2] text-[#B42318] hover:bg-[#FEE2E2]' },
+  { status: 'Referred Back', label: 'Refer back', Icon: CornerUpLeft, cls: 'border-[#FDE68A] bg-[#FFFBEB] text-[#B45309] hover:bg-[#FEF3C7]' },
+];
 
 interface ApprovalLevel {
   level: number;
@@ -183,13 +194,15 @@ export function ApprovalsTabContent({
   const filteredApprovals = ticketId === 'INC-35' ? approvals.filter(a => a.id === '1') : approvals;
 
   // Function to update approver status
-  const updateApproverStatus = (approvalId: string, approverId: string, newStatus: 'Approved' | 'Rejected') => {
-    setApprovals(prevApprovals => 
+  const updateApproverStatus = (approvalId: string, approverId: string, newStatus: 'Approved' | 'Rejected' | 'Referred Back') => {
+    setApprovals(prevApprovals =>
       prevApprovals.map(approval => {
         if (approval.id === approvalId) {
           return {
             ...approval,
-            status: newStatus, // Update overall approval status
+            /* Referring back asks the requester for more detail — the approval itself
+               is still waiting, so only a real decision moves the overall status. */
+            status: newStatus === 'Referred Back' ? approval.status : newStatus,
             levels: approval.levels.map(level => ({
               ...level,
               approvers: level.approvers.map(approver => {
@@ -232,6 +245,8 @@ export function ApprovalsTabContent({
         return 'bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]';
       case 'Pending':
         return 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]';
+      case 'Referred Back':
+        return 'bg-[#FFEDD5] text-[#9A3412] border-[#FED7AA]';
       case 'Ignored':
         return 'bg-[#E5E7EB] text-[#374151] border-[#D1D5DB]';
       default:
@@ -285,6 +300,15 @@ export function ApprovalsTabContent({
           const isExpanded = expandedApprovalIds.has(approval.id);
           const approvalSelectedLevel = selectedLevels[approval.id] ?? 1;
           const currentLevel = approval.levels.find(l => l.level === approvalSelectedLevel);
+          /* You can only decide YOUR OWN approval — never another approver's — so exactly
+             one row in a level carries the action buttons. It is the signed-in approver's
+             row when the level lists them; otherwise the first row still waiting stands in,
+             because the mock approver names vary per record and every accordion should
+             still have one actionable row. */
+          const myApproverId = (() => {
+            const waiting = (currentLevel?.approvers ?? []).filter(a => a.status === 'Pending');
+            return (waiting.find(a => a.name === CURRENT_USER || a.email === currentUserEmail) ?? waiting[0])?.id;
+          })();
 
           return (
             <div
@@ -432,8 +456,15 @@ export function ApprovalsTabContent({
                                     {approver.name.split(' ').map(n => n[0]).join('')}
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-[13px] text-[#364658] font-medium">
+                                    <span className="flex items-center gap-1.5 text-[13px] text-[#364658] font-medium">
                                       {approver.name}
+                                      {/* Names the one row you can act on, so the empty Action
+                                          cells on the others read as deliberate. */}
+                                      {approver.id === myApproverId && (
+                                        <span className="rounded-sm bg-[#EBF5FF] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#3D8BD0]">
+                                          You
+                                        </span>
+                                      )}
                                     </span>
                                     <span className="text-[12px] text-[#7B8FA5]">
                                       {approver.email}
@@ -456,21 +487,22 @@ export function ApprovalsTabContent({
                               </td>
                               <td className="py-3">
                                 <div className="flex items-center justify-end gap-2">
-                                  {approver.status === 'Pending' && (approver.name === 'Sarah Johnson' || approver.name === 'David Miller') && (
-                                    <>
-                                      <button 
-                                        onClick={() => updateApproverStatus(approval.id, approver.id, 'Approved')}
-                                        className="px-3 py-1 bg-[#059669] text-white text-[12px] font-medium rounded hover:bg-[#047857] transition-colors"
-                                      >
-                                        Approve
-                                      </button>
-                                      <button 
-                                        onClick={() => updateApproverStatus(approval.id, approver.id, 'Rejected')}
-                                        className="px-3 py-1 bg-[#DC2626] text-white text-[12px] font-medium rounded hover:bg-[#B91C1C] transition-colors"
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
+                                  {approver.id === myApproverId && (
+                                    <div className="flex items-center gap-1.5">
+                                      {ROW_ACTIONS.map(({ status, label, Icon, cls }) => (
+                                        <Tooltip key={status} delayDuration={300}>
+                                          <TooltipTrigger asChild>
+                                            <button
+                                              onClick={() => updateApproverStatus(approval.id, approver.id, status)}
+                                              className={`flex size-7 flex-shrink-0 items-center justify-center rounded border transition-colors ${cls}`}
+                                            >
+                                              <Icon size={14} />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>{label}</TooltipContent>
+                                        </Tooltip>
+                                      ))}
+                                    </div>
                                   )}
                                   {approver.status === 'Pending' && (
                                     <div className="relative">
@@ -482,12 +514,7 @@ export function ApprovalsTabContent({
                                       </button>
                                       {openDropdownId === approver.id && (
                                         <div className="app-menu absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-10">
-                                          <button
-                                            className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
-                                            onClick={() => setOpenDropdownId(null)}
-                                          >
-                                            Refer back
-                                          </button>
+                                          {/* Refer back moved out to the row's own icon buttons. */}
                                           <button
                                             className="w-full px-3 py-2 text-left text-[13px] text-[#364658] hover:bg-[#F3F4F6] transition-colors"
                                             onClick={() => setOpenDropdownId(null)}

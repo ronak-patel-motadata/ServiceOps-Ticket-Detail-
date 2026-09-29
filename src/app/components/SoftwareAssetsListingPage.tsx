@@ -8,10 +8,11 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { pctGrade, type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { SOFTWARE_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
+import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
 import { mockAssets, type SoftwareAsset } from './SoftwareAssetsListPage';
 import type { Ticket } from './TicketListPage';
-import { AlertTriangle, AppWindow, CalendarClock, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, AppWindow, CalendarClock, Import, ShieldCheck } from 'lucide-react';
 
 const ruleIs = (field: string, ...values: string[]): Omit<FilterRule, 'id'>[] => [{ field, condition: 'is', values }];
 const countBy = (t: (Ticket & Record<string, any>)[], field: string) => {
@@ -169,7 +170,7 @@ const buildDashboard = (tickets: Ticket[]): DashConfig => {
         kind: 'donut', title: 'Lifecycle', centerLabel: 'software',
         segs: [
           seg('In Use', n((x) => x.status === 'In Use'), '#22C55E', 'status'),
-          seg('In Store', n((x) => x.status === 'In Store'), '#3D8BD0', 'status'),
+          seg('In Stock', n((x) => x.status === 'In Stock'), '#3D8BD0', 'status'),
           seg('Retired', n((x) => x.status === 'Retired'), '#94A3B8', 'status'),
         ],
       },
@@ -239,6 +240,11 @@ export function SoftwareAssetsListingPage({
       buildCards={buildCards}
       buildDashboard={buildDashboard}
       searchFields={['x_version', 'x_softwareType', 'x_softwareCategory']}
+      /* The module's own attributes, quick cuts and ⋮ items — see softwareFilterAttrs.ts. */
+      showBarcodeTools
+      filterAttrs={SOFTWARE_FILTER_ATTRS}
+      quickFilters={SOFTWARE_QUICK_FILTERS}
+      moreActions={[{ key: 'import-software', label: 'Import Software', icon: Import }]}
       initialOpenId={initialOpenId}
       onInitialOpenConsumed={onInitialOpenConsumed}
       onNavigate={onNavigate}

@@ -45,10 +45,17 @@ export function StatsCardsRow({
   cards,
   rules,
   onApplyFilter,
+  activeLabel,
+  onCardClick,
 }: {
   cards: StatCard[];
   rules: FilterRule[];
   onApplyFilter: (rules: FilterRule[]) => void;
+  /** Lit card when the page tracks its own selection instead of filter rules
+      (Approvals: the cards ARE the status tabs, so they leave no filter chip). */
+  activeLabel?: string | null;
+  /** Takes over from `onApplyFilter` when the page owns the selection. */
+  onCardClick?: (card: StatCard) => void;
 }) {
   /* Edge fades: a soft white gradient at whichever side still hides cards. */
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,7 +76,13 @@ export function StatsCardsRow({
     return () => ro.disconnect();
   }, []);
 
-  const isApplied = (label: string) => rules.some((r) => r.id.startsWith(`kpi-${label}-`));
+  const isApplied = (label: string) =>
+    onCardClick ? activeLabel === label : rules.some((r) => r.id.startsWith(`kpi-${label}-`));
+  const clickable = (c: StatCard) => !!onCardClick || !!c.filter;
+  const activate = (c: StatCard, on: boolean) => {
+    if (onCardClick) return onCardClick(c);
+    if (c.filter) onApplyFilter(on ? [] : c.filter.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })));
+  };
   const label = 'text-[12px] font-medium text-[#64748B]';
   const valueCls = 'mt-1 text-[22px] font-semibold leading-7 text-[#1E293B] tabular-nums';
   const subCls = 'mt-0.5 text-[11px] text-[#94A3B8]';
@@ -82,23 +95,28 @@ export function StatsCardsRow({
           return (
             <div
               key={c.label}
-              role={c.filter ? 'button' : undefined}
-              tabIndex={c.filter ? 0 : undefined}
-              title={c.filter ? (on ? 'Showing this view — click to clear' : c.hint) : undefined}
-              onClick={() =>
-                c.filter && onApplyFilter(on ? [] : c.filter.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })))
+              role={clickable(c) ? 'button' : undefined}
+              tabIndex={clickable(c) ? 0 : undefined}
+              title={
+                clickable(c)
+                  ? on
+                    /* Tab mode always keeps one selected, so it never offers "clear". */
+                    ? (onCardClick ? 'Showing these now' : 'Showing this view — click to clear')
+                    : c.hint
+                  : undefined
               }
+              onClick={() => clickable(c) && activate(c, on)}
               onKeyDown={(e) => {
-                if (c.filter && (e.key === 'Enter' || e.key === ' ')) {
+                if (clickable(c) && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault();
-                  onApplyFilter(on ? [] : c.filter!.map((r, i) => ({ ...r, id: `kpi-${c.label}-${i}` })));
+                  activate(c, on);
                 }
               }}
               className={`flex flex-[1_0_196px] items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all ${
                 on
                   ? 'border-[#3D8BD0] bg-[#F5FAFF] shadow-[0_1px_3px_rgba(61,139,208,0.15)]'
                   : 'border-[#E5E7EB] bg-white'
-              } ${c.filter ? 'cursor-pointer hover:border-[#C9D4E0] hover:shadow-sm' : ''}`}
+              } ${clickable(c) ? 'cursor-pointer hover:border-[#C9D4E0] hover:shadow-sm' : ''}`}
             >
               <div>
                 <div className={label}>{c.label}</div>

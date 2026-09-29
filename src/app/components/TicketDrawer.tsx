@@ -11,6 +11,7 @@ import { AiSparkle } from './AiSparkle';
 import { FileTypeBadge } from './DescriptionAttachments';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
+import { APPROVAL_TAB_IDS } from './approvalTabs';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { SummaryStaleNotice } from './SummaryStaleNotice';
 import { VipPill, isVipRequester } from './VipPill';
@@ -131,6 +132,10 @@ interface TicketDrawerProps {
   stackTabs?: { id: string; subject?: string }[];
   stackWidth?: number;
   onStackWidthChange?: (w: number) => void;
+  /** Opened from My Approvals — collapses the page to the approver's three tabs. */
+  approvalMode?: boolean;
+  /** The approver's decision buttons, rendered in place of the module's own header actions. */
+  approvalHeader?: import('react').ReactNode;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
   stackActiveGroup?: string;
@@ -388,6 +393,8 @@ export function TicketDrawer({
 stackTabs,
 stackWidth,
 onStackWidthChange,
+approvalMode,
+approvalHeader,
 stackMinimized,
 onStackMinimizedChange,
 stackActiveGroup,
@@ -411,7 +418,10 @@ onStackActiveGroupChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician' | 'requester'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('conversation');
+  const [activeMainTabLocal, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>(approvalMode ? 'approvals' : 'conversation');
+  /* In approval mode only the three approver tabs render, so a module default of
+     Overview / Properties would land on a tab that is not on screen. */
+  const activeMainTab = approvalMode && !APPROVAL_TAB_IDS.includes(activeMainTabLocal) ? 'approvals' : activeMainTabLocal;
   const [showAiDropdown, setShowAiDropdown] = useState(false);
   const [showOldMessages, setShowOldMessages] = useState(false);
   const [showSubTabSearch, setShowSubTabSearch] = useState(false);
@@ -431,17 +441,25 @@ onStackActiveGroupChange,
      thread read after a beat (Slack pattern) — the divider stays for the rest of the visit. */
   const [unreadConvCount, setUnreadConvCount] = useState(3);
   const [unreadMarker, setUnreadMarker] = useState(0);
-  useEffect(() => { setUnreadConvCount(3); setUnreadMarker(0); }, [activeTicketId]);
+  /* The seed is mirrored in a ref so the read timer can also restart when the RECORD
+     changes without a tab change — switching between two open request tabs. */
+  const unreadSeedRef = useRef(3);
+  useEffect(() => { setUnreadConvCount(3); setUnreadMarker(0); unreadSeedRef.current = 3; }, [activeTicketId]);
   useEffect(() => {
     if (activeMainTab !== 'conversation') { setUnreadMarker(0); return; }
-    if (unreadConvCount > 0) {
-      setUnreadMarker(unreadConvCount);
-      const read = setTimeout(() => setUnreadConvCount(0), 2000);
+    if (unreadSeedRef.current > 0) {
+      setUnreadMarker(unreadSeedRef.current);
+      const read = setTimeout(() => {
+        unreadSeedRef.current = 0;
+        setUnreadConvCount(0);
+        /* The open-item TAB carries the same unread dot — retire it with the thread. */
+        window.dispatchEvent(new CustomEvent('drawer-item-read', { detail: { id: activeTicketId } }));
+      }, 2000);
       const jump = setTimeout(() => document.getElementById('unread-divider')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
       return () => { clearTimeout(read); clearTimeout(jump); };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainTab]);
+  }, [activeMainTab, activeTicketId]);
   
   // Approvals count - based on ticket ID
   const getApprovalsCount = (ticketId: string | undefined) => {
@@ -1420,6 +1438,10 @@ onStackActiveGroupChange,
 
   // Set default tab based on ticket type
   useEffect(() => {
+    /* From My Approvals every record opens on the decision instead — and the tabs
+       this effect reaches for (Service Request / Resolution) are not even rendered
+       there, so it would land on a tab that is off screen. */
+    if (approvalMode) { setActiveMainTab('approvals'); return; }
     if (activeTicket?.id === 'INC-35') {
       setActiveMainTab('service-request');
     } else if (activeTicket?.id === 'INC-39') {
@@ -2326,7 +2348,10 @@ onStackActiveGroupChange,
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* From My Approvals the header carries the DECISION and nothing else; the
+              module's own actions stay mounted but hidden so nothing else shifts. */}
+          {approvalMode && approvalHeader}
+          <div className={`flex items-center gap-2 flex-shrink-0${approvalMode ? ' hidden' : ''}`}>
             <HeaderCopyButton variant="link" value={activeTicket?.id ?? ''} label="Copy Ticket URL" />
             <div className="relative">
               <Tooltip>
@@ -3260,9 +3285,12 @@ onStackActiveGroupChange,
                     { id: 'resolution', label: 'Resolution' },
                   ].filter(tab => tab.condition !== false);
 
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  /* From My Approvals: the thread, the decision, and what the record
+                     touches — nothing else, in that fixed order whatever the module.
+                     Three tabs always fit, so the overflow split is skipped. */
+                  const allowedTabIds = approvalMode ? APPROVAL_TAB_IDS : tabConfig.map(tab => tab.id);
+                  const filteredVisibleTabs = approvalMode ? allowedTabIds : visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  const filteredOverflowTabs = approvalMode ? [] : overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
                     'service-request': 'Service Request',
@@ -3275,7 +3303,7 @@ onStackActiveGroupChange,
                   };
 
                   const renderTab = (tabId: string) => (
-                    <button 
+                    <button
                       key={tabId}
                       className={`px-2 py-3 text-[14px] font-medium whitespace-nowrap flex items-center gap-1.5 border-b-2 transition-colors ${activeMainTab === tabId ? 'text-[#3D8BD0] border-[#3D8BD0]' : 'text-[#6b7280] border-transparent hover:bg-[#F5F7FA] hover:text-[#364658] hover:border-[#CBD5E1]'}`}
                       onClick={() => setActiveMainTab(tabId as any)}
@@ -6081,8 +6109,8 @@ onStackActiveGroupChange,
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Request Properties"
             additionalTitle="Request Information"
-            showNotifications={true}
-            showIntegration={true}
+            showNotifications={!approvalMode}
+            showIntegration={!approvalMode}
             onOpenRelation={onOpenRelation}
             onAddWorkLog={handleAddWorkLog}
             demoCustomFields={true}

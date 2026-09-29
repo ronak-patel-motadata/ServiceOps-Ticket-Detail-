@@ -16,6 +16,7 @@ import { FileTypeBadge } from './DescriptionAttachments';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { DateField } from './DateField';
 import { useState, useRef, useEffect, useMemo, type ComponentType } from 'react';
+import { APPROVAL_TAB_IDS } from './approvalTabs';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { AssetAiSummary } from './AssetAiSummary';
@@ -124,6 +125,10 @@ interface HardwareAssetDrawerProps {
   stackTabs?: { id: string; subject?: string }[];
   stackWidth?: number;
   onStackWidthChange?: (w: number) => void;
+  /** Opened from My Approvals — collapses the page to the approver's three tabs. */
+  approvalMode?: boolean;
+  /** The approver's decision buttons, rendered in place of the module's own header actions. */
+  approvalHeader?: import('react').ReactNode;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
   // Lifted active-tab memory (host remembers each open item's detail tab across drawer swaps).
@@ -444,6 +449,8 @@ export function HardwareAssetDrawer({
 stackTabs,
 stackWidth,
 onStackWidthChange,
+approvalMode,
+approvalHeader,
 stackMinimized,
 onStackMinimizedChange,
   stackActiveTab,
@@ -533,7 +540,10 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  const [activeMainTabLocal, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request'>('overview');
+  /* In approval mode only the three approver tabs render, so a module default of
+     Overview / Properties would land on a tab that is not on screen. */
+  const activeMainTab = approvalMode && !APPROVAL_TAB_IDS.includes(activeMainTabLocal) ? 'approvals' : activeMainTabLocal;
   // Baseline attached to this asset (max one); Variance rows are empty by default.
   const [baselines, setBaselines] = useState<{ id: string; name: string; createdOn: string; createdBy: string }[]>([
     { id: 'BAS-31', name: 'New Base Line - 64 Bit', createdOn: 'Mon, Apr 27, 2026 11:44 AM', createdBy: 'System' },
@@ -2764,7 +2774,10 @@ onStackMinimizedChange,
               return <div className="pl-[18px]"><HeaderKpiRow items={items} /></div>;
             })()}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* From My Approvals the header carries the DECISION and nothing else; the
+              module's own actions stay mounted but hidden so nothing else shifts. */}
+          {approvalMode && approvalHeader}
+          <div className={`flex items-center gap-2 flex-shrink-0${approvalMode ? ' hidden' : ''}`}>
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Asset URL" />
             <div
               className="relative"
@@ -3245,9 +3258,12 @@ onStackMinimizedChange,
                     { id: 'audit', label: 'History' },
                   ].filter(tab => tab.condition !== false);
 
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  /* From My Approvals: the thread, the decision, and what the record
+                     touches — nothing else, in that fixed order whatever the module.
+                     Three tabs always fit, so the overflow split is skipped. */
+                  const allowedTabIds = approvalMode ? APPROVAL_TAB_IDS : tabConfig.map(tab => tab.id);
+                  const filteredVisibleTabs = approvalMode ? allowedTabIds : visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  const filteredOverflowTabs = approvalMode ? [] : overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
@@ -3258,6 +3274,7 @@ onStackMinimizedChange,
                     'relationship': 'Relationship',
                     'financials': 'Financials',
                     'service-request': 'Service Request',
+                    'conversation': 'Conversation',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'audit': 'History'

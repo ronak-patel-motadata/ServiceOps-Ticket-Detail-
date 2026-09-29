@@ -173,6 +173,18 @@ export const PURCHASE_VIEWS: TicketView[] = [
   { name: 'Overdue Deliveries', rules: [{ field: 'x_dueBand', condition: 'is', values: ['Overdue'] }] },
 ];
 
+/* My Approvals — the product's status tabs (Pending / Approved / Rejected /
+   Ignored / Referred Back) as saved views, so they share the listing's own
+   machinery instead of a second tab row. */
+export const APPROVAL_VIEWS: TicketView[] = [
+  { name: 'Pending Approvals', rules: [{ field: 'x_approvalState', condition: 'is', values: ['Pending'] }] },
+  { name: 'All Approvals', rules: [] },
+  { name: 'Approved', rules: [{ field: 'x_approvalState', condition: 'is', values: ['Approved'] }] },
+  { name: 'Rejected', rules: [{ field: 'x_approvalState', condition: 'is', values: ['Rejected'] }] },
+  { name: 'Ignored', rules: [{ field: 'x_approvalState', condition: 'is', values: ['Ignored'] }] },
+  { name: 'Referred Back', rules: [{ field: 'x_approvalState', condition: 'is', values: ['Referred Back'] }] },
+];
+
 /* A colleague's view is only visible to me when they shared it beyond themselves. */
 const visibleToMe = (v: TicketView) => v.owner === CURRENT_USER || v.visibility !== 'My Self';
 const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) === CURRENT_USER;
@@ -182,7 +194,7 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
    and the default view never leak between the Request and Change listings. */
 export type ViewStore =
   | 'ticket' | 'change' | 'release' | 'problem' | 'hwasset'
-  | 'swasset' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
+  | 'swasset' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
 const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   swasset: SWASSET_VIEWS,
   nonit: NONIT_VIEWS,
@@ -190,6 +202,7 @@ const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   license: LICENSE_VIEWS,
   contract: CONTRACT_VIEWS,
   purchase: PURCHASE_VIEWS,
+  approval: APPROVAL_VIEWS,
 };
 const builtinsFor = (store: ViewStore) =>
   MODULE_BUILTINS[store] ??

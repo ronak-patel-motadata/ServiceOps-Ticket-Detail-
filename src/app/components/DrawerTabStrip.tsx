@@ -3,7 +3,20 @@ import { X, ChevronDown, ExternalLink, User } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 interface TabKpi { label?: string; value: string; dot?: string; user?: boolean }
-interface TabItem { id: string; subject?: string; status?: string; priority?: string; technician?: string; kpis?: TabKpi[]; noIdPill?: boolean; page?: string }
+interface TabItem {
+  id: string; subject?: string; status?: string; priority?: string; technician?: string;
+  kpis?: TabKpi[]; noIdPill?: boolean; page?: string;
+  /** Unread replies waiting on this open item — drives the pulsing dot on the tab. */
+  unread?: number;
+  /** Who sent them, and the colour that says which side they came from. */
+  unreadFrom?: string;
+  unreadColor?: string;
+}
+
+/* The listing's unread dot, reused verbatim: ring + halo take the dot's own hue at
+   low alpha, and `.unread-dot` (theme.css) pulses them. */
+const unreadStyle = (color: string) =>
+  ({ backgroundColor: color, ['--dot-ring' as string]: `${color}33`, ['--dot-pulse' as string]: `${color}66` } as React.CSSProperties);
 
 const TAB_W = 170;   // fixed tab width (matches the tab styling below)
 const MORE_W = 96;   // approx width reserved for the "More (N)" button
@@ -117,8 +130,15 @@ export function DrawerTabStrip({
                 className={`relative flex items-center gap-2 px-4 py-2 border-r border-[#e5e7eb] cursor-pointer flex-shrink-0 w-[170px] transition-opacity ${active ? 'bg-white border-b-2 border-b-[#3D8BD0]' : 'hover:bg-white/50'} ${dragId === t.id ? 'opacity-40' : ''} ${dragOverId === t.id ? 'before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:bg-[#3D8BD0] before:rounded-full' : ''}`}
                 onClick={() => onSelect(t.id)}
               >
+                {/* Unread replies, in the listing's language: a pulsing dot leading the
+                    id, coloured by WHO replied. No tooltip of its own — the tab already
+                    has a hover card, and a nested Radix tip flickers it closed; the card
+                    spells the count out instead. */}
+                {!!t.unread && (
+                  <span className="unread-dot size-[7px] flex-shrink-0 rounded-full" style={unreadStyle(t.unreadColor || '#E67E22')} />
+                )}
                 <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.noIdPill ? '' : t.id}</span>
-                <span className="text-[12px] text-[#364658] truncate flex-1">{t.subject}</span>
+                <span className={`text-[12px] truncate flex-1 ${t.unread ? 'font-semibold text-[#1E293B]' : 'text-[#364658]'}`}>{t.subject}</span>
                 <button onClick={(e) => { e.stopPropagation(); onClose(t.id); }} className="p-0.5 hover:bg-[#e5e7eb] rounded">
                   <X size={14} className="text-[#6b7280]" />
                 </button>
@@ -144,6 +164,13 @@ export function DrawerTabStrip({
                     </a>
                   )}
                 </div>
+                {!!t.unread && (
+                  <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium" style={{ color: t.unreadColor || '#E67E22' }}>
+                    <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: t.unreadColor || '#E67E22' }} />
+                    {t.unread} new message{t.unread === 1 ? '' : 's'}
+                    {t.unreadFrom ? ` from ${t.unreadFrom}` : ''}
+                  </div>
+                )}
                 {t.kpis && t.kpis.length > 0 ? (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748B]">
                     {t.kpis.map((k, i) => (
@@ -187,8 +214,11 @@ export function DrawerTabStrip({
                     onClick={() => { onSelect(t.id); setShowMore(false); }}
                     className={`group/mt flex items-center gap-2 px-3 py-2 cursor-pointer ${active ? 'bg-[#EAF2FB]' : 'hover:bg-[#f9fafb]'}`}
                   >
+                    {!!t.unread && (
+                      <span className="unread-dot size-[7px] flex-shrink-0 rounded-full" style={unreadStyle(t.unreadColor || '#E67E22')} />
+                    )}
                     <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.noIdPill ? '' : t.id}</span>
-                    <span className="text-[12px] text-[#364658] truncate flex-1">{t.subject}</span>
+                    <span className={`text-[12px] truncate flex-1 ${t.unread ? 'font-semibold text-[#1E293B]' : 'text-[#364658]'}`}>{t.subject}</span>
                     <button onClick={(e) => { e.stopPropagation(); onClose(t.id); }} className="p-0.5 hover:bg-[#e5e7eb] rounded opacity-0 group-hover/mt:opacity-100 transition-opacity">
                       <X size={13} className="text-[#6b7280]" />
                     </button>

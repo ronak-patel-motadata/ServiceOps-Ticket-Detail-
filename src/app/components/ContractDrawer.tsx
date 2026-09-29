@@ -18,6 +18,7 @@ import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './Edi
 import { DateField } from './DateField';
 import { IconRequest, IconAssets } from './SidebarIcons';
 import { useState, useRef, useEffect } from 'react';
+import { APPROVAL_TAB_IDS } from './approvalTabs';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { MinimizedDrawerRail } from './MinimizedDrawerRail';
 import { AssetAiSummary } from './AssetAiSummary';
@@ -119,6 +120,10 @@ interface ContractDrawerProps {
   stackTabs?: { id: string; subject?: string }[];
   stackWidth?: number;
   onStackWidthChange?: (w: number) => void;
+  /** Opened from My Approvals — collapses the page to the approver's three tabs. */
+  approvalMode?: boolean;
+  /** The approver's decision buttons, rendered in place of the module's own header actions. */
+  approvalHeader?: import('react').ReactNode;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
 }
@@ -211,6 +216,8 @@ export function ContractDrawer({
 stackTabs,
 stackWidth,
 onStackWidthChange,
+approvalMode,
+approvalHeader,
 stackMinimized,
 onStackMinimizedChange,
 }: ContractDrawerProps) {
@@ -304,7 +311,10 @@ onStackMinimizedChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'renewals' | 'child-contracts'>('properties');
+  const [activeMainTabLocal, setActiveMainTab] = useState<'overview' | 'properties' | 'hardware' | 'software' | 'consolidated' | 'installation' | 'meter' | 'baseline' | 'relationship' | 'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'resolution' | 'service-request' | 'renewals' | 'child-contracts'>('properties');
+  /* In approval mode only the three approver tabs render, so a module default of
+     Overview / Properties would land on a tab that is not on screen. */
+  const activeMainTab = approvalMode && !APPROVAL_TAB_IDS.includes(activeMainTabLocal) ? 'approvals' : activeMainTabLocal;
   const [installationSearch, setInstallationSearch] = useState('');
   const [removedConsolidated, setRemovedConsolidated] = useState<Set<number>>(new Set());
   // Baseline attached to this asset (max one); Variance rows are empty by default.
@@ -2075,7 +2085,10 @@ onStackMinimizedChange,
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
-          <div className="flex items-center gap-2">
+          {/* From My Approvals the header carries the DECISION and nothing else; the
+              module's own actions stay mounted but hidden so nothing else shifts. */}
+          {approvalMode && approvalHeader}
+          <div className={`flex items-center gap-2${approvalMode ? ' hidden' : ''}`}>
             <HeaderCopyButton variant="link" value={activeAsset?.id ?? ''} label="Copy Contract URL" />
             {/* Expiry Reminder (bell) */}
             <div className="relative">
@@ -2567,9 +2580,12 @@ onStackMinimizedChange,
                     { id: 'audit', label: 'Audit Trail' },
                   ].filter(tab => (tab as any).condition !== false);
 
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  /* From My Approvals: the thread, the decision, and what the record
+                     touches — nothing else, in that fixed order whatever the module.
+                     Three tabs always fit, so the overflow split is skipped. */
+                  const allowedTabIds = approvalMode ? APPROVAL_TAB_IDS : tabConfig.map(tab => tab.id);
+                  const filteredVisibleTabs = approvalMode ? allowedTabIds : visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  const filteredOverflowTabs = approvalMode ? [] : overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
                     'overview': 'Overview',
@@ -2583,6 +2599,7 @@ onStackMinimizedChange,
                     'relationship': 'Relationship',
                     'financials': 'Financials',
                     'service-request': 'Service Request',
+                    'conversation': 'Conversation',
                     'approvals': 'Approvals',
                     'relations': 'Relations',
                     'renewals': 'Renewals',
@@ -7476,7 +7493,7 @@ onStackMinimizedChange,
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Contract Properties"
             additionalTitle="Contract Information"
-            showNotifications={true}
+            showNotifications={!approvalMode}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

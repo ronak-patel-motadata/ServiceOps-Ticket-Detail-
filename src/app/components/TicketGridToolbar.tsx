@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Pin, Rows3, MoreVertical, Plus, RefreshCw, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Barcode, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, FileOutput, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Pin, Rows3, MoreVertical, Plus, RefreshCw, ScanBarcode, ScanQrCode, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Ticket } from './TicketListPage';
 import { TicketFilterBar, TECH_GROUPS, type FilterRule } from './TicketFilterBar';
@@ -98,6 +98,9 @@ export function TicketGridToolbar({
   setView,
   dashScope,
   dashScopeSwitch = true,
+  showQuickFilters = true,
+  quickFilters,
+  filterAttrs,
   setDashScope,
   showCalendar = false,
   showGantt = false,
@@ -110,6 +113,9 @@ export function TicketGridToolbar({
   noun = 'request',
   viewsStore = 'ticket',
   layouts,
+  minimalTools = false,
+  showBarcodeTools = false,
+  moreActions,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -131,6 +137,12 @@ export function TicketGridToolbar({
   /** false hides the Overall/My switch (asset registers are always overall) and
       shows a quiet dashboard byline in its place so the row stays anchored. */
   dashScopeSwitch?: boolean;
+  /** false drops the filter bar's Assignee / SLA / Priority quick filters. */
+  showQuickFilters?: boolean;
+  /** The module's own quick filters — see QuickFilterDef in TicketFilterBar. */
+  quickFilters?: React.ComponentProps<typeof TicketFilterBar>['quickFilters'];
+  /** The module's filter attribute catalog (defaults to the request set). */
+  filterAttrs?: React.ComponentProps<typeof TicketFilterBar>['attrs'];
   setDashScope: (s: 'all' | 'mine') => void;
   /** Offer the prototype Calendar layout (Views Lab only). */
   showCalendar?: boolean;
@@ -148,6 +160,15 @@ export function TicketGridToolbar({
   viewsStore?: ViewStore;
   /** Restrict the layout picker — the Asset listing offers list + list-kpi only. */
   layouts?: ('list' | 'list-kpi' | 'kanban' | 'dashboard')[];
+  /** Asset registers scan and print labels from the listing — barcode tools sit ahead
+      of the export controls, the way the product groups them. */
+  showBarcodeTools?: boolean;
+  /** The module's own ⋮ menu items, replacing the default Import entries. */
+  moreActions?: { key: string; label: string; icon: typeof Import }[];
+  /** Cuts the right-hand rail down to Export + Refresh (My Approvals): an approver
+      reads the queue and decides — layout, sort, auto-refresh and import are not
+      theirs to set, and the status cards already carry the only cuts that matter. */
+  minimalTools?: boolean;
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -156,7 +177,8 @@ export function TicketGridToolbar({
   const [moreOpen, setMoreOpen] = useState(false);
   // Merged Export + Download popup (one icon, two tabs — Download lands first).
   const [expOpen, setExpOpen] = useState(false);
-  const [expTab, setExpTab] = useState<'download' | 'export'>('download');
+  // Minimal rail calls the control "Export", so the popup opens on that tab.
+  const [expTab, setExpTab] = useState<'download' | 'export'>(minimalTools ? 'export' : 'download');
   const [expFormat, setExpFormat] = useState<'Excel' | 'CSV'>('Excel');
   const [expPw, setExpPw] = useState(false);
   const [expShowPw, setExpShowPw] = useState(false);
@@ -329,7 +351,8 @@ export function TicketGridToolbar({
   };
 
   useEffect(() => {
-    if (autoRef === 'Off') return;
+    // No interval control on the minimal rail, so nothing silently ticks behind it.
+    if (minimalTools || autoRef === 'Off') return;
     const t = window.setInterval(() => {
       setSpinning(true);
       window.setTimeout(() => setSpinning(false), 700);
@@ -420,7 +443,7 @@ export function TicketGridToolbar({
           })}
         </div>
       ) : (
-        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} />
+        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} showQuickFilters={showQuickFilters} quickFilters={quickFilters} attrs={filterAttrs} />
       )}
 
       {saveOpen &&
@@ -540,6 +563,27 @@ export function TicketGridToolbar({
             )}
           </div>
         )}
+        {/* Label tools — generate a barcode for the selected assets, or scan one to jump
+            straight to a record. Ahead of the export controls, as the product groups them. */}
+        {showBarcodeTools && isList && (
+        <>
+          {([
+            { key: 'generate', label: 'Generate Barcode', Icon: Barcode },
+            { key: 'scan-bar', label: 'Scan Barcode', Icon: ScanBarcode },
+            { key: 'scan-qr', label: 'Scan QR Code', Icon: ScanQrCode },
+          ] as const).map(({ key, label, Icon }) => (
+            <Tooltip key={key} delayDuration={400}>
+              <TooltipTrigger asChild>
+                <button onClick={() => toast(`${label} — coming soon`)} className={ICON_BTN}>
+                  <Icon size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </>
+        )}
+
         {/* Export + Download — merged into ONE control (the Report page pattern): two tabs in
             one popup instead of two near-identical icons the user has to choose between. */}
         {/* Exporting rows is a list action — no rows to export on a board or a dashboard. */}
@@ -549,9 +593,11 @@ export function TicketGridToolbar({
             ref={expBtnRef}
             onClick={() => setExpOpen((v) => !v)}
             className={`${ICON_BTN} ${expOpen ? '!border-[#3D8BD0] !bg-[#EBF5FF] !text-[#3D8BD0]' : ''}`}
-            title="Export / Download"
+            title={minimalTools ? 'Export' : 'Export / Download'}
           >
-            <Download size={16} />
+            {/* The product's own Export glyph (the Vulnerabilities/CVE toolbars use it);
+                the merged control keeps the tray arrow where Download leads. */}
+            {minimalTools ? <FileOutput size={16} /> : <Download size={16} />}
           </button>
           {expOpen && createPortal(
             <div
@@ -706,7 +752,13 @@ export function TicketGridToolbar({
         </div>
         )}
 
-        {/* Refresh + auto-refresh interval merged into one split control (Dashboard pattern). */}
+        {/* Refresh + auto-refresh interval merged into one split control (Dashboard pattern) —
+            minimal rail drops the interval and keeps the plain button. */}
+        {minimalTools ? (
+          <button onClick={refresh} className={ICON_BTN} title="Refresh">
+            <RefreshCw size={16} className={spinning ? 'animate-spin' : ''} />
+          </button>
+        ) : (
         <div className="relative" ref={autoRefRef}>
           <div className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#DFE5ED] bg-white">
             <button
@@ -751,9 +803,10 @@ export function TicketGridToolbar({
             </div>
           )}
         </div>
+        )}
 
         {/* Exporting rows and column sorting mean nothing on a dashboard. */}
-        {view !== 'dashboard' && view !== 'calendar' && view !== 'gantt' && (
+        {!minimalTools && view !== 'dashboard' && view !== 'calendar' && view !== 'gantt' && (
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((v) => !v)}
@@ -887,6 +940,7 @@ export function TicketGridToolbar({
         </div>
         )}
 
+        {!minimalTools && (
         <div className="relative" ref={gearRef}>
           <button
             onClick={() => {
@@ -1217,7 +1271,9 @@ export function TicketGridToolbar({
             </div>
           )}
         </div>
+        )}
 
+        {!minimalTools && (
         <div className="relative" ref={moreRef}>
           <button
             onClick={() => setMoreOpen((v) => !v)}
@@ -1228,12 +1284,12 @@ export function TicketGridToolbar({
           </button>
           {moreOpen && (
             <div className={`${POPUP} w-[228px] py-1`}>
-              {(noun === 'request'
+              {(moreActions ?? (noun === 'request'
                 ? [
                     { key: 'import-incident', label: 'Import Incident', icon: Import },
                     { key: 'import-sr', label: 'Import Service Request', icon: Import },
                   ]
-                : [{ key: 'import-record', label: `Import ${Noun}`, icon: Import }]
+                : [{ key: 'import-record', label: `Import ${Noun}`, icon: Import }])
               ).map((a) => (
                 <button
                   key={a.key}
@@ -1250,6 +1306,7 @@ export function TicketGridToolbar({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {fieldMgr && (

@@ -1,8 +1,11 @@
-import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, Lightbulb, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, Lightbulb, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Pin, Plus, Search, SearchX, ScanSearch, ShieldCheck, ShieldOff, UserCheck, X } from 'lucide-react';
+import { IconAssetUpdate } from './SidebarIcons';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
+import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilterAttrs';
+import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
 import { describeSubject } from './requestDescriptions';
 import { groupOfTechnician } from './technicianRoster';
@@ -415,13 +418,32 @@ const CHANGE_TYPE_OPTIONS: CellOption[] = [
 ];
 /* The DETAIL page's own status catalog (In Stock … Expired) — one list, both surfaces. */
 const ASSET_STATUS_OPTIONS: CellOption[] = ASSET_STATUS_CATALOG;
+/* The APPROVAL's own state — deliberately separate from the record's status: a
+   change can be In Progress while its approval is still Pending. */
+const APPROVAL_STATE_OPTIONS: CellOption[] = [
+  { label: 'Pending', color: '#F59E0B' },
+  { label: 'Approved', color: '#22C55E' },
+  { label: 'Rejected', color: '#DC2626' },
+  { label: 'Ignored', color: '#94A3B8' },
+  { label: 'Referred Back', color: '#8B5CF6' },
+];
 /* Status palettes for the other asset/procurement registers — each module's own
    catalog, colored the way its detail page colors the same state. */
 const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
+  /* The product's full software lifecycle — the same nine states its own Status
+     dropdown offers, in its own order. Kept separate from the hardware catalogue,
+     which has Theft and Faulty (a licence cannot be stolen or break) where this
+     one has Decommission and Allocated. */
   software: [
+    { label: 'In Stock', color: '#3D8BD0' },
     { label: 'In Use', color: '#22C55E' },
-    { label: 'In Store', color: '#3D8BD0' },
-    { label: 'Retired', color: '#94A3B8' },
+    { label: 'Missing', color: '#EF4444' },
+    { label: 'Retired', color: '#4B5563' },
+    { label: 'In Repair', color: '#F97316' },
+    { label: 'Disposed', color: '#374151' },
+    { label: 'Expired', color: '#EAB308' },
+    { label: 'Decommission', color: '#94A3B8' },
+    { label: 'Allocated', color: '#A3B2C2' },
   ],
   nonit: [
     { label: 'In Use', color: '#22C55E' },
@@ -446,6 +468,12 @@ const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
 /* The listing's dropdowns are the detail page's catalogs, as CellOptions. */
 const ASSET_TYPE_CELL_OPTIONS: CellOption[] = ASSET_TYPE_OPTIONS.map((l) => ({ label: l, icon: assetTypeIcon(l) }));
 const ASSET_GROUP_CELL_OPTIONS: CellOption[] = ASSET_GROUP_OPTIONS.map((l) => ({ label: l }));
+/* Software Type says WHO put the record there: Managed (IT governs it), Discovered
+   (an agent scan found it), Unmanaged (neither) — so the glyphs read shield / scan /
+   shield-off rather than three shades of the same thing. */
+const softwareTypeIcon = (type?: string) =>
+  type === 'Managed' ? <ShieldCheck size={14} /> : type === 'Discovered' ? <ScanSearch size={14} /> : <ShieldOff size={14} />;
+const SOFTWARE_TYPE_CELL_OPTIONS: CellOption[] = ['Managed', 'Discovered', 'Unmanaged'].map((l) => ({ label: l, icon: softwareTypeIcon(l) }));
 const RELEASE_TYPE_OPTIONS: CellOption[] = [
   { label: 'Minor', color: '#94A3B8' },
   { label: 'Major', color: '#fb923c' },
@@ -640,6 +668,21 @@ const SIMILARITY_OF = new Map<string, string>(
 );
 const SIM_SUMMARY = new Map<string, string>(SIM_CLUSTERS.map((c) => [c.key, c.summary]));
 
+/* The asset grid's optional columns are the module's OWN attributes — the same
+   catalogue the filter bar offers, so a column you can add is a column you can
+   filter on. Columns the table already shows are dropped, matched on key AND
+   label: a shown column can name the same fact differently (`assignee` is
+   "Managed By", `serialNo` is "Hardware - Serial Number"). */
+const assetExtraCols = (shown: ColDef[], catalogue: typeof HARDWARE_FILTER_ATTRS): ColDef[] => {
+  const keys = new Set(shown.map((c) => c.key));
+  const labels = new Set(shown.map((c) => c.label));
+  return catalogue.filter((a) => !keys.has(a.key) && !labels.has(a.label)).map((a) => ({
+    key: a.key,
+    label: a.label,
+    w: Math.min(280, Math.max(120, a.label.length * 7 + 44)),
+  }));
+};
+
 /* ------- Optional columns (the Manage-columns popup) + their derived values ------- */
 const EXTRA_COLS: ColDef[] = [
   { key: 'createdByUser', label: 'Created By', w: 150 },
@@ -774,7 +817,13 @@ export const extraValue = (key: string, t: Ticket): string => {
     case 'lastSignedDate': return h(12, 3) === 1 ? fmtDate(t.dueBy) : '---';
     case 'resolutionTime': return closed ? ['3d 2hr 26min', '19hr 41min', '5d 4hr 12min', '23hr 38min'][h(13, 4)] : '---';
     case 'closedDuration': return closed ? `${17 + h(14, 8)} day(s)` : '---';
-    default: return '---';
+    default: {
+      /* An asset attribute the mock does not store — the SAME stand-in the filter bar
+         reads, so a column and a filter on that attribute can never disagree. */
+      const attr = HARDWARE_FILTER_ATTRS.find((a) => a.key === key) ?? SOFTWARE_FILTER_ATTRS.find((a) => a.key === key);
+      if (attr?.type === 'date') return fmtDate(attrStandInDate(key, t.id));
+      return (attr && attrStandIn(attr, t.id)) || '---';
+    }
   }
 };
 
@@ -798,6 +847,7 @@ function HeaderMenu({
   onInsertSlot,
   onChange,
   onClose,
+  allowColumnEdit = true,
 }: {
   anchor: { left: number; bottom: number };
   col: ColDef;
@@ -812,6 +862,9 @@ function HeaderMenu({
   onInsertSlot: (side: 'left' | 'right') => void;
   onChange: (key: string) => void;
   onClose: () => void;
+  /** false drops Insert Left / Insert Right / Change Column — for listings whose
+      column set is fixed by the module (Approvals). */
+  allowColumnEdit?: boolean;
 }) {
   const [view, setView] = useState<'root' | 'change'>('root');
   const [cq, setCq] = useState('');
@@ -852,18 +905,22 @@ function HeaderMenu({
               {frozen && <span className="size-1.5 rounded-full bg-[#3D8BD0]" />}
             </button>
             )}
-            <div className="my-1 border-t border-[#F0F2F5]" />
-            <button className={row} onClick={() => { onInsertSlot('left'); onClose(); }}>
-              <ArrowLeftToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Left
-            </button>
-            <button className={row} onClick={() => { onInsertSlot('right'); onClose(); }}>
-              <ArrowRightToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Right
-            </button>
-            <button className={row} onClick={() => setView('change')}>
-              <ArrowLeftRight size={14} className="flex-shrink-0 text-[#7B8FA5]" />
-              <span className="flex-1">Change Column</span>
-              <ChevronRight size={14} className="text-[#9CA3AF]" />
-            </button>
+            {allowColumnEdit && (
+              <>
+                <div className="my-1 border-t border-[#F0F2F5]" />
+                <button className={row} onClick={() => { onInsertSlot('left'); onClose(); }}>
+                  <ArrowLeftToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Left
+                </button>
+                <button className={row} onClick={() => { onInsertSlot('right'); onClose(); }}>
+                  <ArrowRightToLine size={14} className="flex-shrink-0 text-[#7B8FA5]" /> Insert Right
+                </button>
+                <button className={row} onClick={() => setView('change')}>
+                  <ArrowLeftRight size={14} className="flex-shrink-0 text-[#7B8FA5]" />
+                  <span className="flex-1">Change Column</span>
+                  <ChevronRight size={14} className="text-[#9CA3AF]" />
+                </button>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -1263,7 +1320,15 @@ interface TicketTableProps {
       'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
+  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  /** Per-row actions (the Approvals grid's asset update / approve / reject / refer back / view). */
+  onRowAction?: (ticket: Ticket, action: 'view' | 'asset-update' | 'approve' | 'reject' | 'refer') => void;
+  /** Column keys whose cells are READ-ONLY here — they render as plain values
+      instead of inline editors (Approvals: you decide, you don't edit the record). */
+  lockedCells?: string[];
+  /** false hides the header menu's Insert Left / Insert Right / Change Column —
+      for listings whose column set is fixed by the module. */
+  allowColumnEdit?: boolean;
   /** Page slug for the row's "Open in a new tab" link (?page=<slug>&open=<id>). */
   openPage?: string;
   /** Full sorted set — grouping spans ALL rows and pages within each group. */
@@ -1281,6 +1346,9 @@ export function TicketTable({
   tickets,
   noun = 'request',
   moduleCols,
+  onRowAction,
+  lockedCells,
+  allowColumnEdit = true,
   openPage,
   selectedTickets,
   allSelected,
@@ -1458,7 +1526,10 @@ export function TicketTable({
         { key: 'x_version', label: 'Version', w: 150 },
         { key: 'x_softwareType', label: 'Software Type', w: 130 },
         { key: 'status', label: 'Status', w: 120 },
-        { key: 'x_softwareCategory', label: 'Category', w: 150 },
+        /* "Software Category" (Web Browser / Security / …), not the generic asset
+           Category — the module offers both, and two columns named Category would be
+           indistinguishable in the header and in Manage columns. */
+        { key: 'x_softwareCategory', label: 'Software Category', w: 170 },
         { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
         { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
         { key: 'x_impact', label: 'Impact', w: 140 },
@@ -1504,6 +1575,17 @@ export function TicketTable({
         { key: 'x_startDate', label: 'Start Date', w: 120 },
         { key: 'x_endDate', label: 'End Date', w: 120 },
     ],
+    approval: [
+        { key: 'id', label: 'Name', w: 150 },
+        { key: 'subject', label: 'Subject', flex: true, w: 340 },
+        { key: 'x_type', label: 'Type', w: 140 },
+        { key: 'requester', label: 'Requested By', flex: true, w: 180 },
+        { key: 'status', label: 'Status', w: 130 },
+        { key: 'x_approvalState', label: 'Approval Status', w: 160 },
+        { key: 'created', label: 'Created Date', flex: true, w: 180 },
+        /* Four 28px buttons + gaps + the cell's own padding — the rail must never wrap. */
+        { key: 'actions', label: 'Actions', w: 178 },
+    ],
     purchase: [
         { key: 'id', label: 'ID', w: 130 },
         { key: 'subject', label: 'Name', flex: true, w: 320 },
@@ -1539,7 +1621,10 @@ export function TicketTable({
         { key: 'priority', label: 'Priority', w: 132 },
         { key: 'created', label: 'Created Date', flex: true, w: 190 },
       ];
-  const CATALOG: ColDef[] = [...COL_DEFS, ...EXTRA_COLS];
+  /* Asset grids offer their own attributes as optional columns; every other module keeps
+     the request extras. */
+  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : null;
+  const CATALOG: ColDef[] = [...COL_DEFS, ...(MODULE_ATTRS ? assetExtraCols(COL_DEFS, MODULE_ATTRS) : EXTRA_COLS)];
   // The stored value is the ordered VISIBLE set — removing a column persists too.
   const COL_ORDER_KEY = moduleCols ? `${moduleCols}ListColumnsV2` : 'ticketListColumnsV2';
   const [colOrder, setColOrder] = useState<string[]>(() => {
@@ -1745,10 +1830,44 @@ export function TicketTable({
     `sticky z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-[var(--row-tint,#fff)] group-hover:bg-[#f9fafb]'}`;
 
   /* One renderer per column, so the body follows whatever order the header is dragged into. */
+  const locked = (key: string) => !!lockedCells?.includes(key);
   const renderCell = (key: string, ticket: Ticket) => {
     /* Generic module text column: any `x_<field>` key renders the row's own
        pre-formatted string — how the asset/procurement listings add module
        columns without new cell cases. */
+    if (key === 'x_approvalState') {
+      const v = String((ticket as any).x_approvalState ?? '');
+      const dot = APPROVAL_STATE_OPTIONS.find((o) => o.label === v)?.color ?? '#94A3B8';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+            <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+          </span>
+        </td>
+      );
+    }
+    /* Software Type is editable in the grid — the same Asset Type treatment the hardware
+       register has, icon and all, because reclassifying a discovered app as Managed is
+       an everyday admin action that should not need the detail page. */
+    if (key === 'x_softwareType') {
+      const v = (ticket as any).x_softwareType as string | undefined;
+      return (
+        <td className="px-2 py-0 whitespace-nowrap">
+          <InlineSelect
+            options={SOFTWARE_TYPE_CELL_OPTIONS}
+            menuWidth={200}
+            value={v}
+            onPick={(label) => onUpdateTicket?.(ticket.id, { x_softwareType: label } as Partial<Ticket>)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex-shrink-0 text-[#6B7280]">{softwareTypeIcon(v)}</span>
+              <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+            </span>
+          </InlineSelect>
+        </td>
+      );
+    }
     if (key.startsWith('x_')) {
       const v = (ticket as any)[key];
       return (
@@ -1810,6 +1929,17 @@ export function TicketTable({
               </td>
         );
       case 'requester':
+        if (locked('requester'))
+          return (
+              <td className="overflow-hidden px-4 py-3 text-[12px] text-[#364658] whitespace-nowrap">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#E67E22] text-[9px] font-medium text-white">
+                    {requesterAvatar(ticket.requester).initials}
+                  </span>
+                  <span className="truncate">{ticket.requester}</span>
+                </span>
+              </td>
+          );
         return (
               <td className="px-2 py-0 text-[12px] text-[#364658] whitespace-nowrap">
                 <InlineSelect
@@ -1867,6 +1997,15 @@ export function TicketTable({
         const sDot = modOpts
           ? modOpts.find((o) => o.label === (ticket.status as string))?.color ?? '#94A3B8'
           : statusColor(ticket.status);
+        if (locked('status'))
+          return (
+              <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: sDot }} />
+                  <span className="truncate text-[12px] text-[#4A5568]">{ticket.status}</span>
+                </span>
+              </td>
+          );
         return (
               <td className="px-2 py-0 whitespace-nowrap">
                 <InlineSelect options={sOpts} value={ticket.status} onPick={(label) => onUpdateTicket?.(ticket.id, { status: label as Ticket['status'] })}>
@@ -1985,6 +2124,50 @@ export function TicketTable({
                 </InlineSelect>
               </td>
         );
+      case 'actions': {
+        /* Row actions for the Approvals grid — the DECISION only. Opening the record
+           is already the row's own click (and the id / subject), so a view button
+           here would be a third way to do the same thing. A decided approval keeps
+           an empty cell rather than a disabled row of buttons. */
+        const pending = (ticket as any).x_approvalState === 'Pending';
+        const act = (
+          label: string,
+          Icon: (p: { size?: number }) => ReactElement,
+          action: 'view' | 'asset-update' | 'approve' | 'reject' | 'refer',
+          cls: string,
+        ) => (
+          <Tooltip key={action} delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRowAction?.(ticket, action);
+                }}
+                className={`flex size-7 flex-shrink-0 items-center justify-center rounded border transition-colors ${cls}`}
+              >
+                <Icon size={14} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
+        );
+        return (
+              <td className="px-4 py-3 whitespace-nowrap">
+                {pending ? (
+                  <span className="flex items-center gap-1.5">
+                    {/* Update the asset behind the approval first — it leads the rail
+                        because it is the one action taken BEFORE deciding. */}
+                    {act('Asset Update', IconAssetUpdate, 'asset-update', 'border-[#99F6E4] bg-[#F0FDFA] text-[#0F766E] hover:bg-[#CCFBF1]')}
+                    {act('Approve', Check, 'approve', 'border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D] hover:bg-[#DCFCE7]')}
+                    {act('Reject', X, 'reject', 'border-[#FECACA] bg-[#FEF2F2] text-[#B42318] hover:bg-[#FEE2E2]')}
+                    {act('Refer back', CornerUpLeft, 'refer', 'border-[#FDE68A] bg-[#FFFBEB] text-[#B45309] hover:bg-[#FEF3C7]')}
+                  </span>
+                ) : (
+                  <span className="text-[12px] text-[#B6C2D1]">—</span>
+                )}
+              </td>
+        );
+      }
       case 'serialNo':
         return (
               <td className="overflow-hidden truncate px-4 py-3 whitespace-nowrap">
@@ -2828,6 +3011,7 @@ export function TicketTable({
             }}
             onChange={(key) => changeColumn(c.key, key)}
             onClose={() => setMenuCol(null)}
+            allowColumnEdit={allowColumnEdit}
           />
         );
       })()}

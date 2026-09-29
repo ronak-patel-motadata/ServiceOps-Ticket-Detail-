@@ -7,8 +7,9 @@ interface ToolbarProps {
   setSearchQuery: (query: string) => void;
   /** Name of the applied listing view — doubles as the page title. */
   activeView: string;
-  viewsOpen: boolean;
-  onToggleViews: () => void;
+  viewsOpen?: boolean;
+  /** Omit to drop the views rail toggle entirely (modules with no view catalog). */
+  onToggleViews?: () => void;
   /** Page-supplied AI pill (the "Suggested clusters" recipe) — the Problem listing
       parks its suggestion here after "Not now". */
   suggestPill?: { label: string; count: number; onClick: () => void };
@@ -28,7 +29,10 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
       {/* First Row: Title, Filters, and Actions */}
       <div className="flex items-center justify-between px-6 py-3">
         <div className="relative flex items-center gap-3">
-          {/* Listing views — the Dashboard sidebar pattern brought to the listing. */}
+          {/* Listing views — the Dashboard sidebar pattern brought to the listing.
+              Omitted where a module has no view catalog of its own (My Approvals:
+              its status tabs ARE the cuts). */}
+          {onToggleViews && (
           <button
             onClick={onToggleViews}
             title={viewsOpen ? 'Hide views' : 'Request views'}
@@ -36,6 +40,7 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
           >
             {viewsOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
           </button>
+          )}
           <h1 className="text-[17px] font-semibold text-[#1E293B]">{activeView}</h1>
         </div>
         

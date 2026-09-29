@@ -30,6 +30,7 @@ import { mockContracts } from './ContractsListPage';
 import { mockPurchases } from './PurchasesListPage';
 import { mockCis } from './CmdbListPage';
 import { DrawerShortcuts } from './DrawerShortcuts';
+import { ApprovalDrawer } from './ApprovalDrawer';
 import { TaskDrawer } from './TaskDrawer';
 import { ProjectDrawer, projectToProblemShape } from './ProjectDrawer';
 import { mockProjects } from './ProjectsListPage';
@@ -37,7 +38,10 @@ import { mockProjects } from './ProjectsListPage';
 export type StackModule =
   | 'request' | 'request-v2' | 'problem' | 'change' | 'release'
   | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets'
-  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'report' | 'projects';
+  | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'report' | 'projects'
+  /* Not a module of its own — an approval opens the record it points at, through
+     the approvals' own detail page (`ApprovalDrawer`) so it can diverge. */
+  | 'approval';
 
 export interface StackItem { key: string; module: StackModule; id: string; subject: string; data: any }
 export interface Relation { ticketId: string; subject: string; type: string; status: string; priority: string; assignedTo: { name: string } }
@@ -109,6 +113,23 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     return () => window.removeEventListener('reorder-drawer-tabs', onReorder as EventListener);
   }, []);
 
+  /* A drawer marks its conversation read (TicketDrawer does it a beat after the
+     Conversation tab opens) → clear that open item's unread dot on the tab strip.
+     An event keeps it out of every drawer's prop list. */
+  useEffect(() => {
+    const onRead = (e: Event) => {
+      const id = (e as CustomEvent).detail?.id as string | undefined;
+      if (!id) return;
+      setStack((prev) =>
+        prev.some((s) => s.id === id && s.data?.unread)
+          ? prev.map((s) => (s.id === id ? { ...s, data: { ...s.data, unread: 0 } } : s))
+          : prev,
+      );
+    };
+    window.addEventListener('drawer-item-read', onRead as EventListener);
+    return () => window.removeEventListener('drawer-item-read', onRead as EventListener);
+  }, []);
+
   const open: DrawerStackApi['open'] = (module, id, subject, data) => {
     const key = `${module}:${id}`;
     setStack((prev) => (prev.some((s) => s.key === key) ? prev : [...prev, { key, module, id, subject, data }]));
@@ -149,7 +170,7 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     if (s === 'open' || s === 'pending' || s === 'not started' || s === 'sent for approval' || s === 'generated' || s === 'draft') return '#D97706';
     if (s === 'in progress' || s === 'ordered' || s === 'partially received' || s === 'on hold') return '#3D8BD0';
     if (s.includes('resolv') || s.includes('close') || s === 'in use' || s === 'completed' || s === 'operational' || s === 'approved' || s === 'received' || s === 'active' || s === 'published') return '#22A06B';
-    if (s === 'expired' || s === 'missing' || s === 'declined') return '#EF4444';
+    if (s === 'expired' || s === 'missing' || s === 'declined' || s === 'rejected') return '#EF4444';
     return '#9CA3AF';
   };
   const prDot = (v?: string) => ({ urgent: '#DC2626', high: '#EF4444', p1: '#DC2626', p2: '#F59E0B', medium: '#D97706', p3: '#22A06B', low: '#22A06B', p4: '#64748B' } as Record<string, string>)[(v ?? '').toLowerCase()] ?? '#9CA3AF';
@@ -196,6 +217,12 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       push({ value: data.status, dot: stDot(data.status) });
       push({ label: 'Vendor', value: typeof data.vendor === 'string' ? data.vendor.replace(/^VCAT-\d+:\s*/, '') : undefined });
       push({ label: 'Required', value: data.requiredBy });
+    } else if (module === 'approval') {
+      /* The tab is an APPROVAL, so it says what is waiting on you — not the
+         record's own status, which the detail page underneath already shows. */
+      push({ label: 'Approval', value: data.status, dot: stDot(data.status) });
+      push({ label: 'Type', value: data.type });
+      push({ value: data.requestedBy, user: true });
     } else {
       // Ticket family + assets/CMDB — the generic sniff, now emitted as chips too.
       const tech = data.assignedTo?.name ?? data.assignee ?? (typeof data.managedBy === 'string' ? data.managedBy : data.managedBy?.name) ?? data.owner ?? data.technician ?? (typeof data.usedBy === 'string' ? data.usedBy : data.usedBy?.name);
@@ -210,11 +237,21 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
   /* `page` is the listing slug the record belongs to — the tab hover card turns it
      into an "open in a new browser tab" link (?page=…&open=…). V2 is a design
      option of the request page, not a page of its own. */
+  /* Unread replies ride along so the TAB can carry the listing's pulsing dot — the
+     open item keeps saying "something came in here" until you actually read it.
+     Colour follows the listing's role palette: orange requester, blue technician. */
+  const unreadOf = (data: any) => {
+    const n = typeof data?.unread === 'number' ? data.unread : 0;
+    if (!n) return {};
+    const from = data.lastMsg?.from as string | undefined;
+    return { unread: n, unreadFrom: from, unreadColor: !from || from === data.requester ? '#E67E22' : '#3D8BD0' };
+  };
   const stackTabs = stack.map((s) => ({
     id: s.id,
     subject: s.subject,
-    page: s.module === 'request-v2' ? 'request' : s.module,
+    page: s.module === 'request-v2' ? 'request' : s.module === 'approval' ? 'my-approvals' : s.module,
     noIdPill: s.module === 'report' || undefined,
+    ...unreadOf(s.data),
     ...tabMeta(s.module, s.data),
   }));
 
@@ -236,6 +273,8 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
       onStackActiveGroupChange: setActiveGroup,
     } as any;
     switch (active.module) {
+      // My Approvals — the approval's own detail page resolves the referenced record.
+      case 'approval': drawer = <ApprovalDrawer approval={active.data} {...shared} />; break;
       case 'request': drawer = <TicketDrawer openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;
       // V2 design option of the Ticket detail page — INC-33 routes here from the listing page.
       case 'request-v2': drawer = <TicketDrawerV2 openTickets={[active.data]} activeTicketId={active.id} {...shared} />; break;

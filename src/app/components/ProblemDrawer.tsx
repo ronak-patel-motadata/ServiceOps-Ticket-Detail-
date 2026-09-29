@@ -11,6 +11,7 @@ import { AiSparkle } from './AiSparkle';
 import { FileTypeBadge } from './DescriptionAttachments';
 import { EditorToolbarActions, EditorSendActions, RichComposerArea } from './EditorToolbar';
 import { useState, useRef, useEffect } from 'react';
+import { APPROVAL_TAB_IDS } from './approvalTabs';
 import { DrawerTabStrip } from './DrawerTabStrip';
 import { SummaryStaleNotice } from './SummaryStaleNotice';
 import { alertKpiItems, getHeaderAlerts } from './HeaderAlertPills';
@@ -112,6 +113,10 @@ interface ProblemDrawerProps {
   stackTabs?: { id: string; subject?: string }[];
   stackWidth?: number;
   onStackWidthChange?: (w: number) => void;
+  /** Opened from My Approvals — collapses the page to the approver's three tabs. */
+  approvalMode?: boolean;
+  /** The approver's decision buttons, rendered in place of the module's own header actions. */
+  approvalHeader?: import('react').ReactNode;
   stackMinimized?: boolean;
   onStackMinimizedChange?: (m: boolean) => void;
   stackActiveGroup?: string;
@@ -193,6 +198,8 @@ export function ProblemDrawer({
 stackTabs,
 stackWidth,
 onStackWidthChange,
+approvalMode,
+approvalHeader,
 stackMinimized,
 onStackMinimizedChange,
 stackActiveGroup,
@@ -216,7 +223,10 @@ onStackActiveGroupChange,
   const [showForwardedMessage, setShowForwardedMessage] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [activeConversationTab, setActiveConversationTab] = useState<'all' | 'technician'>('all');
-  const [activeMainTab, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'analysis' | 'resolution' | 'service-request'>('conversation');
+  const [activeMainTabLocal, setActiveMainTab] = useState<'conversation' | 'tasks' | 'approvals' | 'relations' | 'audit' | 'analysis' | 'resolution' | 'service-request'>(approvalMode ? 'approvals' : 'conversation');
+  /* In approval mode only the three approver tabs render, so a module default of
+     Overview / Properties would land on a tab that is not on screen. */
+  const activeMainTab = approvalMode && !APPROVAL_TAB_IDS.includes(activeMainTabLocal) ? 'approvals' : activeMainTabLocal;
   const [analysis, setAnalysis] = useState({ rootCause: '', symptoms: '', impact: '', workaround: '' });
   // Type filter applied to the Relations tab when opened from an "Affected Items" pill
   const [relationsTypeFilter, setRelationsTypeFilter] = useState<string | null>(null);
@@ -2490,7 +2500,10 @@ onStackActiveGroupChange,
               return <HeaderKpiRow items={items} />;
             })()}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* From My Approvals the header carries the DECISION and nothing else; the
+              module's own actions stay mounted but hidden so nothing else shifts. */}
+          {approvalMode && approvalHeader}
+          <div className={`flex items-center gap-2 flex-shrink-0${approvalMode ? ' hidden' : ''}`}>
             <HeaderCopyButton variant="link" value={activeProblem?.id ?? ''} label="Copy Problem URL" />
             <button title="Edit" className="inline-flex items-center justify-center h-8 w-8 bg-white border border-[#DFE5ED] rounded hover:bg-[#F5F7FA]">
               <Edit size={16} className="text-[#6b7280]" />
@@ -3392,9 +3405,12 @@ onStackActiveGroupChange,
                     { id: 'resolution', label: 'Resolution' },
                   ].filter(tab => tab.condition !== false);
 
-                  const allowedTabIds = tabConfig.map(tab => tab.id);
-                  const filteredVisibleTabs = visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
-                  const filteredOverflowTabs = overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  /* From My Approvals: the thread, the decision, and what the record
+                     touches — nothing else, in that fixed order whatever the module.
+                     Three tabs always fit, so the overflow split is skipped. */
+                  const allowedTabIds = approvalMode ? APPROVAL_TAB_IDS : tabConfig.map(tab => tab.id);
+                  const filteredVisibleTabs = approvalMode ? allowedTabIds : visibleTabs.filter(tabId => allowedTabIds.includes(tabId));
+                  const filteredOverflowTabs = approvalMode ? [] : overflowTabs.filter(tabId => allowedTabIds.includes(tabId));
 
                   const tabLabels: Record<string, string> = {
                     'service-request': 'Service Request',
@@ -5618,7 +5634,7 @@ onStackActiveGroupChange,
             getGroupTitle={getGroupTitleWrapper}
             propertiesTitle="Properties"
             additionalTitle="Problem Information"
-            showNotifications={true}
+            showNotifications={!approvalMode}
             getCurrentStatusColor={getCurrentStatusColorWrapper}
             getCurrentPriorityColor={getCurrentPriorityColorWrapper}
             getCurrentAssigneeColor={getCurrentAssigneeColorWrapper}

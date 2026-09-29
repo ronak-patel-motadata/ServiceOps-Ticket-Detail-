@@ -445,7 +445,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     changeCalendarTitle = 'Change Calendar',
     requesterName,
     showVip = false,
-    activeGroup,
+    activeGroup: activeGroupProp,
     setActiveGroup,
     showPropertiesSearch,
     setShowPropertiesSearch,
@@ -661,6 +661,15 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     ticketId,
     onboardingStep,
   } = props;
+
+  /* A group whose rail icon is not rendered must never own the panel body. The active
+     group is shared across the open-item stack, so it can still be pointing at
+     Notifications or Integration from a record that HAD those icons — on a page that
+     hides them (an approval opens with neither) it falls back to the properties group. */
+  const activeGroup =
+    (!showNotifications && activeGroupProp === 'notifications') || (!showIntegration && activeGroupProp === 'integration')
+      ? 'properties'
+      : activeGroupProp;
 
   // A closed ticket has finished its lifecycle, so each SLA target reads as an outcome
   // (Met / Breached with the time taken) instead of a running "due in" countdown.

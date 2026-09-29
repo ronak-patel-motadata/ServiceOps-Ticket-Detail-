@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   AlignLeft,
   CalendarDays,
@@ -8,8 +8,10 @@ import {
   Flag,
   Hash,
   Hourglass,
+  Layers,
   ListChecks,
   MessageSquare,
+  Monitor,
   MoreVertical,
   Plus,
   Search,
@@ -23,6 +25,9 @@ import type { Ticket } from './TicketListPage';
 import { extraValue, slaToneOf } from './TicketTable';
 import { TECH_GROUPS } from './technicianRoster';
 import { DEPARTMENTS } from './orgDepartments';
+import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilterAttrs';
+import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
+import { IconStatusCheck } from './SidebarIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 /* Attribute-based filter builder (Attio / DevRev pattern): pick an attribute → it becomes
@@ -38,7 +43,7 @@ export interface FilterRule {
 
 type Condition = 'is' | 'is not' | 'contains' | 'is before' | 'is after' | 'empty' | 'not empty';
 
-interface Attr {
+export interface Attr {
   key: string;
   label: string;
   icon: typeof Hash;
@@ -113,6 +118,34 @@ export const ageBucketOf = (t: Ticket) => {
   return AGE_BUCKETS.find((b) => b.test(h))?.label ?? '';
 };
 
+/* My Approvals filters on what an APPROVAL actually has — six attributes, not the
+   request catalog. `id` is the record's own id (the page's Name column) and the
+   statuses are the approval outcomes, so a chip here can never offer a value the
+   rows cannot hold. */
+export const APPROVAL_FILTER_ATTRS: Attr[] = [
+  { key: 'id', label: 'Name', icon: Hash, type: 'text' },
+  { key: 'subject', label: 'Subject', icon: AlignLeft, type: 'text' },
+  {
+    key: 'x_type',
+    label: 'Type',
+    icon: CircleDot,
+    type: 'select',
+    options: opts(['Change', 'Release', 'Request', 'Service Request', 'Purchase Order', 'Contract', 'Hardware Asset', 'Software Asset']),
+  },
+  {
+    key: 'requester',
+    label: 'Requested By',
+    icon: UserRound,
+    type: 'select',
+    people: 'requester',
+    options: opts(['Imran Qureshi', 'Rakesh Rathod', 'Vikram Sethi', 'Kavit Gohel', 'Sarah Johnson', 'Rohan Mehta', 'Farah Sheikh', 'Jainam Shah', 'Neha Raje', 'Tabrez Khan', 'Darshak Modi', 'Priya Nair', 'Siddharth Rao', 'Hetal Mori', 'Meera Iyer', 'Ananya Iyer', 'Karan Malhotra']),
+  },
+  /* No Approval Status here — that is the page's tab (KPI cards + views rail),
+     so offering it as a chip too would be two controls for one decision. */
+  { key: 'status', label: 'Status', icon: CircleDot, type: 'select', options: STATUS_OPTS },
+  { key: 'createdBy', label: 'Created Date', icon: CalendarDays, type: 'date', options: DATE_OPTS },
+];
+
 export const FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Subject', icon: AlignLeft, type: 'text' },
@@ -158,7 +191,19 @@ const CONDITIONS: Record<Attr['type'], Condition[]> = {
 };
 const NEEDS_VALUE = (c: Condition) => c !== 'empty' && c !== 'not empty';
 
-export const attrOf = (key: string) => FILTER_ATTRS.find((a) => a.key === key);
+/* Every module catalogue is searchable here, not just the request set: applyFilters needs
+   an attribute TYPE (a date filter reads a Date, not a string) and it runs on pages that
+   hand the bar their own catalogue. The request set wins a shared key, so nothing moves.  */
+const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS];
+export const attrOf = (key: string): Attr | undefined =>
+  FILTER_ATTRS.find((a) => a.key === key) ?? MODULE_ATTR_SETS.reduce<Attr | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
+
+/* An attribute the mock rows do not carry — the agent-collected hardware properties —
+   gets a STABLE stand-in derived from the row id, so picking one still cuts the list the
+   same way every time instead of emptying it. Free-text attributes are left alone:
+   inventing a serial number nobody could type would only look broken. */
+const standInValue = (t: Ticket, attr?: Attr) => (attr ? attrStandIn(attr, t.id) : '');
+const standInDate = (t: Ticket, key: string) => attrStandInDate(key, t.id);
 
 /** The grid names a few columns differently from their underlying field. */
 const COL_TO_ATTR: Record<string, string> = {
@@ -218,7 +263,8 @@ export function applyFilters(tickets: Ticket[], rules: FilterRule[]): Ticket[] {
     live.every((r) => {
       const attr = attrOf(r.field);
       if (attr?.type === 'date') {
-        const d = (t as any)[r.field] as Date;
+        const raw = (t as any)[r.field] as Date | undefined;
+        const d = raw ?? (r.field in t ? undefined : standInDate(t, r.field));
         if (r.condition === 'empty') return !d;
         if (r.condition === 'not empty') return !!d;
         if (!d) return false;
@@ -227,7 +273,8 @@ export function applyFilters(tickets: Ticket[], rules: FilterRule[]): Ticket[] {
         const before = r.condition === 'is before';
         return r.values.some((v) => (before ? !inDateBucket(d, v) : inDateBucket(d, v)));
       }
-      const val = valueFor(t, r.field);
+      let val = valueFor(t, r.field);
+      if (!val && !(r.field in t)) val = standInValue(t, attr);
       switch (r.condition) {
         case 'empty':
           return !val;
@@ -268,6 +315,7 @@ function AttrPicker({
   align = 'left',
   used = [],
   noun = 'request',
+  attrs,
 }: {
   onPick: (key: string) => void;
   onClose: () => void;
@@ -276,10 +324,12 @@ function AttrPicker({
   used?: string[];
   /** What one record is called — heads the list as "Change attributes" etc. */
   noun?: string;
+  /** The module's attribute catalog (defaults to the product-wide set). */
+  attrs?: Attr[];
 }) {
   const [q, setQ] = useState('');
   const ref = useOutside<HTMLDivElement>(true, onClose);
-  const rows = FILTER_ATTRS.filter((a) => !used.includes(a.key) && a.label.toLowerCase().includes(q.trim().toLowerCase()));
+  const rows = (attrs ?? FILTER_ATTRS).filter((a) => !used.includes(a.key) && a.label.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div ref={ref} className={`${POPUP} top-full mt-1 w-[280px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
       <div className="border-b border-[#F0F2F5] p-2">
@@ -321,12 +371,15 @@ function Chip({
   onChange,
   onRemove,
   autoOpen,
+  attrs,
 }: {
   rule: FilterRule;
   onChange: (r: FilterRule) => void;
   onRemove: () => void;
   /** Added from a column header — open the value list so the next click picks a value. */
   autoOpen?: boolean;
+  /** The module's attribute catalog — its labels/options win over the global set. */
+  attrs?: Attr[];
 }) {
   const [condOpen, setCondOpen] = useState(false);
   const [valOpen, setValOpen] = useState(!!autoOpen);
@@ -338,7 +391,7 @@ function Chip({
   const valRef = useOutside<HTMLDivElement>(valOpen, () => setValOpen(false));
   const menuRef = useOutside<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
 
-  const attr = attrOf(rule.field);
+  const attr = attrs?.find((a) => a.key === rule.field) ?? attrOf(rule.field);
   if (!attr) return null;
   const Icon = attr.icon;
   const needsValue = NEEDS_VALUE(rule.condition);
@@ -498,8 +551,57 @@ function Chip({
 
 const YOU = 'Sarah Johnson'; // signed-in persona (kept local — TicketViewsPanel imports from this module)
 
-function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void }) {
-  const [open, setOpen] = useState<'assignedTo' | 'sla' | 'priority' | null>(null);
+/* A quick filter is one icon that drops a short value list — the two or three cuts a
+   given queue is worked by, one click away from the grid. Every module names its own:
+   a service desk reaches for assignee / SLA / priority, an asset register for where a
+   machine is in its life and what kind of machine it is. */
+export interface QuickFilterDef {
+  field: string;
+  /** Any lucide icon, or one of the product SVGs with the same call shape. */
+  icon: (p: { size?: number; className?: string }) => ReactElement;
+  /** Tooltip on the icon button. */
+  tip: string;
+  /** Header above the value list. */
+  title: string;
+  width: number;
+  options: { label: string; color?: string }[];
+  /** How each value row reads. */
+  row?: 'dot' | 'flag' | 'avatar' | 'plain';
+  /** First option is the signed-in user: it reads "(You)" and keeps a divider under it. */
+  youFirst?: boolean;
+}
+
+const DEFAULT_QUICK: QuickFilterDef[] = [
+  { field: 'assignedTo', icon: UserRound, tip: 'Filter by assignee', title: 'Assigned to', width: 232, row: 'avatar', youFirst: true, options: [YOU, ...ASSIGNEES].map((label) => ({ label })) },
+  { field: 'sla', icon: Hourglass, tip: 'Filter by SLA status', title: 'SLA status', width: 196, row: 'dot', options: SLA_OPTS },
+  { field: 'priority', icon: Flag, tip: 'Filter by priority', title: 'Priority is', width: 172, row: 'flag', options: [...PRIORITY_OPTS].reverse() },
+];
+
+/* The asset register's pair. Status is how an asset manager works the list — what is
+   deployed, what is spare, what is in repair — and Asset Type is the next cut down.
+   Both read their values from the module's own filter catalogue, so a quick filter and
+   the full filter builder can never offer different options for the same field. */
+const hwOptions = (key: string) => HARDWARE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const ASSET_QUICK_FILTERS: QuickFilterDef[] = [
+  /* Icon-only, matching the request listing's trio. A check inside a CLOSED circle
+     (`CircleCheck`, not the big open variant) at the same stroke weight as every other
+     toolbar icon — it reads as a state, where the radio-button `CircleDot` it replaces
+     looked like an unselected option. */
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: hwOptions('status') },
+  { field: 'assetType', icon: Monitor, tip: 'Filter by asset type', title: 'Asset type is', width: 214, row: 'plain', options: hwOptions('assetType') },
+];
+
+/* The software register's pair, on the same "state, then kind" shape: Status is how the
+   catalogue is worked, and Software Type (Managed / Discovered / Unmanaged) is the cut
+   that matters next — it separates what IT bought from what an agent found. */
+const swOptions = (key: string) => SOFTWARE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const SOFTWARE_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 180, row: 'dot', options: swOptions('status') },
+  { field: 'x_softwareType', icon: Layers, tip: 'Filter by software type', title: 'Software type is', width: 200, row: 'plain', options: swOptions('x_softwareType') },
+];
+
+function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void; filters?: QuickFilterDef[] }) {
+  const [open, setOpen] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -525,17 +627,19 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
   };
 
   const initials = (n: string) => n.split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
-  const iconBtn = (field: 'assignedTo' | 'sla' | 'priority', Icon: typeof Flag, label: string) => {
+  /* Icon-only, one shape across every module — the tooltip carries the name. */
+  const iconBtn = (field: string, Icon: typeof Flag, label: string) => {
     const active = valuesOf(field).length > 0;
     if (active) return null;
+    const tone = open === field
+      ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+      : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]';
     return (
       <Tooltip delayDuration={200}>
         <TooltipTrigger asChild>
           <button
             onClick={() => setOpen((v) => (v === field ? null : field))}
-            className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${
-              open === field ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]'
-            }`}
+            className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${tone}`}
           >
             <Icon size={15} />
           </button>
@@ -547,77 +651,46 @@ function QuickFilters({ rules, setRules }: { rules: FilterRule[]; setRules: (r: 
 
   return (
     <div ref={wrapRef} className="relative flex items-center gap-2">
-      {iconBtn('assignedTo', UserRound, 'Filter by assignee')}
-      {iconBtn('sla', Hourglass, 'Filter by SLA status')}
-      {iconBtn('priority', Flag, 'Filter by priority')}
+      {filters.map((f) => (
+        <Fragment key={f.field}>{iconBtn(f.field, f.icon, f.tip)}</Fragment>
+      ))}
 
-      {open === 'assignedTo' && (
-        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[232px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
-          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Assigned to</div>
-          {[YOU, ...ASSIGNEES].map((name, i) => {
-            const on = valuesOf('assignedTo').includes(name);
-            return (
-              <Fragment key={name}>
-                <button
-                  onClick={() => toggle('assignedTo', name)}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
-                    on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
-                  }`}
-                >
-                  <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials(name)}</span>
-                  <span className="min-w-0 flex-1 truncate">{name === YOU ? `${name} (You)` : name}</span>
-                  {on && <Check size={13} className="flex-shrink-0" />}
-                </button>
-                {i === 0 && <div className="my-1 border-t border-[#F1F5F9]" />}
-              </Fragment>
-            );
-          })}
-        </div>
+      {filters.map((f) =>
+        open !== f.field ? null : (
+          <div
+            key={f.field}
+            className="app-menu absolute left-0 top-full z-50 mt-1 rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl"
+            style={{ width: f.width }}
+          >
+            <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{f.title}</div>
+            {f.options.map((o, i) => {
+              const on = valuesOf(f.field).includes(o.label);
+              return (
+                <Fragment key={o.label}>
+                  <button
+                    onClick={() => toggle(f.field, o.label)}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
+                      on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                    }`}
+                  >
+                    {f.row === 'avatar' && (
+                      <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials(o.label)}</span>
+                    )}
+                    {f.row === 'flag' && <Flag size={13} className="flex-shrink-0" fill="currentColor" style={{ color: o.color }} />}
+                    {f.row !== 'avatar' && f.row !== 'flag' && f.row !== 'plain' && (
+                      <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                    )}
+                    <span className="min-w-0 flex-1 truncate">{f.youFirst && i === 0 ? `${o.label} (You)` : o.label}</span>
+                    {on && <Check size={13} className="flex-shrink-0" />}
+                  </button>
+                  {f.youFirst && i === 0 && <div className="my-1 border-t border-[#F1F5F9]" />}
+                </Fragment>
+              );
+            })}
+          </div>
+        ),
       )}
 
-      {open === 'sla' && (
-        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[196px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
-          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">SLA status</div>
-          {SLA_OPTS.map((o) => {
-            const on = valuesOf('sla').includes(o.label);
-            return (
-              <button
-                key={o.label}
-                onClick={() => toggle('sla', o.label)}
-                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
-                  on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
-                }`}
-              >
-                <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
-                <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                {on && <Check size={13} className="flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {open === 'priority' && (
-        <div className="app-menu absolute left-0 top-full z-50 mt-1 w-[172px] rounded-lg border border-[#DFE5ED] bg-white py-1.5 shadow-xl">
-          <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">Priority is</div>
-          {[...PRIORITY_OPTS].reverse().map((p) => {
-            const on = valuesOf('priority').includes(p.label);
-            return (
-              <button
-                key={p.label}
-                onClick={() => toggle('priority', p.label)}
-                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
-                  on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
-                }`}
-              >
-                <Flag size={13} className="flex-shrink-0" fill="currentColor" style={{ color: p.color }} />
-                <span className="min-w-0 flex-1 truncate">{p.label}</span>
-                {on && <Check size={13} className="flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -626,11 +699,21 @@ export function TicketFilterBar({
   rules,
   setRules,
   noun = 'request',
+  showQuickFilters = true,
+  quickFilters,
+  attrs,
 }: {
   rules: FilterRule[];
   setRules: (r: FilterRule[]) => void;
   /** What one record is called — the Change listing renders this bar as "changes". */
   noun?: string;
+  /** false drops the one-tap Assignee / SLA / Priority shortcuts — modules whose
+      records carry none of those (Approvals) would offer dead filters. */
+  showQuickFilters?: boolean;
+  /** The module's own quick filters (defaults to the service-desk trio). */
+  quickFilters?: QuickFilterDef[];
+  /** The module's attribute catalog — defaults to the product-wide request set. */
+  attrs?: Attr[];
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoOpenId, setAutoOpenId] = useState<string | null>(null);
@@ -641,7 +724,7 @@ export function TicketFilterBar({
     const onAdd = (e: Event) => {
       const colKey = String((e as CustomEvent).detail ?? '');
       const key = COL_TO_ATTR[colKey] ?? colKey;
-      const attr = attrOf(key);
+      const attr = attrs?.find((a) => a.key === key) ?? attrOf(key);
       if (!attr) return;
       const existing = rules.find((r) => r.field === key);
       if (existing) {
@@ -658,7 +741,7 @@ export function TicketFilterBar({
   }, [rules, setRules]);
 
   const addRule = (field: string) => {
-    const attr = attrOf(field)!;
+    const attr = (attrs?.find((a) => a.key === field) ?? attrOf(field))!;
     setRules([...rules, { id: `${field}-${rules.length}-${Date.now()}`, field, condition: CONDITIONS[attr.type][0], values: [] }]);
     setPickerOpen(false);
   };
@@ -672,6 +755,7 @@ export function TicketFilterBar({
           onChange={(next) => setRules(rules.map((x) => (x.id === r.id ? next : x)))}
           onRemove={() => setRules(rules.filter((x) => x.id !== r.id))}
           autoOpen={autoOpenId === r.id}
+          attrs={attrs}
         />
       ))}
 
@@ -694,10 +778,10 @@ export function TicketFilterBar({
             <Plus size={15} />
           </button>
         )}
-        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} noun={noun} />}
+        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} noun={noun} attrs={attrs} />}
       </div>
 
-      <QuickFilters rules={rules} setRules={setRules} />
+      {showQuickFilters && <QuickFilters rules={rules} setRules={setRules} filters={quickFilters} />}
 
       {rules.length > 0 && (
         <button

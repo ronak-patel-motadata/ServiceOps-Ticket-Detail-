@@ -283,7 +283,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <NavItem icon={<IconProject size={20} />} title="Project" active={activePage === 'projects'} onClick={() => onNavigate?.('projects')} />
         <NavItem icon={<IconKnowledge size={20} />} title="Knowledge" active={activePage === 'knowledge'} onClick={() => onNavigate('knowledge')} />
         <NavItem icon={<IconReport size={20} />} title="Report" active={activePage === 'reports'} onClick={() => onNavigate?.('reports')} />
-        <NavItem icon={<IconMyApproval size={20} />} title="My Approval" />
+        <NavItem icon={<IconMyApproval size={20} />} title="My Approval" active={activePage === 'my-approvals'} onClick={() => onNavigate?.('my-approvals')} />
         <NavItem icon={<IconTask size={20} />} title="Task" active={activePage === 'tasks'} onClick={() => onNavigate?.('tasks')} />
         <NavItem icon={<IconMyTeam size={20} />} title="My Team" />
       </div>

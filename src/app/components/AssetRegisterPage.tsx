@@ -76,6 +76,10 @@ export function AssetRegisterPage({
   buildDashboard,
   mineHint,
   searchFields = [],
+  filterAttrs,
+  quickFilters,
+  moreActions,
+  showBarcodeTools = false,
   initialOpenId,
   onInitialOpenConsumed,
   onNavigate,
@@ -96,6 +100,12 @@ export function AssetRegisterPage({
   buildCards: (tickets: Ticket[]) => StatCard[];
   /** Module dashboard config builder — providing it turns the Dashboard layout on. */
   buildDashboard?: (tickets: Ticket[]) => DashConfig;
+  /** The module's own filter attributes / quick filters / ⋮ items (see the toolbar). */
+  filterAttrs?: React.ComponentProps<typeof TicketGridToolbar>['filterAttrs'];
+  quickFilters?: React.ComponentProps<typeof TicketGridToolbar>['quickFilters'];
+  moreActions?: React.ComponentProps<typeof TicketGridToolbar>['moreActions'];
+  /** Registers whose records carry a physical label get the barcode / scan tools. */
+  showBarcodeTools?: boolean;
   /** Empty-state line for the dashboard's "Mine" scope on thinly-owned registers. */
   mineHint?: string;
   /** Extra row fields the free-text search also matches (x_ keys). */
@@ -120,7 +130,7 @@ export function AssetRegisterPage({
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list-kpi');
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list');
   /* Set only when the list was reached by clicking something on the dashboard —
      carries the trail back: the clicked label + the filters in force before. */
   const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
@@ -296,7 +306,11 @@ export function AssetRegisterPage({
                   <TicketGridToolbar
                     noun={noun}
                     viewsStore={viewsStore}
-                    layouts={buildDashboard ? ['list', 'list-kpi', 'dashboard'] : ['list', 'list-kpi']}
+                    showBarcodeTools={showBarcodeTools}
+                    filterAttrs={filterAttrs}
+                    quickFilters={quickFilters}
+                    moreActions={moreActions}
+                    layouts={buildDashboard ? ['list', 'dashboard'] : ['list']}
                     searchQuery={searchQuery}
                     setSearchQuery={(v) => {
                       setSearchQuery(v);
@@ -347,7 +361,7 @@ export function AssetRegisterPage({
                           setDrillFrom({ label, rules: filterRules });
                           setFilterRules(r.map((x, i) => ({ ...x, id: `dash-${x.field}-${i}` })));
                           setCurrentPage(1);
-                          setView('list-kpi');
+                          setView('list');
                         }}
                       />
                     );

@@ -15,11 +15,12 @@ import { TicketTable, useOpenFromUrl } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { AssetStatsRow, assetHealthOf } from './AssetStatsRow';
+import { HARDWARE_FILTER_ATTRS } from './assetFilterAttrs';
 import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
-import { AlertTriangle, CalendarClock, CheckCircle2, Monitor } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, FlaskConical, Import, Monitor } from 'lucide-react';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
-import { applyFilters, type FilterRule } from './TicketFilterBar';
+import { ASSET_QUICK_FILTERS, applyFilters, type FilterRule } from './TicketFilterBar';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { TicketCalendarView } from './TicketCalendarView';
@@ -279,7 +280,7 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list-kpi');
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list');
   /* Set only when the list was reached by clicking something on the dashboard. It carries the
      trail back: what was clicked, and the filters that were in force before the drill. */
   const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
@@ -548,7 +549,20 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
           <TicketGridToolbar
             noun="asset"
             viewsStore="hwasset"
-            layouts={['list', 'list-kpi', 'dashboard']}
+            /* The product's own asset attributes — see assetFilterAttrs.ts. */
+            filterAttrs={HARDWARE_FILTER_ATTRS}
+            /* Assignee / SLA / Priority are service-desk cuts; an asset register is
+               worked by lifecycle state and kind of machine. */
+            quickFilters={ASSET_QUICK_FILTERS}
+            /* Assets carry physical labels: generate one, or scan one to find the record. */
+            showBarcodeTools
+            /* The asset register's own ⋮ menu. Auto refresh is NOT here — it stays merged
+               into the refresh button, the way the request listing has it. */
+            moreActions={[
+              { key: 'asset-in-stage', label: 'Asset in Stage', icon: FlaskConical },
+              { key: 'import-asset', label: 'Import Asset', icon: Import },
+            ]}
+            layouts={['list', 'dashboard']}
             searchQuery={searchQuery}
             setSearchQuery={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             rules={filterRules}
@@ -616,7 +630,7 @@ export function HardwareAssetsListingPage({ onNavigate }: { onNavigate?: (page: 
                 setDrillFrom({ label, rules: filterRules });
                 setFilterRules(r.map((x, i) => ({ ...x, id: `dash-${x.field}-${i}` })));
                 setCurrentPage(1);
-                setView('list-kpi');
+                setView('list');
               }}
             />
           ) : (

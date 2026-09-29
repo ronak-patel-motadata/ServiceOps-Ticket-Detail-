@@ -10,6 +10,7 @@ import { SoftwareLicensesListingPage } from './components/SoftwareLicensesListin
 import { ContractsListingPage } from './components/ContractsListingPage';
 import { PurchasesListingPage } from './components/PurchasesListingPage';
 import { ProjectsListPage } from './components/ProjectsListPage';
+import { MyApprovalsListPage } from './components/MyApprovalsListPage';
 import { CmdbListPage } from './components/CmdbListPage';
 import { PatchesListPage } from './components/PatchesListPage';
 import { PatchDeploymentsListPage } from './components/PatchDeploymentsListPage';
@@ -27,7 +28,7 @@ import { DetectedCvesListPage } from './components/DetectedCvesListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'icons' | 'views-lab';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'icons' | 'views-lab';
 
 /* A row's "Open in a new tab" link carries ?page=<slug>&open=<id>, so a fresh tab
    lands on the right module's listing with that record's detail page already open. */
@@ -60,6 +61,7 @@ export default function App() {
       {activePage === 'contracts' && <ContractsListingPage onNavigate={navigate} />}
       {activePage === 'purchases' && <PurchasesListingPage onNavigate={navigate} />}
       {activePage === 'projects' && <ProjectsListPage onNavigate={navigate} />}
+      {activePage === 'my-approvals' && <MyApprovalsListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
       {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
       {activePage === 'patch-deployments' && <PatchDeploymentsListPage onNavigate={navigate} />}

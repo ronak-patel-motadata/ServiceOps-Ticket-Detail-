@@ -137,6 +137,45 @@ export function IconMyTeam({ size = 20 }: { size?: number }) {
   );
 }
 
+/** Asset Update action icon (48px grid, from the product icon set) — a display with an
+    arrow running into it. Unlike the nav icons above it renders at its NOMINAL size, not
+    the ×48/40 nav scale: the glyph's strokes are a uniform 4 units on a 48 grid, which is
+    exactly lucide's stroke-width 2 on a 24 grid, so at 1:1 it carries the same line weight
+    as the Check / X / CornerUpLeft icons it sits beside. Scaling it up would fatten it. */
+export function IconAssetUpdate({ size = 16, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className={className}>
+      <path fill="currentColor" d="M18.3179 42.4441C17.7512 42.4441 17.2762 42.2524 16.8929 41.8691C16.5095 41.4858 16.3179 41.0108 16.3179 40.4441V38.4441H8.31787C7.21787 38.4441 6.2762 38.0524 5.49287 37.2691C4.70954 36.4858 4.31787 35.5441 4.31787 34.4441V10.4441C4.31787 9.34409 4.70954 8.40243 5.49287 7.61909C6.2762 6.83576 7.21787 6.44409 8.31787 6.44409H40.3179C41.4179 6.44409 42.3595 6.83576 43.1429 7.61909C43.9262 8.40243 44.3179 9.34409 44.3179 10.4441V14.4441C44.3179 15.0108 44.1262 15.4858 43.7429 15.8691C43.3595 16.2524 42.8845 16.4441 42.3179 16.4441C41.7512 16.4441 41.2762 16.2524 40.8929 15.8691C40.5095 15.4858 40.3179 15.0108 40.3179 14.4441V10.4441H8.31787V34.4441H40.3179V24.4441H25.9179L28.2179 26.7441C28.5845 27.1108 28.7679 27.5774 28.7679 28.1441C28.7679 28.7108 28.5845 29.1774 28.2179 29.5441C27.8512 29.9108 27.3845 30.0941 26.8179 30.0941C26.2512 30.0941 25.7845 29.9108 25.4179 29.5441L19.7179 23.8441C19.3179 23.4441 19.1179 22.9774 19.1179 22.4441C19.1179 21.9108 19.3179 21.4441 19.7179 21.0441L25.4179 15.3441C25.7845 14.9774 26.2512 14.7941 26.8179 14.7941C27.3845 14.7941 27.8512 14.9774 28.2179 15.3441C28.5845 15.7108 28.7679 16.1774 28.7679 16.7441C28.7679 17.3108 28.5845 17.7774 28.2179 18.1441L25.9179 20.4441H40.3179C41.4179 20.4441 42.3595 20.8358 43.1429 21.6191C43.9262 22.4024 44.3179 23.3441 44.3179 24.4441V34.4441C44.3179 35.5441 43.9262 36.4858 43.1429 37.2691C42.3595 38.0524 41.4179 38.4441 40.3179 38.4441H32.3179V40.4441C32.3179 41.0108 32.1262 41.4858 31.7429 41.8691C31.3595 42.2524 30.8845 42.4441 30.3179 42.4441H18.3179Z" />
+    </svg>
+  );
+}
+
+/** Status icon — a check inside a circle, drawn on lucide's 24px grid with lucide's own
+    stroke (width 2, round caps and joins) so it sits beside the toolbar's other icons
+    unchanged. The reason it is not lucide's `CircleCheck`: that tick spans only 6 of 24
+    units inside a radius-10 ring, which at 15px reads as a clock face. This one spans 10
+    units and is optically centred, so the check is legible at toolbar size. */
+export function IconStatusCheck({ size = 15, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m7 12.5 3.5 3.5L17 8.5" />
+    </svg>
+  );
+}
+
 /** Vulnerability module icon — shield with an exclamation mark (48px grid, from the product icon set). */
 export function IconVulnerability({ size = 20 }: { size?: number }) {
   return (
