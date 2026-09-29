@@ -11,6 +11,27 @@
 import { AlignLeft, Barcode, Boxes, Building2, CalendarDays, CircleDot, Flag, Hash, Layers, Package, Monitor, ShieldCheck, Tag, UserRound } from 'lucide-react';
 import type { Attr } from './TicketFilterBar';
 
+/* The product's Software Type classification TREE. It lives here — a leaf module that
+   imports nothing but icons and a type — because both the grid's cell dropdown and this
+   filter catalogue need it; putting it in the grid instead would make the grid and this
+   file import each other and land one of them in a temporal dead zone at startup.
+   Parents are pickable in their own right; "Software" is the root and only groups. */
+export const SOFTWARE_TYPE_TREE: { label: string; depth?: number; heading?: boolean }[] = [
+  { label: 'Software', heading: true },
+  { label: 'OS' },
+  { label: 'Linux', depth: 1 },
+  { label: 'MacOS', depth: 1 },
+  { label: 'Microsoft', depth: 1 },
+  { label: 'Web Server' },
+  { label: 'Apache', depth: 1 },
+  { label: 'IIS', depth: 1 },
+  { label: 'Application' },
+  { label: 'Mobile Application' },
+  { label: 'Database' },
+  { label: 'MySQL', depth: 1 },
+  { label: 'SQLServer', depth: 1 },
+];
+
 const o = (labels: string[]) => labels.map((label) => ({ label }));
 const TECHS = ['Sarah Johnson', 'Vikram Sethi', 'Farah Sheikh', 'Imran Qureshi', 'Rohan Mehta', 'Tabrez Khan', 'Neha Raje'];
 
@@ -60,7 +81,10 @@ export const SOFTWARE_FILTER_ATTRS: Attr[] = [
   { key: 'createdBy', label: 'Created Date', icon: CalendarDays, type: 'date' },
   { key: 'acquisitionDate', label: 'Acquisition Date', icon: CalendarDays, type: 'date' },
   { key: 'lastUpdatedDate', label: 'Last Updated Date', icon: CalendarDays, type: 'date' },
-  { key: 'x_softwareType', label: 'Software Type', icon: Layers, type: 'select', options: o(['Managed', 'Discovered', 'Unmanaged']) },
+  /* The product's Software Type tree, flattened in tree order — parents first, their
+     children after. Imported from the grid so the filter and the Status-style cell
+     dropdown can never offer different nodes. */
+  { key: 'x_softwareType', label: 'Software Type', icon: Layers, type: 'select', options: o(SOFTWARE_TYPE_TREE.filter((n) => !n.heading).map((n) => n.label)) },
   /* End-of-service-life tracking: the status, then the four dates it is derived from. */
   { key: 'eoslStatus', label: 'EOSL Status', icon: ShieldCheck, type: 'select', options: [
     { label: 'Supported', color: '#22c55e' },

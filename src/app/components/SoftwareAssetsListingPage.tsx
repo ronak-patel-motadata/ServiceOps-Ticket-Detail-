@@ -30,6 +30,22 @@ const hash = (id: string) => id.split('').reduce((n, ch) => (n * 31 + ch.charCod
    clicks open the real drawer. License health (utilization compliance, expiry)
    is seeded deterministically per id — the detail page's own recipe — and lands
    on the row as x_ bands the KPIs and saved views filter on. */
+/* Software Type is the product's classification tree (Software > OS > Linux …), so it
+   is read off the product NAME rather than stored per mock row. Managed vs Discovered
+   is a different fact — how the record got here — and rides on Origin. */
+const swTypeOf = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('sql server')) return 'SQLServer';
+  if (n.includes('mysql')) return 'MySQL';
+  if (n.includes('apache')) return 'Apache';
+  if (n.includes('iis')) return 'IIS';
+  if (n.includes('whatsapp')) return 'Mobile Application';
+  if (n.includes('windowsstore') || n.includes('winapp') || n.includes('windows')) return 'Microsoft';
+  if (n.includes('ubuntu') || n.includes('linux')) return 'Linux';
+  if (n.includes('macos')) return 'MacOS';
+  return 'Application';
+};
+
 const SW: { rows: Ticket[]; byId: Map<string, SoftwareAsset> } = (() => {
   const byId = new Map<string, SoftwareAsset>();
   const rows = mockAssets.map((a) => {
@@ -59,7 +75,8 @@ const SW: { rows: Ticket[]; byId: Map<string, SoftwareAsset> } = (() => {
       priority: 'Medium',
       managedByGroup: a.managedByGroup,
       x_version: a.version,
-      x_softwareType: a.softwareType,
+      x_softwareType: swTypeOf(a.name),
+      origin: a.softwareType === 'Discovered' ? 'Agent Scan' : 'Purchased',
       x_softwareCategory: a.softwareCategory === '---' ? '' : a.softwareCategory,
       x_impact: a.impact,
       x_compliance: compliance,
@@ -75,8 +92,8 @@ const buildCards = (tickets: Ticket[]): StatCard[] => {
   const total = tickets.length;
   const t = tickets as (Ticket & Record<string, any>)[];
   const categories = new Set(t.map((x) => x.x_softwareCategory).filter(Boolean)).size;
-  const managed = t.filter((x) => x.x_softwareType === 'Managed').length;
-  const discovered = t.filter((x) => x.x_softwareType === 'Discovered').length;
+  const managed = t.filter((x) => x.origin !== 'Agent Scan').length;
+  const discovered = t.filter((x) => x.origin === 'Agent Scan').length;
   const over = t.filter((x) => x.x_compliance === 'Over-utilized').length;
   const under = t.filter((x) => x.x_compliance === 'Under-utilized').length;
   const tracked = t.filter((x) => x.x_compliance && x.x_compliance !== 'Not Tracked').length;
@@ -90,16 +107,16 @@ const buildCards = (tickets: Ticket[]): StatCard[] => {
     {
       label: 'Managed',
       value: managed,
-      sub: total ? `${Math.round((managed / total) * 100)}% of the catalog` : '—',
+      sub: total ? `${Math.round((managed / total) * 100)}% purchased or added by IT` : '—',
       hint: 'Show managed software',
-      filter: one('x_softwareType', 'Managed'),
+      filter: one('origin', 'Purchased'),
     },
     {
       label: 'Discovered',
       value: discovered,
       sub: 'found by agent scans',
       hint: 'Show discovered software',
-      filter: one('x_softwareType', 'Discovered'),
+      filter: one('origin', 'Agent Scan'),
     },
     {
       label: 'License compliance',
@@ -153,8 +170,8 @@ const buildDashboard = (tickets: Ticket[]): DashConfig => {
     tiles: [
       { icon: AppWindow, color: '#3D8BD0', label: 'Total software', value: t.length, sub: 'in the catalog' },
       {
-        icon: ShieldCheck, color: '#22C55E', label: 'Managed', value: n((x) => x.x_softwareType === 'Managed'),
-        sub: 'under IT control', filter: ruleIs('x_softwareType', 'Managed'), hint: 'Show managed software',
+        icon: ShieldCheck, color: '#22C55E', label: 'Managed', value: n((x) => x.origin !== 'Agent Scan'),
+        sub: 'under IT control', filter: ruleIs('origin', 'Purchased'), hint: 'Show managed software',
       },
       {
         icon: AlertTriangle, color: '#DC2626', label: 'Over-utilized', value: n((x) => x.x_compliance === 'Over-utilized'),
@@ -177,8 +194,8 @@ const buildDashboard = (tickets: Ticket[]): DashConfig => {
       {
         kind: 'donut', title: 'Managed vs Discovered', centerLabel: 'software',
         segs: [
-          seg('Managed', n((x) => x.x_softwareType === 'Managed'), '#3D8BD0', 'x_softwareType'),
-          seg('Discovered', n((x) => x.x_softwareType === 'Discovered'), '#F59E0B', 'x_softwareType'),
+          seg('Managed', n((x) => x.origin !== 'Agent Scan'), '#3D8BD0', 'origin', 'Purchased'),
+          seg('Discovered', n((x) => x.origin === 'Agent Scan'), '#F59E0B', 'origin', 'Agent Scan'),
         ],
       },
       {

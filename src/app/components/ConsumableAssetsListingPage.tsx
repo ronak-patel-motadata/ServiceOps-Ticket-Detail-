@@ -9,6 +9,7 @@ import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { pctGrade, type StatCard } from './AssetStatsRow';
 import { type FilterRule } from './TicketFilterBar';
+import { CONSUMABLE_FILTER_ATTRS } from './consumableFilterAttrs';
 import { mockAssets, type ConsumableAsset } from './ConsumableAssetsListPage';
 import type { Ticket } from './TicketListPage';
 import { AlertTriangle, Boxes, Package, TriangleAlert } from 'lucide-react';
@@ -170,6 +171,11 @@ export function ConsumableAssetsListingPage({ onNavigate }: { onNavigate?: (page
       buildDashboard={buildDashboard}
       mineHint="Consumables carry no personal assignment — switch back to Overall."
       searchFields={['x_assetType', 'x_assetGroup', 'x_department', 'x_location']}
+      /* The module's own attributes — see consumableFilterAttrs.ts. */
+      filterAttrs={CONSUMABLE_FILTER_ATTRS}
+      /* Stock is worked through Filters and the grid's own cells — assignee, SLA and
+         priority are service-desk cuts that mean nothing on a consumable. */
+      showQuickFilters={false}
       onNavigate={onNavigate}
     />
   );

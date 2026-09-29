@@ -7,11 +7,12 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { assetHealthOf, type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { NONIT_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
+import { NONIT_FILTER_ATTRS } from './nonItFilterAttrs';
 import { mockAssets, type NonItAsset } from './NonItAssetsListPage';
 import { CURRENT_USER, CURRENT_USER_INITIALS } from './technicianRoster';
 import type { Ticket } from './TicketListPage';
-import { AlertTriangle, Boxes, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Boxes, CalendarClock, CheckCircle2, FlaskConical, Import } from 'lucide-react';
 
 const ruleIs = (field: string, ...values: string[]): Omit<FilterRule, 'id'>[] => [{ field, condition: 'is', values }];
 const countBy = (t: (Ticket & Record<string, any>)[], field: string) => {
@@ -203,6 +204,15 @@ export function NonItAssetsListingPage({ onNavigate }: { onNavigate?: (page: str
       buildCards={buildCards}
       buildDashboard={buildDashboard}
       searchFields={['x_assetType', 'x_impact', 'usedByLabel', 'managedByGroup']}
+      /* Same toolbar as the hardware / software registers: the module's own attributes,
+         quick cuts, label tools and 3-dot items. */
+      filterAttrs={NONIT_FILTER_ATTRS}
+      quickFilters={NONIT_QUICK_FILTERS}
+      showBarcodeTools
+      moreActions={[
+        { key: 'asset-in-stage', label: 'Asset in Stage', icon: FlaskConical },
+        { key: 'import-asset', label: 'Import Asset', icon: Import },
+      ]}
       onNavigate={onNavigate}
     />
   );

@@ -1,11 +1,13 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, Lightbulb, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Pin, Plus, Search, SearchX, ScanSearch, ShieldCheck, ShieldOff, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
 import { IconAssetUpdate } from './SidebarIcons';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
 import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilterAttrs';
-import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
+import { SOFTWARE_FILTER_ATTRS, SOFTWARE_TYPE_TREE } from './softwareFilterAttrs';
+import { NONIT_FILTER_ATTRS } from './nonItFilterAttrs';
+import { CONSUMABLE_FILTER_ATTRS } from './consumableFilterAttrs';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
 import { describeSubject } from './requestDescriptions';
 import { groupOfTechnician } from './technicianRoster';
@@ -52,7 +54,10 @@ export function useOpenFromUrl(rows: Ticket[], open: (t: Ticket) => void) {
    that fills on hover with a chevron appearing at its right, click opens the option list.
    The menu renders in a body PORTAL because the grid scrolls on both axes and would
    otherwise clip it. */
-interface CellOption { label: string; color?: string; initials?: string; statusColor?: string; icon?: React.ReactNode }
+/* `depth` indents an option under its parent — a catalogue like Software Type is a
+   TREE (Software › OS › Linux), and a flat list of twelve labels loses which node
+   belongs to which. `heading` marks a row that only groups the ones below it. */
+interface CellOption { label: string; color?: string; initials?: string; statusColor?: string; icon?: React.ReactNode; depth?: number; heading?: boolean }
 function InlineSelect({
   options,
   value,
@@ -80,6 +85,9 @@ function InlineSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  /* Folded-away branches of a tree catalogue, by parent label. Starts empty — the whole
+     catalogue is visible until someone tidies a branch away. */
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -199,13 +207,36 @@ function InlineSelect({
               </>
             ) : (
               <div className="max-h-[260px] overflow-y-auto py-1">
-                {options.map((o) => {
+                {/* A catalogue with depth is a tree: a depth-0 row owns the depth-1 rows
+                    that follow it, so it gets a chevron that folds them away. The parent
+                    stays pickable — the chevron is its own control beside the label, not
+                    a replacement for it. */}
+                {(() => {
+                  const kids = new Map<string, string[]>();
+                  const parentOf = new Map<string, string>();
+                  let cur: string | null = null;
+                  options.forEach((o) => {
+                    if (o.heading) return;
+                    if (!o.depth) { cur = o.label; kids.set(cur, []); }
+                    else if (cur) { kids.get(cur)!.push(o.label); parentOf.set(o.label, cur); }
+                  });
+                  return options.map((o) => {
                   const active = value === o.label;
-                  return (
+                  if (o.heading)
+                    return (
+                      <div key={o.label} className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
+                        {o.label}
+                      </div>
+                    );
+                  const parent = parentOf.get(o.label);
+                  if (parent && collapsed.has(parent)) return null;
+                  const hasKids = (kids.get(o.label)?.length ?? 0) > 0;
+                  const shut = collapsed.has(o.label);
+                  const pick = (
                     <button
-                      key={o.label}
                       onClick={(e) => { e.stopPropagation(); onPick(o.label); setOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${active ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'}`}
+                      style={o.depth ? { paddingLeft: 12 + o.depth * 16 } : undefined}
+                      className={`flex ${hasKids ? 'flex-1 min-w-0' : 'w-full'} items-center gap-2.5 px-3 py-2 text-left transition-colors ${active ? 'bg-[#EBF5FF]' : 'hover:bg-[#F5F7FA]'}`}
                     >
                       {o.icon ? (
                         <span className="flex-shrink-0 text-[#6B7280]">{o.icon}</span>
@@ -216,7 +247,29 @@ function InlineSelect({
                       <Check size={15} className={`flex-shrink-0 ${active ? 'text-[#3D8BD0]' : 'invisible'}`} />
                     </button>
                   );
-                })}
+                  if (!hasKids) return <Fragment key={o.label}>{pick}</Fragment>;
+                  return (
+                    <div key={o.label} className={`flex items-center ${active ? 'bg-[#EBF5FF]' : ''}`}>
+                      {pick}
+                      <button
+                        title={shut ? 'Expand' : 'Collapse'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollapsed((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(o.label)) next.delete(o.label);
+                            else next.add(o.label);
+                            return next;
+                          });
+                        }}
+                        className="mr-2 flex size-6 flex-shrink-0 items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-[#EEF2F7] hover:text-[#364658]"
+                      >
+                        <ChevronDown size={14} className={`transition-transform ${shut ? '-rotate-90' : ''}`} />
+                      </button>
+                    </div>
+                  );
+                  });
+                })()}
               </div>
             )}
           </div>
@@ -468,12 +521,56 @@ const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
 /* The listing's dropdowns are the detail page's catalogs, as CellOptions. */
 const ASSET_TYPE_CELL_OPTIONS: CellOption[] = ASSET_TYPE_OPTIONS.map((l) => ({ label: l, icon: assetTypeIcon(l) }));
 const ASSET_GROUP_CELL_OPTIONS: CellOption[] = ASSET_GROUP_OPTIONS.map((l) => ({ label: l }));
-/* Software Type says WHO put the record there: Managed (IT governs it), Discovered
-   (an agent scan found it), Unmanaged (neither) — so the glyphs read shield / scan /
-   shield-off rather than three shades of the same thing. */
+/* Software Type is the product's classification TREE (see softwareFilterAttrs.ts, which
+   owns the catalogue so the grid and the filter can share it without importing each
+   other): parents are pickable, children sit one level in, "Software" only groups. */
 const softwareTypeIcon = (type?: string) =>
-  type === 'Managed' ? <ShieldCheck size={14} /> : type === 'Discovered' ? <ScanSearch size={14} /> : <ShieldOff size={14} />;
-const SOFTWARE_TYPE_CELL_OPTIONS: CellOption[] = ['Managed', 'Discovered', 'Unmanaged'].map((l) => ({ label: l, icon: softwareTypeIcon(l) }));
+  type === 'OS' || type === 'Linux' || type === 'MacOS' || type === 'Microsoft' ? <MonitorCog size={14} />
+    : type === 'Web Server' || type === 'Apache' || type === 'IIS' ? <Server size={14} />
+    : type === 'Database' || type === 'MySQL' || type === 'SQLServer' ? <Database size={14} />
+    : type === 'Mobile Application' ? <Smartphone size={14} />
+    : <AppWindow size={14} />;
+const SOFTWARE_TYPE_CELL_OPTIONS: CellOption[] = SOFTWARE_TYPE_TREE.map((n) =>
+  n.heading ? { label: n.label, heading: true } : { label: n.label, depth: n.depth, icon: softwareTypeIcon(n.label) },
+);
+/* The product's six non-IT asset types, under the catalogue's own root heading. The
+   Stationary pencil is the one sanctioned exception to the product-wide SquarePen rule. */
+const NONIT_TYPES = ['Stationary', 'Document', 'Furniture', 'Air conditioner', 'Trash', 'Consumable'];
+const nonItTypeIcon = (t?: string) =>
+  t === 'Furniture' ? <Armchair size={14} />
+    : t === 'Stationary' ? <Pencil size={14} />
+    : t === 'Document' ? <FileText size={14} />
+    : t === 'Air conditioner' ? <AirVent size={14} />
+    : t === 'Trash' ? <Trash2 size={14} />
+    : <Package size={14} />;
+const NONIT_TYPE_CELL_OPTIONS: CellOption[] = [
+  { label: 'Non IT Assets', heading: true },
+  ...NONIT_TYPES.map((l) => ({ label: l, icon: nonItTypeIcon(l) })),
+];
+
+/* Consumable stock types — a keyboard, a toner cartridge and a box of tissues read far
+   faster with their own glyph than as twelve lines of text. */
+const consumableTypeIcon = (t?: string) =>
+  t === 'Keyboard' ? <Keyboard size={14} />
+    : t === 'Mouse' ? <Mouse size={14} />
+    : t === 'Headset' ? <Headphones size={14} />
+    : t === 'Cameras' ? <Camera size={14} />
+    : t === 'Cable' ? <Cable size={14} />
+    : t === 'Adapter' ? <Plug size={14} />
+    : t === 'Batteries' ? <BatteryFull size={14} />
+    : t === 'RAM' ? <MemoryStick size={14} />
+    : t === 'USB Drive' ? <Usb size={14} />
+    : t === 'Toner Cartridge' ? <Printer size={14} />
+    : t === 'Hand Sanitizer' ? <SprayCan size={14} />
+    : <Package size={14} />;
+
+/* The x_ columns a module lets you edit in the grid. Options come from that module's OWN
+   filter catalogue, so a cell can never offer a value the filter does not know — and the
+   list stays opt-in per module rather than turning every select attribute into a picker
+   (Available Quantity, for one, is a number in the cell and bands in the filter). */
+const MODULE_EDITABLE_COLS: Partial<Record<string, string[]>> = {
+  consumable: ['x_assetType', 'x_assetGroup', 'x_department', 'x_location'],
+};
 const RELEASE_TYPE_OPTIONS: CellOption[] = [
   { label: 'Minor', color: '#94A3B8' },
   { label: 'Major', color: '#fb923c' },
@@ -818,9 +915,12 @@ export const extraValue = (key: string, t: Ticket): string => {
     case 'resolutionTime': return closed ? ['3d 2hr 26min', '19hr 41min', '5d 4hr 12min', '23hr 38min'][h(13, 4)] : '---';
     case 'closedDuration': return closed ? `${17 + h(14, 8)} day(s)` : '---';
     default: {
-      /* An asset attribute the mock does not store — the SAME stand-in the filter bar
-         reads, so a column and a filter on that attribute can never disagree. */
-      const attr = HARDWARE_FILTER_ATTRS.find((a) => a.key === key) ?? SOFTWARE_FILTER_ATTRS.find((a) => a.key === key);
+      /* A module attribute the row DOES carry wins — otherwise a column would show a
+         stand-in while a filter on the same attribute read the real value. */
+      const own = (t as any)[key];
+      if (typeof own === 'string' && own) return own;
+      /* Otherwise the SAME stand-in the filter bar reads, so column and filter agree. */
+      const attr = [HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS].reduce<(typeof HARDWARE_FILTER_ATTRS)[number] | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
       if (attr?.type === 'date') return fmtDate(attrStandInDate(key, t.id));
       return (attr && attrStandIn(attr, t.id)) || '---';
     }
@@ -1412,7 +1512,13 @@ export function TicketTable({
   const [colW, setColW] = useState<Record<string, number>>({});
   const CHECK_W = 52;
   const MIN_W = 80;
-  const wOf = (c: ColDef) => colW[c.key] ?? c.w ?? 150;
+  /* A column is never narrower than its own HEADER: a truncated "AVAILABL…" tells the
+     reader nothing, and widening each one by hand goes stale the moment a label changes.
+     The floor is measured from the label at 11px semibold uppercase with wide tracking
+     (~7.4px per character), plus the cell's padding and room for the sort caret. The
+     grid already scrolls horizontally once the columns outgrow the container. */
+  const headerFloor = (c: ColDef) => Math.ceil(c.label.length * 7.4) + 46;
+  const wOf = (c: ColDef) => Math.max(colW[c.key] ?? c.w ?? 150, headerFloor(c));
   const dragRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [wrapW, setWrapW] = useState(0);
@@ -1498,7 +1604,7 @@ export function TicketTable({
       <span className="h-4 w-px bg-[#E5E7EB] transition-colors group-hover/rz:h-full group-hover/rz:w-[2px] group-hover/rz:bg-[#3D8BD0]" />
     </span>
   );
-  const TH = 'group/th sticky top-[var(--tb,0px)] z-30 cursor-grab select-none shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
+  const TH = 'group/th sticky top-[var(--tb,0px)] z-30 cursor-grab select-none whitespace-nowrap shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
   /* Columns are drag-to-reorder from the header (tab-strip DnD recipe: dimmed source,
      blue left drop indicator); the order persists like the Customize Layout sections.
      `flex` columns share out leftover width; the rest hold the width they were given. */
@@ -1548,7 +1654,9 @@ export function TicketTable({
         { key: 'id', label: 'ID', w: 136 },
         { key: 'subject', label: 'Name', flex: true, w: 320 },
         { key: 'x_assetType', label: 'Asset Type', w: 150 },
-        { key: 'x_availableQty', label: 'Available Qty', w: 120 },
+        /* Named as the module's attribute list names it — the filter and Manage columns
+           both read "Available Quantity", and one fact should not have two names. */
+        { key: 'x_availableQty', label: 'Available Quantity', w: 180 },
         { key: 'x_assetGroup', label: 'Asset Group', w: 150 },
         { key: 'x_department', label: 'Department', w: 130 },
         { key: 'x_location', label: 'Location', w: 120 },
@@ -1623,7 +1731,7 @@ export function TicketTable({
       ];
   /* Asset grids offer their own attributes as optional columns; every other module keeps
      the request extras. */
-  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : null;
+  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : moduleCols === 'nonit' ? NONIT_FILTER_ATTRS : moduleCols === 'consumable' ? CONSUMABLE_FILTER_ATTRS : null;
   const CATALOG: ColDef[] = [...COL_DEFS, ...(MODULE_ATTRS ? assetExtraCols(COL_DEFS, MODULE_ATTRS) : EXTRA_COLS)];
   // The stored value is the ordered VISIBLE set — removing a column persists too.
   const COL_ORDER_KEY = moduleCols ? `${moduleCols}ListColumnsV2` : 'ticketListColumnsV2';
@@ -1862,6 +1970,72 @@ export function TicketTable({
           >
             <span className="flex min-w-0 items-center gap-2">
               <span className="flex-shrink-0 text-[#6B7280]">{softwareTypeIcon(v)}</span>
+              <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+            </span>
+          </InlineSelect>
+        </td>
+      );
+    }
+    /* Non-IT Asset Type is editable in the grid with its own icons, the same treatment
+       Asset Type has on hardware. Gated to that module: the consumable register reuses
+       this column key for an entirely different catalogue (Cable, Mouse, Batteries…). */
+    if (key === 'x_assetType' && moduleCols === 'nonit') {
+      const v = (ticket as any).x_assetType as string | undefined;
+      return (
+        <td className="px-2 py-0 whitespace-nowrap">
+          <InlineSelect
+            options={NONIT_TYPE_CELL_OPTIONS}
+            menuWidth={210}
+            value={v}
+            onPick={(label) => onUpdateTicket?.(ticket.id, { x_assetType: label } as Partial<Ticket>)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex-shrink-0 text-[#6B7280]">{nonItTypeIcon(v)}</span>
+              <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+            </span>
+          </InlineSelect>
+        </td>
+      );
+    }
+    /* Remaining stock reads as a chip — the same light-grey/dark-text treatment the Used By
+       cell uses, so the two columns belong to one visual language. Fixed width and tabular
+       figures keep the digits aligned down the column; the tooltip carries the meaning
+       (out of stock / running low) rather than tinting every row. */
+    if (key === 'x_availableQty') {
+      const qty = Number((ticket as any).x_availableQty ?? 0);
+      const tip = qty <= 0 ? 'Out of stock — reorder' : qty <= 10 ? `Low stock — only ${qty} left` : `In stock — ${qty} available`;
+      return (
+        <td className="px-4 py-3 whitespace-nowrap">
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex min-w-[46px] cursor-default items-center justify-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#364658]">
+                {qty}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{tip}</TooltipContent>
+          </Tooltip>
+        </td>
+      );
+    }
+    /* Module-declared editable columns (see MODULE_EDITABLE_COLS) — Asset Type carries
+       its icons, the rest are plain value pickers. */
+    if (key.startsWith('x_') && MODULE_EDITABLE_COLS[moduleCols ?? '']?.includes(key)) {
+      const v = (ticket as any)[key] as string | undefined;
+      const withIcons = key === 'x_assetType';
+      const opts: CellOption[] = (MODULE_ATTRS?.find((a) => a.key === key)?.options ?? []).map((o) => ({
+        label: o.label,
+        icon: withIcons ? consumableTypeIcon(o.label) : undefined,
+      }));
+      return (
+        <td className="px-2 py-0 whitespace-nowrap">
+          <InlineSelect
+            options={opts}
+            menuWidth={210}
+            value={v}
+            onPick={(label) => onUpdateTicket?.(ticket.id, { [key]: label } as Partial<Ticket>)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              {withIcons && <span className="flex-shrink-0 text-[#6B7280]">{consumableTypeIcon(v)}</span>}
               <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
             </span>
           </InlineSelect>
@@ -2720,7 +2894,10 @@ export function TicketTable({
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
                 <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
                 <span className="flex items-center gap-0.5">
-                  <span className="truncate">{c.label}</span>
+                  {/* Never clipped: `headerFloor` keeps every column at least as wide as
+                      its own label, and the grid scrolls when the row outgrows the
+                      container — a header reading "AVAILABL…" tells the reader nothing. */}
+                  <span className="whitespace-nowrap">{c.label}</span>
                   {/* One-click sort toggle — the most-used action lives on the header
                       itself; the menu keeps the rest. */}
                   {sortFieldOf(c.key) && sortButton(sortFieldOf(c.key)!, 'group-hover/th:opacity-100')}
@@ -2894,11 +3071,14 @@ export function TicketTable({
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
-                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none truncate whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
                             <span className="flex items-center gap-0.5">
-                              <span className="truncate">{m.col.label}</span>
+                              {/* Never clipped — `headerFloor` keeps the column at least as
+                                  wide as its own label, and the grid scrolls if the row
+                                  outgrows the container. */}
+                              <span className="whitespace-nowrap">{m.col.label}</span>
                               {sortFieldOf(m.col.key) && sortButton(sortFieldOf(m.col.key)!, 'group-hover/gh:opacity-100')}
                             </span>
                           </th>

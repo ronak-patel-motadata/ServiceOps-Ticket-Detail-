@@ -80,6 +80,7 @@ export function AssetRegisterPage({
   quickFilters,
   moreActions,
   showBarcodeTools = false,
+  showQuickFilters = true,
   initialOpenId,
   onInitialOpenConsumed,
   onNavigate,
@@ -106,6 +107,8 @@ export function AssetRegisterPage({
   moreActions?: React.ComponentProps<typeof TicketGridToolbar>['moreActions'];
   /** Registers whose records carry a physical label get the barcode / scan tools. */
   showBarcodeTools?: boolean;
+  /** false drops the quick-filter icons entirely (a register with no useful one-click cut). */
+  showQuickFilters?: boolean;
   /** Empty-state line for the dashboard's "Mine" scope on thinly-owned registers. */
   mineHint?: string;
   /** Extra row fields the free-text search also matches (x_ keys). */
@@ -307,6 +310,7 @@ export function AssetRegisterPage({
                     noun={noun}
                     viewsStore={viewsStore}
                     showBarcodeTools={showBarcodeTools}
+                    showQuickFilters={showQuickFilters}
                     filterAttrs={filterAttrs}
                     quickFilters={quickFilters}
                     moreActions={moreActions}

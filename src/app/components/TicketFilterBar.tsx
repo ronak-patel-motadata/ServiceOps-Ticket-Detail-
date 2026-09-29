@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   AlignLeft,
+  Boxes,
   CalendarDays,
   Check,
   CircleDot,
@@ -27,6 +28,8 @@ import { TECH_GROUPS } from './technicianRoster';
 import { DEPARTMENTS } from './orgDepartments';
 import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilterAttrs';
 import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
+import { NONIT_FILTER_ATTRS } from './nonItFilterAttrs';
+import { CONSUMABLE_FILTER_ATTRS, qtyBandOf } from './consumableFilterAttrs';
 import { IconStatusCheck } from './SidebarIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -194,7 +197,7 @@ const NEEDS_VALUE = (c: Condition) => c !== 'empty' && c !== 'not empty';
 /* Every module catalogue is searchable here, not just the request set: applyFilters needs
    an attribute TYPE (a date filter reads a Date, not a string) and it runs on pages that
    hand the bar their own catalogue. The request set wins a shared key, so nothing moves.  */
-const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS];
+const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS];
 export const attrOf = (key: string): Attr | undefined =>
   FILTER_ATTRS.find((a) => a.key === key) ?? MODULE_ATTR_SETS.reduce<Attr | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
 
@@ -217,6 +220,10 @@ const COL_TO_ATTR: Record<string, string> = {
 const DAY = 86400000;
 const valueFor = (t: Ticket, field: string): string => {
   switch (field) {
+    /* Remaining stock is a NUMBER on the row but a BAND in the filter — the column
+       shows 12, the filter offers '11 - 50'. Bucket before comparing. */
+    case 'x_availableQty':
+      return qtyBandOf(Number((t as any).x_availableQty ?? 0));
     case 'assignedTo':
       return t.assignedTo.name;
     case 'sla': {
@@ -598,6 +605,14 @@ const swOptions = (key: string) => SOFTWARE_FILTER_ATTRS.find((a) => a.key === k
 export const SOFTWARE_QUICK_FILTERS: QuickFilterDef[] = [
   { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 180, row: 'dot', options: swOptions('status') },
   { field: 'x_softwareType', icon: Layers, tip: 'Filter by software type', title: 'Software type is', width: 200, row: 'plain', options: swOptions('x_softwareType') },
+];
+
+/* The non-IT register's pair — same "state, then kind" shape as hardware: where a chair
+   or a pool car is in its life, then what kind of thing it is. */
+const niOptions = (key: string) => NONIT_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const NONIT_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: niOptions('status') },
+  { field: 'x_assetType', icon: Boxes, tip: 'Filter by asset type', title: 'Asset type is', width: 210, row: 'plain', options: niOptions('x_assetType') },
 ];
 
 function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void; filters?: QuickFilterDef[] }) {
