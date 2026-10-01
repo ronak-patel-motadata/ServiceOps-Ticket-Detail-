@@ -7,7 +7,9 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { PURCHASE_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
+import { PURCHASE_FILTER_ATTRS } from './purchaseFilterAttrs';
+import { INVOICE_RECEIVED_OPTIONS, PAYMENT_STATUS_OPTIONS } from './AssetFields';
 import { mockPurchases, type Purchase } from './PurchasesListPage';
 import type { Ticket } from './TicketListPage';
 import { AlertTriangle, Hourglass, PackageOpen, ShoppingCart } from 'lucide-react';
@@ -34,6 +36,15 @@ const hash = (id: string) => id.split('').reduce((n, ch) => (n * 31 + ch.charCod
 /** Deterministic PO value — the detail page's line-items total, per order. */
 const orderValueOf = (id: string) => 45000 + (hash(id) % 96) * 8500;
 const OPEN_STATUSES = ['Generated', 'Sent For Approval', 'Approved', 'Ordered', 'Partially Received'];
+/* Money, formatted the way the Contract register formats it, so the grid's money chip
+   reads the same in both. */
+const fmtMoney = (n: number) => `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR`;
+/* The money clock: how much of the order has been invoiced, and how much of that paid.
+   Both are derived from the SAME deterministic hash as the order value, and the Invoice
+   Received / Payment Status fields are read back OFF those amounts — so "Payment Status
+   is Paid" and a payment amount equal to the total can never contradict each other. */
+const INVOICED_FRACTION = [0, 0.5, 1];
+const paidFractionOf = (invoiced: number, n: number) => (invoiced === 0 ? 0 : [0, 0.4, 1][n % 3] * invoiced);
 
 const PU: { rows: Ticket[]; byId: Map<string, Purchase> } = (() => {
   const byId = new Map<string, Purchase>();
@@ -45,6 +56,11 @@ const PU: { rows: Ticket[]; byId: Map<string, Purchase> } = (() => {
     const dueBand = p.status === 'Received' ? 'Delivered' : days < 0 ? 'Overdue' : days <= 14 ? 'Due soon' : 'Scheduled';
     const created = new Date(req.getTime() - 45 * DAY);
     const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    const h = hash(p.id);
+    const total = orderValueOf(p.id);
+    const invFrac = INVOICED_FRACTION[h % 3];
+    const invoiced = Math.round(total * invFrac);
+    const paid = Math.round(paidFractionOf(invFrac, h >> 2) * total);
     return {
       id: p.id,
       subject: p.name,
@@ -57,6 +73,17 @@ const PU: { rows: Ticket[]; byId: Map<string, Purchase> } = (() => {
       x_orderNumber: p.orderNumber,
       x_vendor: p.vendor,
       x_requiredBy: p.requiredBy,
+      /* The parsed date behind the printed dd/mm/yyyy — the Required By filter compares
+         Dates, the column keeps printing the string. */
+      requiredOn: req,
+      x_totalCost: fmtMoney(total),
+      x_invoiceAmount: fmtMoney(invoiced),
+      x_paymentAmount: fmtMoney(paid),
+      invoiceReceived: INVOICE_RECEIVED_OPTIONS[h % 3],
+      paymentStatus: invoiced === 0 ? PAYMENT_STATUS_OPTIONS[0]
+        : paid === 0 ? PAYMENT_STATUS_OPTIONS[1]
+        : paid < invoiced ? PAYMENT_STATUS_OPTIONS[2]
+        : PAYMENT_STATUS_OPTIONS[3],
       x_dueBand: dueBand,
     } as Ticket;
   });
@@ -188,7 +215,13 @@ export function PurchasesListingPage({ onNavigate }: { onNavigate?: (page: strin
       buildCards={buildCards}
       buildDashboard={buildDashboard}
       mineHint="No purchase orders are owned by you yet — switch back to Overall."
-      searchFields={['x_orderNumber', 'x_vendor', 'x_requiredBy']}
+      filterAttrs={PURCHASE_FILTER_ATTRS}
+      /* Status is the order's POSITION IN THE WORKFLOW — it moves by approving, ordering
+         and receiving, never by picking from a list. The cell reads as plain text. */
+      lockedCells={['status']}
+      /* One cut: where the order sits in the pipeline. */
+      quickFilters={PURCHASE_QUICK_FILTERS}
+      searchFields={['x_orderNumber', 'x_vendor', 'x_requiredBy', 'x_totalCost']}
       onNavigate={onNavigate}
     />
   );

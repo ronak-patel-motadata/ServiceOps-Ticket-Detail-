@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, UserCheck, X } from 'lucide-react';
+import { GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
 import { IconAssetUpdate } from './SidebarIcons';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
@@ -8,6 +8,13 @@ import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilt
 import { SOFTWARE_FILTER_ATTRS, SOFTWARE_TYPE_TREE } from './softwareFilterAttrs';
 import { NONIT_FILTER_ATTRS } from './nonItFilterAttrs';
 import { CONSUMABLE_FILTER_ATTRS } from './consumableFilterAttrs';
+import { LICENSE_FILTER_ATTRS } from './licenseFilterAttrs';
+import { CONTRACT_FILTER_ATTRS } from './contractFilterAttrs';
+import { PURCHASE_FILTER_ATTRS } from './purchaseFilterAttrs';
+import { METER_FILTER_ATTRS } from './softwareMeterFilterAttrs';
+import { CMDB_FILTER_ATTRS } from './cmdbFilterAttrs';
+import { KNOWLEDGE_FILTER_ATTRS } from './knowledgeFilterAttrs';
+import { CI_TYPE_MENU, ciTypeIcon } from './CmdbCategoryRail';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
 import { describeSubject } from './requestDescriptions';
 import { groupOfTechnician } from './technicianRoster';
@@ -66,6 +73,7 @@ function InlineSelect({
   user,
   accent = '#3D8BD0',
   showUnassigned = true,
+  searchable,
   searchPlaceholder = 'Search for users...',
   children,
 }: {
@@ -80,6 +88,10 @@ function InlineSelect({
   user?: boolean;
   accent?: string;
   showUnassigned?: boolean;
+  /** A catalogue too long to scan — the CMDB's 80-odd CI classes — gets the same search
+      box the people picker has, and matches list flat (the tree is for browsing, not for
+      the row you already know the name of). */
+  searchable?: boolean;
   searchPlaceholder?: string;
   children: React.ReactNode;
 }) {
@@ -206,21 +218,43 @@ function InlineSelect({
                 </div>
               </>
             ) : (
+              <>
+              {searchable && (
+                <div className="px-3 pb-2 pt-0.5">
+                  <div className="relative">
+                    <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <input
+                      autoFocus
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+                      placeholder={searchPlaceholder}
+                      className="h-8 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] pl-8 pr-2 text-[13px] text-[#364658] outline-none placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="max-h-[260px] overflow-y-auto py-1">
                 {/* A catalogue with depth is a tree: a depth-0 row owns the depth-1 rows
                     that follow it, so it gets a chevron that folds them away. The parent
                     stays pickable — the chevron is its own control beside the label, not
                     a replacement for it. */}
                 {(() => {
+                  /* While searching, the tree flattens to its matches: indentation under a
+                     parent that has been filtered out would point at nothing. */
+                  const q = searchable ? query.trim().toLowerCase() : '';
+                  const options_ = q
+                    ? options.filter((o) => !o.heading && o.label.toLowerCase().includes(q)).map((o) => ({ ...o, depth: 0 }))
+                    : options;
                   const kids = new Map<string, string[]>();
                   const parentOf = new Map<string, string>();
                   let cur: string | null = null;
-                  options.forEach((o) => {
+                  options_.forEach((o) => {
                     if (o.heading) return;
                     if (!o.depth) { cur = o.label; kids.set(cur, []); }
                     else if (cur) { kids.get(cur)!.push(o.label); parentOf.set(o.label, cur); }
                   });
-                  return options.map((o) => {
+                  return options_.map((o) => {
                   const active = value === o.label;
                   if (o.heading)
                     return (
@@ -271,6 +305,7 @@ function InlineSelect({
                   });
                 })()}
               </div>
+              </>
             )}
           </div>
         </>,
@@ -504,6 +539,19 @@ const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
     { label: 'In Store', color: '#0EA5E9' },
     { label: 'Not Working', color: '#DC2626' },
   ],
+  /* The CI lifecycle, taken straight from the module's filter catalogue so the cell's
+     dropdown and the filter's value list cannot drift apart — they are one list. Coloured
+     there by what each state MEANS: running green, down red, under work amber, out of
+     service grey. */
+  cmdb: (CMDB_FILTER_ATTRS.find((a) => a.key === 'status')?.options ?? []) as CellOption[],
+  /* Likewise the article lifecycle — one list, shared by the cell and the filter. */
+  knowledge: (KNOWLEDGE_FILTER_ATTRS.find((a) => a.key === 'status')?.options ?? []) as CellOption[],
+  /* A metered application is only ever installed, shelved or retired. */
+  meter: [
+    { label: 'In Use', color: '#22C55E' },
+    { label: 'In Stock', color: '#3D8BD0' },
+    { label: 'Retired', color: '#4B5563' },
+  ],
   contract: [
     { label: 'Active', color: '#22C55E' },
     { label: 'Not Started', color: '#F59E0B' },
@@ -524,7 +572,7 @@ const ASSET_GROUP_CELL_OPTIONS: CellOption[] = ASSET_GROUP_OPTIONS.map((l) => ({
 /* Software Type is the product's classification TREE (see softwareFilterAttrs.ts, which
    owns the catalogue so the grid and the filter can share it without importing each
    other): parents are pickable, children sit one level in, "Software" only groups. */
-const softwareTypeIcon = (type?: string) =>
+export const softwareTypeIcon = (type?: string) =>
   type === 'OS' || type === 'Linux' || type === 'MacOS' || type === 'Microsoft' ? <MonitorCog size={14} />
     : type === 'Web Server' || type === 'Apache' || type === 'IIS' ? <Server size={14} />
     : type === 'Database' || type === 'MySQL' || type === 'SQLServer' ? <Database size={14} />
@@ -536,13 +584,20 @@ const SOFTWARE_TYPE_CELL_OPTIONS: CellOption[] = SOFTWARE_TYPE_TREE.map((n) =>
 /* The product's six non-IT asset types, under the catalogue's own root heading. The
    Stationary pencil is the one sanctioned exception to the product-wide SquarePen rule. */
 const NONIT_TYPES = ['Stationary', 'Document', 'Furniture', 'Air conditioner', 'Trash', 'Consumable'];
-const nonItTypeIcon = (t?: string) =>
+export const nonItTypeIcon = (t?: string) =>
   t === 'Furniture' ? <Armchair size={14} />
     : t === 'Stationary' ? <Pencil size={14} />
     : t === 'Document' ? <FileText size={14} />
     : t === 'Air conditioner' ? <AirVent size={14} />
     : t === 'Trash' ? <Trash2 size={14} />
     : <Package size={14} />;
+/* The CMDB's class tree as a pickable catalogue — indented like the rail, each row wearing
+   the glyph its class uses everywhere else. */
+const CI_TYPE_CELL_OPTIONS: CellOption[] = CI_TYPE_MENU.map((n) => ({
+  label: n.label,
+  depth: n.depth,
+  icon: ciTypeIcon(n.label, 14),
+}));
 const NONIT_TYPE_CELL_OPTIONS: CellOption[] = [
   { label: 'Non IT Assets', heading: true },
   ...NONIT_TYPES.map((l) => ({ label: l, icon: nonItTypeIcon(l) })),
@@ -550,7 +605,7 @@ const NONIT_TYPE_CELL_OPTIONS: CellOption[] = [
 
 /* Consumable stock types — a keyboard, a toner cartridge and a box of tissues read far
    faster with their own glyph than as twelve lines of text. */
-const consumableTypeIcon = (t?: string) =>
+export const consumableTypeIcon = (t?: string) =>
   t === 'Keyboard' ? <Keyboard size={14} />
     : t === 'Mouse' ? <Mouse size={14} />
     : t === 'Headset' ? <Headphones size={14} />
@@ -564,12 +619,40 @@ const consumableTypeIcon = (t?: string) =>
     : t === 'Hand Sanitizer' ? <SprayCan size={14} />
     : <Package size={14} />;
 
+/* Numeric columns that read as a grey chip instead of loose digits — stock in hand and
+   the licence seat counts. Kept as one list so the treatment cannot drift column to
+   column; a module adds a count column by naming it here. */
+const COUNT_CHIP_COLS = new Set(['x_availableQty', 'x_purchaseCount', 'x_allocationCount', 'x_installationCount']);
+/* The chip itself — one class for every figure in the grid (counts AND money), so the
+   treatment cannot drift between columns. */
+const COUNT_CHIP = 'inline-flex min-w-[46px] cursor-default items-center justify-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#364658]';
+
+/* Money columns. What a contract COSTS is the number the portfolio is judged on, so it is
+   given the treatment money gets in every grid that takes it seriously: right-aligned so
+   the magnitudes line up, tabular figures so the digits sit in columns, and weight on the
+   value. The unit is stated once in the header ("Cost (INR)") rather than repeated on
+   every row, and the amount is sorted as a NUMBER — "1,000,000.00" sorts before
+   "500,000.00" as a string, which would make the sort actively misleading. */
+export const MONEY_COLS = new Set(['x_cost', 'x_totalCost', 'x_invoiceAmount', 'x_paymentAmount']);
+/** "500,000.00 INR" → "500,000.00" — the unit lives in the header. */
+export const moneyAmount = (v: unknown): string => {
+  const s = String(v ?? '').trim();
+  return s.toUpperCase().endsWith('INR') ? s.slice(0, -3).trim() : s;
+};
+/** The amount as a number, for sorting. No recorded cost sorts below every real one. */
+export const moneyNumber = (v: unknown): number => {
+  const n = parseFloat(moneyAmount(v).split(',').join(''));
+  return Number.isFinite(n) ? n : -1;
+};
+
 /* The x_ columns a module lets you edit in the grid. Options come from that module's OWN
    filter catalogue, so a cell can never offer a value the filter does not know — and the
    list stays opt-in per module rather than turning every select attribute into a picker
    (Available Quantity, for one, is a number in the cell and bands in the filter). */
 const MODULE_EDITABLE_COLS: Partial<Record<string, string[]>> = {
   consumable: ['x_assetType', 'x_assetGroup', 'x_department', 'x_location'],
+  license: ['x_licenseType'],
+  contract: ['x_contractType'],
 };
 const RELEASE_TYPE_OPTIONS: CellOption[] = [
   { label: 'Minor', color: '#94A3B8' },
@@ -629,7 +712,7 @@ const USED_BY_OPTIONS: CellOption[] = [
   label: n,
   initials: requesterAvatar(n).initials,
 }));
-interface ColDef { key: string; label: string; flex?: boolean; w?: number }
+interface ColDef { key: string; label: string; flex?: boolean; w?: number; align?: 'right' }
 
 /* ── Similarity grouping ──────────────────────────────────────────────────────
    A grouping axis that is NOT a column: the clusters the AI suggestions panel found.
@@ -770,13 +853,21 @@ const SIM_SUMMARY = new Map<string, string>(SIM_CLUSTERS.map((c) => [c.key, c.su
    filter on. Columns the table already shows are dropped, matched on key AND
    label: a shown column can name the same fact differently (`assignee` is
    "Managed By", `serialNo` is "Hardware - Serial Number"). */
+/* A grid column and the attribute behind it are ONE fact under two names — the Author
+   column is the `assignedTo` attribute, Created Date is `createdBy`. Without this, a
+   catalogue that names the attribute differently ("Created By" for the author) would offer
+   a second column showing the very same values. */
+const COL_ATTR_KEY: Record<string, string> = { assignee: 'assignedTo', created: 'createdBy', dueStatus: 'sla' };
+
 const assetExtraCols = (shown: ColDef[], catalogue: typeof HARDWARE_FILTER_ATTRS): ColDef[] => {
-  const keys = new Set(shown.map((c) => c.key));
+  const keys = new Set(shown.flatMap((c) => [c.key, COL_ATTR_KEY[c.key]].filter(Boolean) as string[]));
   const labels = new Set(shown.map((c) => c.label));
   return catalogue.filter((a) => !keys.has(a.key) && !labels.has(a.label)).map((a) => ({
     key: a.key,
     label: a.label,
     w: Math.min(280, Math.max(120, a.label.length * 7 + 44)),
+    /* An added money column arrives right-aligned and chipped, like a designed one. */
+    ...(MONEY_COLS.has(a.key) ? { align: 'right' as const } : {}),
   }));
 };
 
@@ -919,8 +1010,11 @@ export const extraValue = (key: string, t: Ticket): string => {
          stand-in while a filter on the same attribute read the real value. */
       const own = (t as any)[key];
       if (typeof own === 'string' && own) return own;
+      /* A DATE the row carries (Created Date, Required By) — print the real one, or the
+         column would show a stand-in while a filter on it read the row's true date. */
+      if (own instanceof Date) return fmtDate(own);
       /* Otherwise the SAME stand-in the filter bar reads, so column and filter agree. */
-      const attr = [HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS].reduce<(typeof HARDWARE_FILTER_ATTRS)[number] | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
+      const attr = [HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS, LICENSE_FILTER_ATTRS, CONTRACT_FILTER_ATTRS, PURCHASE_FILTER_ATTRS, METER_FILTER_ATTRS, CMDB_FILTER_ATTRS].reduce<(typeof HARDWARE_FILTER_ATTRS)[number] | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
       if (attr?.type === 'date') return fmtDate(attrStandInDate(key, t.id));
       return (attr && attrStandIn(attr, t.id)) || '---';
     }
@@ -1420,7 +1514,7 @@ interface TicketTableProps {
       'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'meter' | 'cmdb' | 'knowledge' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
   /** Per-row actions (the Approvals grid's asset update / approve / reject / refer back / view). */
   onRowAction?: (ticket: Ticket, action: 'view' | 'asset-update' | 'approve' | 'reject' | 'refer') => void;
   /** Column keys whose cells are READ-ONLY here — they render as plain values
@@ -1512,13 +1606,47 @@ export function TicketTable({
   const [colW, setColW] = useState<Record<string, number>>({});
   const CHECK_W = 52;
   const MIN_W = 80;
-  /* A column is never narrower than its own HEADER: a truncated "AVAILABL…" tells the
-     reader nothing, and widening each one by hand goes stale the moment a label changes.
-     The floor is measured from the label at 11px semibold uppercase with wide tracking
-     (~7.4px per character), plus the cell's padding and room for the sort caret. The
-     grid already scrolls horizontally once the columns outgrow the container. */
-  const headerFloor = (c: ColDef) => Math.ceil(c.label.length * 7.4) + 46;
-  const wOf = (c: ColDef) => Math.max(colW[c.key] ?? c.w ?? 150, headerFloor(c));
+  /* A column is never narrower than its own HEADING — "CONTRACT STA…" tells the reader
+     nothing. The floor is measured from the label as it is actually painted (11px semibold
+     uppercase with wide tracking, ~7.4px per character; spaces are narrower), plus the
+     cell's 32px padding and the space the sort caret holds. A column the user has DRAGGED
+     narrower is left alone — that is their call — and the heading truncates there.
+     (This floor is not what made the spacing uneven; the flex distribution below was.) */
+  const labelWidths = useRef(new Map<string, number>());
+  const [, bumpMeasure] = useState(0);
+  /* Measured by LAYING THE HEADING OUT, not by estimating it: a hidden span carrying the
+     header's exact type settings, inside the page so it inherits the page's font. Canvas
+     `measureText` was tried and is subtly wrong once a webfont is involved — it can report
+     Inter's metrics while the header is still painted in the fallback, which is how
+     "CONTRACT STA…" survived two rounds of arithmetic. Measured once per label, and again
+     when the webfont finishes loading, since that changes every width on the page. */
+  const measureLabels = (labels: string[]) => {
+    const miss = labels.filter((l) => !labelWidths.current.has(l));
+    if (!miss.length || typeof document === 'undefined') return;
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap;font-weight:600;font-size:11px;letter-spacing:0.025em;text-transform:uppercase';
+    document.body.appendChild(probe);
+    miss.forEach((l) => {
+      probe.textContent = l;
+      labelWidths.current.set(l, probe.getBoundingClientRect().width);
+    });
+    probe.remove();
+    bumpMeasure((n) => n + 1);
+  };
+  const labelFloor = (label: string) => {
+    /* Until the first measurement lands, a deliberately GENEROUS estimate — a column one
+       frame too wide is invisible; one frame too narrow shows an ellipsis. */
+    const px = labelWidths.current.get(label) ?? label.length * 8;
+    /* px-4 on both sides, the width the sort caret holds (16px button + 2px gap), and 4px
+       so a heading that fills its cell to the pixel still clears the ellipsis. */
+    return Math.ceil(px) + 32 + 18 + 4;
+  };
+  const wOf = (c: ColDef) => Math.max(colW[c.key] ?? Math.max(c.w ?? 150, labelFloor(c.label)), MIN_W);
+  /* How far a SECONDARY flex column may stretch when there is slack. Without a ceiling
+     every flex column grew by the same factor, so a 220px Vendor became 380px of mostly
+     whitespace while the name column — the one that actually benefits from room — grew no
+     faster. Secondaries take a modest amount; the first flex column absorbs the rest. */
+  const growCap = (c: ColDef) => Math.round(wOf(c) * 1.3);
   const dragRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [wrapW, setWrapW] = useState(0);
@@ -1640,6 +1768,48 @@ export function TicketTable({
         { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
         { key: 'x_impact', label: 'Impact', w: 140 },
     ],
+    /* Knowledge — the article listing's own columns, on the data grid. Feedback is ONE
+       column: the thumbs up and down are two halves of the same judgement, and splitting
+       them costs a column to say nothing more. */
+    knowledge: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 360 },
+        { key: 'assignee', label: 'Author', flex: true, w: 200 },
+        { key: 'status', label: 'Status', w: 150 },
+        { key: 'x_approvalStatus', label: 'Approval Status', w: 180 },
+        { key: 'x_feedback', label: 'Feedback', w: 140, align: 'right' },
+    ],
+    /* CMDB Base CI — the same columns the module has always shown, on the data grid. */
+    cmdb: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 250 },
+        /* Sized so the row still fits beside the 344px CMDB rail on a 1900px screen — the
+           grid scrolls below that, as everywhere else. */
+        { key: 'x_ciType', label: 'CI Type', w: 150 },
+        { key: 'status', label: 'Status', w: 140 },
+        { key: 'x_hostName', label: 'Host Name', w: 140 },
+        { key: 'x_ipAddress', label: 'IP Address', w: 125 },
+        /* The same editable multi-user cell the hardware register uses — wide enough for a
+           team name and its "+N" chip side by side ("End User Computing  +12"). */
+        { key: 'usedBy', label: 'Used By', w: 195 },
+        { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 180 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 165 },
+    ],
+    /* Software Meter — the product's own column set for a metered application. The usage
+       facts (Last Used, Launch Count, Usage Hours) are one Manage-columns click away
+       rather than shown by default, which is how the product presents this list. */
+    meter: [
+        { key: 'id', label: 'ID', w: 116 },
+        { key: 'subject', label: 'Name', flex: true, w: 300 },
+        { key: 'x_assetType', label: 'Asset Type', w: 150 },
+        { key: 'status', label: 'Status', w: 130 },
+        /* Wide enough for a four-part build number ("24350.207.3397.6852"). */
+        { key: 'x_version', label: 'Version', w: 180 },
+        { key: 'x_softwareType', label: 'Software Type', w: 170 },
+        { key: 'managedByGroup', label: 'Managed By Group', flex: true, w: 190 },
+        { key: 'assignee', label: 'Managed By', flex: true, w: 180 },
+        { key: 'created', label: 'Created Date', flex: true, w: 190 },
+    ],
     nonit: [
         { key: 'id', label: 'ID', w: 100 },
         { key: 'subject', label: 'Name', flex: true, w: 340 },
@@ -1677,11 +1847,14 @@ export function TicketTable({
         { key: 'id', label: 'ID', w: 100 },
         { key: 'subject', label: 'Name', flex: true, w: 300 },
         { key: 'x_contractType', label: 'Contract Type', w: 150 },
-        { key: 'status', label: 'Status', w: 130 },
+        /* Named as the module's attribute list names them — the filter and Manage columns
+           both read "Contract Status / Start Date / End Date", and one fact should not
+           have two names (the dedupe matches on label as well as key). */
+        { key: 'status', label: 'Contract Status', w: 150 },
         { key: 'x_vendor', label: 'Vendor', flex: true, w: 220 },
-        { key: 'x_cost', label: 'Cost', w: 160 },
-        { key: 'x_startDate', label: 'Start Date', w: 120 },
-        { key: 'x_endDate', label: 'End Date', w: 120 },
+        { key: 'x_cost', label: 'Cost (INR)', w: 160, align: 'right' },
+        { key: 'x_startDate', label: 'Contract Start Date', w: 165 },
+        { key: 'x_endDate', label: 'Contract End Date', w: 160 },
     ],
     approval: [
         { key: 'id', label: 'Name', w: 150 },
@@ -1731,7 +1904,16 @@ export function TicketTable({
       ];
   /* Asset grids offer their own attributes as optional columns; every other module keeps
      the request extras. */
-  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : moduleCols === 'nonit' ? NONIT_FILTER_ATTRS : moduleCols === 'consumable' ? CONSUMABLE_FILTER_ATTRS : null;
+  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : moduleCols === 'nonit' ? NONIT_FILTER_ATTRS : moduleCols === 'consumable' ? CONSUMABLE_FILTER_ATTRS : moduleCols === 'license' ? LICENSE_FILTER_ATTRS : moduleCols === 'contract' ? CONTRACT_FILTER_ATTRS : moduleCols === 'purchase' ? PURCHASE_FILTER_ATTRS : moduleCols === 'meter' ? METER_FILTER_ATTRS : moduleCols === 'cmdb' ? CMDB_FILTER_ATTRS : moduleCols === 'knowledge' ? KNOWLEDGE_FILTER_ATTRS : null;
+  /* Managed By Group's menu, where the module's catalogue names its own teams. */
+  const moduleGroupOptions: CellOption[] | null =
+    MODULE_ATTRS?.find((a) => a.key === 'managedByGroup')?.options?.map((o) => ({ label: o.label })) ?? null;
+  /* Likewise the people: an asset register is managed by its own team, not by the service
+     desk's technician roster. "Unassigned" is the picker's own row, so it is dropped here. */
+  const moduleAssigneeOptions: CellOption[] | null =
+    MODULE_ATTRS?.find((a) => a.key === 'assignedTo')?.options
+      ?.filter((o) => o.label !== 'Unassigned')
+      .map((o) => ({ label: o.label, ...requesterAvatar(o.label), statusColor: '#10B981' })) ?? null;
   const CATALOG: ColDef[] = [...COL_DEFS, ...(MODULE_ATTRS ? assetExtraCols(COL_DEFS, MODULE_ATTRS) : EXTRA_COLS)];
   // The stored value is the ordered VISIBLE set — removing a column persists too.
   const COL_ORDER_KEY = moduleCols ? `${moduleCols}ListColumnsV2` : 'ticketListColumnsV2';
@@ -1746,6 +1928,16 @@ export function TicketTable({
     return COL_DEFS.map((c) => c.key);
   });
   const cols = colOrder.map((k) => CATALOG.find((c) => c.key === k)!);
+  /* Headings are measured before paint, so the first frame already has the right widths;
+     the webfont pass re-measures once Inter (or whatever the browser settles on) is live. */
+  const labelKey = cols.map((c) => c.label).join('|');
+  useLayoutEffect(() => { measureLabels(cols.map((c) => c.label)); }, [labelKey]);
+  useEffect(() => {
+    (document as any).fonts?.ready?.then(() => {
+      labelWidths.current.clear();
+      measureLabels(cols.map((c) => c.label));
+    });
+  }, [labelKey]);
   const applyColumns = (next: string[]) => {
     setColOrder(next);
     localStorage.setItem(COL_ORDER_KEY, JSON.stringify(next));
@@ -1851,10 +2043,17 @@ export function TicketTable({
   const changeColumn = (fromKey: string, toKey: string) =>
     applyColumns(colOrder.map((k) => (k === fromKey ? toKey : k)));
   const [showColMgr, setShowColMgr] = useState(false);
+  /* The toolbar mirrors this set in its Group-by and Sort menus, so each column carries the
+     FIELD it sorts on — the grid is what knows that a column called "Managed By" sorts on
+     `assignedTo`, and a column with no sortable field (Actions) simply has none. */
   useEffect(() => {
-    const cols = colOrder.map((k) => ({ key: k, label: CATALOG.find((c) => c.key === k)?.label ?? k }));
+    const cols = colOrder.map((k) => ({
+      key: k,
+      label: CATALOG.find((c) => c.key === k)?.label ?? k,
+      sortField: sortFieldOf(k) as string | undefined,
+    }));
     window.dispatchEvent(new CustomEvent('grid-columns', { detail: cols }));
-  }, [colOrder]);
+  }, [colOrder, moduleCols]);
   /* The grid toolbar's Settings menu is the ONLY way in now (the header gutter icon
      was removed), so anchor the manager to the grid's own top-right corner — where
      that icon used to sit. */
@@ -1914,11 +2113,22 @@ export function TicketTable({
   const fixedTotal = cols.filter((c) => !c.flex).reduce((n, c) => n + wOf(c), 0);
   const flexTotal = cols.filter((c) => c.flex).reduce((n, c) => n + wOf(c), 0);
   const room = avail - fixedTotal;
-  const scale = flexTotal > 0 && room > flexTotal ? room / flexTotal : 1;
-  const fitted = cols.map((c) => Math.round(wOf(c) * (c.flex ? scale : 1)));
-  if (scale > 1) {
-    const lastFlex = cols.map((c) => !!c.flex).lastIndexOf(true);
-    if (lastFlex >= 0) fitted[lastFlex] += avail - fitted.reduce((n, w) => n + w, 0);
+  const fitted = cols.map((c) => wOf(c));
+  /* Slack goes out in two passes: the secondary flex columns first, each only as far as
+     its own ceiling (so they stay close to the width their values need), then ALL of the
+     remainder to the primary flex column — the record's name, where extra room reads as
+     more of the subject rather than as a gap. Below the container width nothing scales and
+     the grid scrolls, exactly as before. */
+  if (room > flexTotal) {
+    const primary = cols.findIndex((c) => c.flex);
+    const want = cols.map((c, i) => (c.flex && i !== primary ? Math.max(0, growCap(c) - wOf(c)) : 0));
+    const wantTotal = want.reduce((n, w) => n + w, 0);
+    const ratio = wantTotal ? Math.min(1, (room - flexTotal) / wantTotal) : 0;
+    want.forEach((w, i) => { fitted[i] += Math.round(w * ratio); });
+    /* The exact remainder lands on one column, so the row spans the container to the
+       pixel — no dead strip, no sub-pixel drift between header and body. */
+    const soak = primary >= 0 ? primary : fitted.length - 1;
+    if (soak >= 0) fitted[soak] += avail - fitted.reduce((n, w) => n + w, 0);
   }
   // Display list: the real columns with the placeholder slot woven in (ri = real index).
   const PH_W = 200;
@@ -1958,6 +2168,76 @@ export function TicketTable({
     /* Software Type is editable in the grid — the same Asset Type treatment the hardware
        register has, icon and all, because reclassifying a discovered app as Managed is
        an everyday admin action that should not need the detail page. */
+    /* An article's approval state — its own tinted word, because "Rejected" beside a
+       published article is the row's most important fact and a grey dot would bury it. */
+    if (key === 'x_approvalStatus') {
+      const v = (ticket as any).x_approvalStatus as string | undefined;
+      const tone =
+        v === 'Approved' ? 'text-[#15803D]' : v === 'Rejected' ? 'text-[#B42318]'
+          : v === 'Pending Approval' ? 'text-[#B45309]' : 'text-[#64748B]';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className={`truncate text-[12px] ${tone}`}>{v || '—'}</span>
+        </td>
+      );
+    }
+    /* Reader feedback, both halves in one cell: the two numbers only mean anything next to
+       each other, and the pair is what tells you an article has gone stale. */
+    if (key === 'x_feedback') {
+      const up = Number((ticket as any).x_likes ?? 0);
+      const down = Number((ticket as any).x_dislikes ?? 0);
+      return (
+        /* The article page's own colours and icons — helpful #067647, not helpful #B42318 —
+           so a reader's verdict looks the same in the list as it does on the article. */
+        <td className="overflow-hidden px-4 py-3 text-right whitespace-nowrap">
+          <span className="inline-flex items-center gap-3">
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium tabular-nums" style={{ color: '#067647' }}>
+              <ThumbsUp size={13} className="flex-shrink-0" />{up}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium tabular-nums" style={{ color: '#B42318' }}>
+              <ThumbsDown size={13} className="flex-shrink-0" />{down}
+            </span>
+          </span>
+        </td>
+      );
+    }
+    /* A CI's class, editable in place from the class TREE — the same catalogue the rail is
+       built on, indented the same way, with a search box because it runs to 80-odd rows.
+       The glyph matches the rail's, so a switch looks like a switch in both. */
+    if (key === 'x_ciType') {
+      const v = (ticket as any).x_ciType as string | undefined;
+      return (
+        <td className="px-2 py-0 whitespace-nowrap" title={v}>
+          <InlineSelect
+            options={CI_TYPE_CELL_OPTIONS}
+            menuWidth={300}
+            searchable
+            searchPlaceholder="Search CI types..."
+            value={v}
+            onPick={(label) => onUpdateTicket?.(ticket.id, { x_ciType: label } as Partial<Ticket>)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="flex-shrink-0 text-[#6B7280]">{ciTypeIcon(v)}</span>
+              <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+            </span>
+          </InlineSelect>
+        </td>
+      );
+    }
+    /* Software Meter's Asset Type — read-only (an application's KIND is reported by the
+       agent, not chosen), wearing the same glyph the software register puts on Software
+       Type, so one kind of thing looks the same on both pages. */
+    if (moduleCols === 'meter' && key === 'x_assetType') {
+      const v = (ticket as any).x_assetType as string | undefined;
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="flex-shrink-0 text-[#6B7280]">{softwareTypeIcon(v)}</span>
+            <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+          </span>
+        </td>
+      );
+    }
     if (key === 'x_softwareType') {
       const v = (ticket as any).x_softwareType as string | undefined;
       return (
@@ -1997,21 +2277,25 @@ export function TicketTable({
         </td>
       );
     }
-    /* Remaining stock reads as a chip — the same light-grey/dark-text treatment the Used By
-       cell uses, so the two columns belong to one visual language. Fixed width and tabular
-       figures keep the digits aligned down the column; the tooltip carries the meaning
-       (out of stock / running low) rather than tinting every row. */
-    if (key === 'x_availableQty') {
-      const qty = Number((ticket as any).x_availableQty ?? 0);
-      const tip = qty <= 0 ? 'Out of stock — reorder' : qty <= 10 ? `Low stock — only ${qty} left` : `In stock — ${qty} available`;
+    /* Count columns read as a chip — the same light-grey/dark-text treatment the Used By
+       cell uses, so numbers and people chips belong to one visual language. Fixed width
+       and tabular figures keep the digits aligned down the column. A null count stays a
+       plain dash: a chip wrapped around "—" is noise, not data. */
+    if (COUNT_CHIP_COLS.has(key)) {
+      /* A missing count IS zero here — a free licence has no purchased seats, which is
+         0, not unknown. Showing a dash made the column read as incomplete data and
+         broke the run of figures. */
+      const raw = (ticket as any)[key];
+      const n = raw === null || raw === undefined || raw === '' ? 0 : Number(raw);
+      const chip = <span className={COUNT_CHIP}>{n}</span>;
+      /* Only stock carries a tooltip — it is the one count whose NUMBER implies an
+         action (reorder), and the tip says so without tinting every row. */
+      if (key !== 'x_availableQty') return <td className="px-4 py-3 whitespace-nowrap">{chip}</td>;
+      const tip = n <= 0 ? 'Out of stock — reorder' : n <= 10 ? `Low stock — only ${n} left` : `In stock — ${n} available`;
       return (
         <td className="px-4 py-3 whitespace-nowrap">
           <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span className="inline-flex min-w-[46px] cursor-default items-center justify-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#364658]">
-                {qty}
-              </span>
-            </TooltipTrigger>
+            <TooltipTrigger asChild>{chip}</TooltipTrigger>
             <TooltipContent>{tip}</TooltipContent>
           </Tooltip>
         </td>
@@ -2039,6 +2323,19 @@ export function TicketTable({
               <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
             </span>
           </InlineSelect>
+        </td>
+      );
+    }
+    /* Money (see MONEY_COLS) — the SAME grey chip the licence and stock counts wear, so
+       every figure in the product reads one way. Right-aligned in its cell, so the chips
+       end on a common edge and the amounts stay comparable down the column. */
+    if (MONEY_COLS.has(key)) {
+      const amount = moneyAmount((ticket as any)[key]);
+      return (
+        <td className="px-4 py-3 text-right whitespace-nowrap">
+          {amount
+            ? <span className={COUNT_CHIP}>{amount}</span>
+            : <span className="text-[12px] text-[#B6C0CC]">—</span>}
         </td>
       );
     }
@@ -2077,6 +2374,19 @@ export function TicketTable({
                 onClick={() => openTicket(ticket)}
               >
                 <span className="flex min-w-0 items-center gap-2">
+                  {/* Agent health, where the module reports it (CMDB): the dot sits before
+                      the name exactly as it does on the CI's own detail page. */}
+                  {(ticket as any).x_nameDot && (
+                    <Tooltip delayDuration={300}>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="size-2 flex-shrink-0 rounded-full"
+                          style={{ backgroundColor: (ticket as any).x_nameDot }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>{(ticket as any).x_agentHealth ?? 'Agent health'}</TooltipContent>
+                    </Tooltip>
+                  )}
                   {/* Unread rows read bold, Gmail-style. */}
                   <span className={`min-w-0 flex-1 truncate decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline ${ticket.unread ? 'font-semibold text-[#1E293B]' : 'font-medium'}`}>{ticket.subject}</span>
                 </span>
@@ -2134,31 +2444,40 @@ export function TicketTable({
                 </InlineSelect>
               </td>
         );
-      case 'assignee':
+      case 'assignee': {
+        const who = (
+          <span className="flex min-w-0 items-center gap-2">
+            {ticket.assignedTo.name === 'Unassigned' ? (
+              <span className="size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
+            ) : (
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
+                {ticket.assignedTo.initials}
+              </span>
+            )}
+            <span className="truncate text-[12px] text-[#364658]">{ticket.assignedTo.name}</span>
+          </span>
+        );
+        /* Read-only where the module says so — an article's AUTHOR is who wrote it, not a
+           field to reassign from a list. */
+        if (locked('assignee')) return <td className="overflow-hidden px-4 py-3 whitespace-nowrap">{who}</td>;
         return (
               <td className="px-2 py-0 whitespace-nowrap">
+                {/* The module's OWN roster where it names one, so the picker cannot offer
+                    people the column never shows. */}
                 <InlineSelect
                   user
-                  options={ASSIGNEE_OPTIONS}
+                  options={moduleAssigneeOptions ?? ASSIGNEE_OPTIONS}
                   value={ticket.assignedTo.name}
                   onPick={(label) => {
-                    const pick = ASSIGNEE_OPTIONS.find((o) => o.label === label);
-                    onUpdateTicket?.(ticket.id, { assignedTo: { name: label, initials: pick?.initials ?? '' } });
+                    const pick = (moduleAssigneeOptions ?? ASSIGNEE_OPTIONS).find((o) => o.label === label);
+                    onUpdateTicket?.(ticket.id, { assignedTo: { name: label, initials: pick?.initials ?? requesterAvatar(label).initials } });
                   }}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {ticket.assignedTo.name === 'Unassigned' ? (
-                      <span className="size-5 flex-shrink-0 rounded-full border-2 border-dashed border-[#9CA3AF]" />
-                    ) : (
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
-                        {ticket.assignedTo.initials}
-                      </span>
-                    )}
-                    <span className="truncate text-[12px] text-[#364658]">{ticket.assignedTo.name}</span>
-                  </span>
+                  {who}
                 </InlineSelect>
               </td>
         );
+      }
       case 'dueStatus':
         return (
               <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
@@ -2229,9 +2548,23 @@ export function TicketTable({
         /* Editable multi-user cell: until edited, the selection derives from the
            mock label (name before the email paren); edits store the full list on
            the row and refold it into "first + N" chips. */
+        const firstUser = ticket.usedByLabel ? ticket.usedByLabel.split(' (')[0] : '';
+        /* The "+N" and the picker's selection are ONE list. A mock row carries a count
+           rather than names, so the names are filled in deterministically from the roster
+           (same id ⇒ same people) and the count is then read back OFF that list — a chip
+           claiming +16 while the picker shows one person selected is just a lie. The
+           roster is finite, so a count larger than it simply lands on the whole roster. */
         const list: string[] =
-          (ticket as any).usedByList ?? (ticket.usedByLabel ? [ticket.usedByLabel.split(' (')[0]] : []);
-        const extra = (ticket as any).usedByList ? Math.max(list.length - 1, 0) : ticket.usedByMore ?? 0;
+          (ticket as any).usedByList ??
+          (firstUser
+            ? (() => {
+                const pool = USED_BY_OPTIONS.map((o) => o.label).filter((l) => l !== firstUser);
+                const rot = hx(ticket.id, 5) % pool.length;
+                const want = Math.min(ticket.usedByMore ?? 0, pool.length);
+                return [firstUser, ...Array.from({ length: want }, (_, i) => pool[(rot + i) % pool.length])];
+              })()
+            : []);
+        const extra = Math.max(list.length - 1, 0);
         return (
               <td className="px-2 py-0 whitespace-nowrap">
                 <MultiUserSelect
@@ -2251,19 +2584,9 @@ export function TicketTable({
                         {ticket.usedByLabel}
                       </span>
                       {extra > 0 && (() => {
-                        /* Hovering +N names everyone: an edited row knows its real
-                           list; a mock row fills in deterministically from the
-                           roster (same-id ⇒ same names), capped with "+N more". */
-                        const first = ticket.usedByLabel.split(' (')[0];
-                        const all: string[] = (ticket as any).usedByList
-                          ? list
-                          : (() => {
-                              const pool = USED_BY_OPTIONS.map((o) => o.label).filter((l) => l !== first);
-                              const rot = hx(ticket.id, 5) % pool.length;
-                              return [first, ...Array.from({ length: Math.min(extra, 7) }, (_, i) => pool[(rot + i) % pool.length])];
-                            })();
-                        const shown = all.slice(0, 8);
-                        const more = 1 + extra - shown.length;
+                        /* Hovering +N names everyone on that same list, eight at a time. */
+                        const shown = list.slice(0, 8);
+                        const more = list.length - shown.length;
                         return (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -2293,7 +2616,9 @@ export function TicketTable({
       case 'managedByGroup':
         return (
               <td className="px-2 py-0 whitespace-nowrap">
-                <InlineSelect options={ASSET_GROUP_CELL_OPTIONS} menuWidth={320} value={ticket.managedByGroup} onPick={(label) => onUpdateTicket?.(ticket.id, { managedByGroup: label } as Partial<Ticket>)}>
+                {/* The module's OWN groups where it names them (the CMDB's five teams),
+                    so the menu can never offer a group the column does not use. */}
+                <InlineSelect options={moduleGroupOptions ?? ASSET_GROUP_CELL_OPTIONS} menuWidth={320} value={ticket.managedByGroup} onPick={(label) => onUpdateTicket?.(ticket.id, { managedByGroup: label } as Partial<Ticket>)}>
                   <span className="truncate text-[12px] text-[#4A5568]">{ticket.managedByGroup ?? '—'}</span>
                 </InlineSelect>
               </td>
@@ -2889,15 +3214,16 @@ export function TicketTable({
                       }
                     : undefined
                 }
-                className={`${TH} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                title={c.label}
+                className={`${TH} ${c.align === 'right' ? 'text-right' : ''} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
               >
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
                 <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
-                <span className="flex items-center gap-0.5">
-                  {/* Never clipped: `headerFloor` keeps every column at least as wide as
-                      its own label, and the grid scrolls when the row outgrows the
-                      container — a header reading "AVAILABL…" tells the reader nothing. */}
-                  <span className="whitespace-nowrap">{c.label}</span>
+                {/* A right-aligned column's heading sits over its digits, not away from them. */}
+                <span className={`flex items-center gap-0.5 overflow-hidden ${c.align === 'right' ? 'justify-end' : ''}`}>
+                  {/* The heading truncates rather than setting the column's width — the
+                      full name is in the `title` on hover and in the header menu. */}
+                  <span className="truncate">{c.label}</span>
                   {/* One-click sort toggle — the most-used action lives on the header
                       itself; the menu keeps the rest. */}
                   {sortFieldOf(c.key) && sortButton(sortFieldOf(c.key)!, 'group-hover/th:opacity-100')}
@@ -3071,14 +3397,14 @@ export function TicketTable({
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
-                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            title={m.col.label}
+                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.col.align === 'right' ? 'text-right' : ''} ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
-                            <span className="flex items-center gap-0.5">
-                              {/* Never clipped — `headerFloor` keeps the column at least as
-                                  wide as its own label, and the grid scrolls if the row
-                                  outgrows the container. */}
-                              <span className="whitespace-nowrap">{m.col.label}</span>
+                            <span className={`flex items-center gap-0.5 overflow-hidden ${m.col.align === 'right' ? 'justify-end' : ''}`}>
+                              {/* Truncates like the flat header — the width belongs to the
+                                  column's content, not to the length of its name. */}
+                              <span className="truncate">{m.col.label}</span>
                               {sortFieldOf(m.col.key) && sortButton(sortFieldOf(m.col.key)!, 'group-hover/gh:opacity-100')}
                             </span>
                           </th>

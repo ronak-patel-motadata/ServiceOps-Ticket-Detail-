@@ -8,7 +8,7 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { pctGrade, type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { CONSUMABLE_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
 import { CONSUMABLE_FILTER_ATTRS } from './consumableFilterAttrs';
 import { mockAssets, type ConsumableAsset } from './ConsumableAssetsListPage';
 import type { Ticket } from './TicketListPage';
@@ -173,9 +173,10 @@ export function ConsumableAssetsListingPage({ onNavigate }: { onNavigate?: (page
       searchFields={['x_assetType', 'x_assetGroup', 'x_department', 'x_location']}
       /* The module's own attributes — see consumableFilterAttrs.ts. */
       filterAttrs={CONSUMABLE_FILTER_ATTRS}
-      /* Stock is worked through Filters and the grid's own cells — assignee, SLA and
-         priority are service-desk cuts that mean nothing on a consumable. */
-      showQuickFilters={false}
+      /* One quick cut: the kind of item. The service-desk trio (assignee / SLA /
+         priority) means nothing on stock, and every consumable row is In Stock, so a
+         status filter would be a control with one answer. */
+      quickFilters={CONSUMABLE_QUICK_FILTERS}
       onNavigate={onNavigate}
     />
   );

@@ -8,7 +8,8 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { pctGrade, type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { LICENSE_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
+import { LICENSE_FILTER_ATTRS } from './licenseFilterAttrs';
 import { mockLicenses, type SoftwareLicense } from './SoftwareLicensesListPage';
 import type { Ticket } from './TicketListPage';
 import { AlertTriangle, CalendarClock, KeyRound, Users } from 'lucide-react';
@@ -58,6 +59,9 @@ const LI: { rows: Ticket[]; byId: Map<string, SoftwareLicense> } = (() => {
       x_allocationCount: l.allocationCount,
       x_installationCount: l.installationCount,
       x_expiryDate: l.expiryDate,
+      /* The parsed date behind the printed dd/mm/yyyy — the Expiry Date filter compares
+         Dates, the column keeps printing the string. */
+      expiryOn: exp ?? undefined,
       x_compliance: compliance,
       x_expiryBand: expiryBand,
     } as Ticket;
@@ -198,6 +202,10 @@ export function SoftwareLicensesListingPage({ onNavigate }: { onNavigate?: (page
       buildCards={buildCards}
       buildDashboard={buildDashboard}
       mineHint="Licenses carry no personal assignment — switch back to Overall."
+      filterAttrs={LICENSE_FILTER_ATTRS}
+      /* One cut: what kind of licence. A licence has no assignee, SLA or priority. */
+      quickFilters={LICENSE_QUICK_FILTERS}
+      primaryAction={{ label: 'Add License' }}
       searchFields={['x_product', 'x_licenseType', 'x_expiryDate']}
       onNavigate={onNavigate}
     />

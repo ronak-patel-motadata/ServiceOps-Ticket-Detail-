@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable, useOpenFromUrl } from './TicketTable';
+import { TicketTable, useOpenFromUrl, MONEY_COLS, moneyNumber } from './TicketTable';
 import { ArrowLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
 import { CURRENT_USER } from './technicianRoster';
@@ -79,8 +79,16 @@ export function AssetRegisterPage({
   filterAttrs,
   quickFilters,
   moreActions,
+  primaryAction,
   showBarcodeTools = false,
   showQuickFilters = true,
+  hideTools,
+  allowColumnEdit = true,
+  overview,
+  rail,
+  railLabel = 'classes',
+  resetKey,
+  lockedCells,
   initialOpenId,
   onInitialOpenConsumed,
   onNavigate,
@@ -91,24 +99,47 @@ export function AssetRegisterPage({
   viewsStore: ViewStore;
   /** What one record is called in the toolbar strings. */
   noun: string;
-  moduleCols: 'software' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase';
+  moduleCols: React.ComponentProps<typeof TicketTable>['moduleCols'];
   defaultViewName: string;
   /** Plural word for the grouping footer ("assets", "licenses", "orders"…). */
   footerNoun: string;
   rows: Ticket[];
   /** The ORIGINAL module record for a row id — what the drawer actually opens. */
   recordOf: (id: string) => unknown;
-  buildCards: (tickets: Ticket[]) => StatCard[];
+  /** The module's KPI strip, for the List&KPI layout. A module that offers only the plain
+      List (Knowledge) has nowhere to show one and passes none. */
+  buildCards?: (tickets: Ticket[]) => StatCard[];
   /** Module dashboard config builder — providing it turns the Dashboard layout on. */
   buildDashboard?: (tickets: Ticket[]) => DashConfig;
   /** The module's own filter attributes / quick filters / ⋮ items (see the toolbar). */
   filterAttrs?: React.ComponentProps<typeof TicketGridToolbar>['filterAttrs'];
   quickFilters?: React.ComponentProps<typeof TicketGridToolbar>['quickFilters'];
   moreActions?: React.ComponentProps<typeof TicketGridToolbar>['moreActions'];
+  primaryAction?: React.ComponentProps<typeof TicketGridToolbar>['primaryAction'];
   /** Registers whose records carry a physical label get the barcode / scan tools. */
   showBarcodeTools?: boolean;
   /** false drops the quick-filter icons entirely (a register with no useful one-click cut). */
   showQuickFilters?: boolean;
+  /** Toolbar controls this module has no use for — see TicketGridToolbar's `hideTools`. */
+  hideTools?: React.ComponentProps<typeof TicketGridToolbar>['hideTools'];
+  /** Columns the grid must render READ-ONLY — a fact the system derives, not one a user sets. */
+  lockedCells?: string[];
+  /** false fixes the column set: no Columns row in the gear menu, and no Insert Left /
+      Insert Right / Change Column in a column's own header menu. */
+  allowColumnEdit?: boolean;
+  /** A landing view for the module's "everything" state (Knowledge's most-read digest),
+      rendered instead of the grid until the reader searches or filters. */
+  overview?: React.ReactNode;
+  /** A module's own navigation rail, rendered left of the grid (the CMDB's CI classes).
+      The page owns its state and hands down already-filtered `rows`. It is a RENDER
+      FUNCTION because the rail shares its slot with the views rail: `collapsed` says the
+      slot is taken and the rail should show its strip, `expand` asks for it back. */
+  rail?: (ctx: { collapsed: boolean; expand: () => void }) => React.ReactNode;
+  /** What that rail is called, for the panel-swap button ("Back to CI classes"). */
+  railLabel?: string;
+  /** Changes whenever that rail navigates somewhere new — resets paging, selection and any
+      drill-down WITHOUT remounting, so the rail keeps its own expanded branches. */
+  resetKey?: string | null;
   /** Empty-state line for the dashboard's "Mine" scope on thinly-owned registers. */
   mineHint?: string;
   /** Extra row fields the free-text search also matches (x_ keys). */
@@ -117,7 +148,13 @@ export function AssetRegisterPage({
   onInitialOpenConsumed?: () => void;
   onNavigate?: (page: string) => void;
 }) {
+  /* The register keeps its own copy of the rows so an inline cell edit sticks. That copy is
+     a WORKING copy, not a snapshot of the first render: when the page hands down a
+     different set — the CMDB's class rail narrowing the database — take it. (Until this
+     effect existed, the CMDB only re-read its rows because a `key` remounted the whole
+     register, which took the rail's expanded branches down with it.) */
   const [tickets, setTickets] = useState<Ticket[]>(rows);
+  useEffect(() => { setTickets(rows); }, [rows]);
   const updateTicket = (id: string, patch: Partial<Ticket>) =>
     setTickets((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
@@ -166,6 +203,20 @@ export function AssetRegisterPage({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
+
+  /* A module that navigates INSIDE the register (the CMDB's CI-class rail) changes which
+     rows exist without changing the page. Remounting to reset would be simpler, but it
+     would also throw away the navigator's own state — which branches the reader had open —
+     so the register resets only what actually goes stale: the page, the selection and any
+     dashboard drill-down. Filters survive on purpose: they compose with the navigator. */
+  const firstReset = useRef(true);
+  useEffect(() => {
+    if (firstReset.current) { firstReset.current = false; return; }
+    setCurrentPage(1);
+    setSelectedTickets(new Set());
+    setDrillFrom(null);
+    setActiveView(defaultViewName);
+  }, [resetKey]);
 
   const { open: openInStack } = useDrawerStack();
   const handleOpenTicket = (ticket: Ticket) =>
@@ -241,7 +292,10 @@ export function AssetRegisterPage({
           bVal = (b.assignedTo as any).name;
         }
         let cmp = 0;
-        if (aVal instanceof Date && bVal instanceof Date) cmp = aVal.getTime() - bVal.getTime();
+        /* Money sorts by its VALUE, not its text — "1,000,000.00 INR" precedes
+           "500,000.00 INR" alphabetically, which would rank the portfolio wrongly. */
+        if (MONEY_COLS.has(column as string)) cmp = moneyNumber(aVal) - moneyNumber(bVal);
+        else if (aVal instanceof Date && bVal instanceof Date) cmp = aVal.getTime() - bVal.getTime();
         else if (typeof aVal === 'string' && typeof bVal === 'string') cmp = aVal.localeCompare(bVal);
         else if (typeof aVal === 'number' && typeof bVal === 'number') cmp = aVal - bVal;
         if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
@@ -249,6 +303,10 @@ export function AssetRegisterPage({
       return 0;
     });
   }
+
+  /* A module can hand the register a landing view for its "everything" state. It gives way
+     the moment the reader searches or filters — at that point they want rows, not a digest. */
+  const showOverview = !!overview && !drillFrom && view === 'list' && !searchQuery.trim() && filterRules.length === 0;
 
   const totalPages = Math.ceil(sortedTickets.length / itemsPerPage);
   const paginatedTickets = sortedTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -261,6 +319,13 @@ export function AssetRegisterPage({
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header selectedCount={selectedTickets.size} />
         <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* ONE panel at a time. The module's own navigation rail (the CMDB's CI-class
+              tree) and the views rail share this slot, so opening Views folds the classes
+              down to their strip — still on screen, still one click back — rather than
+              taking the slot twice.
+              The rail stays MOUNTED throughout: it would otherwise forget which branches
+              the reader had open every time they glanced at Views. */}
+          {rail && !drillFrom && rail({ collapsed: viewsOpen, expand: () => setViewsOpen(false) })}
           {viewsOpen && !drillFrom && (
             <TicketViewsSidebar
               store={viewsStore}
@@ -289,12 +354,15 @@ export function AssetRegisterPage({
                 activeView={activeView}
                 viewsOpen={viewsOpen}
                 onToggleViews={() => setViewsOpen((v) => !v)}
+                /* With a rail in the slot, this button swaps panels rather than just
+                   hiding one — say so, or the classes look like they vanished. */
+                viewsLabels={rail ? { show: 'Show views', hide: `Back to ${railLabel}` } : undefined}
               />
             )}
             <main className="flex-1 overflow-hidden flex flex-col">
               <div className="flex-1 bg-white min-h-0 overflow-auto [scrollbar-gutter:stable]" style={{ ['--tb' as any]: `${stickyH}px` }}>
                 <div className="sticky left-0 bg-white pt-0.5">
-                  {view === 'list-kpi' && !drillFrom && (
+                  {view === 'list-kpi' && !drillFrom && buildCards && (
                     <StatsCardsRow
                       cards={buildCards(tickets)}
                       rules={filterRules}
@@ -311,9 +379,12 @@ export function AssetRegisterPage({
                     viewsStore={viewsStore}
                     showBarcodeTools={showBarcodeTools}
                     showQuickFilters={showQuickFilters}
+                    hideTools={hideTools}
+                    allowColumnEdit={allowColumnEdit}
                     filterAttrs={filterAttrs}
                     quickFilters={quickFilters}
                     moreActions={moreActions}
+                    primaryAction={primaryAction}
                     layouts={buildDashboard ? ['list', 'dashboard'] : ['list']}
                     searchQuery={searchQuery}
                     setSearchQuery={(v) => {
@@ -370,11 +441,19 @@ export function AssetRegisterPage({
                       />
                     );
                   })()
+                ) : showOverview ? (
+                  /* The module's own landing — shown while nothing is being searched or
+                     filtered. Searching or filtering reveals the grid, so the overview never
+                     stands between the reader and their results. The register adds nothing
+                     around it: what a landing shows is the module's business. */
+                  overview
                 ) : (
                 <TicketTable
                   noun={noun}
                   openPage={activePage}
                   moduleCols={moduleCols}
+                  lockedCells={lockedCells}
+                  allowColumnEdit={allowColumnEdit}
                   tickets={paginatedTickets}
                   selectedTickets={selectedTickets}
                   allSelected={allCurrentPageSelected}
@@ -401,7 +480,7 @@ export function AssetRegisterPage({
                 />
                 )}
               </div>
-              {!isGrouped && view !== 'dashboard' && (
+              {!isGrouped && view !== 'dashboard' && !showOverview && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}

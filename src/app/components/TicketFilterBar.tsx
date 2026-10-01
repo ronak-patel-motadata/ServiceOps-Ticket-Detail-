@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   AlignLeft,
-  Boxes,
   CalendarDays,
   Check,
   CircleDot,
@@ -9,13 +8,13 @@ import {
   Flag,
   Hash,
   Hourglass,
-  Layers,
   ListChecks,
   MessageSquare,
   Monitor,
   MoreVertical,
   Plus,
   Search,
+  ShieldCheck,
   Timer,
   Trash2,
   UserCheck,
@@ -23,13 +22,21 @@ import {
   X,
 } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
-import { extraValue, slaToneOf } from './TicketTable';
+import { consumableTypeIcon, extraValue, nonItTypeIcon, slaToneOf, softwareTypeIcon } from './TicketTable';
+import { assetTypeIcon } from './AssetFields';
 import { TECH_GROUPS } from './technicianRoster';
 import { DEPARTMENTS } from './orgDepartments';
 import { HARDWARE_FILTER_ATTRS, attrStandIn, attrStandInDate } from './assetFilterAttrs';
 import { SOFTWARE_FILTER_ATTRS } from './softwareFilterAttrs';
 import { NONIT_FILTER_ATTRS } from './nonItFilterAttrs';
 import { CONSUMABLE_FILTER_ATTRS, qtyBandOf } from './consumableFilterAttrs';
+import { LICENSE_FILTER_ATTRS } from './licenseFilterAttrs';
+import { CONTRACT_FILTER_ATTRS } from './contractFilterAttrs';
+import { PURCHASE_FILTER_ATTRS } from './purchaseFilterAttrs';
+import { METER_FILTER_ATTRS } from './softwareMeterFilterAttrs';
+import { CMDB_FILTER_ATTRS } from './cmdbFilterAttrs';
+import { KNOWLEDGE_FILTER_ATTRS } from './knowledgeFilterAttrs';
+import { ciTypeIcon } from './CmdbCategoryRail';
 import { IconStatusCheck } from './SidebarIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -197,7 +204,7 @@ const NEEDS_VALUE = (c: Condition) => c !== 'empty' && c !== 'not empty';
 /* Every module catalogue is searchable here, not just the request set: applyFilters needs
    an attribute TYPE (a date filter reads a Date, not a string) and it runs on pages that
    hand the bar their own catalogue. The request set wins a shared key, so nothing moves.  */
-const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS];
+const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS, LICENSE_FILTER_ATTRS, CONTRACT_FILTER_ATTRS, PURCHASE_FILTER_ATTRS, METER_FILTER_ATTRS, CMDB_FILTER_ATTRS, KNOWLEDGE_FILTER_ATTRS];
 export const attrOf = (key: string): Attr | undefined =>
   FILTER_ATTRS.find((a) => a.key === key) ?? MODULE_ATTR_SETS.reduce<Attr | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
 
@@ -574,6 +581,9 @@ export interface QuickFilterDef {
   options: { label: string; color?: string }[];
   /** How each value row reads. */
   row?: 'dot' | 'flag' | 'avatar' | 'plain';
+  /** Per-value glyph — a type filter shows the SAME icon the grid's cell shows for that
+      value, so a keyboard looks like a keyboard in both places. Wins over `row`. */
+  iconOf?: (label: string) => ReactElement;
   /** First option is the signed-in user: it reads "(You)" and keeps a divider under it. */
   youFirst?: boolean;
 }
@@ -595,28 +605,94 @@ export const ASSET_QUICK_FILTERS: QuickFilterDef[] = [
      toolbar icon — it reads as a state, where the radio-button `CircleDot` it replaces
      looked like an unselected option. */
   { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: hwOptions('status') },
-  { field: 'assetType', icon: Monitor, tip: 'Filter by asset type', title: 'Asset type is', width: 214, row: 'plain', options: hwOptions('assetType') },
+  { field: 'assetType', icon: Monitor, tip: 'Filter by asset type', title: 'Asset type is', width: 214, iconOf: assetTypeIcon, options: hwOptions('assetType') },
 ];
 
 /* The software register's pair, on the same "state, then kind" shape: Status is how the
-   catalogue is worked, and Software Type (Managed / Discovered / Unmanaged) is the cut
-   that matters next — it separates what IT bought from what an agent found. */
+   catalogue is worked, and Software Type — the product's classification tree — is the cut
+   that matters next. It wears the SAME glyph as every other register's type filter: one
+   icon for "what kind of thing is this", whatever the module calls the field. */
 const swOptions = (key: string) => SOFTWARE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
 export const SOFTWARE_QUICK_FILTERS: QuickFilterDef[] = [
   { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 180, row: 'dot', options: swOptions('status') },
-  { field: 'x_softwareType', icon: Layers, tip: 'Filter by software type', title: 'Software type is', width: 200, row: 'plain', options: swOptions('x_softwareType') },
+  { field: 'x_softwareType', icon: Monitor, tip: 'Filter by software type', title: 'Software type is', width: 200, iconOf: softwareTypeIcon, options: swOptions('x_softwareType') },
 ];
 
 /* The non-IT register's pair — same "state, then kind" shape as hardware: where a chair
-   or a pool car is in its life, then what kind of thing it is. */
+   or an AC unit is in its life, then what kind of thing it is (same shared type glyph). */
 const niOptions = (key: string) => NONIT_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
 export const NONIT_QUICK_FILTERS: QuickFilterDef[] = [
   { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: niOptions('status') },
-  { field: 'x_assetType', icon: Boxes, tip: 'Filter by asset type', title: 'Asset type is', width: 210, row: 'plain', options: niOptions('x_assetType') },
+  { field: 'x_assetType', icon: Monitor, tip: 'Filter by asset type', title: 'Asset type is', width: 210, iconOf: nonItTypeIcon, options: niOptions('x_assetType') },
 ];
+
+/* Licences get ONE quick filter too: a licence has no status or owner, so the only cut
+   worth a click is what KIND of licence it is. Plain rows — the grid's License Type
+   column carries no per-value glyph, so the menu should not invent one. */
+const liOptions = (key: string) => LICENSE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const LICENSE_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'x_licenseType', icon: Monitor, tip: 'Filter by license type', title: 'License type is', width: 215, row: 'plain', options: liOptions('x_licenseType') },
+];
+
+/* Contracts get ONE quick filter: what KIND of agreement it is. Status is the next most
+   obvious cut, but two of the three states are derivable from the dates the grid already
+   shows — the kind of contract is what a contract manager actually works the list by.
+   Plain rows, like licences: the Contract Type column carries no per-value glyph. */
+const ctOptions = (key: string) => CONTRACT_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const CONTRACT_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'x_contractType', icon: Monitor, tip: 'Filter by contract type', title: 'Contract type is', width: 215, row: 'plain', options: ctOptions('x_contractType') },
+];
+
+/* The CMDB's pair, on the same "state, then kind" shape as every asset register: whether
+   the CI is running, and what kind of thing it is — on the SAME glyph the asset registers
+   put on their type filter, with each class wearing its own icon. */
+const cmOptions = (key: string) => CMDB_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const CMDB_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 200, row: 'dot', options: cmOptions('status') },
+  { field: 'x_ciType', icon: Monitor, tip: 'Filter by CI type', title: 'CI type is', width: 240, iconOf: ciTypeIcon, options: cmOptions('x_ciType') },
+];
+
+/* Knowledge's pair: is the article live, and is anyone waiting on it. The FOLDER is the
+   rail's job, so it is deliberately not repeated here. */
+const kbOptions = (key: string) => KNOWLEDGE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const KNOWLEDGE_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: kbOptions('status') },
+  { field: 'x_approvalStatus', icon: ShieldCheck, tip: 'Filter by approval status', title: 'Approval status is', width: 220, row: 'dot', options: kbOptions('x_approvalStatus') },
+];
+
+/* Software Meter takes the software register's pair — where the application is in its
+   life, then what kind of application it is, on the shared type glyph. */
+const meOptions = (key: string) => METER_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const METER_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 180, row: 'dot', options: meOptions('status') },
+  { field: 'x_softwareType', icon: Monitor, tip: 'Filter by software type', title: 'Software type is', width: 200, iconOf: softwareTypeIcon, options: meOptions('x_softwareType') },
+];
+
+/* A purchase order has no SLA and no priority, so the request trio the bar defaults to
+   was meaningless here. Its one real cut is where the order sits in the pipeline. */
+const poOptions = (key: string) => PURCHASE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const PURCHASE_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 210, row: 'dot', options: poOptions('status') },
+];
+
+/* The consumable register gets ONE quick filter. There is no useful status cut — every
+   row is stock in hand — so what is left is the kind of item, on the shared type glyph. */
+const coOptions = (key: string) => CONSUMABLE_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const CONSUMABLE_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'x_assetType', icon: Monitor, tip: 'Filter by asset type', title: 'Asset type is', width: 210, iconOf: consumableTypeIcon, options: coOptions('x_assetType') },
+];
+
+/* Past this many values a list stops being scannable, so its popup gets a search box. The
+   short cuts (a handful of statuses, six asset types) stay as they are — a search field
+   over four options is furniture. */
+const QUICK_SEARCH_FROM = 10;
 
 function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: FilterRule[]; setRules: (r: FilterRule[]) => void; filters?: QuickFilterDef[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  /* One query, cleared whenever a different filter opens — a search left over from the
+     last popup would silently hide half of this one. */
+  const [q, setQ] = useState('');
+  useEffect(() => { setQ(''); }, [open]);
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -678,7 +754,30 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
             style={{ width: f.width }}
           >
             <div className="px-3 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">{f.title}</div>
-            {f.options.map((o, i) => {
+            {f.options.length > QUICK_SEARCH_FROM && (
+              <div className="px-2.5 pb-1.5 pt-0.5">
+                <div className="relative">
+                  <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                  <input
+                    autoFocus
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Escape' && (q ? setQ('') : setOpen(null))}
+                    placeholder="Search..."
+                    className="h-8 w-full rounded border border-[#DFE5ED] bg-white pl-8 pr-2 text-[13px] text-[#364658] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#3D8BD0]"
+                  />
+                </div>
+              </div>
+            )}
+            {/* A long catalogue (the CMDB's CI types) scrolls inside the popup instead of
+                running off the bottom of the window; a short one is unaffected. */}
+            <div className="max-h-[320px] overflow-y-auto">
+            {(() => {
+              const query = q.trim().toLowerCase();
+              const shown = query ? f.options.filter((o) => o.label.toLowerCase().includes(query)) : f.options;
+              if (!shown.length)
+                return <div className="px-3 py-4 text-center text-[12px] text-[#94A3B8]">No match for “{q}”.</div>;
+              return shown.map((o, i) => {
               const on = valuesOf(f.field).includes(o.label);
               return (
                 <Fragment key={o.label}>
@@ -688,12 +787,18 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
                       on ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
                     }`}
                   >
-                    {f.row === 'avatar' && (
-                      <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials(o.label)}</span>
-                    )}
-                    {f.row === 'flag' && <Flag size={13} className="flex-shrink-0" fill="currentColor" style={{ color: o.color }} />}
-                    {f.row !== 'avatar' && f.row !== 'flag' && f.row !== 'plain' && (
-                      <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                    {f.iconOf ? (
+                      <span className="flex-shrink-0 text-[#6B7280]">{f.iconOf(o.label)}</span>
+                    ) : (
+                      <>
+                        {f.row === 'avatar' && (
+                          <span className="flex size-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-semibold text-white">{initials(o.label)}</span>
+                        )}
+                        {f.row === 'flag' && <Flag size={13} className="flex-shrink-0" fill="currentColor" style={{ color: o.color }} />}
+                        {f.row !== 'avatar' && f.row !== 'flag' && f.row !== 'plain' && (
+                          <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                        )}
+                      </>
                     )}
                     <span className="min-w-0 flex-1 truncate">{f.youFirst && i === 0 ? `${o.label} (You)` : o.label}</span>
                     {on && <Check size={13} className="flex-shrink-0" />}
@@ -701,7 +806,9 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
                   {f.youFirst && i === 0 && <div className="my-1 border-t border-[#F1F5F9]" />}
                 </Fragment>
               );
-            })}
+              });
+            })()}
+            </div>
           </div>
         ),
       )}

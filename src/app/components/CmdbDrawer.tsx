@@ -6535,7 +6535,7 @@ onStackMinimizedChange,
               const activeCat = categories.find((c) => c.id === historyCategory) || categories[0];
 
               const auditEntries: { user: string; initials: string; color: string; action: string; details: string; field?: string; from?: string; to?: string; time: string }[] = [
-                { user: 'Vikram Sethi', initials: 'VS', color: '#3D8BD0', action: 'CI Status Changed', details: 'Marked the CI as operational after validation', field: 'Status', from: 'Select', to: 'Operational', time: 'Sat, Jun 20, 2026 04:39 PM' },
+                { user: 'Vikram Sethi', initials: 'VS', color: '#3D8BD0', action: 'CI Status Changed', details: 'Marked the CI as operational after validation', field: 'Status', from: 'In Maintenance', to: 'Operational', time: 'Sat, Jun 20, 2026 04:39 PM' },
                 { user: 'System', initials: 'SY', color: '#10B981', action: 'Discovery Scan Completed', details: 'Agent discovery scan refreshed 42 hardware and software attributes', time: 'Sat, Jun 20, 2026 02:12 PM' },
                 { user: 'Rohan Mehta', initials: 'RM', color: '#8B5CF6', action: 'Relationship Added', details: 'Added a "Hosted On" relationship to PRDC-ESX-02', time: 'Sat, Jun 20, 2026 11:05 AM' },
                 { user: 'Vikram Sethi', initials: 'VS', color: '#3D8BD0', action: 'Managed By Changed', details: 'Assigned an owner to the CI', field: 'Managed By', from: 'Unassigned', to: 'Rohan Mehta', time: 'Fri, May 22, 2026 05:30 PM' },

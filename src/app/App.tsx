@@ -7,16 +7,17 @@ import { SoftwareAssetsListingPage } from './components/SoftwareAssetsListingPag
 import { NonItAssetsListingPage } from './components/NonItAssetsListingPage';
 import { ConsumableAssetsListingPage } from './components/ConsumableAssetsListingPage';
 import { SoftwareLicensesListingPage } from './components/SoftwareLicensesListingPage';
+import { SoftwareMeterListingPage } from './components/SoftwareMeterListingPage';
 import { ContractsListingPage } from './components/ContractsListingPage';
 import { PurchasesListingPage } from './components/PurchasesListingPage';
 import { ProjectsListPage } from './components/ProjectsListPage';
 import { MyApprovalsListPage } from './components/MyApprovalsListPage';
-import { CmdbListPage } from './components/CmdbListPage';
+import { CmdbListingPage } from './components/CmdbListingPage';
 import { PatchesListPage } from './components/PatchesListPage';
 import { PatchDeploymentsListPage } from './components/PatchDeploymentsListPage';
 import { PackageDeploymentsListPage } from './components/PackageDeploymentsListPage';
 import { RegistryDeploymentsListPage } from './components/RegistryDeploymentsListPage';
-import { KnowledgeListPage } from './components/KnowledgeListPage';
+import { KnowledgeListingPage } from './components/KnowledgeListingPage';
 import { TasksListPage } from './components/TasksListPage';
 import { ReportsListPage } from './components/ReportsListPage';
 import { IconGalleryPage } from './components/IconGalleryPage';
@@ -28,7 +29,7 @@ import { DetectedCvesListPage } from './components/DetectedCvesListPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'icons' | 'views-lab';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'software-meter' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'icons' | 'views-lab';
 
 /* A row's "Open in a new tab" link carries ?page=<slug>&open=<id>, so a fresh tab
    lands on the right module's listing with that record's detail page already open. */
@@ -58,16 +59,17 @@ export default function App() {
       {activePage === 'non-it-assets' && <NonItAssetsListingPage onNavigate={navigate} />}
       {activePage === 'consumable-assets' && <ConsumableAssetsListingPage onNavigate={navigate} />}
       {activePage === 'software-licenses' && <SoftwareLicensesListingPage onNavigate={navigate} />}
+      {activePage === 'software-meter' && <SoftwareMeterListingPage onNavigate={navigate} />}
       {activePage === 'contracts' && <ContractsListingPage onNavigate={navigate} />}
       {activePage === 'purchases' && <PurchasesListingPage onNavigate={navigate} />}
       {activePage === 'projects' && <ProjectsListPage onNavigate={navigate} />}
       {activePage === 'my-approvals' && <MyApprovalsListPage onNavigate={navigate} />}
-      {activePage === 'cmdb' && <CmdbListPage onNavigate={navigate} />}
+      {activePage === 'cmdb' && <CmdbListingPage onNavigate={navigate} />}
       {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
       {activePage === 'patch-deployments' && <PatchDeploymentsListPage onNavigate={navigate} />}
       {activePage === 'package-deployments' && <PackageDeploymentsListPage onNavigate={navigate} />}
       {activePage === 'registry-deployments' && <RegistryDeploymentsListPage onNavigate={navigate} />}
-      {activePage === 'knowledge' && <KnowledgeListPage onNavigate={navigate} />}
+      {activePage === 'knowledge' && <KnowledgeListingPage onNavigate={navigate} />}
       {activePage === 'tasks' && <TasksListPage onNavigate={navigate} />}
       {activePage === 'reports' && <ReportsListPage onNavigate={navigate} />}
       {activePage === 'icons' && <IconGalleryPage onNavigate={navigate} />}

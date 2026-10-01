@@ -10,12 +10,16 @@ interface ToolbarProps {
   viewsOpen?: boolean;
   /** Omit to drop the views rail toggle entirely (modules with no view catalog). */
   onToggleViews?: () => void;
+  /** What that toggle is called on this page. A module with its OWN navigation rail shares
+      the slot with Views, so the button reads as a swap ("Back to CI classes") rather than
+      as a plain hide. */
+  viewsLabels?: { show: string; hide: string };
   /** Page-supplied AI pill (the "Suggested clusters" recipe) — the Problem listing
       parks its suggestion here after "Not now". */
   suggestPill?: { label: string; count: number; onClick: () => void };
 }
 
-export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews, suggestPill }: ToolbarProps) {
+export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews, viewsLabels, suggestPill }: ToolbarProps) {
   // Mirrors the AI grouping banner: when the user hits "Not now", this compact
   // AI pill appears here so the suggestions stay one click away.
   const [aiGroups, setAiGroups] = useState<{ hidden: boolean; count: number }>({ hidden: false, count: 0 });
@@ -35,7 +39,7 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
           {onToggleViews && (
           <button
             onClick={onToggleViews}
-            title={viewsOpen ? 'Hide views' : 'Request views'}
+            title={viewsOpen ? viewsLabels?.hide ?? 'Hide views' : viewsLabels?.show ?? 'Request views'}
             className={`inline-flex h-8 w-8 items-center justify-center rounded border transition-colors ${viewsOpen ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]' : 'border-[#DFE5ED] bg-white text-[#6b7280] hover:bg-[#F5F7FA] hover:text-[#364658]'}`}
           >
             {viewsOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}

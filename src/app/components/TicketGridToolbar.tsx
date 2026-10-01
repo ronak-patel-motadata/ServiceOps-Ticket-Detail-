@@ -99,6 +99,7 @@ export function TicketGridToolbar({
   dashScope,
   dashScopeSwitch = true,
   showQuickFilters = true,
+  allowColumnEdit = true,
   quickFilters,
   filterAttrs,
   setDashScope,
@@ -114,8 +115,10 @@ export function TicketGridToolbar({
   viewsStore = 'ticket',
   layouts,
   minimalTools = false,
+  hideTools,
   showBarcodeTools = false,
   moreActions,
+  primaryAction,
 }: {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
@@ -139,6 +142,9 @@ export function TicketGridToolbar({
   dashScopeSwitch?: boolean;
   /** false drops the filter bar's Assignee / SLA / Priority quick filters. */
   showQuickFilters?: boolean;
+  /** false drops the gear menu's Columns row and its reset — for a listing whose column
+      set is fixed by the module rather than chosen by the reader. */
+  allowColumnEdit?: boolean;
   /** The module's own quick filters — see QuickFilterDef in TicketFilterBar. */
   quickFilters?: React.ComponentProps<typeof TicketFilterBar>['quickFilters'];
   /** The module's filter attribute catalog (defaults to the request set). */
@@ -163,12 +169,18 @@ export function TicketGridToolbar({
   /** Asset registers scan and print labels from the listing — barcode tools sit ahead
       of the export controls, the way the product groups them. */
   showBarcodeTools?: boolean;
+  /** The page's create action, rendered as a filled button before the ⋮ menu. */
+  primaryAction?: { label: string };
   /** The module's own ⋮ menu items, replacing the default Import entries. */
+  /** The ⋮ menu's items. An empty array hides the ⋮ button itself. */
   moreActions?: { key: string; label: string; icon: typeof Import }[];
   /** Cuts the right-hand rail down to Export + Refresh (My Approvals): an approver
       reads the queue and decides — layout, sort, auto-refresh and import are not
       theirs to set, and the status cards already carry the only cuts that matter. */
   minimalTools?: boolean;
+  /** Controls this module has no use for. A knowledge base is read and written, not
+      exported or polled, so it drops those two rather than carrying buttons nobody presses. */
+  hideTools?: ('export' | 'refresh')[];
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -220,6 +232,15 @@ export function TicketGridToolbar({
   const [savePos, setSavePos] = useState({ top: 0, left: 0 });
   /* The copy's noun, capitalised where a label needs it. */
   const ns = `${noun}s`;
+  const hidden = (t: 'export' | 'refresh') => !!hideTools?.includes(t);
+  /* The layouts THIS module offers — the shared four narrowed by `layouts`, plus the two
+     opt-in extras. Computed once: the gear menu both renders it and decides, from its
+     length, whether a picker is worth showing. */
+  const layoutTiles = [
+    ...LAYOUTS.filter((l) => !layouts || layouts.includes(l.key)),
+    ...(showCalendar ? [CALENDAR_LAYOUT] : []),
+    ...(showGantt ? [GANTT_LAYOUT] : []),
+  ];
   const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
   const canUpdate = isMyCustomView(activeView, viewsStore);
   /* Default layout — a module remembers how you like to SEE it, the same way the
@@ -316,12 +337,19 @@ export function TicketGridToolbar({
   const [gearView, setGearView] = useState<'main' | 'group' | 'subgroup'>('main');
   const [fieldMgr, setFieldMgr] = useState<{ right: number; bottom: number } | null>(null);
   // Mirrors the grid's visible-column set so the row states what it opens onto.
-  const [gridCols, setGridCols] = useState<{ key: string; label: string }[]>([]);
+  const [gridCols, setGridCols] = useState<{ key: string; label: string; sortField?: string }[]>([]);
   useEffect(() => {
-    const onCols = (e: Event) => setGridCols(((e as CustomEvent).detail as { key: string; label: string }[]) ?? []);
+    const onCols = (e: Event) => setGridCols(((e as CustomEvent).detail as { key: string; label: string; sortField?: string }[]) ?? []);
     window.addEventListener('grid-columns', onCols as EventListener);
     return () => window.removeEventListener('grid-columns', onCols as EventListener);
   }, []);
+  /* You can only sort by what the grid is SHOWING — offering the request module's eight
+     fields on a CMDB or a knowledge listing sorted by columns that were not on screen. The
+     grid publishes its own columns and the field each one sorts on; the request set is the
+     fallback for the moment before the first of those events arrives. */
+  const sortable: { field: keyof Ticket; label: string }[] = gridCols.length
+    ? gridCols.filter((c) => c.sortField).map((c) => ({ field: c.sortField as keyof Ticket, label: c.label }))
+    : SORTABLE;
   // The group list mirrors the grid, so it needs a search once many columns are shown.
   const [groupQuery, setGroupQuery] = useState('');
   const [spinning, setSpinning] = useState(false);
@@ -587,7 +615,7 @@ export function TicketGridToolbar({
         {/* Export + Download — merged into ONE control (the Report page pattern): two tabs in
             one popup instead of two near-identical icons the user has to choose between. */}
         {/* Exporting rows is a list action — no rows to export on a board or a dashboard. */}
-        {isList && (
+        {isList && !hidden('export') && (
         <div className="relative" ref={expWrapRef}>
           <button
             ref={expBtnRef}
@@ -754,7 +782,7 @@ export function TicketGridToolbar({
 
         {/* Refresh + auto-refresh interval merged into one split control (Dashboard pattern) —
             minimal rail drops the interval and keeps the plain button. */}
-        {minimalTools ? (
+        {hidden('refresh') ? null : minimalTools ? (
           <button onClick={refresh} className={ICON_BTN} title="Refresh">
             <RefreshCw size={16} className={spinning ? 'animate-spin' : ''} />
           </button>
@@ -823,9 +851,9 @@ export function TicketGridToolbar({
                 /* Applied sorts keep CHAIN order (first breaks ties first); the rest stay in
                    catalog order so the list never reshuffles while you read it. */
                 const chosen = sorts
-                  .map((entry) => ({ entry, meta: SORTABLE.find((s) => s.field === entry.column) }))
+                  .map((entry) => ({ entry, meta: sortable.find((s) => s.field === entry.column) }))
                   .filter((r) => r.meta && match(r.meta.label));
-                const rest = SORTABLE.filter((s) => !sorts.some((x) => x.column === s.field) && match(s.label));
+                const rest = sortable.filter((s) => !sorts.some((x) => x.column === s.field) && match(s.label));
 
                 const drop = (target: string) => {
                   if (!sortDrag || sortDrag === target) return;
@@ -959,12 +987,16 @@ export function TicketGridToolbar({
                   {/* Layout tiles sit UPFRONT — switching view is the most common thing this
                       menu is opened for, and hiding four options behind a fifth click was a
                       hop nobody needed. Picking one keeps the menu open: the highlight moves,
-                      the page changes behind it, and the other settings stay in reach. */}
+                      the page changes behind it, and the other settings stay in reach.
+                      A module with only ONE layout shows no picker at all: a chooser with a
+                      single choice is furniture. */}
+                  {layoutTiles.length > 1 && (
+                  <>
                   <div className="px-3 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">
                     Layout
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
-                    {[...LAYOUTS.filter((l) => !layouts || layouts.includes(l.key)), ...(showCalendar ? [CALENDAR_LAYOUT] : []), ...(showGantt ? [GANTT_LAYOUT] : [])].map(({ key, label, Icon }) => {
+                    {layoutTiles.map(({ key, label, Icon }) => {
                       const isDefault = defaultLayout === key;
                       return (
                       <div key={key} className="group/lay relative">
@@ -1008,6 +1040,8 @@ export function TicketGridToolbar({
                     })}
                   </div>
                   <div className="border-t border-[#F0F2F5]" />
+                  </>
+                  )}
                   {view === 'kanban' && (
                     <button
                       onClick={() => setGearView('group')}
@@ -1075,7 +1109,7 @@ export function TicketGridToolbar({
                       <ChevronRight size={14} className="text-[#9CA3AF]" />
                     </button>
                   )}
-                  {isList && (
+                  {isList && allowColumnEdit && (
                   <button
                     onClick={() => {
                       // The grid owns the column manager; the toolbar just asks for it.
@@ -1092,7 +1126,7 @@ export function TicketGridToolbar({
                     <ChevronRight size={14} className="text-[#9CA3AF]" />
                   </button>
                   )}
-                  {isList && (
+                  {isList && allowColumnEdit && (
                     <>
                   <div className="border-t border-[#F0F2F5]" />
                   <button
@@ -1273,7 +1307,21 @@ export function TicketGridToolbar({
         </div>
         )}
 
-        {!minimalTools && (
+        {/* The page's own create action — the one thing on this rail that MAKES something,
+            so it is a filled primary beside the icon tools rather than a seventh glyph. */}
+        {primaryAction && (
+          <button
+            onClick={() => toast(`${primaryAction.label} — coming soon`)}
+            className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-[#3D8BD0] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+          >
+            <Plus size={15} />
+            {primaryAction.label}
+          </button>
+        )}
+
+        {/* An EMPTY moreActions means the module has no such actions — the button goes with
+            them rather than opening on nothing. */}
+        {!minimalTools && (moreActions?.length ?? 1) > 0 && (
         <div className="relative" ref={moreRef}>
           <button
             onClick={() => setMoreOpen((v) => !v)}

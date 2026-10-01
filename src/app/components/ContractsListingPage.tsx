@@ -7,7 +7,8 @@
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { type DashConfig } from './AssetDashboardView';
 import { type StatCard } from './AssetStatsRow';
-import { type FilterRule } from './TicketFilterBar';
+import { CONTRACT_QUICK_FILTERS, type FilterRule } from './TicketFilterBar';
+import { CONTRACT_FILTER_ATTRS } from './contractFilterAttrs';
 import { mockContracts, type Contract } from './ContractsListPage';
 import type { Ticket } from './TicketListPage';
 import { AlertTriangle, CalendarClock, CheckCircle2, FileText } from 'lucide-react';
@@ -51,10 +52,15 @@ const CT: { rows: Ticket[]; byId: Map<string, Contract> } = (() => {
       status: c.status as Ticket['status'],
       priority: 'Medium',
       x_contractType: c.contractType,
+      x_contractNumber: c.contractNumber,
       x_vendor: c.vendor,
       x_cost: c.cost,
       x_startDate: c.startDate,
       x_endDate: c.endDate,
+      /* The parsed dates behind the printed dd/mm/yyyy — the Contract Start / End Date
+         filters compare Dates, the columns keep printing the strings. */
+      startOn: start,
+      endOn: end,
       x_expiryBand: expiryBand,
     } as Ticket;
   });
@@ -77,6 +83,13 @@ const buildCards = (tickets: Ticket[]): StatCard[] => {
   const one = (field: string, values: string[]): Omit<FilterRule, 'id'>[] => [{ field, condition: 'is', values }];
   return [
     { label: 'Total contracts', value: total, sub: `across ${types} contract types` },
+    /* Money sits second, not buried at the end: what the portfolio COSTS is the number
+       the page is read for, and the average tells you the shape of that spend. */
+    {
+      label: 'Contract value',
+      value: fmtINR(value),
+      sub: withCost.length ? `avg ${fmtINR(Math.round(value / withCost.length))} per contract` : 'no recorded cost',
+    },
     {
       label: 'Active',
       value: active,
@@ -107,7 +120,6 @@ const buildCards = (tickets: Ticket[]): StatCard[] => {
       hint: 'Show contracts not yet started',
       filter: one('status', ['Not Started']),
     },
-    { label: 'Contract value', value: fmtINR(value), sub: `${withCost.length} contracts with recorded cost` },
     { label: 'Vendors', value: vendors, sub: 'under management' },
   ];
 };
@@ -183,7 +195,14 @@ export function ContractsListingPage({ onNavigate }: { onNavigate?: (page: strin
       buildCards={buildCards}
       buildDashboard={buildDashboard}
       mineHint="Contracts carry no personal assignment — switch back to Overall."
-      searchFields={['x_contractType', 'x_vendor', 'x_endDate']}
+      filterAttrs={CONTRACT_FILTER_ATTRS}
+      /* Contract Status is DERIVED — a contract is Not Started until its start date, Active
+         inside its window and Expired past its end date. Nobody sets it by hand, so the cell
+         reads as plain text: changing the dates is what moves it. */
+      lockedCells={['status']}
+      /* One cut: what kind of agreement this is. */
+      quickFilters={CONTRACT_QUICK_FILTERS}
+      searchFields={['x_contractType', 'x_contractNumber', 'x_vendor', 'x_endDate']}
       onNavigate={onNavigate}
     />
   );

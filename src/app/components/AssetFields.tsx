@@ -38,10 +38,12 @@ export interface AssetFieldState {
 
 export const SOFTWARE_TYPE_OPTIONS = ['Managed', 'Discovered', 'Unmanaged'];
 
+/* The product's License Type list, in the product's own order — shared by the detail
+   page's License Fields and the listing's filter + cell dropdown. */
 export const LICENSE_TYPE_OPTIONS = [
   'Single Machine', 'Multiple Machines', 'Unlimited Machines', 'Node Locked',
-  'Single User', 'Volume Users', 'Unlimited Users', 'Enterprise-Perpetual',
-  'OEM', 'Free License', 'Enterprise Subscription',
+  'Single User', 'Volume Users', 'Unlimited Users', 'Enterprise Subscription',
+  'Enterprise-Perpetual', 'OEM', 'Free License',
 ];
 
 export const CONTRACT_TYPE_OPTIONS = ['Lease', 'Warranty', 'Maintenance', 'Support'];
@@ -57,6 +59,11 @@ export const PURCHASE_STATUS_OPTIONS = [
 ];
 
 export const COST_CENTER_OPTIONS = ['IT Operations', 'Procurement', 'Finance', 'Infrastructure', 'Administration'];
+/* The rest of the purchase-order pickers, exported so the listing's filter catalogue and
+   Manage-columns list read the SAME values the detail page's fields offer. */
+export const GL_CODE_OPTIONS = ['5010 - IT Equipment', '5020 - Software', '5030 - Services', '6010 - Maintenance', '6020 - Consumables'];
+export const INVOICE_RECEIVED_OPTIONS = ['None', 'Partial', 'Full'];
+export const PAYMENT_STATUS_OPTIONS = ['None', 'Pending', 'Partially Paid', 'Paid'];
 
 /** User options for the contract Owner picker (mirrors the ticket Assignee dropdown). */
 const OWNER_OPTIONS: { name: string; initials: string; color: string; status: string }[] = [
@@ -293,10 +300,10 @@ export function assetKeyInfoFields(state: AssetFieldState | undefined, mode: Ass
       ...plain(['Purchase Required By', 'Purchase Order Date']),
       { label: 'Owner', value: extra['Owner'] ?? '', options: owners },
       pick('Vendor'),
-      pick('GL Code', ['5010 - IT Equipment', '5020 - Software', '5030 - Services', '6010 - Maintenance', '6020 - Consumables']),
+      pick('GL Code', GL_CODE_OPTIONS),
       pick('Print Template', ['Standard', 'Detailed', 'Compact']),
-      pick('Invoice Received', ['None', 'Partial', 'Full']),
-      pick('Payment Status', ['None', 'Pending', 'Partially Paid', 'Paid']),
+      pick('Invoice Received', INVOICE_RECEIVED_OPTIONS),
+      pick('Payment Status', PAYMENT_STATUS_OPTIONS),
       ...plain(['Total Invoice Amount', 'Total Payment Amount']),
     ];
   }
@@ -1518,10 +1525,10 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
             </div>
           </div>
         )}
-        {(showMore || q) && (!q || 'gl code'.includes(q)) && selectRow('GL Code', ['5010 - IT Equipment', '5020 - Software', '5030 - Services', '6010 - Maintenance', '6020 - Consumables'])}
+        {(showMore || q) && (!q || 'gl code'.includes(q)) && selectRow('GL Code', GL_CODE_OPTIONS)}
         {(showMore || q) && (!q || 'print template'.includes(q)) && selectRow('Print Template', ['Standard', 'Detailed', 'Compact'])}
-        {(showMore || q) && (!q || 'invoice received'.includes(q)) && selectRow('Invoice Received', ['None', 'Partial', 'Full'])}
-        {(showMore || q) && (!q || 'payment status'.includes(q)) && selectRow('Payment Status', ['None', 'Pending', 'Partially Paid', 'Paid'])}
+        {(showMore || q) && (!q || 'invoice received'.includes(q)) && selectRow('Invoice Received', INVOICE_RECEIVED_OPTIONS)}
+        {(showMore || q) && (!q || 'payment status'.includes(q)) && selectRow('Payment Status', PAYMENT_STATUS_OPTIONS)}
         {(showMore || q) && (!q || 'total invoice amount'.includes(q)) && textRow('Total Invoice Amount')}
         {(showMore || q) && (!q || 'total payment amount'.includes(q)) && textRow('Total Payment Amount')}
 

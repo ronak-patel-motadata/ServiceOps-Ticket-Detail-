@@ -135,6 +135,33 @@ export const SWASSET_VIEWS: TicketView[] = [
   { name: 'In Use Software', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
   { name: 'Retired Software', rules: [{ field: 'status', condition: 'is', values: ['Retired'] }] },
 ];
+/* The CMDB's cuts — running state, agent health, and the CIs nobody owns. The CI CLASS
+   is the rail's job, so no view repeats it. */
+export const CMDB_VIEWS: TicketView[] = [
+  { name: 'All CI', rules: [] },
+  { name: 'Operational CIs', rules: [{ field: 'status', condition: 'is', values: ['Operational'] }] },
+  { name: 'Non-Operational CIs', rules: [{ field: 'status', condition: 'is', values: ['Non-Operational'] }] },
+  { name: 'In Maintenance', rules: [{ field: 'status', condition: 'is', values: ['In Maintenance'] }] },
+  { name: 'Agent Not Reporting', rules: [{ field: 'x_agentHealth', condition: 'is', values: ['Warning', 'No Agent'] }] },
+  { name: 'Unassigned CIs', rules: [{ field: 'assignedTo', condition: 'is', values: ['Unassigned'] }] },
+];
+/* Knowledge's cuts — what readers can trust, and what is waiting on someone. */
+export const KNOWLEDGE_VIEWS: TicketView[] = [
+  { name: 'All Folders', rules: [] },
+  { name: 'Published Articles', rules: [{ field: 'status', condition: 'is', values: ['Published'] }] },
+  { name: 'Drafts & In Review', rules: [{ field: 'status', condition: 'is', values: ['Draft', 'In Review'] }] },
+  { name: 'Expired Articles', rules: [{ field: 'status', condition: 'is', values: ['Expired'] }] },
+  { name: 'Awaiting Approval', rules: [{ field: 'x_approvalStatus', condition: 'is', values: ['Pending Approval'] }] },
+  { name: 'My Articles', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
+];
+/* Metering's cuts — the lifecycle of a metered application, and the ones nobody owns. */
+export const METER_VIEWS: TicketView[] = [
+  { name: 'All Metered Software', rules: [] },
+  { name: 'In Use Applications', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
+  { name: 'In Stock Applications', rules: [{ field: 'status', condition: 'is', values: ['In Stock'] }] },
+  { name: 'Retired Still Installed', rules: [{ field: 'status', condition: 'is', values: ['Retired'] }] },
+  { name: 'Unassigned Applications', rules: [{ field: 'assignedTo', condition: 'is', values: ['Unassigned'] }] },
+];
 export const NONIT_VIEWS: TicketView[] = [
   { name: 'All Non-IT Assets', rules: [] },
   { name: 'In Use Assets', rules: [{ field: 'status', condition: 'is', values: ['In Use'] }] },
@@ -194,9 +221,12 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
    and the default view never leak between the Request and Change listings. */
 export type ViewStore =
   | 'ticket' | 'change' | 'release' | 'problem' | 'hwasset'
-  | 'swasset' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  | 'swasset' | 'meter' | 'cmdb' | 'knowledge' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
 const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   swasset: SWASSET_VIEWS,
+  meter: METER_VIEWS,
+  cmdb: CMDB_VIEWS,
+  knowledge: KNOWLEDGE_VIEWS,
   nonit: NONIT_VIEWS,
   consumable: CONSUMABLE_VIEWS,
   license: LICENSE_VIEWS,

@@ -61,7 +61,7 @@ export const mockKnowledgeArticles: KnowledgeArticle[] = [
 
 /** Adapt a knowledge article onto the Patch shape the cloned KnowledgeDrawer body expects
  *  (same pattern as the other XToShape adapters in the drawer clone chain). */
-const knowledgeToPatchShape = (a: KnowledgeArticle): Patch => ({
+export const knowledgeToPatchShape = (a: KnowledgeArticle): Patch => ({
   id: a.id,
   name: a.name,
   severity: 'Unspecified',
@@ -80,7 +80,7 @@ const knowledgeToPatchShape = (a: KnowledgeArticle): Patch => ({
 });
 
 // Articles the user moved to Trash (kept separate so folder counts stay honest).
-const TRASHED_IDS = new Set<string>();
+export const TRASHED_IDS = new Set<string>();
 
 export function KnowledgeListPage({ onNavigate }: { onNavigate: (page: string) => void }) {
   const [articles] = useState<KnowledgeArticle[]>(mockKnowledgeArticles);
