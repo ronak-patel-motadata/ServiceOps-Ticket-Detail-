@@ -7783,6 +7783,22 @@ onStackMinimizedChange,
             softwareMode={true}
             nonItMode={true}
             patchMode={true}
+            /* The Patch Fields that are facts about THIS patch rather than catalogue
+               furniture — so the panel agrees with the header above it and the listing row
+               behind it. The rest of the field set stays mock. */
+            patchInfo={{
+              category: activePatchRecord?.category,
+              severity: activePatchRecord?.severity,
+              approvalStatus: activePatchRecord?.approvalStatus,
+              releaseDate: activePatchRecord?.releaseDate?.replace(/^[A-Za-z]{3},\s*/, '').replace(/\s+\d{1,2}:\d{2}\s*(AM|PM)$/i, ''),
+              kbNumber: activePatchRecord?.name.match(/\bKB\d+\b/)?.[0],
+              rebootRequired: activePatchRecord?.rebootRequired,
+              referenceUrl: activePatchRecord?.supportUri
+                ?? (() => {
+                  const kb = activePatchRecord?.name.match(/\bKB(\d+)\b/)?.[1];
+                  return kb ? `https://support.microsoft.com/help/${kb}` : undefined;
+                })(),
+            }}
             assetState={assetState}
             activeGroup={activeGroup}
             setActiveGroup={setActiveGroup}

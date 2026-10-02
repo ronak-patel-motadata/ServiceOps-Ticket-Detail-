@@ -27,7 +27,7 @@ export interface TicketView {
 /** The signed-in technician — decides what lands in "My Views". */
 /* Imported AND re-exported: this module uses CURRENT_USER at module scope (the seeded view
    owners below), and a bare `export … from` re-export would not bind the name locally. */
-import { CURRENT_USER } from './technicianRoster';
+import { CURRENT_USER, groupOfTechnician } from './technicianRoster';
 export { CURRENT_USER };
 
 export const TICKET_VIEWS: TicketView[] = [
@@ -154,6 +154,117 @@ export const KNOWLEDGE_VIEWS: TicketView[] = [
   { name: 'Awaiting Approval', rules: [{ field: 'x_approvalStatus', condition: 'is', values: ['Pending Approval'] }] },
   { name: 'My Articles', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
 ];
+/* The task queue's own cuts: what is live, what is mine, what has slipped, and what is
+   waiting on somebody else. The finished states are Closed, Resolved AND Rejected — a
+   rejected task is as done as a closed one, and leaving it in "open" would overstate the
+   backlog every morning. */
+export const TASK_VIEWS: TicketView[] = [
+  { name: 'All Tasks', rules: [] },
+  { name: 'All Open Tasks', rules: [{ field: 'status', condition: 'is not', values: ['Closed', 'Resolved', 'Rejected'] }] },
+  {
+    name: 'My Open Tasks',
+    rules: [
+      { field: 'assignedTo', condition: 'is', values: [CURRENT_USER] },
+      { field: 'status', condition: 'is not', values: ['Closed', 'Resolved', 'Rejected'] },
+    ],
+  },
+  { name: 'My Overdue Tasks', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }, { field: 'x_overdue', condition: 'is', values: ['Breached'] }] },
+  { name: 'All Overdue Tasks', rules: [{ field: 'x_overdue', condition: 'is', values: ['Breached'] }] },
+  { name: 'Urgent or High Priority Tasks', rules: [{ field: 'priority', condition: 'is', values: ['Urgent', 'High'] }] },
+  { name: 'Tasks Waiting on Someone Else', rules: [{ field: 'status', condition: 'is', values: ['Pending'] }] },
+  { name: 'Approval Tasks', rules: [{ field: 'x_taskType', condition: 'is', values: ['Approval'] }] },
+  { name: 'Standalone Tasks', rules: [{ field: 'x_reference', condition: 'empty', values: [] }] },
+  { name: 'All Closed Tasks', rules: [{ field: 'status', condition: 'is', values: ['Closed', 'Resolved', 'Rejected'] }] },
+];
+/* My Team's cuts. The "all" view is called My Team because it IS the module — the page
+   title reads off the applied view, and "All Team Members" would rename the page. The
+   rest are the questions a supervisor opens a roster with: who is in my group, who can
+   take work right now, who is drowning, who is sitting idle, and which accounts are no
+   longer live. */
+export const TEAM_VIEWS: TicketView[] = [
+  { name: 'My Team', rules: [] },
+  { name: 'My Group', rules: [{ field: 'x_group', condition: 'is', values: [groupOfTechnician(CURRENT_USER)] }] },
+  { name: 'Available Now', rules: [{ field: 'x_availability', condition: 'is', values: ['Available'] }] },
+  { name: 'On Leave', rules: [{ field: 'x_availability', condition: 'is', values: ['On Leave'] }] },
+  { name: 'Overloaded Technicians', rules: [{ field: 'x_workload', condition: 'is', values: ['Overloaded'] }] },
+  { name: 'Idle Technicians', rules: [{ field: 'x_workload', condition: 'is', values: ['Idle'] }] },
+  { name: 'Supervisors & Administrators', rules: [{ field: 'x_role', condition: 'is', values: ['Supervisor', 'Administrator'] }] },
+  { name: 'Technicians Only', rules: [{ field: 'x_role', condition: 'is', values: ['Technician'] }] },
+  { name: 'Inactive or Blocked Accounts', rules: [{ field: 'status', condition: 'is', values: ['Inactive', 'Blocked'] }] },
+];
+/* The project portfolio's cuts: what is live, what is mine, what has slipped its end date,
+   what is parked, and what is already delivered. */
+export const PROJECT_VIEWS: TicketView[] = [
+  { name: 'All Projects', rules: [] },
+  { name: 'Active Projects', rules: [{ field: 'status', condition: 'is', values: ['Open', 'Planning', 'Implementation'] }] },
+  { name: 'My Projects', rules: [{ field: 'assignedTo', condition: 'is', values: [CURRENT_USER] }] },
+  { name: 'Overdue Projects', rules: [{ field: 'x_dueBand', condition: 'is', values: ['Overdue'] }] },
+  { name: 'Ending in 30 Days', rules: [{ field: 'x_dueBand', condition: 'is', values: ['Due soon'] }] },
+  { name: 'Critical Projects', rules: [{ field: 'priority', condition: 'is', values: ['Critical'] }] },
+  { name: 'On Hold', rules: [{ field: 'status', condition: 'is', values: ['On Hold'] }] },
+  { name: 'Unassigned Projects', rules: [{ field: 'assignedTo', condition: 'is', values: ['Unassigned'] }] },
+  { name: 'Completed Projects', rules: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
+];
+/* The three Vulnerability-module catalogues. Each opens on the view its own table
+   always showed, then offers the cuts a security analyst actually works by. */
+export const VULN_VIEWS: TicketView[] = [
+  { name: 'Detected Vulnerability Patches', rules: [] },
+  { name: 'Exploited in the Wild', rules: [{ field: 'x_exploited', condition: 'is', values: ['Yes'] }] },
+  { name: 'Critical Severity', rules: [{ field: 'x_severity', condition: 'is', values: ['Critical'] }] },
+  { name: 'CVSS 9.0 and Above', rules: [{ field: 'x_cvssBand', condition: 'is', values: ['Critical (9.0+)'] }] },
+  { name: 'Third Party Updates', rules: [{ field: 'x_category', condition: 'is', values: ['Third Party Updates'] }] },
+];
+export const CVE_VIEWS: TicketView[] = [
+  { name: 'Detected Vulnerabilities', rules: [] },
+  { name: 'Exploited CVEs', rules: [{ field: 'x_exploit', condition: 'is', values: ['Yes'] }] },
+  { name: 'No Patch Available', rules: [{ field: 'x_patchAvail', condition: 'is', values: ['No'] }] },
+  { name: 'High and Critical', rules: [{ field: 'x_severity', condition: 'is', values: ['High', 'Critical'] }] },
+  { name: 'Awaiting Analysis', rules: [{ field: 'status', condition: 'is', values: ['Awaiting Analysis'] }] },
+];
+export const ENDPOINT_VIEWS: TicketView[] = [
+  { name: 'All Endpoints', rules: [] },
+  { name: 'Agents Offline', rules: [{ field: 'x_agent', condition: 'is', values: ['Offline'] }] },
+  { name: 'Unhealthy Endpoints', rules: [{ field: 'x_health', condition: 'is', values: ['Warning', 'Critical'] }] },
+  { name: 'Reboot Required', rules: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }] },
+  { name: 'Servers', rules: [{ field: 'x_os', condition: 'contains', values: ['Server'] }] },
+];
+/* The patch catalogue's cuts — what blocks a rollout, and what a rollout will cost. */
+export const PATCH_VIEWS: TicketView[] = [
+  { name: 'Missing Patches', rules: [] },
+  { name: 'Awaiting Approval', rules: [{ field: 'x_approvalStatus', condition: 'is', values: ['Not Approved'] }] },
+  { name: 'Critical Severity', rules: [{ field: 'x_severity', condition: 'is', values: ['Critical'] }] },
+  { name: 'Ready to Deploy', rules: [{ field: 'x_deployable', condition: 'is', values: ['Yes'] }] },
+  { name: 'Needs a Reboot', rules: [{ field: 'x_needsReboot', condition: 'is', values: ['Yes'] }] },
+];
+/* A run list reads by what is happening now and what quietly did not. */
+export const PATCH_DEPLOY_VIEWS: TicketView[] = [
+  { name: 'All Deployments', rules: [] },
+  { name: 'In Progress', rules: [{ field: 'status', condition: 'is', values: ['In Progress'] }] },
+  { name: 'Ready to Deploy', rules: [{ field: 'status', condition: 'is', values: ['Ready to Deploy'] }] },
+  { name: 'Missed Their Window', rules: [{ field: 'x_lapsed', condition: 'is', values: ['Yes'] }] },
+  { name: 'Completed', rules: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
+];
+export const PACKAGE_DEPLOY_VIEWS: TicketView[] = [
+  { name: 'All Package Deployments', rules: [] },
+  { name: 'In Progress', rules: [{ field: 'status', condition: 'is', values: ['In Progress'] }] },
+  { name: 'Ready to Deploy', rules: [{ field: 'status', condition: 'is', values: ['Ready to Deploy'] }] },
+  { name: 'Missed Their Window', rules: [{ field: 'x_lapsed', condition: 'is', values: ['Yes'] }] },
+  { name: 'Completed', rules: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
+];
+export const REGISTRY_DEPLOY_VIEWS: TicketView[] = [
+  { name: 'All Registry Deployments', rules: [] },
+  { name: 'In Progress', rules: [{ field: 'status', condition: 'is', values: ['In Progress'] }] },
+  { name: 'Uninstall Configurations', rules: [{ field: 'x_configType', condition: 'is', values: ['Uninstall'] }] },
+  { name: 'Missed Their Window', rules: [{ field: 'x_lapsed', condition: 'is', values: ['Yes'] }] },
+  { name: 'Completed', rules: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
+];
+export const APT_VIEWS: TicketView[] = [
+  { name: 'Automatic Patch Tests', rules: [] },
+  { name: 'Enabled Schedules', rules: [{ field: 'x_enabled', condition: 'is', values: ['Enabled'] }] },
+  { name: 'Tests Pending', rules: [{ field: 'x_progress', condition: 'is', values: ['Tests pending'] }] },
+  { name: 'Never Run', rules: [{ field: 'x_progress', condition: 'is', values: ['Never run'] }] },
+  { name: 'Disabled Schedules', rules: [{ field: 'x_enabled', condition: 'is', values: ['Disabled'] }] },
+];
 /* Metering's cuts — the lifecycle of a metered application, and the ones nobody owns. */
 export const METER_VIEWS: TicketView[] = [
   { name: 'All Metered Software', rules: [] },
@@ -221,7 +332,7 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
    and the default view never leak between the Request and Change listings. */
 export type ViewStore =
   | 'ticket' | 'change' | 'release' | 'problem' | 'hwasset'
-  | 'swasset' | 'meter' | 'cmdb' | 'knowledge' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  | 'swasset' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patchdeploy' | 'pkgdeploy' | 'regdeploy' | 'apt' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
 const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   swasset: SWASSET_VIEWS,
   meter: METER_VIEWS,
@@ -233,6 +344,17 @@ const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   contract: CONTRACT_VIEWS,
   purchase: PURCHASE_VIEWS,
   approval: APPROVAL_VIEWS,
+  task: TASK_VIEWS,
+  team: TEAM_VIEWS,
+  project: PROJECT_VIEWS,
+  vuln: VULN_VIEWS,
+  cve: CVE_VIEWS,
+  endpoint: ENDPOINT_VIEWS,
+  patch: PATCH_VIEWS,
+  patchdeploy: PATCH_DEPLOY_VIEWS,
+  pkgdeploy: PACKAGE_DEPLOY_VIEWS,
+  regdeploy: REGISTRY_DEPLOY_VIEWS,
+  apt: APT_VIEWS,
 };
 const builtinsFor = (store: ViewStore) =>
   MODULE_BUILTINS[store] ??

@@ -55,11 +55,24 @@ export function TicketGanttView({
   tickets,
   onTicketClick,
   noun = 'request',
+  initialGrain = 'month',
+  progressOf,
+  cardAction,
 }: {
   tickets: Ticket[];
   onTicketClick: (t: Ticket) => void;
   /** What one record is called — the Release listing passes "release". */
   noun?: string;
+  /** How far along a record is, 0-100. Supplying it swaps the rail's state chip for a
+      progress meter — the right answer for a module whose records report completion
+      (Projects); a release has no percentage, so it keeps the chip. */
+  progressOf?: (t: Ticket) => number | null | undefined;
+  /** Which grain the timeline opens on. A release window is days or weeks, so Month shows
+      it whole; a PROJECT runs for months, where Month would put every bar off both edges
+      of the screen — that caller opens on Quarter. */
+  initialGrain?: Grain;
+  /** An action offered at the foot of the hover card — see EventTip's `action`. */
+  cardAction?: { label: string; onClick: (t: Ticket) => void };
 }) {
   /* Open on the month with the most windows — the calendar's rule, for the same
      reason: a timeline's first impression should be its content. */
@@ -78,7 +91,10 @@ export function TicketGanttView({
     return best?.d ?? new Date();
   }, [tickets]);
 
-  const [grain, setGrain] = useState<Grain>('month');
+  const [grain, setGrain] = useState<Grain>(initialGrain);
+  /* The two bar overlays are a RELEASE concept. Derived rather than passed: a module whose
+     records carry neither should not be shown a key to colours no bar uses. */
+  const hasPhases = useMemo(() => tickets.some((t) => t.rollout || t.downtime), [tickets]);
   const [cursor, setCursor] = useState<Date>(busiest);
   /* Brush zoom: dragging a span across the timeline sets a CUSTOM range that
      overrides the grain; Reset (or picking a grain) returns to the grains, a
@@ -320,8 +336,9 @@ export function TicketGanttView({
               Reset zoom
             </button>
           )}
-          {/* Phase legend — the bars carry two overlays worth naming. */}
-          <span className="mr-1 hidden items-center gap-3 text-[11px] text-[#94A3B8] md:flex">
+          {/* Phase legend — the bars carry two overlays worth naming, where a module uses
+              them at all. */}
+          <span className={`mr-1 hidden items-center gap-3 text-[11px] text-[#94A3B8] ${hasPhases ? 'md:flex' : ''}`}>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-4 rounded-[3px] bg-[#3D8BD0]" />
               Rollout
@@ -331,6 +348,24 @@ export function TicketGanttView({
               Down time
             </span>
           </span>
+          {/* A timeline that opens on its busiest period can be months away from now, which
+              makes a "today" rule something you never actually see. One click brings the
+              view back to the current period — and it lights up while you are already
+              there, so it doubles as "yes, this IS now". */}
+          <button
+            onClick={() => {
+              setCustomRange(null);
+              setCursor(grain === 'week' ? dayFloor(new Date()) : new Date(today.getFullYear(), today.getMonth(), 1));
+            }}
+            title="Jump to the current period"
+            className={`inline-flex h-8 flex-shrink-0 items-center rounded border px-2.5 text-[12px] font-medium transition-colors ${
+              todayPct !== null
+                ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                : 'border-[#DFE5ED] bg-white text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]'
+            }`}
+          >
+            Today
+          </button>
           <div className="flex items-center overflow-hidden rounded border border-[#DFE5ED]">
             <button
               onClick={() => step(-1)}
@@ -440,6 +475,22 @@ export function TicketGanttView({
                   {fmtDay(d)}
                 </div>
               ))}
+          {/* The rule's label, in the AXIS rather than hanging into the first row — at the
+              top of the chart it is where the eye already is, and it covers no record.
+              It clamps at both ends: today often falls on the first or last day of the
+              period, and a centred pill would have half of itself cut off there. */}
+          {todayPct !== null && rows.length > 0 && (
+            <span
+              className="pointer-events-none absolute bottom-0 z-10 rounded-t bg-[#3D8BD0] px-1.5 py-[3px] text-[10px] font-semibold leading-none text-white shadow-[0_-1px_3px_rgba(16,24,40,0.15)]"
+              style={{
+                left: `${todayPct}%`,
+                transform:
+                  todayPct < 4 ? 'translateX(-1px)' : todayPct > 96 ? 'translateX(calc(-100% + 1px))' : 'translateX(-50%)',
+              }}
+            >
+              Today
+            </span>
+          )}
         </div>
       </div>
 
@@ -477,9 +528,6 @@ export function TicketGanttView({
                 style={{ left: `${pctRaw(dayFloor(d).getTime())}%` }}
               />
             ))}
-            {todayPct !== null && (
-              <span className="absolute inset-y-0 w-px bg-[#3D8BD0]" style={{ left: `${todayPct}%` }} />
-            )}
           </div>
 
           {rows.map((t) => {
@@ -491,6 +539,10 @@ export function TicketGanttView({
             /* A two-hour window in a quarter is a sliver — it stays a clean tick mark
                rather than a squashed pill full of clipped text. */
             const slim = width < 3;
+            /* How far along, where the module reports it — drives BOTH the rail's meter and
+               the solid fill inside the bar. */
+            const rawPct = progressOf?.(t);
+            const done = typeof rawPct === 'number' ? Math.max(0, Math.min(100, Math.round(rawPct))) : null;
             return (
               <div key={t.id} className="group relative flex h-[76px] items-center border-b border-[#F5F7FA] transition-colors hover:bg-[#64748B]/[0.05]">
                 <button
@@ -499,9 +551,9 @@ export function TicketGanttView({
                   style={{ width: RAIL_W }}
                 >
                   {(() => {
-                    /* Where the record IS beats how far along it is: the rail carries the
-                       hover card's stage · status chip rather than a readiness meter, so
-                       the two surfaces say the same thing about the same row. */
+                    /* Where the record IS beats how far along it is — UNLESS the module
+                       actually reports completion, in which case a percentage is the more
+                       useful second line and the status is already a colour on the bar. */
                     const staged = t.stageStatus?.includes(': ') ? t.stageStatus.split(': ') : null;
                     return (
                       <>
@@ -513,31 +565,57 @@ export function TicketGanttView({
                             IS below, in a single glance rather than three stacked rows. */}
                         <span className="mt-1.5 flex w-full min-w-0 items-center gap-2 pl-[14px]">
                           <span className="flex-shrink-0 text-[10.5px] font-medium text-[#94A3B8]">{t.id}</span>
-                          {/* Same wording as the hover card's chip, so a truncated stage is
-                              always recoverable without opening the record. */}
-                          <Tooltip delayDuration={300}>
+                          {done === null ? (
+                            /* Same wording as the hover card's chip, so a truncated stage is
+                               always recoverable without opening the record. */
+                            <Tooltip delayDuration={300}>
+                              <TooltipTrigger asChild>
+                                <span className="ml-auto inline-flex h-[22px] min-w-0 cursor-default items-center gap-1.5 rounded border border-[#E5E7EB] bg-white px-1.5 text-[11px] text-[#364658]">
+                                  <span
+                                    className="size-1.5 flex-shrink-0 rounded-full"
+                                    style={{ backgroundColor: STATUS_DOT[t.status] ?? '#94A3B8' }}
+                                  />
+                                  {staged ? (
+                                    <>
+                                      <span className="flex-shrink-0 text-[#7B8FA5]">{staged[0]}</span>
+                                      <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
+                                      <span className="truncate">{staged.slice(1).join(': ')}</span>
+                                    </>
+                                  ) : (
+                                    <span className="truncate">{t.status}</span>
+                                  )}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {staged ? `Stage: ${staged[0]} · ${staged.slice(1).join(': ')}` : `Status: ${t.status}`}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="ml-auto flex-shrink-0 text-[11px] font-medium tabular-nums text-[#64748B]">
+                              {done}%
+                            </span>
+                          )}
+                        </span>
+                        {/* The meter itself, in the ROW's tone — the same treatment the
+                            project detail page's Planning Gantt uses, so the dot, the meter
+                            and the bar's fill are all one colour per row. It hangs under the
+                            id line at full rail width, where a column of them reads as the
+                            portfolio's progress at a glance. */}
+                        {done !== null && (
+                          <Tooltip delayDuration={400}>
                             <TooltipTrigger asChild>
-                              <span className="ml-auto inline-flex h-[22px] min-w-0 cursor-default items-center gap-1.5 rounded border border-[#E5E7EB] bg-white px-1.5 text-[11px] text-[#364658]">
+                              <span className="mt-2 block h-1 w-full cursor-default overflow-hidden rounded-full bg-[#EEF1F4]">
                                 <span
-                                  className="size-1.5 flex-shrink-0 rounded-full"
-                                  style={{ backgroundColor: STATUS_DOT[t.status] ?? '#94A3B8' }}
+                                  className="block h-full rounded-full transition-[width] duration-200"
+                                  style={{ width: `${done}%`, backgroundColor: tone.dot }}
                                 />
-                                {staged ? (
-                                  <>
-                                    <span className="flex-shrink-0 text-[#7B8FA5]">{staged[0]}</span>
-                                    <span className="flex-shrink-0 text-[#CBD5E1]">·</span>
-                                    <span className="truncate">{staged.slice(1).join(': ')}</span>
-                                  </>
-                                ) : (
-                                  <span className="truncate">{t.status}</span>
-                                )}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                              {staged ? `Stage: ${staged[0]} · ${staged.slice(1).join(': ')}` : `Status: ${t.status}`}
+                            <TooltipContent side="top" className="max-w-[300px] text-wrap">
+                              {t.windowNote ? `${done}% complete — ${t.windowNote}` : `${done}% complete`}
                             </TooltipContent>
                           </Tooltip>
-                        </span>
+                        )}
                       </>
                     );
                   })()}
@@ -547,14 +625,25 @@ export function TicketGanttView({
                     className="absolute top-1/2 h-[22px] -translate-y-1/2"
                     style={{ left: `${left}%`, width: `${width}%`, minWidth: 8 }}
                   >
-                  <EventTip t={t}>
+                  <EventTip t={t} action={cardAction}>
                     <button
                       onClick={() => onTicketClick(t)}
                       style={{ backgroundColor: `${tone.dot}59` }}
-                      className={`absolute inset-0 block shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-[filter] hover:brightness-95 ${
+                      className={`absolute inset-0 block overflow-hidden shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-[filter] hover:brightness-95 ${
                         contL ? '' : 'rounded-l'
                       } ${contR ? '' : 'rounded-r'}`}
-                    />
+                    >
+                      {/* Where the module reports completion, the window is a TRACK and the
+                          work done inside it is painted solid — the project detail page's
+                          Planning Gantt recipe. It reads far stronger than a flat tint, and
+                          the bar then says both when the work runs AND how far it has got. */}
+                      {done !== null && (
+                        <span
+                          className="absolute inset-y-0 left-0 block transition-[width] duration-200"
+                          style={{ width: `${done}%`, backgroundColor: tone.dot }}
+                        />
+                      )}
+                    </button>
                   </EventTip>
                   {t.rollout &&
                     (() => {
@@ -659,6 +748,23 @@ export function TicketGanttView({
               {railSearch.trim()
                 ? `No ${noun}s match "${railSearch.trim()}"`
                 : `Nothing scheduled in this ${customRange ? 'range' : grain}.`}
+            </div>
+          )}
+
+          {/* ── Today ───────────────────────────────────────────────────────────────
+              "Where are we now?" is the first question anyone asks a timeline, and it is
+              the one thing a Gantt cannot show with a bar. Drawn AFTER the rows, not in
+              the backdrop with the weekend wash: behind them, a long bar swallowed the
+              rule exactly where the answer matters most.
+
+              Translucent, so it reads as a reference line over a bar rather than cutting
+              it in half, and in the product's primary — red is this grid's "breached", and
+              a red rule across every row would read as alarm rather than as "now". The
+              label is a tab hanging off the axis header, which is where the eye lands
+              first and where it cannot collide with the date numbers above it. */}
+          {todayPct !== null && rows.length > 0 && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-[6]" style={{ left: RAIL_W }}>
+              <span className="absolute inset-y-0 w-[2px] -translate-x-1/2 bg-[#3D8BD0]/70" style={{ left: `${todayPct}%` }} />
             </div>
           )}
           {/* The live selection — a chart brush: tinted span, edge rules, and a

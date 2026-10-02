@@ -25,6 +25,12 @@ export interface Ticket {
   dueEnd?: Date;
   /** What the window means for users — the Change Schedule's impact statement. */
   windowNote?: string;
+  /** Counts the timeline's hover card shows INSTEAD of an impact statement, for a record
+      that reports a plan rather than a disruption (a project's tasks). Figures scan where
+      a sentence has to be read. */
+  stats?: { label: string; value: number | string; color?: string }[];
+  /** The bar above those counts, 0-100. */
+  statsProgress?: number;
   /** The record's lifecycle stage + status ("Planning: In Progress") — Change and
       Release rows carry it; surfaces show it in place of the flattened status. */
   stageStatus?: string;

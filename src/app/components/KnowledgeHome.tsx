@@ -2,29 +2,33 @@
    What the reader sees before they pick a folder. The product shows this as two
    stacked grids — Most Read above Most Helpful — which spends two sets of table
    chrome, two pagers and a scroll to say one thing: here are the articles worth
-   reading. This is ONE ranked list with the ranking as a switch, so the same three
-   answers cost one surface and no scrolling.
+   reading. This is ONE ranked list with the ranking as a switch, so both answers
+   cost one surface and no scrolling.
 
    It is rendered as a GRID, with the folder view's own table chrome — same heading
    row, same row height, same id pill, same author chip, same sort affordance on every
    column — so landing on Knowledge and opening a folder look like one product.
 
    Two jobs, kept apart: the SWITCH says which eight articles are in the card (the top
-   eight by reads, by feedback, or the newest), and the COLUMN SORT says how those
-   eight are ordered. Rows open the article. */
+   eight by reads, or by feedback), and the COLUMN SORT says how those eight are
+   ordered. Rows open the article. */
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Folder, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useDrawerStack } from './DrawerStack';
 import { knowledgeToPatchShape, mockKnowledgeArticles } from './KnowledgeListPage';
+import { COUNT_CHIP } from './TicketTable';
+import { fmtGridDateTime } from './dateFormat';
 import type { Ticket } from './TicketListPage';
 
-type Rank = 'read' | 'helpful' | 'recent';
+type Rank = 'read' | 'helpful';
 type ColKey = 'id' | 'name' | 'folder' | 'author' | 'reads' | 'feedback' | 'created';
 
+/* Two shortlists, both answering "worth reading": most opened, and most voted up. Age is
+   not one of them — a new article is not yet a top article — so Created Date is a column
+   you can sort by, not a way to pick the eight. */
 const TABS: { key: Rank; label: string; hint: string }[] = [
   { key: 'read', label: 'Most read', hint: 'Opened most often by readers' },
   { key: 'helpful', label: 'Most helpful', hint: 'Voted up most by readers' },
-  { key: 'recent', label: 'Recently added', hint: 'Newest in the knowledge base' },
 ];
 
 type Row = Ticket & Record<string, any>;
@@ -33,16 +37,16 @@ type Row = Ticket & Record<string, any>;
    three metric columns — the ranking it belongs to, so clicking the heading also swaps the
    eight articles the card is showing. */
 const COLS: {
-  key: ColKey; label: string; w?: number; right?: boolean; text?: boolean; rank?: Rank;
+  key: ColKey; label: string; w?: number; text?: boolean; rank?: Rank;
   value: (r: Row) => number | string;
 }[] = [
   { key: 'id', label: 'ID', w: 104, value: (r) => Number(String(r.id).replace(/\D+/g, '')) || 0 },
   { key: 'name', label: 'Name', text: true, value: (r) => r.subject ?? '' },
   { key: 'folder', label: 'Folder', w: 190, text: true, value: (r) => r.x_folder ?? '' },
   { key: 'author', label: 'Author', w: 176, text: true, value: (r) => r.assignedTo?.name ?? '' },
-  { key: 'reads', label: 'Reads', w: 106, right: true, rank: 'read', value: (r) => r.x_totalRead ?? 0 },
-  { key: 'feedback', label: 'Feedback', w: 124, right: true, rank: 'helpful', value: (r) => r.x_likes ?? 0 },
-  { key: 'created', label: 'Created Date', w: 156, right: true, rank: 'recent', value: (r) => r.createdBy?.getTime?.() ?? 0 },
+  { key: 'reads', label: 'Reads', w: 106, rank: 'read', value: (r) => r.x_totalRead ?? 0 },
+  { key: 'feedback', label: 'Feedback', w: 124, rank: 'helpful', value: (r) => r.x_likes ?? 0 },
+  { key: 'created', label: 'Created Date', w: 156, value: (r) => r.createdBy?.getTime?.() ?? 0 },
 ];
 
 /* The grid's own heading and cell recipes, lifted from TicketTable so the two tables cannot
@@ -51,8 +55,12 @@ const COLS: {
 const TH = 'group/th px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] whitespace-nowrap cursor-pointer select-none transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
 const TD = 'overflow-hidden px-4 py-3 whitespace-nowrap';
 
-const fmtDate = (d: Date) =>
-  d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+/* The house format, like every other listing — see dateFormat.ts. Date AND time, because
+   this column is called "Created Date" and that is what it shows on every other module;
+   one column name should not mean two different things. (It used to call
+   toLocaleDateString with an en-GB override, which drifts the moment anyone changes the
+   locale or the options.) */
+const fmtDate = fmtGridDateTime;
 
 export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
   /* Which eight are in the card … */
@@ -65,8 +73,7 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
      still in review, or ones that have expired — which is also why the rows carry no status. */
   const all = (rows as Row[]).filter((x) => (x.status as string) === 'Published');
 
-  const metric = (r: Row) =>
-    rank === 'read' ? r.x_totalRead ?? 0 : rank === 'helpful' ? r.x_likes ?? 0 : r.createdBy.getTime();
+  const metric = (r: Row) => (rank === 'read' ? r.x_totalRead ?? 0 : r.x_likes ?? 0);
   const pool = [...all].sort((a, b) => metric(b) - metric(a)).slice(0, 8);
 
   const col = COLS.find((c) => c.key === sort.key)!;
@@ -91,7 +98,10 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
   };
 
   return (
-    <div className="px-6 pb-8 pt-1">
+    /* pl-6 / pr-4 — the asset dashboards' frame. The grid's scroll area reserves a
+       gutter on the right, so an even px-6 would stop the card short of the toolbar;
+       4 less on that side lands its edge under the Create button. */
+    <div className="pb-8 pl-6 pr-4 pt-1">
       <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
         <div className="flex flex-wrap items-center gap-3 px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -100,7 +110,7 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
               {TABS.find((x) => x.key === rank)?.hint} · pick a folder on the left to browse the rest
             </p>
           </div>
-          {/* One switch instead of a second table — the same card, three shortlists. */}
+          {/* One switch instead of a second table — the same card, two shortlists. */}
           <div className="inline-flex flex-shrink-0 items-center gap-0.5 rounded border border-[#DFE5ED] bg-white p-0.5">
             {TABS.map((tab) => (
               <button
@@ -136,11 +146,11 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
                       key={c.key}
                       onClick={() => toggleSort(c)}
                       title={on ? `Sorted ${sort.dir === 'asc' ? 'ascending' : 'descending'} — click to reverse` : `Sort by ${c.label}`}
-                      className={`${TH} ${c.right ? 'text-right' : ''}`}
+                      className={TH}
                     >
-                      {/* A right-aligned column's heading sits over its digits, not away
-                          from them — the grid's own rule. */}
-                      <span className={`flex items-center gap-0.5 overflow-hidden ${c.right ? 'justify-end' : ''}`}>
+                      {/* Every column reads from the same left edge, headings included —
+                          one scan line down the table. */}
+                      <span className="flex items-center gap-0.5 overflow-hidden">
                         <span className="truncate">{c.label}</span>
                         {/* The grid's sort control: grey and offered on hover, blue and
                             pinned once the column is the one being sorted. */}
@@ -200,10 +210,12 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
                       </span>
                     </td>
                     {/* All three metrics stay side by side so the rows can be compared. */}
-                    <td className={`${TD} text-right`}>
-                      <span className="text-[12px] tabular-nums text-[#4A5568]">{reads.toLocaleString('en-IN')}</span>
+                    <td className={TD}>
+                      {/* The grid's own figure chip — the same one the licence counts wear,
+                          imported rather than copied so the treatment cannot drift. */}
+                      <span className={COUNT_CHIP}>{reads.toLocaleString('en-IN')}</span>
                     </td>
-                    <td className={`${TD} text-right`}>
+                    <td className={TD}>
                       {/* The article page's own colours and icons — helpful #067647, not
                           helpful #B42318 — so a reader's verdict looks the same everywhere. */}
                       <span className="inline-flex items-center gap-3">
@@ -215,7 +227,7 @@ export function KnowledgeHome({ rows }: { rows: Ticket[] }) {
                         </span>
                       </span>
                     </td>
-                    <td className={`${TD} text-right`}>
+                    <td className={TD}>
                       <span className="text-[12px] tabular-nums text-[#4A5568]">{fmtDate(row.createdBy)}</span>
                     </td>
                   </tr>

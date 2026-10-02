@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Flag, GripVertical, Maximize2, MessageSquare, ListChecks, Pin, PinOff, UserCheck, X } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
-import { extraValue, slaInfoOf, SlaPill, TicketPeekCard, useHoverPeek } from './TicketTable';
+import { extraValue, slaInfoOf, SlaPill } from './TicketTable';
 import { describeSubject, descriptionImageAfter, fullDescriptionFor } from './requestDescriptions';
 import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
@@ -15,10 +15,12 @@ const fmtShortDate = (d: Date) =>
   `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 
 /* Blocks the card draws in their own designed slot rather than as a label/value row. */
-export const KANBAN_BUILTINS = new Set(['id', 'subject', 'description', 'sla', 'signals', 'status', 'priority', 'assignedTo']);
+export const KANBAN_BUILTINS = new Set(['id', 'reference', 'subject', 'description', 'sla', 'signals', 'status', 'priority', 'assignedTo']);
 
 export const KANBAN_FIELDS: { key: string; label: string }[] = [
   { key: 'id', label: 'ID' },
+  /* Only modules whose rows carry one (Tasks) ever draw it — the card skips it otherwise. */
+  { key: 'reference', label: 'Reference' },
   { key: 'subject', label: 'Subject' },
   { key: 'description', label: 'Description' },
   { key: 'sla', label: 'SLA status' },
@@ -85,7 +87,9 @@ const COL_ORDER_KEY = 'kanbanColumnOrder';
 /** Per-group columns pinned to the left — the board's frozen columns. */
 const COL_PIN_KEY = 'kanbanPinnedColumns';
 
-const STATUS_ORDER = ['Open', 'In Progress', 'Pending', 'Completed', 'Closed', 'Cancelled'];
+/* Every status the product uses across modules, in lifecycle order. A board only shows the
+   values its own data holds, so a request board is unchanged by the task-only states. */
+const STATUS_ORDER = ['Open', 'In Progress', 'Pending', 'Rejected', 'Resolved', 'Completed', 'Closed', 'Cancelled'];
 const PRIORITY_ORDER = ['Urgent', 'High', 'Medium', 'Low'];
 const SLA_ORDER = ['Breached', 'Due soon', 'On track', 'Met'];
 
@@ -93,6 +97,8 @@ const DOT: Record<string, string> = {
   Open: '#3D8BD0',
   'In Progress': '#3D8BD0',
   Pending: '#fb923c',
+  Rejected: '#ef4444',
+  Resolved: '#22c55e',
   Completed: '#22c55e',
   Closed: '#6b7280',
   Cancelled: '#ef4444',
@@ -251,6 +257,7 @@ export function TicketKanban({
   cardFields = DEFAULT_CARD_FIELDS,
   onLanesChange,
   onTicketClick,
+  onOpenReference,
   onUpdateTicket,
   noun = 'request',
 }: {
@@ -263,6 +270,8 @@ export function TicketKanban({
   /** Reports the lane list so the page footer can offer "Jump to group". */
   onLanesChange?: (info: { label: string; total: number; groups: number; list: { key: string; count: number }[] } | null) => void;
   onTicketClick: (t: Ticket) => void;
+  /** Opens the record a card's Reference points at. Without it the pill is not drawn. */
+  onOpenReference?: (t: Ticket) => void;
   onUpdateTicket?: (id: string, patch: Partial<Ticket>) => void;
   /** What one record is called — the Change listing renders this board as "changes". */
   noun?: string;
@@ -330,10 +339,6 @@ export function TicketKanban({
       else next.add(lane);
       return next;
     });
-  /* Same quick peek the grid raises from its ID pills — one preview card across both
-     views, so a board user never has to open a record just to read it. */
-  const peek = useHoverPeek();
-
   // Full-description popup (opened from the hover expand on a card).
   const [descTicket, setDescTicket] = useState<Ticket | null>(null);
   useEffect(() => {
@@ -661,22 +666,28 @@ export function TicketKanban({
                       dragId === t.id ? 'opacity-40' : ''
                     }`}
                   >
-                    {(show('id') || showAvatar) && (
+                    {(show('id') || showAvatar || (show('reference') && (t as any).x_reference)) && (
                       <div className="flex items-center gap-2">
                         {show('id') && (
                           /* Plain text, not a filled pill: every card carries an id, so tinting
                              each one is pure repetition — an id is a reference you read, not a
-                             value worth highlighting. No tooltip either, on purpose — the peek
-                             says everything the old "raised by …" tip did and more, and two
-                             popups on one target is the collision the grid had to unpick. */
-                          <span
-                            data-peek-anchor={t.id}
-                            onMouseEnter={() => peek.start(t.id)}
-                            onMouseLeave={peek.end}
-                            className="cursor-pointer text-[11px] font-medium text-[#94A3B8] transition-colors hover:text-[#3D8BD0]"
-                          >
-                            {t.id}
-                          </span>
+                             value worth highlighting. It raises NO hover preview either: the
+                             card already shows what the preview would, and a popup over a
+                             board you are dragging cards around is in the way. */
+                          <span className="text-[11px] font-medium text-[#94A3B8]">{t.id}</span>
+                        )}
+                        {show('reference') && onOpenReference && (t as any).x_reference && (
+                          /* The grid's reference pill, card-sized: the id a task hangs off,
+                             its parent's NAME on hover, and a click that opens that record
+                             rather than this card. */
+                          <Tip text={(t as any).x_referenceSubject || (t as any).x_reference}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onOpenReference(t); }}
+                              className="max-w-[150px] flex-shrink-0 truncate rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0] transition-colors hover:bg-[#d0e8f9]"
+                            >
+                              {(t as any).x_reference}
+                            </button>
+                          </Tip>
                         )}
                         {showAvatar && (
                           <Tip text={t.assignedTo.name === 'Unassigned' ? 'Unassigned' : `Assigned to ${t.assignedTo.name}`}>
@@ -866,21 +877,6 @@ export function TicketKanban({
             );
           })
         : displayCols.map((col) => renderColumn(col, null, tickets, true))}
-      {peek.peekId &&
-        (() => {
-          const pt = tickets.find((x) => x.id === peek.peekId);
-          return pt ? (
-            <TicketPeekCard
-              t={pt}
-              noun={noun}
-              aiView={peek.aiView}
-              cardRef={peek.cardRef}
-              pos={peek.pos}
-              onHold={peek.hold}
-              onEnd={peek.end}
-            />
-          ) : null;
-        })()}
       {descTicket &&
         createPortal(
           <div

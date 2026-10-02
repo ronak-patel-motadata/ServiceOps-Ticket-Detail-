@@ -128,7 +128,7 @@ const PATCH_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <IconPatch size={16} />, label: 'Patches', page: 'patches' },
   { icon: <Rocket size={16} />, label: 'Patch Deployment', page: 'patch-deployments' },
   { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
-  { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test' },
+  { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test', page: 'automatic-patch-tests' },
   { icon: <Settings size={16} />, label: 'Automatic Patch Deployment' },
 ];
 
@@ -286,7 +286,7 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         <NavItem icon={<IconReport size={20} />} title="Report" active={activePage === 'reports'} onClick={() => onNavigate?.('reports')} />
         <NavItem icon={<IconMyApproval size={20} />} title="My Approval" active={activePage === 'my-approvals'} onClick={() => onNavigate?.('my-approvals')} />
         <NavItem icon={<IconTask size={20} />} title="Task" active={activePage === 'tasks'} onClick={() => onNavigate?.('tasks')} />
-        <NavItem icon={<IconMyTeam size={20} />} title="My Team" />
+        <NavItem icon={<IconMyTeam size={20} />} title="My Team" active={activePage === 'my-team'} onClick={() => onNavigate?.('my-team')} />
       </div>
 
       {/* Pinned to the BOTTOM — the team's two reference pages: the listing-view bench

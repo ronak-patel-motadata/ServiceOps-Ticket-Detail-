@@ -91,6 +91,8 @@ interface TicketPropertiesPanelProps {
   /** Knowledge page: the right panel is a plain field list — no panel title, no field search. */
   knowledgeMode?: boolean;
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
+  /** The open patch record's own values — forwarded to AssetFields, see its patchInfo prop. */
+  patchInfo?: { category?: string; severity?: string; approvalStatus?: string; releaseDate?: string; kbNumber?: string; rebootRequired?: string; referenceUrl?: string };
   /** Knowledge page: article performance shown in the Analytics accordion. */
   knowledgeAnalytics?: { helpful: number; notHelpful: number; totalRead: number; comments?: number };
   /** Opens the article comments thread — the same side panel the article body opens. */
@@ -427,6 +429,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     taskMode = false,
     knowledgeMode = false,
     knowledgeInfo,
+    patchInfo,
     knowledgeAnalytics,
     onOpenKnowledgeComments,
     knowledgeRequesterView = false,
@@ -2487,6 +2490,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           onTaskValueChange={(label, value) => setTaskKeyValues((prev) => ({ ...prev, [label]: value }))}
           knowledgeMode={knowledgeMode}
           knowledgeInfo={knowledgeInfo}
+          patchInfo={patchInfo}
           assetState={assetState}
           ticketFieldsExpanded={ticketFieldsExpanded}
           setTicketFieldsExpanded={setTicketFieldsExpanded}

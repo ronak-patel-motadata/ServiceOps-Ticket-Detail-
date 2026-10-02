@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
+import { CalendarClock, Copy, History, MoreVertical, SquarePen, GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
 import { IconAssetUpdate } from './SidebarIcons';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
@@ -14,6 +14,18 @@ import { PURCHASE_FILTER_ATTRS } from './purchaseFilterAttrs';
 import { METER_FILTER_ATTRS } from './softwareMeterFilterAttrs';
 import { CMDB_FILTER_ATTRS } from './cmdbFilterAttrs';
 import { KNOWLEDGE_FILTER_ATTRS } from './knowledgeFilterAttrs';
+import { REPORT_FILTER_ATTRS, REPORT_TYPE_OPTIONS } from './reportFilterAttrs';
+import { TASK_FILTER_ATTRS, TASK_STATUS_OPTIONS, TASK_TYPE_OPTIONS } from './taskFilterAttrs';
+import { TEAM_FILTER_ATTRS, TEAM_STATUS_OPTIONS } from './teamFilterAttrs';
+import { PROJECT_FILTER_ATTRS, PROJECT_STATUS_OPTIONS } from './projectFilterAttrs';
+import { DEPLOY_STATUS_OPTIONS, PATCH_DEPLOY_FILTER_ATTRS, PATCH_FILTER_ATTRS } from './patchFilterAttrs';
+import { PACKAGE_DEPLOY_FILTER_ATTRS, REGISTRY_DEPLOY_FILTER_ATTRS } from './packageFilterAttrs';
+import { APT_FILTER_ATTRS } from './automaticPatchTests';
+import { fmtGridDate, fmtGridDateTime } from './dateFormat';
+import {
+  CVE_FILTER_ATTRS, CVE_SEVERITY_OPTIONS, CVE_STATUS_OPTIONS, ENDPOINT_FILTER_ATTRS,
+  VULN_FILTER_ATTRS, VULN_SEVERITY_OPTIONS,
+} from './vulnFilterAttrs';
 import { CI_TYPE_MENU, ciTypeIcon } from './CmdbCategoryRail';
 import { ASSET_TYPE_OPTIONS, GROUP_OPTIONS as ASSET_GROUP_OPTIONS, STATUS_OPTIONS as ASSET_STATUS_CATALOG, assetTypeIcon } from './AssetFields';
 import { describeSubject } from './requestDescriptions';
@@ -518,6 +530,19 @@ const APPROVAL_STATE_OPTIONS: CellOption[] = [
 /* Status palettes for the other asset/procurement registers — each module's own
    catalog, colored the way its detail page colors the same state. */
 const MODULE_STATUS_OPTS: Partial<Record<string, CellOption[]>> = {
+  /* A task's own five states — see taskFilterAttrs, which the filter and this dropdown share. */
+  task: TASK_STATUS_OPTIONS,
+  /* A team member's ACCOUNT state — can they sign in at all. Being on leave is a separate
+     fact (Availability), because a technician on leave still has a live account. */
+  team: TEAM_STATUS_OPTIONS,
+  /* A project's lifecycle, in its own order and the module's own colours. */
+  project: PROJECT_STATUS_OPTIONS,
+  /* A deployment RUN's lifecycle — Draft through Expired. */
+  'patch-deployment': DEPLOY_STATUS_OPTIONS,
+  'package-deployment': DEPLOY_STATUS_OPTIONS,
+  'registry-deployment': DEPLOY_STATUS_OPTIONS,
+  /* A CVE carries NVD's own workflow state, not a lifecycle. */
+  cve: CVE_STATUS_OPTIONS,
   /* The product's full software lifecycle — the same nine states its own Status
      dropdown offers, in its own order. Kept separate from the hardware catalogue,
      which has Theft and Faulty (a licence cannot be stolen or break) where this
@@ -593,6 +618,9 @@ export const nonItTypeIcon = (t?: string) =>
     : <Package size={14} />;
 /* The CMDB's class tree as a pickable catalogue — indented like the rail, each row wearing
    the glyph its class uses everywhere else. */
+/* The task types the module offers — the cell and the filter read the one catalogue. */
+const TASK_TYPE_CELL_OPTIONS: CellOption[] = TASK_TYPE_OPTIONS.map((o) => ({ label: o.label }));
+
 const CI_TYPE_CELL_OPTIONS: CellOption[] = CI_TYPE_MENU.map((n) => ({
   label: n.label,
   depth: n.depth,
@@ -622,10 +650,58 @@ export const consumableTypeIcon = (t?: string) =>
 /* Numeric columns that read as a grey chip instead of loose digits — stock in hand and
    the licence seat counts. Kept as one list so the treatment cannot drift column to
    column; a module adds a count column by naming it here. */
-const COUNT_CHIP_COLS = new Set(['x_availableQty', 'x_purchaseCount', 'x_allocationCount', 'x_installationCount']);
+const COUNT_CHIP_COLS = new Set([
+  'x_availableQty', 'x_purchaseCount', 'x_allocationCount', 'x_installationCount', 'x_openRequests',
+  /* The endpoint fleet's scan results — figures, so they wear the product's count chip. */
+  'x_osVulns', 'x_softwareVulns', 'x_vulnCount',
+]);
+/* Columns whose value is a RATIO rather than a single number ("8/15"). They wear the same
+   chip; they just cannot go through COUNT_CHIP_COLS, which casts its value to a Number. */
+const RATIO_CHIP_COLS = new Set(['x_tasks', 'x_milestones']);
+/* TEXT values that wear the same grey chip — a value drawn from a short, closed set (a site,
+   a bucket) rather than free text, so the chip says "one of a handful" at a glance and the
+   column reads as a group of machines rather than a wall of sentences. */
+const TEXT_CHIP_COLS = new Set(['x_office']);
+/* Counts that can genuinely be UNKNOWN. COUNT_CHIP_COLS reads a missing value as 0 — right
+   for a licence with no purchased seats, wrong for a patch the scanner has not reported on,
+   where 0 would claim "no machine is missing it". These print the dash the module's own
+   table always showed, and wear the count chip only when there is a number to show. */
+const NULLABLE_COUNT_COLS = new Set(['x_missing', 'x_installed', 'x_installations', 'x_totalTests', 'x_pendingTests', 'x_completedTests']);
+/* The one grey text chip — Remote Office, Tags and their "+N". Declared once because these
+   three drifted apart on radius, padding and size the moment they were written separately. */
+export const TEXT_CHIP = 'inline-flex max-w-full items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium text-[#364658]';
+/* Severity on the Vulnerability-module listings reads as a filled DOT + the word, exactly
+   as Status and Priority do everywhere else — a column of tinted pills shouted louder than
+   the row it described, and a listing should have one visual grammar for "graded value". */
+const SEVERITY_DOT: Record<string, string> = {
+  Critical: '#DC2626',
+  High: '#EF4444',
+  Important: '#F97316',
+  Medium: '#F59E0B',
+  Moderate: '#F59E0B',
+  Low: '#22C55E',
+  Unspecified: '#94A3B8',
+};
+/* x_ columns whose row value is a real Date rather than a formatted string — so the grid
+   sorts them chronologically and a date filter reads the true value. The two sets differ
+   only in how the cell PRINTS them. */
+const DATE_TIME_COLS = new Set([
+  'x_lastLogin', 'x_lastUpdatedDate', 'x_lastUpdated', 'x_datetime', 'x_published', 'x_scanDate',
+  /* A patch release and a deployment window both turn on the time of day — a maintenance
+     window that opens "Sat 25 Jul" says nothing without the 10:00 PM. */
+  'x_released', 'x_installAfter', 'x_expiry', 'x_lastExecution', 'x_nextExecution',
+]);
+const DATE_ONLY_COLS = new Set([
+  'x_startDate', 'x_endDate', 'x_createdDate', 'x_closedDate', 'x_planningStart', 'x_implStart',
+  /* The procurement registers' own day-fields — a licence expiry or a required-by date has
+     no meaningful time of day, so printing one would imply a precision it does not have. */
+  'x_expiryDate', 'x_requiredBy',
+]);
+const fmtDayOnly = fmtGridDate;
 /* The chip itself — one class for every figure in the grid (counts AND money), so the
-   treatment cannot drift between columns. */
-const COUNT_CHIP = 'inline-flex min-w-[46px] cursor-default items-center justify-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#364658]';
+   treatment cannot drift between columns. Exported because the Knowledge landing paints
+   its own table and must use the SAME chip, not a copy of it. */
+export const COUNT_CHIP ='inline-flex min-w-[46px] cursor-default items-center justify-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#364658]';
 
 /* Money columns. What a contract COSTS is the number the portfolio is judged on, so it is
    given the treatment money gets in every grid that takes it seriously: right-aligned so
@@ -633,6 +709,18 @@ const COUNT_CHIP = 'inline-flex min-w-[46px] cursor-default items-center justify
    value. The unit is stated once in the header ("Cost (INR)") rather than repeated on
    every row, and the amount is sorted as a NUMBER — "1,000,000.00" sorts before
    "500,000.00" as a string, which would make the sort actively misleading. */
+/* What a row's own controls can ask the module to do. The Approvals grid uses the first
+   five; the Reports grid's Action column uses the rest. */
+export type RowAction =
+  | 'view' | 'asset-update' | 'approve' | 'reject' | 'refer'
+  | 'edit' | 'schedule' | 'duplicate' | 'history' | 'delete'
+  /* The Tasks grid's Reference cell: open the record this task hangs off. */
+  | 'open-reference'
+  /* My Team's Action column: mark a member away, or bring them back. */
+  | 'out-of-office'
+  /* The Vulnerability modules' Impacted Endpoints count: list the machines behind it. */
+  | 'impacted-endpoints';
+
 export const MONEY_COLS = new Set(['x_cost', 'x_totalCost', 'x_invoiceAmount', 'x_paymentAmount']);
 /** "500,000.00 INR" → "500,000.00" — the unit lives in the header. */
 export const moneyAmount = (v: unknown): string => {
@@ -651,6 +739,10 @@ export const moneyNumber = (v: unknown): number => {
    (Available Quantity, for one, is a number in the cell and bands in the filter). */
 const MODULE_EDITABLE_COLS: Partial<Record<string, string[]>> = {
   consumable: ['x_assetType', 'x_assetGroup', 'x_department', 'x_location'],
+  /* Moving someone between groups or shifts is the rota change a supervisor makes FROM
+     the roster (Account Status is editable too, through the shared status cell). Role is
+     a permissions decision and deliberately stays read-only here. */
+  team: ['x_group', 'x_shift'],
   license: ['x_licenseType'],
   contract: ['x_contractType'],
 };
@@ -712,7 +804,10 @@ const USED_BY_OPTIONS: CellOption[] = [
   label: n,
   initials: requesterAvatar(n).initials,
 }));
-interface ColDef { key: string; label: string; flex?: boolean; w?: number; align?: 'right' }
+interface ColDef { key: string; label: string; flex?: boolean; w?: number; align?: 'right' | 'center';
+  /** Ceiling for a FLEX column that would otherwise soak all the slack on a sparse grid —
+   *  past it the surplus is shared out across every column instead. */
+  maxW?: number }
 
 /* ── Similarity grouping ──────────────────────────────────────────────────────
    A grouping axis that is NOT a column: the clusters the AI suggestions panel found.
@@ -859,13 +954,26 @@ const SIM_SUMMARY = new Map<string, string>(SIM_CLUSTERS.map((c) => [c.key, c.su
    a second column showing the very same values. */
 const COL_ATTR_KEY: Record<string, string> = { assignee: 'assignedTo', created: 'createdBy', dueStatus: 'sla' };
 
+/* Columns whose VALUE is far wider than its heading, so label-derived sizing would hand them
+   an ellipsis the moment they are added — a URL or a CVSS vector cut in half is useless. */
+const EXTRA_COL_W: Record<string, number> = {
+  x_supportUri: 280, x_cvssVector: 270,
+  x_cvss20Vector: 270, x_cvss30Vector: 270, x_cvss31Vector: 270, x_cvss40Vector: 270,
+  x_lastUpdated: 180, x_title: 220, x_vulnType: 150,
+  /* A patch UUID is a slug the length of a filename; the CVE list is two chips and a "+N". */
+  x_uuid: 280, x_resolvedCves: 230, x_lastUpdatedDate: 180,
+};
+
 const assetExtraCols = (shown: ColDef[], catalogue: typeof HARDWARE_FILTER_ATTRS): ColDef[] => {
   const keys = new Set(shown.flatMap((c) => [c.key, COL_ATTR_KEY[c.key]].filter(Boolean) as string[]));
   const labels = new Set(shown.map((c) => c.label));
-  return catalogue.filter((a) => !keys.has(a.key) && !labels.has(a.label)).map((a) => ({
+  /* `hidden` attributes are the module's OWN derivations (a task's SLA band, a project's
+     due band) — they back columns, views and chips but are not part of the product's
+     attribute list, so neither the filter picker nor Manage columns offers them. */
+  return catalogue.filter((a) => !a.hidden && !keys.has(a.key) && !labels.has(a.label)).map((a) => ({
     key: a.key,
     label: a.label,
-    w: Math.min(280, Math.max(120, a.label.length * 7 + 44)),
+    w: EXTRA_COL_W[a.key] ?? Math.min(280, Math.max(120, a.label.length * 7 + 44)),
     /* An added money column arrives right-aligned and chipped, like a designed one. */
     ...(MONEY_COLS.has(a.key) ? { align: 'right' as const } : {}),
   }));
@@ -897,12 +1005,10 @@ const EXTRA_COLS: ColDef[] = [
   { key: 'closedDuration', label: 'Closed Time Duration', w: 165 },
 ];
 
-const DAYS3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const fmtDate = (d: Date) => {
-  const h12 = d.getHours() % 12 || 12;
-  const ap = d.getHours() < 12 ? 'AM' : 'PM';
-  return `${DAYS3[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(h12).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${ap}`;
-};
+/* The optional date columns (Due By, Last Updated, First Response Due By…) printed a
+   NUMERIC month — "Tue, 19/04/2022" — which a reader cannot tell from 04/19 without
+   knowing who wrote it. They use the house format now, like every other date. */
+const fmtDate = fmtGridDateTime;
 const Kbd = ({ children }: { children: string }) => (
   <kbd className="rounded border border-[#DFE5ED] bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-[#364658]">{children}</kbd>
 );
@@ -1022,7 +1128,7 @@ export const extraValue = (key: string, t: Ticket): string => {
 };
 
 /** Columns whose values are unique per request — grouping them yields one row per group. */
-const NO_GROUP = new Set(['id', 'subject']);
+const NO_GROUP = new Set(['id', 'subject', 'x_name', 'x_email', 'x_contact', 'x_loginName']);
 
 /* Column header menu — the per-column actions (click the heading). No flyouts: "Change
    Column" swaps the card IN PLACE for a searchable picker; Insert drops a placeholder
@@ -1434,6 +1540,10 @@ interface SlaInfo { tone: SlaTone; label: string; name: string; target: string; 
 /** Exported for the calendar tooltip — the same per-request SLA facts the pill's own
     hover shows (countdown, target window, SLA name). */
 export const dueBySla = (t: Ticket): SlaInfo => {
+  /* A module that KNOWS its own SLA — a task has a real due date — hands the row the
+     answer. What follows is the request queue's stand-in for rows that carry none. */
+  const own = (t as any).x_sla as SlaInfo | undefined;
+  if (own) return own;
   const name = SLA_NAME[t.priority];
   const target = SLA_TARGET[t.priority];
   const n = Number(t.id.replace(/\D/g, ""));
@@ -1514,9 +1624,18 @@ interface TicketTableProps {
       'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'meter' | 'cmdb' | 'knowledge' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
-  /** Per-row actions (the Approvals grid's asset update / approve / reject / refer back / view). */
-  onRowAction?: (ticket: Ticket, action: 'view' | 'asset-update' | 'approve' | 'reject' | 'refer') => void;
+  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patch-deployment' | 'package-deployment' | 'registry-deployment' | 'apt' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  /** Per-row actions — the Approvals grid's decisions, and the Reports grid's Action
+      column. The module decides what each one does. */
+  onRowAction?: (ticket: Ticket, action: RowAction) => void;
+  /** true drops the per-column header menu (Filter / Group / Hide / Freeze …). A module
+      with a fixed, self-explanatory column set has nothing to offer there. Reordering by
+      dragging the header, and the resize handle, are unaffected. */
+  hideColumnMenu?: boolean;
+  /** true drops the row/select-all checkboxes: a module whose rows have no bulk action
+      (Reports) should not offer a selection it cannot use. The gutter stays, so the first
+      column keeps its left margin. */
+  hideSelection?: boolean;
   /** Column keys whose cells are READ-ONLY here — they render as plain values
       instead of inline editors (Approvals: you decide, you don't edit the record). */
   lockedCells?: string[];
@@ -1542,6 +1661,8 @@ export function TicketTable({
   moduleCols,
   onRowAction,
   lockedCells,
+  hideSelection = false,
+  hideColumnMenu = false,
   allowColumnEdit = true,
   openPage,
   selectedTickets,
@@ -1560,19 +1681,8 @@ export function TicketTable({
   emptyFiltered,
   onClearFilters
 }: TicketTableProps) {
-  const formatDateTime = (date: Date) => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    const dayName = days[date.getDay()];
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    return `${dayName}, ${day}/${month}/${year} ${hours}:${minutes} PM`;
-  };
+  /* The house format — see dateFormat.ts. Every date in every listing reads one way. */
+  const formatDateTime = fmtGridDateTime;
 
   const SortButton = ({ column, children }: { column: keyof Ticket; children: React.ReactNode }) => (
     <button
@@ -1604,7 +1714,12 @@ export function TicketTable({
   // Only user-dragged widths live here — defaults come from each ColDef, so width tweaks
   // in COL_DEFS actually take effect (a seeded map silently overrode them).
   const [colW, setColW] = useState<Record<string, number>>({});
-  const CHECK_W = 52;
+  /* 8px with no checkbox in it: the first column's own px-4 then puts its text exactly
+     24px in — the same gutter the toolbar above uses, so the heading lines up with the
+     search button rather than floating out to the right. */
+  const CHECK_W = hideSelection ? 8 : 52;
+  /* The gutter cell carries the checkbox's padding only while it HAS a checkbox. */
+  const GUTTER_PAD = hideSelection ? 'p-0' : 'pl-6 pr-4';
   const MIN_W = 80;
   /* A column is never narrower than its own HEADING — "CONTRACT STA…" tells the reader
      nothing. The floor is measured from the label as it is actually painted (11px semibold
@@ -1703,10 +1818,15 @@ export function TicketTable({
     const onMove = (ev: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
-      const next = Math.max(MIN_W, d.startW + ev.clientX - d.startX);
-      // Flex columns render scaled, so store the unscaled value; fixed ones map 1:1.
-      const isFlex = !!cols.find((c) => c.key === d.key)?.flex;
-      setColW((w) => ({ ...w, [d.key]: isFlex && scale > 1 ? next / scale : next }));
+      /* `startW` is the width as PAINTED (fitted[idx]), so the drag delta is already in the
+         units the column is stored in — flex and fixed alike.
+         ⚠️ This used to divide a flex column's width by a `scale` factor left over from an
+         older fit algorithm that multiplied widths to fill the container. That algorithm is
+         long gone and `scale` never existed as a binding, so dragging ANY flex column threw
+         `ReferenceError: scale is not defined` from inside the state updater and took the
+         whole page down with it. esbuild does not typecheck, so it built clean and only
+         failed at the moment of the drag. */
+      setColW((w) => ({ ...w, [d.key]: Math.max(MIN_W, d.startW + ev.clientX - d.startX) }));
     };
     const onUp = () => {
       dragRef.current = null;
@@ -1720,16 +1840,27 @@ export function TicketTable({
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
-  /* The divider itself — a wide invisible grab strip straddling the column edge, with a thin
-     rule drawn down the middle that turns blue while pointed at or dragged. */
+  /* The divider itself — a wide invisible grab strip at the column's right edge, with a thin
+     rule drawn down it that turns blue while pointed at or dragged.
+     ⚠️ It must sit ENTIRELY INSIDE its own <th>. It used to straddle the edge
+     (`translate-x-1/2`), but every header is `sticky z-30` and so makes its own stacking
+     context: the NEXT header painted over the half that hung out, so a press on the divider
+     landed on that header instead — no resize, and the browser started a native drag of a
+     draggable <th> that could end in the page navigating away. `draggable={false}` stops the
+     strip itself being dragged. */
   const resizer = (key: string) => (
     <span
       onMouseDown={(e) => startResize(key, e)}
       onClick={(e) => e.stopPropagation()}
-      className="group/rz absolute right-0 top-0 z-10 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
+      draggable={false}
+      className="group/rz absolute right-0 top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-end"
       title="Drag to resize column"
     >
-      <span className="h-4 w-px bg-[#E5E7EB] transition-colors group-hover/rz:h-full group-hover/rz:w-[2px] group-hover/rz:bg-[#3D8BD0]" />
+      {/* Nothing at rest — the rule only appears when you reach the edge. It used to be a
+          permanent grey hairline, which was invisible only because the neighbouring header
+          painted over it; once the strip moved inside its own header, that hairline started
+          showing on every column edge. */}
+      <span className="h-full w-[2px] bg-transparent transition-colors group-hover/rz:bg-[#3D8BD0]" />
     </span>
   );
   const TH = 'group/th sticky top-[var(--tb,0px)] z-30 cursor-grab select-none whitespace-nowrap shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-[#64748B] tracking-wide transition-colors hover:bg-[#F7F9FB] hover:text-[#364658]';
@@ -1778,6 +1909,206 @@ export function TicketTable({
         { key: 'status', label: 'Status', w: 150 },
         { key: 'x_approvalStatus', label: 'Approval Status', w: 180 },
         { key: 'x_feedback', label: 'Feedback', w: 140, align: 'right' },
+    ],
+    /* Tasks — the work hanging off requests, problems and changes: what it is, what it
+       belongs to, and whether it has slipped. */
+    task: [
+        { key: 'id', label: 'ID', w: 104 },
+        { key: 'subject', label: 'Subject', flex: true, w: 380 },
+        { key: 'x_reference', label: 'Reference', w: 170 },
+        { key: 'x_taskType', label: 'Task Type', w: 160 },
+        { key: 'status', label: 'Status', w: 150 },
+        { key: 'priority', label: 'Priority', w: 130 },
+        { key: 'x_overdue', label: 'SLA Status', flex: true, w: 210 },
+        { key: 'actions', label: 'Action', w: 110 },
+    ],
+    /* My Team — who they are, what they do, and the two ways to reach them. A person's id
+       is an internal key nobody quotes, so it stays out of the default set (Manage columns
+       has it, along with their group, role, shift and workload). */
+    team: [
+        { key: 'x_name', label: 'Name', flex: true, w: 240 },
+        { key: 'x_designation', label: 'Designation', w: 230 },
+        { key: 'x_department', label: 'Department', w: 200 },
+        { key: 'x_email', label: 'Email', flex: true, w: 260 },
+        { key: 'x_contact', label: 'Contact No.', w: 180 },
+        { key: 'actions', label: 'Action', w: 110 },
+    ],
+    /* Projects — the module's own column set, on the data grid. Sized so the eleven fit a
+       1600px screen without scrolling: the two name-ish columns flex, the rest hold. */
+    project: [
+        { key: 'id', label: 'ID', w: 80 },
+        /* Eleven columns do not fit a 1600px screen without squeezing something, and the
+           squeeze showed: owners truncating mid-name, a progress bar the width of a thumb,
+           project names cut at twenty characters. The grid scrolls a little instead —
+           deliberately — because a readable row beats a row that merely fits. */
+        { key: 'subject', label: 'Name', flex: true, w: 240 },
+        /* Wide enough for "Implementation" beside its dot and the picker's chevron — a
+           status that truncates to "Implementati…" is a status nobody can read, and unlike
+           a project NAME it has no longer form to fall back on. */
+        { key: 'status', label: 'Status', w: 176 },
+        { key: 'priority', label: 'Priority', w: 130 },
+        /* Fixed, not flex: letting it GROW took the slack the Name column actually needs.
+           Wide enough for the longest owner ("Rahul Deshmukh") beside their avatar and the
+           picker's chevron, with room to spare. */
+        { key: 'assignee', label: 'Owner', w: 200 },
+        /* The ATTRIBUTE is "Project Start Date" (that is what the filter and Manage columns
+           call it); the HEADING drops the redundant word on purpose. A column is never
+           narrower than its own heading, and those two words cost ~120px of grid to repeat
+           what the page title already says. Manage columns dedupes on KEY, so the attribute
+           is still correctly recognised as already-shown. */
+        { key: 'x_startDate', label: 'Start Date', w: 130 },
+        { key: 'x_endDate', label: 'End Date', w: 130 },
+        { key: 'dueStatus', label: 'Due By', w: 112 },
+        /* Likewise the unit: the cell prints "58%", so the heading need not. Wide enough
+           that the bar is long enough to compare rows by — at 128 it was a stub. */
+        { key: 'x_completion', label: 'Completion', w: 180 },
+        { key: 'x_tasks', label: 'Tasks', w: 88 },
+        { key: 'x_milestones', label: 'Milestones', w: 100 },
+    ],
+    /* Patches — the module's own columns, on the data grid. Missing/Installed lead the
+       numbers because "how exposed am I" is the question the catalogue exists to answer. */
+    patch: [
+        /* "Patch ID", the module's own heading and the product's own attribute name. */
+        { key: 'id', label: 'Patch ID', w: 110 },
+        { key: 'subject', label: 'Name', flex: true, w: 340 },
+        { key: 'x_severity', label: 'Severity', w: 140 },
+        { key: 'x_released', label: 'Release Date', w: 180 },
+        /* Centred: the cell is a chip or a dash, and left-aligned under an eighteen-character
+           heading a two-digit chip reads as orphaned. */
+        { key: 'x_missing', label: 'Missing System', w: 150, align: 'center' },
+        { key: 'x_installed', label: 'Installed System', w: 160, align: 'center' },
+        { key: 'x_reboot', label: 'Reboot Required', w: 160 },
+        { key: 'x_approvalStatus', label: 'Approval Status', w: 160 },
+    ],
+    /* Patch Deployments — the run list: what it is, where it stands, and the window it
+       has to land in. */
+    /* ⚠️ Six columns left ~500px of slack on a wide screen, and ALL of it lands on the first
+       flex column (see the two-pass fit) — so Name grew to roughly twice its longest value
+       and the row read as a gap. Narrowing Name alone cannot fix that: the remainder has to
+       go somewhere. The row now carries the columns the module actually has, so the space is
+       spent on information instead of air. */
+    /* The product's own six. Six columns leave ~500px of slack on a wide screen, which the
+       fit pass would hand entirely to Name — so Name carries a `maxW` and the surplus is
+       shared across every column instead of pooling in one. Everything else the module has
+       (Task Type, Created By, the Last Updated stamps) is a Manage-columns click away. */
+    'patch-deployment': [
+        { key: 'id', label: 'ID', w: 110 },
+        { key: 'subject', label: 'Name', flex: true, w: 300, maxW: 420 },
+        { key: 'status', label: 'Status', w: 170 },
+        { key: 'x_policy', label: 'Deployment Policy', flex: true, w: 230 },
+        { key: 'x_installAfter', label: 'Install After', w: 180 },
+        { key: 'x_expiry', label: 'Expiry Date', w: 180 },
+    ],
+    /* Package Deployments — the module's own columns: the application rollout, where it
+       stands, the policy that governs it and the window it has to land in. */
+    /* Package names are SHORT ("AnyDesk 8.0.11 — Support Team Workstations" is ~300px), so
+       seven columns left Name at 715px against a 298px longest value — 385px of gap, the
+       worst of the three run lists. Same remedy as the patch set: carry the columns the
+       module has and the slack is spent on information. */
+    /* The product's own six — the same set its Patch sibling shows, and sized the same way:
+       Name carries a `maxW` so the slack a six-column grid leaves is shared across every
+       column instead of pooling in one. Package names are shorter than patch ones, so the
+       ceiling is lower. Created By / Created Date / the Last Updated stamps / Task Type are
+       all a Manage-columns click away. */
+    'package-deployment': [
+        { key: 'id', label: 'ID', w: 110 },
+        { key: 'subject', label: 'Name', flex: true, w: 280, maxW: 380 },
+        { key: 'status', label: 'Status', w: 170 },
+        { key: 'x_policy', label: 'Deployment Policy', flex: true, w: 230 },
+        { key: 'x_installAfter', label: 'Install After', w: 180 },
+        { key: 'x_expiry', label: 'Expiry Date', w: 180 },
+    ],
+    /* Registry Deployments — no policy on this record; the Configuration Type says what the
+       run does, and Total Installations is a REAL count rather than a derived one. */
+    /* The product's own FIVE — no Deployment Policy here, because a registry run has none.
+       The sparsest of the three run lists, so Name's `maxW` matters most: without it the one
+       flex column would take every pixel the other four do not. Total Installations, Created
+       By / Date and Configuration Type are all a Manage-columns click away. */
+    'registry-deployment': [
+        { key: 'id', label: 'ID', w: 110 },
+        { key: 'subject', label: 'Name', flex: true, w: 280, maxW: 400 },
+        { key: 'status', label: 'Status', w: 170 },
+        { key: 'x_installAfter', label: 'Install After', w: 180 },
+        { key: 'x_expiry', label: 'Expiry Date', w: 180 },
+    ],
+    /* Automatic Patch Tests — the module's own columns. The three counts can be unknown on a
+       schedule nobody has built out, so they go through NULLABLE_COUNT_COLS and print a dash
+       rather than a 0 that would claim "no tests". */
+    apt: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 320, maxW: 440 },
+        { key: 'x_totalTests', label: 'Total Tests', w: 130, align: 'center' },
+        { key: 'x_pendingTests', label: 'Pending Tests', w: 140, align: 'center' },
+        { key: 'x_completedTests', label: 'Completed Tests', w: 160, align: 'center' },
+        { key: 'x_lastExecution', label: 'Last Execution Time', w: 195 },
+        { key: 'x_nextExecution', label: 'Next Execution Time', w: 195 },
+        { key: 'x_enabled', label: 'Enable', w: 110 },
+        { key: 'actions', label: 'Actions', w: 120 },
+    ],
+    /* Vulnerabilities — the patch catalogue read by RISK: how bad, whether anyone is
+       already exploiting it, what it scores, and how much of the fleet it touches. */
+    /* Headings use the module's ATTRIBUTE names (Title, Patch Category, Release Date) rather
+       than the shorter ones the old hand-rolled table had: a reader who adds "Patch Category"
+       from Manage columns should not find the same values already there under "Category". */
+    vuln: [
+        { key: 'id', label: 'ID', w: 104 },
+        { key: 'subject', label: 'Title', flex: true, w: 300 },
+        { key: 'x_severity', label: 'Severity', w: 130 },
+        { key: 'x_exploitedCves', label: 'Exploited CVEs', w: 190 },
+        { key: 'x_otherCves', label: 'Non Exploited CVEs', w: 220 },
+        { key: 'x_category', label: 'Patch Category', w: 170 },
+        { key: 'x_cvss', label: 'CVSS 3.1 Score', w: 150 },
+        /* 180, not 150: the house stamp "14 Apr 2026, 05:00 PM" needs it, and at 150 the
+           minutes were clipped mid-word AND the text ran flush to the column edge, which is
+           what made the next column's count look glued to it. */
+        { key: 'x_published', label: 'Release Date', w: 180 },
+        /* A one- or two-digit chip under an eighteen-character heading reads as orphaned at
+           the left edge; centred, the column is its own unit with air on both sides. */
+        { key: 'x_impacted', label: 'Impacted Endpoints', w: 170, align: 'center' },
+    ],
+    /* Detected CVEs — the raw advisories, read by severity, whether a fix exists and
+       whether it is being exploited. */
+    cve: [
+        { key: 'id', label: 'CVE ID', w: 150 },
+        { key: 'subject', label: 'Description', flex: true, w: 320 },
+        { key: 'x_severity', label: 'Severity', w: 124 },
+        { key: 'x_cwe', label: 'CWE ID', w: 120 },
+        { key: 'x_impacted', label: 'Impacted Endpoints', w: 170, align: 'center' },
+        { key: 'x_patchAvail', label: 'Patch Availability', w: 160 },
+        { key: 'x_cvss', label: 'CVSS 3.1 Score', w: 150 },
+        { key: 'x_exploit', label: 'Exploit Status', w: 140 },
+        /* Same stamp, same 180 — see the Release Date note on the vuln set. */
+        { key: 'x_published', label: 'Published Date', w: 180 },
+        { key: 'status', label: 'Status', w: 170 },
+    ],
+    /* Endpoints — the managed fleet. Host name leads (it is what anyone quotes), with the
+       agent-health dot on the id exactly as the module's own table has always shown it. */
+    /* Headings use the module's ATTRIBUTE names — "Agent ID" became ID and "Version" became
+       OS Version — so adding either from Manage columns cannot surface a second column
+       showing values the grid already shows under a different name. */
+    endpoint: [
+        { key: 'id', label: 'ID', w: 120 },
+        { key: 'subject', label: 'Host Name', flex: true, w: 210 },
+        { key: 'x_ip', label: 'IP Address', w: 140 },
+        { key: 'x_os', label: 'OS Name', flex: true, w: 240 },
+        { key: 'x_version', label: 'OS Version', w: 170 },
+        { key: 'x_arch', label: 'Architecture', w: 140 },
+        { key: 'x_office', label: 'Remote Office', w: 200 },
+        { key: 'x_health', label: 'System Health', w: 160 },
+        { key: 'x_tags', label: 'Tags', w: 150 },
+        { key: 'x_reboot', label: 'Reboot Required', w: 160 },
+    ],
+    /* Reports — a saved report has no id a reader would ever quote, so the Name leads and
+       the rest says who built it, when, and with which engine. */
+    report: [
+        { key: 'subject', label: 'Name', flex: true, w: 400 },
+        /* Fits the longest stamp the house format can print ("08 Jul 2026, 02:30 PM")
+           without an ellipsis — a date that truncates tells you nothing. It was 215 for the
+           old weekday-prefixed stamp; dropping "Wed," gave 35px back. */
+        { key: 'created', label: 'Created Date', w: 180 },
+        { key: 'x_createdBy', label: 'Created By', flex: true, w: 220 },
+        { key: 'x_type', label: 'Type', w: 180 },
+        { key: 'actions', label: 'Action', w: 120 },
     ],
     /* CMDB Base CI — the same columns the module has always shown, on the data grid. */
     cmdb: [
@@ -1904,7 +2235,7 @@ export function TicketTable({
       ];
   /* Asset grids offer their own attributes as optional columns; every other module keeps
      the request extras. */
-  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : moduleCols === 'nonit' ? NONIT_FILTER_ATTRS : moduleCols === 'consumable' ? CONSUMABLE_FILTER_ATTRS : moduleCols === 'license' ? LICENSE_FILTER_ATTRS : moduleCols === 'contract' ? CONTRACT_FILTER_ATTRS : moduleCols === 'purchase' ? PURCHASE_FILTER_ATTRS : moduleCols === 'meter' ? METER_FILTER_ATTRS : moduleCols === 'cmdb' ? CMDB_FILTER_ATTRS : moduleCols === 'knowledge' ? KNOWLEDGE_FILTER_ATTRS : null;
+  const MODULE_ATTRS = moduleCols === 'asset' ? HARDWARE_FILTER_ATTRS : moduleCols === 'software' ? SOFTWARE_FILTER_ATTRS : moduleCols === 'nonit' ? NONIT_FILTER_ATTRS : moduleCols === 'consumable' ? CONSUMABLE_FILTER_ATTRS : moduleCols === 'license' ? LICENSE_FILTER_ATTRS : moduleCols === 'contract' ? CONTRACT_FILTER_ATTRS : moduleCols === 'purchase' ? PURCHASE_FILTER_ATTRS : moduleCols === 'meter' ? METER_FILTER_ATTRS : moduleCols === 'cmdb' ? CMDB_FILTER_ATTRS : moduleCols === 'knowledge' ? KNOWLEDGE_FILTER_ATTRS : moduleCols === 'report' ? REPORT_FILTER_ATTRS : moduleCols === 'task' ? TASK_FILTER_ATTRS : moduleCols === 'team' ? TEAM_FILTER_ATTRS : moduleCols === 'project' ? PROJECT_FILTER_ATTRS : moduleCols === 'vuln' ? VULN_FILTER_ATTRS : moduleCols === 'cve' ? CVE_FILTER_ATTRS : moduleCols === 'endpoint' ? ENDPOINT_FILTER_ATTRS : moduleCols === 'patch' ? PATCH_FILTER_ATTRS : moduleCols === 'patch-deployment' ? PATCH_DEPLOY_FILTER_ATTRS : moduleCols === 'package-deployment' ? PACKAGE_DEPLOY_FILTER_ATTRS : moduleCols === 'registry-deployment' ? REGISTRY_DEPLOY_FILTER_ATTRS : moduleCols === 'apt' ? APT_FILTER_ATTRS : null;
   /* Managed By Group's menu, where the module's catalogue names its own teams. */
   const moduleGroupOptions: CellOption[] | null =
     MODULE_ATTRS?.find((a) => a.key === 'managedByGroup')?.options?.map((o) => ({ label: o.label })) ?? null;
@@ -2042,6 +2373,46 @@ export function TicketTable({
 
   const changeColumn = (fromKey: string, toKey: string) =>
     applyColumns(colOrder.map((k) => (k === fromKey ? toKey : k)));
+  /* The row whose ⋮ is open, and where to paint its menu. A body portal, because the grid
+     scrolls and a menu positioned inside it would be clipped at the row's edge. */
+  const [rowMenu, setRowMenu] = useState<{ id: string; ticket: Ticket; top: number; left: number } | null>(null);
+  /* Delete asks first. The card is a body PORTAL anchored to the icon, because the grid
+     scrolls and anything positioned inside a row would be clipped at its edge. */
+  const [confirmDel, setConfirmDel] = useState<{ ticket: Ticket; top: number; left: number } | null>(null);
+  useEffect(() => {
+    if (!confirmDel) return;
+    const close = () => setConfirmDel(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [confirmDel]);
+  /* Both delete controls — the inline icon and the ⋮ item — go through here. */
+  const askDelete = (ticket: Ticket, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const W = 300;
+    setConfirmDel({ ticket, top: r.bottom + 6, left: Math.min(Math.max(r.right - W, 8), window.innerWidth - W - 8) });
+  };
+  useEffect(() => {
+    if (!rowMenu) return;
+    const close = () => setRowMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    /* Scrolling the grid would leave the menu floating where the row used to be. */
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [rowMenu]);
+
   const [showColMgr, setShowColMgr] = useState(false);
   /* The toolbar mirrors this set in its Group-by and Sort menus, so each column carries the
      FIELD it sorts on — the grid is what knows that a column called "Managed By" sorts on
@@ -2129,6 +2500,20 @@ export function TicketTable({
        pixel — no dead strip, no sub-pixel drift between header and body. */
     const soak = primary >= 0 ? primary : fitted.length - 1;
     if (soak >= 0) fitted[soak] += avail - fitted.reduce((n, w) => n + w, 0);
+    /* …unless that column declares a `maxW`. A SPARSE grid (six columns on a wide screen)
+       hands the soak column hundreds of pixels it has no content for, and the row reads as a
+       gap beside a short name. Capping it spreads the surplus evenly across every column
+       instead, so the table still spans the container to the pixel but as a comfortably set
+       row rather than one bloated cell. Opt-in: a grid without `maxW` behaves exactly as
+       before. The last column carries any rounding dust, for the same to-the-pixel reason. */
+    const cap = cols[soak]?.maxW;
+    if (soak >= 0 && cap && fitted[soak] > cap) {
+      const surplus = fitted[soak] - cap;
+      fitted[soak] = cap;
+      const share = Math.floor(surplus / fitted.length);
+      fitted.forEach((_, i) => { fitted[i] += share; });
+      fitted[fitted.length - 1] += avail - fitted.reduce((n, w) => n + w, 0);
+    }
   }
   // Display list: the real columns with the placeholder slot woven in (ri = real index).
   const PH_W = 200;
@@ -2174,10 +2559,277 @@ export function TicketTable({
       const v = (ticket as any).x_approvalStatus as string | undefined;
       const tone =
         v === 'Approved' ? 'text-[#15803D]' : v === 'Rejected' ? 'text-[#B42318]'
-          : v === 'Pending Approval' ? 'text-[#B45309]' : 'text-[#64748B]';
+          : v === 'Pending Approval' || v === 'Not Approved' ? 'text-[#B45309]' : 'text-[#64748B]';
       return (
         <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
           <span className={`truncate text-[12px] ${tone}`}>{v || '—'}</span>
+        </td>
+      );
+    }
+    /* Per-row actions. FIVE actions is too many icons to park in every row, so the two a
+       reader reaches for — change the report, schedule its delivery — stay inline and the
+       rest go behind a ⋮. Delete is in there deliberately: a destructive action should not
+       be one stray click away in a list. */
+    if (key === 'actions') {
+      const act = (label: string, icon: ReactElement, action: RowAction, danger = false) => (
+        <Tooltip key={label}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (action === 'delete') return askDelete(ticket, e.currentTarget as HTMLElement);
+                onRowAction?.(ticket, action);
+              }}
+              className={`flex size-7 items-center justify-center rounded transition-colors ${
+                danger ? 'text-[#9CA3AF] hover:bg-[#FEE4E2] hover:text-[#B42318]' : 'text-[#7B8FA5] hover:bg-[#EEF2F6] hover:text-[#364658]'
+              }`}
+            >
+              {icon}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+      );
+      const menuOpen = rowMenu?.id === ticket.id;
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+          {/* Always visible: what a row can do should not be something you have to find by
+              hovering. They rest in the muted grey the grid uses for secondary text and only
+              take colour under the pointer, so a column of them reads as quiet furniture
+              rather than competing with the report names. */}
+          <span className="flex items-center gap-0.5">
+            {act('Edit', <SquarePen size={15} />, 'edit')}
+            {/* A task has exactly two things you do to it from a list, so both sit inline —
+                Delete reads red under the pointer rather than hiding behind a menu nobody
+                would open for one item. */}
+            {moduleCols === 'task' && act('Delete', <Trash2 size={15} />, 'delete', true)}
+            {/* A test schedule's two: change it or drop it. */}
+            {moduleCols === 'apt' && act('Delete', <Trash2 size={15} />, 'delete', true)}
+            {/* My Team's second action opens the Mark Leave panel, and wears the state it
+                sets: amber and filled while that person is away, quiet grey while they are
+                not — so the column also READS as who is out. */}
+            {moduleCols === 'team' && (() => {
+              const away = !!(ticket as any).x_outOfOffice;
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRowAction?.(ticket, 'out-of-office'); }}
+                      className={`flex size-7 items-center justify-center rounded transition-colors ${
+                        away
+                          ? 'bg-[#FEF3C7] text-[#B45309] hover:bg-[#FDE68A]'
+                          : 'text-[#7B8FA5] hover:bg-[#EEF2F6] hover:text-[#364658]'
+                      }`}
+                    >
+                      <CalendarClock size={15} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{away ? 'Edit leave' : 'Mark leave'}</TooltipContent>
+                </Tooltip>
+              );
+            })()}
+            {/* Schedule + the ⋮ overflow are the REPORT row's actions. Named by the module
+                they belong to rather than excluded module by module — the exclusion list had
+                already leaked them onto a new grid once. */}
+            {moduleCols === 'report' && act('Schedule', <CalendarClock size={15} />, 'schedule')}
+            {moduleCols === 'report' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (menuOpen) return setRowMenu(null);
+                    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setRowMenu({ id: ticket.id, ticket, top: r.bottom + 4, left: r.right - 190 });
+                  }}
+                  className={`flex size-7 items-center justify-center rounded transition-colors ${menuOpen ? 'bg-[#EBF5FF] text-[#3D8BD0]' : 'text-[#7B8FA5] hover:bg-[#EEF2F6] hover:text-[#364658]'}`}
+                >
+                  <MoreVertical size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>More actions</TooltipContent>
+            </Tooltip>
+            )}
+          </span>
+        </td>
+      );
+    }
+    /* The record a task hangs off. A link, because the question "what is this for?" is the
+       one a task row most often raises — and a dash where the task stands alone. */
+    if (key === 'x_reference') {
+      const ref = String((ticket as any).x_reference ?? '');
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          {ref ? (
+            /* The SAME id pill the ID column wears — a reference IS a record id, so it
+               should read as one rather than as loose link text. The id alone says nothing
+               about what the task is in aid of, so the parent's NAME rides on the hover. */
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRowAction?.(ticket, 'open-reference'); }}
+                  className="inline-block max-w-full truncate whitespace-nowrap rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] transition-colors hover:bg-[#d0e8f9]"
+                >
+                  {ref}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[320px] text-wrap">
+                {(ticket as any).x_referenceSubject || ref}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-[12px] text-[#9CA3AF]">---</span>
+          )}
+        </td>
+      );
+    }
+    /* Where the task stands against its SLA — the SAME hourglass pill the request grid
+       shows, so a breach reads identically wherever a technician meets one. */
+    if (key === 'x_overdue') {
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <SlaPill ticket={ticket} />
+        </td>
+      );
+    }
+    /* A team member's row leads with who they are: the product's technician avatar, the
+       name, and only the chips that have something to SAY. "You" marks the signed-in
+       supervisor in their own roster; the amber note marks whoever is away, because the
+       question this page is opened with is usually "who can pick this up".
+       Every technician reads the SAME: an inactive or blocked account was greyed here for
+       a while, and it made a colleague look broken rather than switched off. That fact
+       lives in the Account Status column and its filters instead. */
+    if (key === 'x_name') {
+      const name = String((ticket as any).x_name ?? ticket.subject ?? '');
+      const away = !!(ticket as any).x_outOfOffice;
+      return (
+        /* The name is this grid's subject cell: it is what opens the record, so it carries
+           the same pointer and the same dotted hover underline the other listings put on
+           their subject. */
+        <td
+          className="cursor-pointer overflow-hidden px-4 py-3 whitespace-nowrap"
+          onClick={() => openTicket(ticket)}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
+              {requesterAvatar(name).initials}
+            </span>
+            <span className="truncate text-[12px] font-medium text-[#364658] decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline">{name}</span>
+            {(ticket as any).x_isYou && (
+              <span className="flex-shrink-0 rounded bg-[#EBF5FF] px-1.5 py-0.5 text-[10px] font-semibold text-[#3D8BD0]">You</span>
+            )}
+            {away && (
+              /* The chip says they are away; the hover says until when, and who is
+                 covering — the two follow-up questions it always raises. */
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <span className="flex-shrink-0 cursor-default rounded bg-[#FEF3C7] px-1.5 py-0.5 text-[10px] font-medium text-[#B45309]">On Leave</span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[320px] text-wrap">
+                  {(ticket as any).x_leaveNote || 'On Leave'}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </span>
+        </td>
+      );
+    }
+    /* A real mailto link, so the browser can open a message and the context menu can copy
+       the address — but it READS as data, not as a link: the grid's own text colour, with
+       the same dotted underline on row hover that the Name cell uses. A column of blue
+       addresses competed with the row's actual subject for attention. */
+    if (key === 'x_email') {
+      const email = String((ticket as any).x_email ?? '');
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          {email ? (
+            <a
+              href={`mailto:${email}`}
+              onClick={(e) => e.stopPropagation()}
+              className="block truncate text-[12px] text-[#364658] decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline"
+            >
+              {email}
+            </a>
+          ) : (
+            <span className="text-[12px] text-[#B6C0CC]">—</span>
+          )}
+        </td>
+      );
+    }
+    /* These rows carry a real Date (so the column sorts chronologically and the date filter
+       reads the true value); only the PRINTING happens here. A sign-in is a MOMENT and gets
+       the full stamp; a project window is measured in months, where the time of day is
+       noise that costs 60px of column. */
+    if (DATE_TIME_COLS.has(key) || DATE_ONLY_COLS.has(key)) {
+      const d = (ticket as any)[key];
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="text-[12px] tabular-nums text-[#364658]">
+            {d instanceof Date ? (DATE_ONLY_COLS.has(key) ? fmtDayOnly(d) : formatDateTime(d)) : '—'}
+          </span>
+        </td>
+      );
+    }
+    /* How far a project has run, as a bar and a figure. The bar is what makes a portfolio
+       readable at a glance — a column of bare percentages has to be read row by row. */
+    if (key === 'x_completion') {
+      const pct = Math.max(0, Math.min(100, Number((ticket as any).x_completion ?? 0)));
+      const done = pct >= 100;
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex items-center gap-2">
+            <span className="h-1.5 w-full max-w-[104px] flex-shrink overflow-hidden rounded-full bg-[#EEF2F6]">
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${pct}%`, backgroundColor: done ? '#22C55E' : '#3D8BD0' }}
+              />
+            </span>
+            <span className={`flex-shrink-0 text-[12px] tabular-nums ${done ? 'font-medium text-[#15803D]' : 'text-[#364658]'}`}>
+              {pct}%
+            </span>
+          </span>
+        </td>
+      );
+    }
+    /* A report's author, with the product's "(Archived)" note when their account has since
+       been closed. The note is greyed rather than dropped: it explains why there is nobody
+       left to ask about the report. */
+    /* Every column that names a PERSON reads the same way — avatar then name. `x_updatedBy`
+       used to fall through to the plain text cell, so "Created By" and "Last Updated By" sat
+       side by side looking like two different kinds of fact. */
+    if (key === 'x_createdBy' || key === 'x_updatedBy') {
+      const who = String((ticket as any)[key] ?? '');
+      const gone = (ticket as any).x_authorState === 'Archived';
+      /* A service account has no face. "System" created most of the patch catalogue, and a
+         blue initial beside it read as a colleague you could go and ask. */
+      const human = who && who !== 'System';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex min-w-0 items-center gap-2">
+            {human && (
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#3D8BD0] text-[9px] font-medium text-white">
+                {requesterAvatar(who).initials}
+              </span>
+            )}
+            <span className="truncate text-[12px] text-[#364658]">
+              {who}
+              {gone && <span className="text-[#9CA3AF]"> (Archived)</span>}
+            </span>
+          </span>
+        </td>
+      );
+    }
+    /* The engine that built the report, on its own hue — one dot per type, so a reader
+       recognises the kind before reading it. */
+    if (key === 'x_type') {
+      const v = String((ticket as any).x_type ?? '');
+      const color = REPORT_TYPE_OPTIONS.find((o) => o.label === v)?.color ?? '#94A3B8';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+          </span>
         </td>
       );
     }
@@ -2204,6 +2856,26 @@ export function TicketTable({
     /* A CI's class, editable in place from the class TREE — the same catalogue the rail is
        built on, indented the same way, with a search box because it runs to 80-odd rows.
        The glyph matches the rail's, so a switch looks like a switch in both. */
+    /* What KIND of work the task is — a technician's own call, and one that changes as the
+       task is picked up, so the cell edits in place. Searchable because nine types is past
+       the point where scanning beats typing. */
+    if (key === 'x_taskType') {
+      const v = (ticket as any).x_taskType as string | undefined;
+      return (
+        <td className="px-2 py-0 whitespace-nowrap" title={v}>
+          <InlineSelect
+            options={TASK_TYPE_CELL_OPTIONS}
+            menuWidth={240}
+            searchable
+            searchPlaceholder="Search task types..."
+            value={v}
+            onPick={(label) => onUpdateTicket?.(ticket.id, { x_taskType: label } as Partial<Ticket>)}
+          >
+            <span className="truncate text-[12px] text-[#4A5568]">{v || '—'}</span>
+          </InlineSelect>
+        </td>
+      );
+    }
     if (key === 'x_ciType') {
       const v = (ticket as any).x_ciType as string | undefined;
       return (
@@ -2301,6 +2973,250 @@ export function TicketTable({
         </td>
       );
     }
+    /* ── Vulnerability-module cells ──────────────────────────────────────────── */
+    /* The Enable switch. The one cell in the product that WRITES rather than navigates, so it
+       is a real switch and not a word: an admin turning a test schedule off should not have
+       to open it. Reads the same `x_enabled` string the filter and KPI cards test. */
+    if (key === 'x_enabled') {
+      const on = (ticket as any).x_enabled === 'Enabled';
+      return (
+        <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                role="switch"
+                aria-checked={on}
+                onClick={() => onUpdateTicket?.(ticket.id, { x_enabled: on ? 'Disabled' : 'Enabled' } as Partial<Ticket>)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${on ? 'bg-[#22C55E]' : 'bg-[#CBD5E1]'}`}
+              >
+                <span className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{on ? 'Enabled — click to switch off' : 'Disabled — click to switch on'}</TooltipContent>
+          </Tooltip>
+        </td>
+      );
+    }
+    /* A count that may be unknown — see NULLABLE_COUNT_COLS. */
+    if (NULLABLE_COUNT_COLS.has(key)) {
+      const raw = (ticket as any)[key];
+      const known = raw !== null && raw !== undefined && raw !== '';
+      return (
+        <td className="px-4 py-3 text-center whitespace-nowrap">
+          {known
+            ? <span className={COUNT_CHIP}>{Number(raw)}</span>
+            : <span className="text-[12px] text-[#B6C0CC]">—</span>}
+        </td>
+      );
+    }
+    /* A closed-set text value in the product's grey chip (see TEXT_CHIP_COLS). Truncates
+       inside the chip rather than overflowing it, so a long site name still reads as one. */
+    if (TEXT_CHIP_COLS.has(key)) {
+      const v = String((ticket as any)[key] ?? '').trim();
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          {v ? (
+            <span className={TEXT_CHIP}><span className="truncate">{v}</span></span>
+          ) : (
+            <span className="text-[12px] text-[#B6C0CC]">—</span>
+          )}
+        </td>
+      );
+    }
+    /* Impacted Endpoints — the blue count pill from the patch page's Vulnerabilities grid,
+       and clickable for the same reason: the number is the start of a question ("which
+       machines?") that the row cannot answer, so it opens the list instead of just stating
+       a figure. Zero is not a pill — there is nothing to open. */
+    if (key === 'x_impacted' && onRowAction) {
+      const n = Number((ticket as any).x_impacted ?? 0);
+      return (
+        <td className="overflow-hidden px-4 py-3 text-center whitespace-nowrap">
+          {n > 0 ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRowAction(ticket, 'impacted-endpoints'); }}
+              title={`View the ${n} impacted endpoint${n === 1 ? '' : 's'}`}
+              /* The product's count-chip width (46px), so single and double digits sit on a
+                 common centre line instead of jittering column to column. */
+              className="inline-flex min-w-[46px] items-center justify-center rounded bg-[#E8F4FD] px-2 py-0.5 text-[12px] font-medium tabular-nums text-[#3D8BD0] transition-colors hover:bg-[#D3E9FA]"
+            >
+              {n}
+            </button>
+          ) : (
+            <span className="text-[12px] text-[#B6C0CC]">—</span>
+          )}
+        </td>
+      );
+    }
+    /* Severity — the Status/Priority treatment: a filled dot carries the grade, the word
+       stays in the grid's own text colour. */
+    if (key === 'x_severity') {
+      const v = String((ticket as any).x_severity ?? '');
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          {v ? (
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: SEVERITY_DOT[v] ?? '#94A3B8' }} />
+              <span className="truncate text-[12px] text-[#4A5568]">{v}</span>
+            </span>
+          ) : (
+            <span className="text-[12px] text-[#B6C0CC]">—</span>
+          )}
+        </td>
+      );
+    }
+    /* The score, graded by the band it falls in — a bare "9.8" tells a reader nothing
+       unless they already know the CVSS ladder. */
+    if (key === 'x_cvss') {
+      const n = Number((ticket as any).x_cvss ?? 0);
+      const col = n >= 9 ? '#B42318' : n >= 7 ? '#DC2626' : n >= 4 ? '#B45309' : n > 0 ? '#15803D' : '#94A3B8';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="text-[12px] font-semibold tabular-nums" style={{ color: col }}>
+            {n > 0 ? n.toFixed(1) : '—'}
+          </span>
+        </td>
+      );
+    }
+    /* A yes/no that MEANS something: "being exploited" and "no patch yet" are the two
+       words on these screens that should stop a reader, so they read red. */
+    if (key === 'x_exploit' || key === 'x_reboot' || key === 'x_patchAvail') {
+      const v = String((ticket as any)[key] ?? '');
+      /* Patch availability inverts — "No" is the bad answer there. */
+      const bad = key === 'x_patchAvail' ? v === 'No' : v === 'Yes';
+      /* The patch catalogue's third reboot answer. "May be" is not a quiet no — it means
+         plan for a restart — so it reads amber rather than disappearing into grey. */
+      const tone = bad ? 'font-semibold text-[#B42318]' : v === 'May be' ? 'text-[#B45309]' : 'text-[#64748B]';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          {v ? (
+            <span className={`text-[12px] ${tone}`}>{v}</span>
+          ) : (
+            <span className="text-[12px] text-[#B6C0CC]">—</span>
+          )}
+        </td>
+      );
+    }
+    /* The vendor advisory page. Shown without its scheme (the "https://" is 8 characters of
+       nothing) and as a REAL link, so middle-click and copy-link behave; the full URL is on
+       hover, because a truncated URL tells a reader nothing. */
+    if (key === 'x_supportUri') {
+      const uri = String((ticket as any).x_supportUri ?? '');
+      if (!uri || uri === '—') return <td className="px-4 py-3 whitespace-nowrap"><span className="text-[12px] text-[#B6C0CC]">—</span></td>;
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={uri}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex min-w-0 items-center gap-1.5 text-[12px] text-[#364658] decoration-[#94A3B8] decoration-dotted underline-offset-[3px] group-hover:underline"
+              >
+                <span className="truncate">{uri.replace(/^https?:\/\//, '')}</span>
+                <ExternalLink size={11} className="flex-shrink-0 text-[#94A3B8]" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[340px] text-wrap break-all">{uri}</TooltipContent>
+          </Tooltip>
+        </td>
+      );
+    }
+    /* A CVSS base vector — a code string nobody reads at a glance but everybody copies.
+       Truncated in the cell with the whole vector on hover. Matched by SUFFIX because the
+       CVE listing carries one per generation (x_cvss20Vector … x_cvss40Vector). */
+    if (key.startsWith('x_cvss') && key.endsWith('Vector')) {
+      const vec = String((ticket as any)[key] ?? '');
+      if (!vec || vec === '—') return <td className="px-4 py-3 whitespace-nowrap"><span className="text-[12px] text-[#B6C0CC]">—</span></td>;
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block truncate text-[12px] tracking-[-0.1px] text-[#364658]">{vec}</span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-[340px] text-wrap break-all">{vec}</TooltipContent>
+          </Tooltip>
+        </td>
+      );
+    }
+    /* A list of CVE ids. Two pills then a "+N" with the rest on hover: a cell carrying
+       four advisory numbers in full is unreadable, and the count is the fact anyway. */
+    if (key === 'x_exploitedCves' || key === 'x_otherCves' || key === 'x_resolvedCves') {
+      const all = ((ticket as any)[key] as string[] | undefined) ?? [];
+      if (!all.length) return <td className="px-4 py-3 whitespace-nowrap"><span className="text-[12px] text-[#B6C0CC]">—</span></td>;
+      const shown = all.slice(0, 2);
+      const rest = all.slice(2);
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex items-center gap-1">
+            {/* Grey, like every other value chip in the product — these CVE ids are data,
+                not links. In blue they wore the ID-pill treatment, which on this grid means
+                "clickable record", and nothing here opens. The "+N" already used this fill,
+                so the whole cell now reads as one set. */}
+            {shown.map((c) => (
+              <span key={c} className="inline-block rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium text-[#364658]">{c}</span>
+            ))}
+            {rest.length > 0 && (
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <span className="inline-block cursor-default rounded bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium text-[#64748B]">+{rest.length}</span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[280px] text-wrap">{rest.join(', ')}</TooltipContent>
+              </Tooltip>
+            )}
+          </span>
+        </td>
+      );
+    }
+    /* System health — the dot carries the state, the word names it. */
+    if (key === 'x_health') {
+      const v = String((ticket as any).x_health ?? '');
+      const col = v === 'Healthy' ? '#22C55E' : v === 'Warning' ? '#F59E0B' : v === 'Critical' ? '#DC2626' : '#94A3B8';
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex items-center gap-2">
+            <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: col }} />
+            <span className={`truncate text-[12px] ${v && v !== 'Not reported' ? 'text-[#364658]' : 'text-[#94A3B8]'}`}>{v || 'Not reported'}</span>
+          </span>
+        </td>
+      );
+    }
+    /* Tags — the chips the asset pages use, with the overflow behind a count. */
+    if (key === 'x_tags') {
+      const all = ((ticket as any).x_tags as string[] | undefined) ?? [];
+      if (!all.length) return <td className="px-4 py-3 whitespace-nowrap"><span className="text-[12px] text-[#B6C0CC]">—</span></td>;
+      const shown = all.slice(0, 2);
+      const rest = all.slice(2);
+      return (
+        <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+          <span className="flex items-center gap-1">
+            {/* The SAME chip Remote Office wears — see TEXT_CHIP. */}
+            {shown.map((t) => (
+              <span key={t} className={TEXT_CHIP}><span className="truncate">{t}</span></span>
+            ))}
+            {rest.length > 0 && (
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <span className={`${TEXT_CHIP} flex-shrink-0 cursor-default`}>+{rest.length}</span>
+                </TooltipTrigger>
+                <TooltipContent>{rest.join(', ')}</TooltipContent>
+              </Tooltip>
+            )}
+          </span>
+        </td>
+      );
+    }
+    /* Ratio columns ("8/15") — the SAME grey chip the licence and stock counts wear,
+       because it is the same kind of fact: a figure to compare down the column, not a
+       label to read. */
+    if (RATIO_CHIP_COLS.has(key)) {
+      const v = String((ticket as any)[key] ?? '').trim();
+      return (
+        <td className="px-4 py-3 whitespace-nowrap">
+          {v ? <span className={COUNT_CHIP}>{v}</span> : <span className="text-[12px] text-[#B6C0CC]">—</span>}
+        </td>
+      );
+    }
     /* Module-declared editable columns (see MODULE_EDITABLE_COLS) — Asset Type carries
        its icons, the rest are plain value pickers. */
     if (key.startsWith('x_') && MODULE_EDITABLE_COLS[moduleCols ?? '']?.includes(key)) {
@@ -2353,6 +3269,20 @@ export function TicketTable({
       case 'id':
         return (
               <td data-col="id" className="overflow-hidden px-4 py-3">
+                {/* Agent health sits BEFORE the id pill, where the Endpoints module has
+                    always shown it — the dot answers "is this machine even reachable"
+                    before the id answers "which machine". */}
+                {(ticket as any).x_idDot && (
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="mr-2 inline-block size-2 flex-shrink-0 rounded-full align-middle"
+                        style={{ backgroundColor: (ticket as any).x_idDot }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{(ticket as any).x_idDotTip ?? 'Agent status'}</TooltipContent>
+                  </Tooltip>
+                )}
                 <span
                   className="whitespace-nowrap inline-block rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0] cursor-pointer hover:bg-[#d0e8f9] transition-colors"
                   onMouseEnter={() => hoverPeekStart(ticket.id)}
@@ -2394,7 +3324,11 @@ export function TicketTable({
                     OTHER intent — read it beside the queue. A real <a> (not a button) so
                     ctrl/cmd-click, middle-click and "open link in new tab" all behave
                     natively, and the browser previews the URL on hover. */}
-                <span className={`pointer-events-none absolute inset-y-[2px] right-0 hidden items-center pl-10 pr-4 group-hover:flex ${ticket.id === kbFocusId ? 'bg-gradient-to-l from-[#F5FAFF] via-[#F5FAFF] via-70% to-transparent' : 'bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent'}`}>
+                {/* `invisible`, NOT `hidden`: a display:none trigger has no box for the
+                    tooltip to measure, so Radix positioned its card at the top-left corner of
+                    the window the first time you hovered. visibility:hidden keeps the rect
+                    (and still blocks hit-testing) so the card opens on the icon. */}
+                <span className={`pointer-events-none invisible absolute inset-y-[2px] right-0 flex items-center pl-10 pr-4 group-hover:visible ${ticket.id === kbFocusId ? 'bg-gradient-to-l from-[#F5FAFF] via-[#F5FAFF] via-70% to-transparent' : 'bg-gradient-to-l from-[#f9fafb] via-[#f9fafb] via-70% to-transparent'}`}>
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
                       <a
@@ -3079,7 +4013,7 @@ export function TicketTable({
               style={unreadColor ? ({ ['--row-tint' as string]: `${unreadColor}0D` } as React.CSSProperties) : undefined}
               className={`group scroll-mt-11 scroll-mb-1 border-b border-[#F1F5F9] transition-colors ${kbFocus ? 'bg-[#F5FAFF] [outline:1px_solid_#3D8BD0] [outline-offset:-1px]' : picked ? 'bg-[#f9fafb]' : `${tinted ? 'bg-[var(--row-tint)]' : ''} hover:bg-[#f9fafb]`}`}
             >
-              <td className={`relative py-3 pl-6 pr-4 ${frozenIdx >= 0 ? `sticky left-0 z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-[var(--row-tint,#fff)] group-hover:bg-[#f9fafb]'}` : ''}`}>
+              <td className={`relative py-3 ${GUTTER_PAD} ${frozenIdx >= 0 ? `sticky left-0 z-20 ${kbFocus ? 'bg-[#F5FAFF]' : picked ? 'bg-[#f9fafb]' : 'bg-[var(--row-tint,#fff)] group-hover:bg-[#f9fafb]'}` : ''}`}>
                 {/* Left accent — keeps a picked row obvious while scanning down the grid. */}
                 {picked && <span className="absolute inset-y-0 left-0 w-[3px] bg-[#DFE5ED]" />}
                 {/* Unread dot — the row has new replies waiting. It sits in the gutter
@@ -3114,13 +4048,15 @@ export function TicketTable({
                     </Tooltip>
                   );
                 })()}
-                <input
-                  type="checkbox"
-                  checked={picked}
-                  onChange={(e) => onSelectTicket(ticket.id, e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-                />
+                {!hideSelection && (
+                  <input
+                    type="checkbox"
+                    checked={picked}
+                    onChange={(e) => onSelectTicket(ticket.id, e.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                  />
+                )}
               </td>
               {displayMeta.map((m) => {
                 if (!m.col) return <td key="__ph" className="bg-[#FAFBFC]" />;
@@ -3167,13 +4103,15 @@ export function TicketTable({
         {!groupBy && (
         <thead>
           <tr className="bg-white">
-            <th className={`sticky top-[var(--tb,0px)] z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-2.5 pl-6 pr-4 text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={(e) => onSelectAll(e.target.checked)}
-                className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
-              />
+            <th className={`sticky top-[var(--tb,0px)] z-30 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-2.5 ${GUTTER_PAD} text-left ${frozenIdx >= 0 ? 'left-0 z-[35]' : ''}`}>
+              {!hideSelection && (
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => onSelectAll(e.target.checked)}
+                  className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0] focus:ring-[#3D8BD0] focus:ring-offset-0"
+                />
+              )}
             </th>
             {displayMeta.map((m) => {
               if (!m.col) {
@@ -3189,7 +4127,12 @@ export function TicketTable({
               <th
                 key={c.key}
                 draggable
-                onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, c.label); setDragCol(c.key); }}
+                onDragStart={(e) => {
+                  /* A press that began on the resize handle is a RESIZE, never a reorder —
+                     letting the native drag start here is what used to hijack the gesture. */
+                  if (dragRef.current) { e.preventDefault(); return; }
+                  e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, c.label); setDragCol(c.key);
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
@@ -3201,6 +4144,7 @@ export function TicketTable({
                 onDrop={(e) => { e.preventDefault(); dropColumn(); }}
                 onDragEnd={() => { setDragCol(null); setDragOver(null); }}
                 onClick={(e) => {
+                  if (hideColumnMenu) return;
                   const r = e.currentTarget.getBoundingClientRect();
                   setMenuCol({ key: c.key, left: r.left, bottom: r.bottom });
                 }}
@@ -3215,12 +4159,12 @@ export function TicketTable({
                     : undefined
                 }
                 title={c.label}
-                className={`${TH} ${c.align === 'right' ? 'text-right' : ''} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                className={`${TH} ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
               >
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
                 <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
                 {/* A right-aligned column's heading sits over its digits, not away from them. */}
-                <span className={`flex items-center gap-0.5 overflow-hidden ${c.align === 'right' ? 'justify-end' : ''}`}>
+                <span className={`flex items-center gap-0.5 overflow-hidden ${c.align === 'right' ? 'justify-end' : c.align === 'center' ? 'justify-center' : ''}`}>
                   {/* The heading truncates rather than setting the column's width — the
                       full name is in the `title` on hover and in the header menu. */}
                   <span className="truncate">{c.label}</span>
@@ -3357,22 +4301,27 @@ export function TicketTable({
                   {/* The group header sticks just under the title (h-12 = 48px). */}
                   <thead>
                     <tr>
-                      <th className={`sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-1.5 pl-6 pr-4 text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
-                        <input
-                          type="checkbox"
-                          checked={allSel}
-                          onChange={(e) => g.all.forEach((t) => onSelectTicket(t.id, e.target.checked))}
-                          onClick={(e) => e.stopPropagation()}
-                          title="Select all in this group"
-                          className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
-                        />
+                      <th className={`sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] bg-white py-1.5 ${GUTTER_PAD} text-left ${frozenIdx >= 0 ? 'left-0 z-30' : 'z-20'}`}>
+                        {!hideSelection && (
+                          <input
+                            type="checkbox"
+                            checked={allSel}
+                            onChange={(e) => g.all.forEach((t) => onSelectTicket(t.id, e.target.checked))}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Select all in this group"
+                            className="h-3.5 w-3.5 cursor-pointer rounded border-[#d1d5db] accent-[#3D8BD0]"
+                          />
+                        )}
                       </th>
                       {displayMeta.map((m) =>
                         m.col ? (
                           <th
                             key={m.col.key}
                             draggable
-                            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, m.col!.label); setDragCol(m.col!.key); }}
+                            onDragStart={(e) => {
+                              if (dragRef.current) { e.preventDefault(); return; }
+                              e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, m.col!.label); setDragCol(m.col!.key);
+                            }}
                             onDragOver={(e) => {
                               e.preventDefault();
                               e.dataTransfer.dropEffect = 'move';
@@ -3394,14 +4343,15 @@ export function TicketTable({
                                 : undefined
                             }
                             onClick={(e) => {
+                              if (hideColumnMenu) return;
                               const r = e.currentTarget.getBoundingClientRect();
                               setMenuCol({ key: m.col!.key, left: r.left, bottom: r.bottom });
                             }}
                             title={m.col.label}
-                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.col.align === 'right' ? 'text-right' : ''} ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
+                            className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.col.align === 'right' ? 'text-right' : m.col.align === 'center' ? 'text-center' : ''} ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
                             <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
-                            <span className={`flex items-center gap-0.5 overflow-hidden ${m.col.align === 'right' ? 'justify-end' : ''}`}>
+                            <span className={`flex items-center gap-0.5 overflow-hidden ${m.col.align === 'right' ? 'justify-end' : m.col.align === 'center' ? 'justify-center' : ''}`}>
                               {/* Truncates like the flat header — the width belongs to the
                                   column's content, not to the length of its name. */}
                               <span className="truncate">{m.col.label}</span>
@@ -3595,6 +4545,69 @@ export function TicketTable({
           onClose={() => setShowColMgr(false)}
         />
       )}
+      {/* The row ⋮'s menu. Delete sits under a rule and reads red — it is the one item
+          here you cannot take back. */}
+      {confirmDel &&
+        createPortal(
+          <div
+            style={{ top: confirmDel.top, left: confirmDel.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="fixed z-[9999] w-[300px] rounded-lg border border-[#DFE5ED] bg-white p-4 shadow-xl"
+          >
+            <div className="flex gap-2.5">
+              <TriangleAlert size={17} className="mt-px flex-shrink-0 text-[#F58518]" />
+              <p className="text-[13px] leading-[1.5] text-[#364658]">
+                Are you sure you want to delete this {noun}?
+              </p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDel(null)}
+                className="h-8 rounded border border-[#DFE5ED] bg-white px-3 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { onRowAction?.(confirmDel.ticket, 'delete'); setConfirmDel(null); }}
+                className="h-8 rounded bg-[#B42318] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#9A1D14]"
+              >
+                Yes
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {rowMenu &&
+        createPortal(
+          <div
+            style={{ top: rowMenu.top, left: Math.max(8, rowMenu.left) }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="app-menu fixed z-[9999] w-[190px] rounded-lg border border-[#DFE5ED] bg-white py-1 shadow-xl"
+          >
+            {([
+              ['Duplicate', <Copy size={15} />, 'duplicate'],
+              ['View History', <History size={15} />, 'history'],
+            ] as [string, ReactElement, RowAction][]).map(([label, icon, action]) => (
+              <button
+                key={label}
+                onClick={() => { onRowAction?.(rowMenu.ticket, action); setRowMenu(null); }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
+              >
+                <span className="flex-shrink-0 text-[#64748B]">{icon}</span>
+                <span className="flex-1 truncate">{label}</span>
+              </button>
+            ))}
+            <div className="my-1 border-t border-[#F1F5F9]" />
+            <button
+              onClick={(e) => { const t = rowMenu.ticket; setRowMenu(null); askDelete(t, e.currentTarget as HTMLElement); }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#B42318] transition-colors hover:bg-[#FEF3F2]"
+            >
+              <Trash2 size={15} className="flex-shrink-0" />
+              <span className="flex-1 truncate">Delete</span>
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

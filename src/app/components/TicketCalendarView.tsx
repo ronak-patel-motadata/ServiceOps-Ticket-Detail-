@@ -40,6 +40,11 @@ export const STATUS_DOT: Record<string, string> = {
   Completed: '#22c55e',
   Closed: '#6b7280',
   Cancelled: '#ef4444',
+  /* The project lifecycle's own states, so the Gantt rail's status chip colours a project
+     the same way its listing does instead of falling back to grey. */
+  Planning: '#8B5CF6',
+  Implementation: '#22C55E',
+  'On Hold': '#D97706',
 };
 const PRIORITY_DOT: Record<string, string> = { Urgent: '#dc2626', High: '#ef4444', Medium: '#fb923c', Low: '#22c55e' };
 
@@ -131,7 +136,17 @@ const CardTip = ({ tip, align = 'center', children }: { tip: string; align?: 'ce
    near the hand that summoned it (or off-screen entirely). It stays hoverable —
    a grace timer lets the pointer travel in — because the chips inside carry
    their own CardTips. */
-export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElement }) => {
+export const EventTip = ({
+  t,
+  children,
+  action,
+}: {
+  t: Ticket;
+  children: React.ReactElement;
+  /** An optional way OUT of the card — the Projects Gantt sends you to that project's
+      own plan. Omitted everywhere else, so no other module grows a link it has no use for. */
+  action?: { label: string; onClick: (t: Ticket) => void };
+}) => {
   const [tip, setTip] = useState<{ x: number; top: number; bottom: number; below: boolean } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const showT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -218,7 +233,10 @@ export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElem
                 tip.below ? '-top-[5px] border-l border-t border-[#E5E7EB]' : '-bottom-[5px] border-b border-r border-[#E5E7EB]'
               }`}
             />
-        <div className="w-max min-w-[286px] max-w-[360px] px-3 py-2.5">
+        {/* The action sits on the chip row, so a card that has one needs the extra width or
+            "View project Gantt" lands on top of the SLA pill. `w-max` still sizes to the
+            content — this only raises the ceiling. */}
+        <div className={`w-max min-w-[286px] px-3 py-2.5 ${action ? 'max-w-[520px]' : 'max-w-[360px]'}`}>
           <div className="flex items-start gap-2.5">
             <div className="min-w-0 flex-1">
               <div className="text-[11px] font-medium text-[#94A3B8]">{t.id}</div>
@@ -265,7 +283,9 @@ export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElem
                   </span>
                 </>
               )}
-              {t.windowNote && (
+              {/* "Impact" is a CHANGE/RELEASE word — what a window does to users. A record
+                  that reports a plan instead (a project) gets its plan, below. */}
+              {t.windowNote && !t.stats && (
                 <>
                   <span className="text-[#7B8FA5]">Impact</span>
                   <span className="min-w-0 text-[#475569] line-clamp-3">{t.windowNote}</span>
@@ -273,10 +293,47 @@ export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElem
               )}
             </div>
           )}
+          {/* ── The plan, where the record has one ──────────────────────────────────
+              A progress bar over the four numbers a project is reported by. Figures, not
+              a sentence: "47 of 47 tasks done · 7 of 7 milestones reached" is something
+              you have to read, where a row of counts is something you can scan — and a
+              zero is as informative as a number here, so none of them are hidden. */}
+          {t.stats && t.stats.length > 0 && (
+            <div className="mt-2 border-t border-[#F0F1F3] pt-2.5">
+              {typeof t.statsProgress === 'number' && (
+                <div className="mb-2.5 flex items-center gap-2">
+                  <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EEF1F4]">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, t.statsProgress))}%`,
+                        backgroundColor: t.statsProgress >= 100 ? '#22C55E' : '#3D8BD0',
+                      }}
+                    />
+                  </span>
+                  <span className="flex-shrink-0 text-[11px] font-semibold tabular-nums text-[#364658]">
+                    {Math.round(t.statsProgress)}%
+                  </span>
+                </div>
+              )}
+              <div className="flex items-start gap-4">
+                {t.stats.map((s) => (
+                  <div key={s.label} className="min-w-0">
+                    <div className="text-[15px] font-semibold leading-none tabular-nums" style={{ color: s.color ?? '#1E293B' }}>
+                      {s.value}
+                    </div>
+                    <div className="mt-1 whitespace-nowrap text-[10.5px] text-[#94A3B8]">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* The glanceable facts share one chip row — the kanban card's meta recipe
               translated to the dark card. The SLA pill keeps its own tint;
               the full deadline stays one click away on the record. */}
-          <div className="mt-2 flex items-center gap-1.5 border-t border-[#F0F1F3] pt-2.5">
+          {/* Wraps rather than overlaps: a long stage name plus a priority, an SLA pill and
+              an action can outrun any ceiling, and a second line is the right answer there. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 border-t border-[#F0F1F3] pt-2.5">
             {(() => {
               const staged = t.stageStatus?.includes(': ') ? t.stageStatus.split(': ') : null;
               return (
@@ -311,6 +368,23 @@ export const EventTip = ({ t, children }: { t: Ticket; children: React.ReactElem
                 </CardTip>
               );
             })()}
+            {/* The card's one ACTION, where the module offers one — pushed to the far end
+                so it reads as a way out of the card rather than another chip. The card is
+                hover-persistent, which is what makes a link inside it clickable at all. */}
+            {action && (
+              <button
+                onClick={() => {
+                  close();
+                  action.onClick(t);
+                }}
+                /* `pl-4`, not just `ml-auto`: the card is `w-max`, so it sizes to its own
+                   content and there is no slack for auto-margin to push into — the gap has
+                   to be real padding or the link sits hard against the SLA pill. */
+                className="ml-auto flex-shrink-0 whitespace-nowrap pl-4 text-[11px] font-medium text-[#3D8BD0] transition-colors hover:text-[#2F7AB8] hover:underline"
+              >
+                {action.label}
+              </button>
+            )}
           </div>
         </div>
           </div>,

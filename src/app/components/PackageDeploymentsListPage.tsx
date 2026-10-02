@@ -61,7 +61,54 @@ export const mockPackageDeployments: PackageDeployment[] = [
 
 /** Adapt a package deployment onto the Patch shape the cloned PackageDeploymentDrawer body
  *  expects (same pattern as the drawer clone chain's XToShape adapters). */
-const packageDeploymentToPatchShape = (d: PackageDeployment): Patch => ({
+/* ── Derived run attributes ───────────────────────────────────────────────────
+   Same shape as the patch-deployment derivations — the two run lists are the same kind of
+   record. Derived here, once, so the listing row and the record it opens agree. */
+
+export const parsePkgDate = (s: string | null): Date | null => {
+  if (!s) return null;
+  const d = new Date(s.replace(/^[A-Za-z]{3},\s*/, ''));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/* Where the run sits against the clock — the cut `status` alone cannot make, since a run can
+   read "Ready to Deploy" with a window that closed last week. */
+export const pkgWindowOf = (d: PackageDeployment): string => {
+  const start = parsePkgDate(d.installAfter);
+  const end = parsePkgDate(d.expiryDate);
+  if (!start && !end) return 'No window';
+  const now = Date.now();
+  if (end && end.getTime() < now) return 'Window closed';
+  if (start && start.getTime() > now) return 'Scheduled';
+  return 'Live now';
+};
+
+/** Install or Uninstall — a removal run says so in its name. The product calls this the
+ *  Configuration Type, the same as on the registry list. */
+export const pkgConfigTypeOf = (d: PackageDeployment): string =>
+  /\b(uninstall|rollback|remove|removal|revert)\b/i.test(d.name) ? 'Uninstall' : 'Install';
+
+const pkgSeed = (d: PackageDeployment) => [...d.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+/* Scope. The record carries no counts of its own — the detail page builds them from its
+   package × endpoint matrix — so they are derived per id here and stay stable across loads. */
+export const pkgPackageCountOf = (d: PackageDeployment): number => 1 + (pkgSeed(d) % 6);
+export const pkgEndpointCountOf = (d: PackageDeployment): number => 5 + ((pkgSeed(d) * 7) % 220);
+
+const PKG_OWNERS = ['Rakesh Rathod', 'Sarah Johnson', 'Chintan Makwana', 'Priya Nair', 'Siddharth Rao'];
+export const pkgCreatedByOf = (d: PackageDeployment): string => PKG_OWNERS[pkgSeed(d) % PKG_OWNERS.length];
+/** A run someone has since touched (paused, rescheduled, cancelled) carries their name. */
+export const pkgUpdatedByOf = (d: PackageDeployment): string =>
+  ['Cancelled', 'Expired', 'In Progress'].includes(d.status)
+    ? PKG_OWNERS[(pkgSeed(d) + 2) % PKG_OWNERS.length]
+    : pkgCreatedByOf(d);
+export const pkgUpdatedDateOf = (d: PackageDeployment): Date => {
+  const base = parsePkgDate(d.createdDate) ?? new Date();
+  const out = new Date(base);
+  out.setHours(out.getHours() + 2 + (pkgSeed(d) % 72));
+  return out;
+};
+
+export const packageDeploymentToPatchShape = (d: PackageDeployment): Patch => ({
   id: d.id,
   name: d.name,
   severity: 'Unspecified',

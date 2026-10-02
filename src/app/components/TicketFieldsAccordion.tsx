@@ -33,6 +33,8 @@ interface TicketFieldsAccordionProps {
   onTaskValueChange?: (label: string, value: string) => void;
   knowledgeMode?: boolean;
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
+  /** The open patch record's own values — forwarded to AssetFields, see its patchInfo prop. */
+  patchInfo?: { category?: string; severity?: string; approvalStatus?: string; releaseDate?: string; kbNumber?: string; rebootRequired?: string; referenceUrl?: string };
   ticketFieldsExpanded: boolean;
   setTicketFieldsExpanded: (expanded: boolean) => void;
   showMoreFields: boolean;
@@ -395,6 +397,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
     onTaskValueChange,
     knowledgeMode = false,
     knowledgeInfo,
+    patchInfo,
     ticketFieldsExpanded,
     setTicketFieldsExpanded,
     showMoreFields,
@@ -663,6 +666,7 @@ export function TicketFieldsAccordion(props: TicketFieldsAccordionProps) {
           packageDeployMode={packageDeployMode}
           registryDeployMode={registryDeployMode}
           knowledgeInfo={knowledgeInfo}
+          patchInfo={patchInfo}
           endpointMode={endpointMode}
           cveMode={cveMode}
           taskMode={taskMode}

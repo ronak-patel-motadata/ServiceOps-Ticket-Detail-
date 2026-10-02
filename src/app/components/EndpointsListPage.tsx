@@ -111,9 +111,51 @@ function EndpointsToolbar({ searchQuery, setSearchQuery }: { searchQuery: string
   );
 }
 
+/* ── Derived endpoint attributes ──────────────────────────────────────────────
+   The product's listing filters on a wider record than the mock stores — the domain, the
+   subnet, and the vulnerability scan results. Derived HERE, once, so the listing row and the
+   detail page it opens read the same values. */
+
+/** Windows machines are domain-joined; the Linux and macOS fleet is not. */
+export const endpointDomainOf = (e: Endpoint): string =>
+  !e.version ? '—' : /windows/i.test(e.osName) ? 'motadata.local' : 'WORKGROUP';
+
+/** The /24 the address sits in — the unit remote offices are actually allocated in. */
+export const endpointIpRangeOf = (e: Endpoint): string => {
+  const m = e.ipAddress.match(/^(\d+)\.(\d+)\.(\d+)\.\d+$/);
+  return m ? `${m[1]}.${m[2]}.${m[3]}.0/24` : '—';
+};
+
+/* Scan results. An endpoint that has never reported an inventory (no OS build) has never
+   been scanned either — it reads "—" and 0, which is the true answer rather than a zero
+   that would claim a clean machine. Counts are deterministic per id and weighted by health,
+   so the fleet's worst machines are also its most vulnerable ones. */
+const scanSeed = (e: Endpoint) => [...e.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+export const endpointScanned = (e: Endpoint): boolean => !!e.version;
+export const endpointOsVulnsOf = (e: Endpoint): number => {
+  if (!endpointScanned(e)) return 0;
+  const weight = e.systemHealth === 'Critical' ? 18 : e.systemHealth === 'Warning' ? 9 : 3;
+  return weight + (scanSeed(e) % Math.max(2, Math.round(weight / 2)));
+};
+export const endpointSoftwareVulnsOf = (e: Endpoint): number => {
+  if (!endpointScanned(e)) return 0;
+  const weight = e.systemHealth === 'Critical' ? 11 : e.systemHealth === 'Warning' ? 6 : 2;
+  return weight + ((scanSeed(e) * 3) % Math.max(2, weight));
+};
+export const endpointVulnCountOf = (e: Endpoint): number =>
+  endpointOsVulnsOf(e) + endpointSoftwareVulnsOf(e);
+
+/** Last vulnerability scan — recent, and staggered so a fleet does not all scan at once. */
+export const endpointScanDateOf = (e: Endpoint): Date | null => {
+  if (!endpointScanned(e)) return null;
+  const d = new Date();
+  d.setHours(d.getHours() - (scanSeed(e) % 96) - 1);
+  return d;
+};
+
 /** Adapt an endpoint onto the Patch shape the cloned EndpointDrawer body expects
  *  (same pattern as the deployment adapter). */
-const endpointToPatchShape = (e: Endpoint): Patch => ({
+export const endpointToPatchShape = (e: Endpoint): Patch => ({
   id: e.id,
   name: e.hostName,
   severity: 'Unspecified',

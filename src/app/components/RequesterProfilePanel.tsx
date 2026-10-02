@@ -64,9 +64,21 @@ interface RequesterProfilePanelProps {
   role?: string;
   /** VIP is a Request-page concept — Problem/Change/Release do not surface it. */
   showVip?: boolean;
+  /** The person's real address, where the caller knows it. Without this the panel derives
+      one from the name, which is right for a requester the mock data never spells out and
+      wrong for a colleague whose address the roster actually holds. */
+  email?: string;
+  /** Replaces the profile field list. Same reason: a roster knows this person's department,
+      manager and site, and showing the derived stand-ins instead would print the same
+      "Sales / Vikram Sethi" for all of them. */
+  fields?: [string, string][];
+  /** Overrides the derived avatar colour. The product reads orange as "requester" and blue
+      as "technician", so a page listing staff says so rather than painting a colleague in
+      the requester colour. */
+  avatarColor?: string;
 }
 
-export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = 'Requester', showVip = false }: RequesterProfilePanelProps) {
+export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = 'Requester', showVip = false, email, fields: fieldsProp, avatarColor }: RequesterProfilePanelProps) {
   const [tab, setTab] = useState<ProfileTab>('overview');
 
   // Always land on Overview when the popup is (re)opened.
@@ -74,8 +86,9 @@ export function RequesterProfilePanel({ isOpen, onClose, requesterName, role = '
 
   if (!isOpen) return null;
 
-  const p = deriveRequester(requesterName);
-  const fields: [string, string][] = [
+  const derived = deriveRequester(requesterName);
+  const p = { ...derived, ...(email ? { email } : {}), ...(avatarColor ? { color: avatarColor } : {}) };
+  const fields: [string, string][] = fieldsProp ?? [
     ['Name', p.name],
     ['Email', p.email],
     ['Logon Name', p.logonName],

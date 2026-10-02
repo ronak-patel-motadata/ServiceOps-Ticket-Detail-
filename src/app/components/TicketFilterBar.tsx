@@ -14,11 +14,13 @@ import {
   MoreVertical,
   Plus,
   Search,
+  LayoutList,
   ShieldCheck,
   Timer,
   Trash2,
   UserCheck,
   UserRound,
+  Users,
   X,
 } from 'lucide-react';
 import type { Ticket } from './TicketListPage';
@@ -36,6 +38,9 @@ import { PURCHASE_FILTER_ATTRS } from './purchaseFilterAttrs';
 import { METER_FILTER_ATTRS } from './softwareMeterFilterAttrs';
 import { CMDB_FILTER_ATTRS } from './cmdbFilterAttrs';
 import { KNOWLEDGE_FILTER_ATTRS } from './knowledgeFilterAttrs';
+import { REPORT_ORIGIN_OPTIONS } from './reportFilterAttrs';
+import { TASK_FILTER_ATTRS } from './taskFilterAttrs';
+import { TEAM_FILTER_ATTRS } from './teamFilterAttrs';
 import { ciTypeIcon } from './CmdbCategoryRail';
 import { IconStatusCheck } from './SidebarIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -61,6 +66,9 @@ export interface Attr {
   options?: { label: string; color?: string }[];
   /** Person-valued: options show an avatar in the listing's role colour. */
   people?: 'requester' | 'technician';
+  /** Known to the bar but NOT offered in the attribute picker — the backing attribute for a
+      quick filter, so applying one still produces a readable, removable chip. */
+  hidden?: boolean;
 }
 
 const STATUS_OPTS = [
@@ -204,7 +212,7 @@ const NEEDS_VALUE = (c: Condition) => c !== 'empty' && c !== 'not empty';
 /* Every module catalogue is searchable here, not just the request set: applyFilters needs
    an attribute TYPE (a date filter reads a Date, not a string) and it runs on pages that
    hand the bar their own catalogue. The request set wins a shared key, so nothing moves.  */
-const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS, LICENSE_FILTER_ATTRS, CONTRACT_FILTER_ATTRS, PURCHASE_FILTER_ATTRS, METER_FILTER_ATTRS, CMDB_FILTER_ATTRS, KNOWLEDGE_FILTER_ATTRS];
+const MODULE_ATTR_SETS: Attr[][] = [APPROVAL_FILTER_ATTRS, HARDWARE_FILTER_ATTRS, SOFTWARE_FILTER_ATTRS, NONIT_FILTER_ATTRS, CONSUMABLE_FILTER_ATTRS, LICENSE_FILTER_ATTRS, CONTRACT_FILTER_ATTRS, PURCHASE_FILTER_ATTRS, METER_FILTER_ATTRS, CMDB_FILTER_ATTRS, KNOWLEDGE_FILTER_ATTRS, TEAM_FILTER_ATTRS];
 export const attrOf = (key: string): Attr | undefined =>
   FILTER_ATTRS.find((a) => a.key === key) ?? MODULE_ATTR_SETS.reduce<Attr | undefined>((hit, set) => hit ?? set.find((a) => a.key === key), undefined);
 
@@ -343,7 +351,9 @@ function AttrPicker({
 }) {
   const [q, setQ] = useState('');
   const ref = useOutside<HTMLDivElement>(true, onClose);
-  const rows = (attrs ?? FILTER_ATTRS).filter((a) => !used.includes(a.key) && a.label.toLowerCase().includes(q.trim().toLowerCase()));
+  /* `hidden` attributes exist so a QUICK filter's chip can resolve its label and options —
+     they are not things the reader builds a rule from, so the picker skips them. */
+  const rows = (attrs ?? FILTER_ATTRS).filter((a) => !a.hidden && !used.includes(a.key) && a.label.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div ref={ref} className={`${POPUP} top-full mt-1 w-[280px] ${align === 'left' ? 'left-0' : 'right-0'}`}>
       <div className="border-b border-[#F0F2F5] p-2">
@@ -586,6 +596,10 @@ export interface QuickFilterDef {
   iconOf?: (label: string) => ReactElement;
   /** First option is the signed-in user: it reads "(You)" and keeps a divider under it. */
   youFirst?: boolean;
+  /** Adds a leading row that CLEARS this filter ("All reports"), ticked while nothing is
+      selected. For a filter whose values are two halves of one set, "unticking the one you
+      picked" is not an obvious way back to everything — this is. */
+  allLabel?: string;
 }
 
 const DEFAULT_QUICK: QuickFilterDef[] = [
@@ -658,6 +672,36 @@ const kbOptions = (key: string) => KNOWLEDGE_FILTER_ATTRS.find((a) => a.key === 
 export const KNOWLEDGE_QUICK_FILTERS: QuickFilterDef[] = [
   { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: kbOptions('status') },
   { field: 'x_approvalStatus', icon: ShieldCheck, tip: 'Filter by approval status', title: 'Approval status is', width: 220, row: 'dot', options: kbOptions('x_approvalStatus') },
+];
+
+/* Reports get ONE quick filter, and it is the cut a reader actually makes: the ones that
+   SHIPPED with the product versus the ones this organisation built. (The engine behind a
+   report — tabular, matrix, query — is a build detail, and is still in the filter builder
+   and the Type column.) The module it reports on is the rail's job. */
+export const REPORT_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'x_origin', icon: LayoutList, tip: 'Filter by report origin', title: 'Report is', width: 210, row: 'dot', allLabel: 'All reports', options: REPORT_ORIGIN_OPTIONS },
+];
+
+/* A task queue is read for three things each morning, in this order: whose it is, where the
+   work stands, how urgent it is. Assignee leads because a technician opens this page to find
+   THEIR work — and reads "(You)" at the top of its list, as on the request listing. */
+const tkOptions = (key: string) => TASK_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+const TASK_PEOPLE = [{ label: YOU }, ...tkOptions('assignedTo').filter((o) => o.label !== YOU)];
+export const TASK_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'assignedTo', icon: UserRound, tip: 'Filter by assignee', title: 'Assigned to', width: 232, row: 'avatar', youFirst: true, options: TASK_PEOPLE },
+  { field: 'status', icon: IconStatusCheck, tip: 'Filter by status', title: 'Status is', width: 190, row: 'dot', options: tkOptions('status') },
+  { field: 'priority', icon: Flag, tip: 'Filter by priority', title: 'Priority is', width: 172, row: 'flag', options: [...tkOptions('priority')].reverse() },
+];
+
+/* A team roster is worked in this order: which group, then who can actually pick work up
+   right now, then how senior they are. Availability leads over Account Status because
+   "on leave" and "switched off" are the same answer to the only question a supervisor is
+   asking — can I give this to them today. */
+const tmOptions = (key: string) => TEAM_FILTER_ATTRS.find((a) => a.key === key)?.options ?? [];
+export const TEAM_QUICK_FILTERS: QuickFilterDef[] = [
+  { field: 'x_group', icon: Users, tip: 'Filter by technician group', title: 'Group is', width: 220, row: 'plain', options: tmOptions('x_group') },
+  { field: 'x_availability', icon: IconStatusCheck, tip: 'Filter by availability', title: 'Availability is', width: 200, row: 'dot', options: tmOptions('x_availability') },
+  { field: 'x_role', icon: ShieldCheck, tip: 'Filter by role', title: 'Role is', width: 190, row: 'dot', options: tmOptions('x_role') },
 ];
 
 /* Software Meter takes the software register's pair — where the application is in its
@@ -769,6 +813,25 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
                 </div>
               </div>
             )}
+            {/* The way back to everything, where the module asks for one. It is ticked
+                while no value is set, so the popup always shows what you are looking at. */}
+            {f.allLabel && !q.trim() && (() => {
+              const none = valuesOf(f.field).length === 0;
+              return (
+                <>
+                  <button
+                    onClick={() => { setOpen(null); setRules(rules.filter((r) => r.field !== f.field)); }}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors ${
+                      none ? 'bg-[#EBF5FF] font-medium text-[#3D8BD0]' : 'text-[#364658] hover:bg-[#F9FAFB]'
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{f.allLabel}</span>
+                    {none && <Check size={13} className="flex-shrink-0" />}
+                  </button>
+                  <div className="my-1 border-t border-[#F1F5F9]" />
+                </>
+              );
+            })()}
             {/* A long catalogue (the CMDB's CI types) scrolls inside the popup instead of
                 running off the bottom of the window; a short one is unaffected. */}
             <div className="max-h-[320px] overflow-y-auto">

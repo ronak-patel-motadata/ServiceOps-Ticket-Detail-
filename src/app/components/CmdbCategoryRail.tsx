@@ -289,13 +289,11 @@ export const ciTypeIcon = (type?: string, size = 15) => {
   return <Database size={size} />;
 };
 
-/* A row is ONE block: the twisty, the label and the count share a single rounded surface
-   with equal padding on both sides, so the selected state reads as a clean pill rather
-   than a fill with a marker bolted to its edge. */
+/* A row is ONE block: the twisty and the label share a single rounded surface with equal
+   padding on both sides, so the selected state reads as a clean pill rather than a fill
+   with a marker bolted to its edge. */
 const SHELL = 'group/ci flex items-center gap-1 rounded px-1.5 transition-colors';
 const LABEL = 'flex min-w-0 flex-1 items-center gap-2 text-left text-[13px] transition-colors';
-/* The count wears the grid's own figure chip — one treatment for a number, everywhere. */
-const COUNT = 'ml-auto min-w-[26px] flex-shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium tabular-nums transition-colors';
 
 export function CmdbCategoryRail({
   counts,
@@ -324,8 +322,9 @@ export function CmdbCategoryRail({
      branch, and a search opens whatever it matches. */
   const [open, setOpen] = useState<Set<string>>(new Set([CI_ROOT]));
 
-  /* The badge counts what the class will actually SHOW, so a row can never promise 10 and
-     return 3. The root is the exception by definition: it is the whole database. */
+  /* Counts are no longer PRINTED on the rows — the tree is a place to navigate, not a
+     report — but they still decide which classes are dead ends and get dimmed. What is
+     counted is what the class will actually SHOW; the root is the whole database. */
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   const countOf = (n: CiClassNode) =>
     n.label === CI_ROOT ? total : ownTypes(n).reduce((s, t) => s + (counts[t] ?? 0), 0);
@@ -408,9 +407,6 @@ export function CmdbCategoryRail({
               {ciTypeIcon(n.label, top ? 16 : 15)}
             </span>
             <span className="truncate">{n.label}</span>
-            <span className={`${COUNT} ${isActive ? 'bg-[#DBEAFE] text-[#3D8BD0]' : bare ? 'text-[#B6C0CC]' : 'bg-[#F1F5F9] text-[#64748B] group-hover/ci:bg-[#E8EDF3]'}`}>
-              {count}
-            </span>
           </button>
         </div>
         {/* Children hang off a hairline spine, so three levels of nesting read without
@@ -457,8 +453,8 @@ export function CmdbCategoryRail({
   return (
     /* 344px, measured rather than guessed: the longest label in the tree, "Storage Area
        Network (SAN)", paints 201px at the row's type settings, and two levels of indent
-       plus the chevron, icon and count spend another 120. Anything narrower puts an
-       ellipsis on a class name, which is exactly what a navigator must not do. */
+       plus the chevron and icon spend another 90. Anything narrower puts an ellipsis on a
+       class name, which is exactly what a navigator must not do. */
     <div className="flex w-[344px] flex-shrink-0 flex-col border-r border-[#E5E7EB] bg-white">
       {/* The rail's header is built to the SAME recipe as the grid's title row beside it —
           px-4/py-3, a 17px semibold title and a boxed 32px panel button — so the two sit on

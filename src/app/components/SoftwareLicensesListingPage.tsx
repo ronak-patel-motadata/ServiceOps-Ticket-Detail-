@@ -58,9 +58,10 @@ const LI: { rows: Ticket[]; byId: Map<string, SoftwareLicense> } = (() => {
       x_purchaseCount: l.purchaseCount,
       x_allocationCount: l.allocationCount,
       x_installationCount: l.installationCount,
-      x_expiryDate: l.expiryDate,
-      /* The parsed date behind the printed dd/mm/yyyy — the Expiry Date filter compares
-         Dates, the column keeps printing the string. */
+      /* A real Date, not the mock's "24/07/2026" string: the grid prints it in the house
+         format like every other date (see dateFormat.ts) AND sorts it chronologically. */
+      x_expiryDate: exp ?? undefined,
+      /* The same value under the key the Expiry Date FILTER reads. */
       expiryOn: exp ?? undefined,
       x_compliance: compliance,
       x_expiryBand: expiryBand,
@@ -206,6 +207,9 @@ export function SoftwareLicensesListingPage({ onNavigate }: { onNavigate?: (page
       /* One cut: what kind of licence. A licence has no assignee, SLA or priority. */
       quickFilters={LICENSE_QUICK_FILTERS}
       primaryAction={{ label: 'Add License' }}
+      /* On the title line, at the page's top-right — the rail below it narrows what you are
+         looking at, which is a different job from adding a licence. */
+      primaryActionInTitle
       searchFields={['x_product', 'x_licenseType', 'x_expiryDate']}
       onNavigate={onNavigate}
     />

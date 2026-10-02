@@ -60,7 +60,48 @@ export const mockRegistryDeployments: RegistryDeployment[] = [
 
 /** Adapt a registry deployment onto the Patch shape the cloned RegistryDeploymentDrawer body
  *  expects (same pattern as the drawer clone chain's XToShape adapters). */
-const registryDeploymentToPatchShape = (d: RegistryDeployment): Patch => ({
+/* ── Derived run attributes ───────────────────────────────────────────────────
+   The record already carries Created By, the Configuration Type and a real installation
+   count; what is missing is the clock-relative window, who last touched it, and the dates. */
+
+export const parseRegDate = (s: string | null): Date | null => {
+  if (!s) return null;
+  const d = new Date(s.replace(/^[A-Za-z]{3},\s*/, ''));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+export const regWindowOf = (d: RegistryDeployment): string => {
+  const start = parseRegDate(d.installAfter);
+  const end = parseRegDate(d.expiryDate);
+  if (!start && !end) return 'No window';
+  const now = Date.now();
+  if (end && end.getTime() < now) return 'Window closed';
+  if (start && start.getTime() > now) return 'Scheduled';
+  return 'Live now';
+};
+
+const regSeed = (d: RegistryDeployment) => [...d.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+const REG_OWNERS = ['Rakesh Rathod', 'Sarah Johnson', 'Chintan Makwana', 'Priya Nair', 'Siddharth Rao'];
+/** Created By is REAL on this record; only the last editor is derived. */
+export const regUpdatedByOf = (d: RegistryDeployment): string =>
+  ['Cancelled', 'Expired', 'In Progress'].includes(d.status)
+    ? REG_OWNERS[(regSeed(d) + 2) % REG_OWNERS.length]
+    : d.createdBy;
+
+/* Created before the window it schedules — a run cannot be made after it starts. */
+export const regCreatedDateOf = (d: RegistryDeployment): Date => {
+  const anchor = parseRegDate(d.installAfter) ?? parseRegDate(d.expiryDate) ?? new Date();
+  const out = new Date(anchor);
+  out.setDate(out.getDate() - (2 + (regSeed(d) % 18)));
+  return out;
+};
+export const regUpdatedDateOf = (d: RegistryDeployment): Date => {
+  const out = new Date(regCreatedDateOf(d));
+  out.setHours(out.getHours() + 2 + (regSeed(d) % 60));
+  return out;
+};
+
+export const registryDeploymentToPatchShape = (d: RegistryDeployment): Patch => ({
   id: d.id,
   name: d.name,
   severity: 'Unspecified',

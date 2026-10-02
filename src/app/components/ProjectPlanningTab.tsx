@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeftToLine,
   ArrowRightToLine,
@@ -115,6 +115,15 @@ const seedPlan = (project: Project | null): PlanItem[] => {
     [0.3, 0.75],
     [0.75, 1],
   ];
+  /* The plan is driven by the project's OWN completion, not a fixed progression: work
+     finishes in schedule order, so everything that ends before the completion mark is
+     closed, whatever straddles it is in progress, and the rest has not started. Without
+     this a project the record calls 100% complete showed a half-done plan — and the
+     listing's hover card, which prints both the percentage and these counts, put the
+     contradiction on one line. */
+  const doneAt = Math.max(0, Math.min(1, (project?.completion ?? 0) / 100));
+  const progFor = (a: number, b: number) =>
+    doneAt >= b ? 100 : doneAt <= a ? 0 : Math.round(((doneAt - a) / Math.max(b - a, 1e-6)) * 100);
   phases.forEach((ph, pi) => {
     const [f0, f1] = bounds[pi];
     const sumId = `TA-${7600 + h % 40 + n++}`;
@@ -122,7 +131,7 @@ const seedPlan = (project: Project | null): PlanItem[] => {
     ph.tasks.forEach((t, ti) => {
       const tf0 = f0 + ((f1 - f0) * ti) / ph.tasks.length;
       const tf1 = f0 + ((f1 - f0) * (ti + 1.15)) / ph.tasks.length;
-      const prog = pi === 0 ? 100 : pi === 1 ? [80, 45, 20, 0][ti] ?? 0 : 0;
+      const prog = progFor(tf0, Math.min(tf1, f1));
       items.push({
         id: `TA-${7600 + h % 40 + n++}`,
         kind: 'task',
@@ -137,19 +146,24 @@ const seedPlan = (project: Project | null): PlanItem[] => {
       });
       /* Sub-tasks live UNDER a task (parentId = the task) — the first task of the
          Implementation and Rollout phases carries a few, mixed done/undone. */
-      const SUBS: Record<string, [string, number][]> = {
-        'Environment build-out': [['Provision virtual servers', 100], ['Configure VLANs and firewall rules', 40], ['Install base OS images', 0]],
-        'Pilot group rollout': [['Select the pilot cohort', 0], ['Collect pilot feedback', 0]],
+      const SUBS: Record<string, string[]> = {
+        'Environment build-out': ['Provision virtual servers', 'Configure VLANs and firewall rules', 'Install base OS images'],
+        'Pilot group rollout': ['Select the pilot cohort', 'Collect pilot feedback'],
       };
       const tid = items[items.length - 1].id;
-      (SUBS[t] ?? []).forEach(([name, prog2], si) => {
+      (SUBS[t] ?? []).forEach((name, si, all) => {
+        /* A sub-task takes its share of its parent's span, and the same rule decides
+           whether it is done — so a parent at 40% cannot hold three finished children. */
+        const sa = tf0 + ((Math.min(tf1, f1) - tf0) * si) / all.length;
+        const sb = tf0 + ((Math.min(tf1, f1) - tf0) * (si + 1)) / all.length;
+        const prog2 = progFor(sa, sb);
         items.push({
           id: `TA-${7600 + h % 40 + n++}`,
           kind: 'task',
           name,
           assignee: ASSIGNEES[(h + n + si) % ASSIGNEES.length],
-          start: at(tf0 + ((Math.min(tf1, f1) - tf0) * si) / 3),
-          end: at(tf0 + ((Math.min(tf1, f1) - tf0) * (si + 1)) / 3),
+          start: at(sa),
+          end: at(sb),
           progress: prog2,
           status: prog2 === 100 ? 'Closed' : prog2 > 0 ? 'In Progress' : 'Open',
           priority: 'Medium',
@@ -164,14 +178,50 @@ const seedPlan = (project: Project | null): PlanItem[] => {
       assignee: ASSIGNEES[(h + n) % ASSIGNEES.length],
       start: at(f1),
       end: at(f1),
-      progress: pi === 0 ? 100 : 0,
-      status: pi === 0 ? 'Closed' : 'Open',
+      /* A milestone is a POINT: it is reached or it is not. */
+      progress: doneAt >= f1 ? 100 : 0,
+      status: doneAt >= f1 ? 'Closed' : 'Open',
       priority: 'Medium',
       parentId: sumId,
     });
   });
   return items;
 };
+
+/* What the plan ADDS UP TO — the four numbers a project is reported by. Exported so the
+   listing's Gantt hover card can show the SAME figures the Planning tab does: both read
+   this one seed, so the card can never promise a count the tab then contradicts. */
+export interface PlanSummary {
+  tasks: number;
+  completed: number;
+  inProgress: number;
+  notStarted: number;
+  milestones: number;
+  milestonesDone: number;
+  /** Mean task progress, 0-100 — what the card's bar fills to. */
+  progress: number;
+}
+export const planSummaryOf = (project: Project | null): PlanSummary => {
+  const items = seedPlan(project);
+  const tasks = items.filter((i) => i.kind === 'task');
+  const stones = items.filter((i) => i.kind === 'milestone');
+  const closed = tasks.filter((t) => t.status === 'Closed').length;
+  return {
+    tasks: tasks.length,
+    completed: closed,
+    inProgress: tasks.filter((t) => t.status === 'In Progress').length,
+    /* Pending reads as "not started" to anyone looking at a summary — it is work that has
+       not begun, whatever the reason it is parked. */
+    notStarted: tasks.filter((t) => t.status === 'Open' || t.status === 'Pending').length,
+    milestones: stones.length,
+    milestonesDone: stones.filter((m) => m.status === 'Closed').length,
+    progress: tasks.length ? Math.round(tasks.reduce((a, t) => a + t.progress, 0) / tasks.length) : 0,
+  };
+};
+
+/** The Planning tab switches to its Gantt when this fires — see the listing card's
+ *  "View project Gantt", which opens the record straight onto that view. */
+export const PROJECT_GANTT_EVENT = 'open-project-gantt';
 
 interface Draft {
   name: string;
@@ -185,6 +235,14 @@ interface Draft {
 
 export function ProjectPlanningTab({ project, drawerWidth }: { project: Project | null; drawerWidth: number }) {
   const [view, setView] = useState<'list' | 'gantt'>('list');
+  /* Arriving from the listing's "View project Gantt" — the record opens on this tab, and
+     this lands it on the right VIEW of it. An event rather than a prop because the drawer
+     is mounted by the shared stack host, which knows nothing about planning. */
+  useEffect(() => {
+    const toGantt = () => setView('gantt');
+    window.addEventListener(PROJECT_GANTT_EVENT, toGantt);
+    return () => window.removeEventListener(PROJECT_GANTT_EVENT, toGantt);
+  }, []);
   const [q, setQ] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [planFilter, setPlanFilter] = useState<'all' | 'tasks' | 'milestones' | 'unassigned' | 'overdue'>('all');

@@ -84,8 +84,12 @@ export function DateTimePickerPopup({
 
   return createPortal(
     <>
-      <div data-dtp className="fixed inset-0 z-[70]" onClick={onClose} />
-      <div data-dtp className="app-menu fixed z-[71] w-[300px] bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-3" style={{ top, left }}>
+      {/* Above every overlay in the app (the highest other layer is the shortcuts sheet at
+          10051). A date picker is a PORTAL opened from a field, so it has to clear whatever
+          host it was opened from — at z-70 it rendered behind any side panel or modal, which
+          is why a date field inside one looked like it did nothing. */}
+      <div data-dtp className="fixed inset-0 z-[10060]" onClick={onClose} />
+      <div data-dtp className="app-menu fixed z-[10061] w-[300px] bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-3" style={{ top, left }}>
       {/* Current value */}
       <div className="flex items-center justify-between border border-[#DFE5ED] rounded-md px-3 py-2 mb-3">
         <span className="text-[13px] text-[#364658]">{formatTop(sel, withTime)}</span>

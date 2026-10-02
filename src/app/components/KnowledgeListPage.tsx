@@ -28,12 +28,18 @@ export interface KnowledgeArticle {
   folder: string;
 }
 
+/* Each folder carries who may READ it and who may WRITE to it — the two permissions the
+   admin sets when the folder is created, and the ones a technician needs to know before
+   filing an article here. Public = every requester can read it in the portal. */
 export const KNOWLEDGE_FOLDERS = [
-  { id: 'guideline', label: 'Guideline Documents' },
-  { id: 'faqs', label: 'FAQs' },
-  { id: 'troubleshooting', label: 'Troubleshooting Articles' },
-  { id: 'policies', label: 'IT Policies' },
+  { id: 'guideline', label: 'Guideline Documents', read: 'Public', write: 'All Technicians' },
+  { id: 'faqs', label: 'FAQs', read: 'Public', write: 'All Technicians' },
+  { id: 'troubleshooting', label: 'Troubleshooting Articles', read: 'All Technicians', write: 'Service Desk Group' },
+  { id: 'policies', label: 'IT Policies', read: 'Public', write: 'IT Security Group' },
 ];
+
+/* Trash is a folder in the rail but not in the list above — it needs its own pair. */
+export const TRASH_PERMISSIONS = { read: 'Public', write: 'All Technicians' };
 
 // Realistic service-desk knowledge base.
 export const mockKnowledgeArticles: KnowledgeArticle[] = [

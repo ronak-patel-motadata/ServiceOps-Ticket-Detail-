@@ -54,8 +54,10 @@ const BUCKETS: VulnBucket[] = ['Approved', 'Declined'];
 const severityDot = (s: Vulnerability['severity']) =>
   s === 'Critical' ? '#EF4444' : s === 'High' ? '#F59E0B' : s === 'Medium' ? '#EAB308' : '#22C55E';
 
-/** Deterministically pick which endpoints a CVE impacts, so the popup is stable across opens. */
-function endpointsForCve(cveId: string, count: number, pool: PatchComputer[]): PatchComputer[] {
+/** Deterministically pick which endpoints a record impacts, so the popup is stable across
+ *  opens — and so the listing's Impacted Endpoints popup names the SAME machines this tab
+ *  does for the same id. Exported for the Vulnerability-module listings. */
+export function endpointsForCve(cveId: string, count: number, pool: PatchComputer[]): PatchComputer[] {
   if (!pool.length) return [];
   const seed = [...cveId].reduce((a, ch) => a + ch.charCodeAt(0), 0);
   const picked: PatchComputer[] = [];

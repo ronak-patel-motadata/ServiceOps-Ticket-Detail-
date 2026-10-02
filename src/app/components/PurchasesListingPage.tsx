@@ -72,9 +72,10 @@ const PU: { rows: Ticket[]; byId: Map<string, Purchase> } = (() => {
       priority: 'Medium',
       x_orderNumber: p.orderNumber,
       x_vendor: p.vendor,
-      x_requiredBy: p.requiredBy,
-      /* The parsed date behind the printed dd/mm/yyyy — the Required By filter compares
-         Dates, the column keeps printing the string. */
+      /* A real Date, not the mock's "24/06/2026" string: the grid prints it in the house
+         format like every other date (see dateFormat.ts) AND sorts it chronologically. */
+      x_requiredBy: req,
+      /* The same value under the key the Required By FILTER reads. */
       requiredOn: req,
       x_totalCost: fmtMoney(total),
       x_invoiceAmount: fmtMoney(invoiced),

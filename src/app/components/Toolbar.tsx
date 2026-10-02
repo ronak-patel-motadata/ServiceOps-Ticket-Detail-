@@ -17,9 +17,12 @@ interface ToolbarProps {
   /** Page-supplied AI pill (the "Suggested clusters" recipe) — the Problem listing
       parks its suggestion here after "Not now". */
   suggestPill?: { label: string; count: number; onClick: () => void };
+  /** A control the page wants on the TITLE line rather than in the tool rail below it —
+      Reports puts its Create here, so the button sits at the page's top-right corner. */
+  titleAction?: React.ReactNode;
 }
 
-export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews, viewsLabels, suggestPill }: ToolbarProps) {
+export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, onToggleViews, viewsLabels, suggestPill, titleAction }: ToolbarProps) {
   // Mirrors the AI grouping banner: when the user hits "Not now", this compact
   // AI pill appears here so the suggestions stay one click away.
   const [aiGroups, setAiGroups] = useState<{ hidden: boolean; count: number }>({ hidden: false, count: 0 });
@@ -87,6 +90,7 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
               </span>
             </button>
           )}
+          {titleAction}
         </div>
       </div>
 

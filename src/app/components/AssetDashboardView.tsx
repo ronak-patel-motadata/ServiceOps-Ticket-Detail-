@@ -92,7 +92,10 @@ function Tile({ tile, onDrill }: { tile: DashTile; onDrill: (rules: Omit<FilterR
   );
 }
 
-function Donut({ segs, total, centerLabel, size = 148, active = null }: { segs: DashSeg[]; total: number; centerLabel: string; size?: number; active?: string | null }) {
+/* Exported so a PANEL can wear the same donut as the dashboards rather than growing a
+   second one. Segments without a `filter` render non-clickable, which is what a read-only
+   panel wants. */
+export function Donut({ segs, total, centerLabel, size = 148, active = null }: { segs: DashSeg[]; total: number; centerLabel: string; size?: number; active?: string | null }) {
   const hot = active ? segs.find((s) => s.label === active) ?? null : null;
   let acc = 0;
   const stops = segs
@@ -119,7 +122,7 @@ function Donut({ segs, total, centerLabel, size = 148, active = null }: { segs: 
   );
 }
 
-function Legend({
+export function Legend({
   segs,
   total,
   onPick,

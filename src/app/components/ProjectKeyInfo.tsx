@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { planSummaryOf } from './ProjectPlanningTab';
 import type { Project } from './ProjectsListPage';
 
 /* Key Information for the PROJECT detail page — replaces the ticket-field set.
@@ -126,6 +127,8 @@ const PlainSelect = ({ value, opts, onChange, placeholder = 'Select' }: { value:
 export function ProjectKeyInfo({ project, title = 'Key Information' }: { project: Project | null; title?: string }) {
   const [expanded, setExpanded] = useState(true);
   const [showMore, setShowMore] = useState(false);
+  /* The project's plan, exactly as the Planning tab builds it — see the Tasks row. */
+  const plan = planSummaryOf(project);
   const [status, setStatus] = useState(project?.status ?? 'Open');
   const [priority, setPriority] = useState(project?.priority ?? 'Medium');
   const [ptype, setPtype] = useState('None');
@@ -183,14 +186,17 @@ export function ProjectKeyInfo({ project, title = 'Key Information' }: { project
               <span className="text-[13px] text-[#9CA3AF]">Unassigned</span>
             )}
           </Row>
+          {/* Counted off the PLAN, like the header chips and the listing — the record
+              carries summary fields of its own, but three places on one screen quoting
+              three different totals is worse than any of them. */}
           <Row label="Milestones">
             <span className="text-[13px] font-medium tabular-nums text-[#364658]">
-              {project ? `${project.milestonesDone}/${project.milestonesTotal}` : '0/0'}
+              {`${plan.milestonesDone}/${plan.milestones}`}
             </span>
           </Row>
           <Row label="Tasks">
             <span className="text-[13px] font-medium tabular-nums text-[#364658]">
-              {project ? `${project.tasksDone}/${project.tasksTotal}` : '0/0'}
+              {`${plan.completed}/${plan.tasks}`}
             </span>
           </Row>
           <Row label="Completion (%)">

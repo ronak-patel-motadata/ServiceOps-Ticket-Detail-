@@ -13,14 +13,16 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
 import { TicketTable, useOpenFromUrl, MONEY_COLS, moneyNumber } from './TicketTable';
-import { ArrowLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
 import { CURRENT_USER } from './technicianRoster';
 import { StatsCardsRow, type StatCard } from './AssetStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView, type ViewStore } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
-import { DEFAULT_CARD_FIELDS, type KanbanGroup } from './TicketKanban';
+import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
+import { TicketGanttView } from './TicketGanttView';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
 import type { Ticket } from './TicketListPage';
@@ -80,11 +82,24 @@ export function AssetRegisterPage({
   quickFilters,
   moreActions,
   primaryAction,
+  primaryActionInTitle = false,
+  layouts,
+  defaultCardFields,
   showBarcodeTools = false,
   showQuickFilters = true,
+  showGantt = false,
+  ganttGrain = 'month',
+  ganttProgressOf,
+  ganttCardAction,
   hideTools,
   allowColumnEdit = true,
   overview,
+  banner,
+  hideSelection = false,
+  hideColumnMenu = false,
+  onRowAction,
+  onOpenRow,
+  showViews = true,
   rail,
   railLabel = 'classes',
   resetKey,
@@ -116,10 +131,28 @@ export function AssetRegisterPage({
   quickFilters?: React.ComponentProps<typeof TicketGridToolbar>['quickFilters'];
   moreActions?: React.ComponentProps<typeof TicketGridToolbar>['moreActions'];
   primaryAction?: React.ComponentProps<typeof TicketGridToolbar>['primaryAction'];
+  /** true lifts that button onto the TITLE line instead of the tool rail, where it lands at
+      the page's top-right corner. */
+  primaryActionInTitle?: boolean;
+  /** The layouts this module offers, in the picker's order. Defaults to List (+ Dashboard
+      where the module builds one) — a register with no work-in-flight axis has no board. */
+  layouts?: React.ComponentProps<typeof TicketGridToolbar>['layouts'];
+  /** Which fields the board's cards show out of the box — a module with its own card story
+      (Tasks: the record each task hangs off) sets its own. */
+  defaultCardFields?: string[];
   /** Registers whose records carry a physical label get the barcode / scan tools. */
   showBarcodeTools?: boolean;
   /** false drops the quick-filter icons entirely (a register with no useful one-click cut). */
   showQuickFilters?: boolean;
+  /** Adds the Gantt to the layout picker. For a module whose records are WINDOWS rather
+      than moments (Projects): the rows need `dueBy` and `dueEnd` on them. */
+  showGantt?: boolean;
+  /** Which grain that timeline opens on — see TicketGanttView's `initialGrain`. */
+  ganttGrain?: React.ComponentProps<typeof TicketGanttView>['initialGrain'];
+  /** Swaps the Gantt rail's state chip for a progress meter — see `progressOf`. */
+  ganttProgressOf?: React.ComponentProps<typeof TicketGanttView>['progressOf'];
+  /** An action at the foot of the Gantt's hover card — see EventTip's `action`. */
+  ganttCardAction?: React.ComponentProps<typeof TicketGanttView>['cardAction'];
   /** Toolbar controls this module has no use for — see TicketGridToolbar's `hideTools`. */
   hideTools?: React.ComponentProps<typeof TicketGridToolbar>['hideTools'];
   /** Columns the grid must render READ-ONLY — a fact the system derives, not one a user sets. */
@@ -130,6 +163,23 @@ export function AssetRegisterPage({
   /** A landing view for the module's "everything" state (Knowledge's most-read digest),
       rendered instead of the grid until the reader searches or filters. */
   overview?: React.ReactNode;
+  /** A strip rendered between the toolbar and the grid, describing the slice on screen
+      (Knowledge's folder read/write permissions). Hidden in a drill-down and on the
+      dashboard, where it would be describing something else. */
+  banner?: React.ReactNode;
+  /** true drops the grid's row and select-all checkboxes — see TicketTable's `hideSelection`. */
+  hideSelection?: boolean;
+  /** true drops the per-column header menu — see TicketTable's `hideColumnMenu`. */
+  hideColumnMenu?: boolean;
+  /** Handles the grid's per-row controls (the Reports Action column). */
+  onRowAction?: React.ComponentProps<typeof TicketTable>['onRowAction'];
+  /** Takes over what a row CLICK opens. Registers open their record's detail drawer through
+      the shared stack; a module whose rows are not records with a detail page (My Team's
+      people) handles the click itself and shows its own panel. */
+  onOpenRow?: (ticket: Ticket) => void;
+  /** false drops the saved-views rail and its toolbar toggle. Knowledge navigates by FOLDER,
+      not by saved view, so a second left panel would only compete with the folder rail. */
+  showViews?: boolean;
   /** A module's own navigation rail, rendered left of the grid (the CMDB's CI classes).
       The page owns its state and hands down already-filtered `rows`. It is a RENDER
       FUNCTION because the rail shares its slot with the views rail: `collapsed` says the
@@ -170,7 +220,12 @@ export function AssetRegisterPage({
   const [filterRules, setFilterRules] = useState<FilterRule[]>(
     () => startView?.rules.map((r, i) => ({ ...r, id: `view-${startView.name}-${i}` })) ?? [],
   );
-  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar'>('list');
+  /* Opens on the module's FIRST offered layout, not always the plain list: a module that
+     does not offer 'list' (the Vulnerability pages lead with List + KPI) would otherwise
+     land on a layout its own picker cannot show as selected. */
+  const [view, setView] = useState<'list' | 'list-kpi' | 'kanban' | 'dashboard' | 'calendar' | 'gantt'>(
+    layouts && !layouts.includes('list') ? layouts[0] : 'list',
+  );
   /* Set only when the list was reached by clicking something on the dashboard —
      carries the trail back: the clicked label + the filters in force before. */
   const [drillFrom, setDrillFrom] = useState<{ label: string; rules: FilterRule[] } | null>(null);
@@ -183,7 +238,10 @@ export function AssetRegisterPage({
   const [dashScope, setDashScope] = useState<'all' | 'mine'>('all');
   const [kanbanGroup, setKanbanGroup] = useState<KanbanGroup>('status');
   const [kanbanSubGroup, setKanbanSubGroup] = useState<KanbanGroup | null>(null);
-  const [cardFields, setCardFields] = useState<string[]>(DEFAULT_CARD_FIELDS);
+  const [cardFields, setCardFields] = useState<string[]>(defaultCardFields ?? DEFAULT_CARD_FIELDS);
+  /* What the BOARD reports about its lanes — the grouping footer's source while a sub-group
+     is set, exactly as on the request listing. */
+  const [kanbanLanes, setKanbanLanes] = useState<{ label: string; total: number; groups: number; list?: { key: string; count: number }[] } | null>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const [stickyH, setStickyH] = useState(0);
   useEffect(() => {
@@ -220,7 +278,9 @@ export function AssetRegisterPage({
 
   const { open: openInStack } = useDrawerStack();
   const handleOpenTicket = (ticket: Ticket) =>
-    openInStack(stackModule as any, ticket.id, ticket.subject, recordOf(ticket.id) ?? ticket);
+    onOpenRow
+      ? onOpenRow(ticket)
+      : openInStack(stackModule as any, ticket.id, ticket.subject, recordOf(ticket.id) ?? ticket);
 
   /* A row opened in a new browser tab lands here with ?open=<id>. */
   useOpenFromUrl(rows, handleOpenTicket);
@@ -326,7 +386,7 @@ export function AssetRegisterPage({
               The rail stays MOUNTED throughout: it would otherwise forget which branches
               the reader had open every time they glanced at Views. */}
           {rail && !drillFrom && rail({ collapsed: viewsOpen, expand: () => setViewsOpen(false) })}
-          {viewsOpen && !drillFrom && (
+          {showViews && viewsOpen && !drillFrom && (
             <TicketViewsSidebar
               store={viewsStore}
               active={activeView}
@@ -353,14 +413,40 @@ export function AssetRegisterPage({
                 setSearchQuery={setSearchQuery}
                 activeView={activeView}
                 viewsOpen={viewsOpen}
-                onToggleViews={() => setViewsOpen((v) => !v)}
+                /* No views rail on this module ⇒ no toggle for it either; the Toolbar
+                   drops the button when it has nothing to toggle. */
+                onToggleViews={showViews ? () => setViewsOpen((v) => !v) : undefined}
                 /* With a rail in the slot, this button swaps panels rather than just
                    hiding one — say so, or the classes look like they vanished. */
                 viewsLabels={rail ? { show: 'Show views', hide: `Back to ${railLabel}` } : undefined}
+                /* Reports lifts its Create onto the title line — the tool rail below is for
+                   narrowing what you are looking at, and the one control that MAKES
+                   something reads better at the page's own top-right corner. */
+                titleAction={
+                  primaryActionInTitle && primaryAction ? (
+                    <button
+                      onClick={() => toast(`${primaryAction.label} — coming soon`)}
+                      className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded bg-[#3D8BD0] px-3 text-[13px] font-medium text-white transition-colors hover:bg-[#2F7AB8]"
+                    >
+                      <Plus size={15} />
+                      {primaryAction.label}
+                    </button>
+                  ) : undefined
+                }
               />
             )}
             <main className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex-1 bg-white min-h-0 overflow-auto [scrollbar-gutter:stable]" style={{ ['--tb' as any]: `${stickyH}px` }}>
+              {/* The board owns its own scrolling and has to FILL the area, or a collapsed
+                  lane shrinks to the height of its own label. The grid keeps the page scroll.
+                  Same swap the request listing makes. */}
+              <div
+                className={`flex-1 bg-white min-h-0 ${
+                  /* The board and the Gantt own their own scrolling and have to FILL the
+                     area; the grid keeps the page scroll. */
+                  view === 'kanban' || view === 'gantt' ? 'flex flex-col overflow-hidden' : 'overflow-auto [scrollbar-gutter:stable]'
+                }`}
+                style={{ ['--tb' as any]: `${stickyH}px` }}
+              >
                 <div className="sticky left-0 bg-white pt-0.5">
                   {view === 'list-kpi' && !drillFrom && buildCards && (
                     <StatsCardsRow
@@ -379,13 +465,14 @@ export function AssetRegisterPage({
                     viewsStore={viewsStore}
                     showBarcodeTools={showBarcodeTools}
                     showQuickFilters={showQuickFilters}
+                    showGantt={showGantt}
                     hideTools={hideTools}
                     allowColumnEdit={allowColumnEdit}
                     filterAttrs={filterAttrs}
                     quickFilters={quickFilters}
                     moreActions={moreActions}
-                    primaryAction={primaryAction}
-                    layouts={buildDashboard ? ['list', 'dashboard'] : ['list']}
+                    primaryAction={primaryActionInTitle ? undefined : primaryAction}
+                    layouts={layouts ?? (buildDashboard ? ['list', 'dashboard'] : ['list'])}
                     searchQuery={searchQuery}
                     setSearchQuery={(v) => {
                       setSearchQuery(v);
@@ -423,6 +510,10 @@ export function AssetRegisterPage({
                     dashScopeSwitch={false}
                   />
                 </div>
+                {/* A module's own note about WHAT is being listed — Knowledge's folder
+                    permissions. It sits under the toolbar and scrolls with the rows, so it
+                    informs the list without standing between the reader and it. */}
+                {banner && !drillFrom && view === 'list' && banner}
                 {view === 'dashboard' && buildDashboard ? (
                   (() => {
                     /* Deliberately the UNFILTERED set: the dashboard narrows itself
@@ -441,6 +532,30 @@ export function AssetRegisterPage({
                       />
                     );
                   })()
+                ) : view === 'gantt' ? (
+                  /* The same timeline the release train uses — a project IS a window, so
+                     the bar is the honest shape of it. */
+                  <TicketGanttView
+                    tickets={sortedTickets}
+                    noun={noun}
+                    initialGrain={ganttGrain}
+                    progressOf={ganttProgressOf}
+                    cardAction={ganttCardAction}
+                    onTicketClick={handleOpenTicket}
+                  />
+                ) : view === 'kanban' ? (
+                  /* The same board the request listing uses — a task queue has a real
+                     work-in-flight axis, so the lanes mean something here. */
+                  <TicketKanban
+                    tickets={sortedTickets}
+                    group={kanbanGroup}
+                    subGroup={kanbanSubGroup}
+                    cardFields={cardFields}
+                    onLanesChange={setKanbanLanes}
+                    onOpenReference={onRowAction ? (t) => onRowAction(t, 'open-reference') : undefined}
+                    onTicketClick={handleOpenTicket}
+                    onUpdateTicket={(id, patch) => setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))}
+                  />
                 ) : showOverview ? (
                   /* The module's own landing — shown while nothing is being searched or
                      filtered. Searching or filtering reveals the grid, so the overview never
@@ -453,6 +568,9 @@ export function AssetRegisterPage({
                   openPage={activePage}
                   moduleCols={moduleCols}
                   lockedCells={lockedCells}
+                  hideSelection={hideSelection}
+                  hideColumnMenu={hideColumnMenu}
+                  onRowAction={onRowAction}
                   allowColumnEdit={allowColumnEdit}
                   tickets={paginatedTickets}
                   selectedTickets={selectedTickets}
@@ -480,7 +598,7 @@ export function AssetRegisterPage({
                 />
                 )}
               </div>
-              {!isGrouped && view !== 'dashboard' && !showOverview && (
+              {!isGrouped && (view === 'list' || view === 'list-kpi') && !showOverview && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -493,14 +611,19 @@ export function AssetRegisterPage({
                   }}
                 />
               )}
-              {isGrouped && groupInfo && (
+              {(() => {
+              /* On the board the footer summarises LANES, and only once a sub-group makes
+                 them worth summarising; in the grid it summarises the grouping. */
+              const footerGroup = view === 'kanban' ? (kanbanSubGroup ? kanbanLanes : null) : (isGrouped ? groupInfo : null);
+              const clearGrouping = () => (view === 'kanban' ? setKanbanSubGroup(null) : setClearGroupTick((t) => t + 1));
+              return footerGroup && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e7eb] bg-white px-6 py-2.5">
                   <span className="text-[12px] text-[#64748B] tabular-nums">
-                    Showing <span className="font-medium text-[#364658]">{groupInfo.total}</span> {footerNoun} in{' '}
-                    <span className="font-medium text-[#364658]">{groupInfo.groups}</span> groups
+                    Showing <span className="font-medium text-[#364658]">{footerGroup.total}</span> {footerNoun} in{' '}
+                    <span className="font-medium text-[#364658]">{footerGroup.groups}</span> groups
                   </span>
                   <span className="flex items-center gap-2 text-[12px] text-[#64748B]">
-                    {(groupInfo.list?.length ?? 0) > 1 && (
+                    {(footerGroup.list?.length ?? 0) > 1 && (
                       <span className="relative mr-1">
                         <button
                           onClick={() => {
@@ -523,14 +646,14 @@ export function AssetRegisterPage({
                                   if (e.key === 'Escape') setJumpOpen(false);
                                 }}
                                 onBlur={() => setJumpOpen(false)}
-                                placeholder={'Search ' + (groupInfo.label ?? '').toLowerCase() + '...'}
+                                placeholder={'Search ' + (footerGroup.label ?? '').toLowerCase() + '...'}
                                 className="h-8 w-full rounded border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 text-[12px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:bg-white focus:outline-none"
                               />
                             </div>
                             <div className="max-h-[300px] overflow-y-auto pb-1">
                               {(() => {
                                 const q = jumpQuery.trim().toLowerCase();
-                                const rowsL = (groupInfo.list ?? []).filter((g) => !q || g.key.toLowerCase().includes(q));
+                                const rowsL = (footerGroup.list ?? []).filter((g) => !q || g.key.toLowerCase().includes(q));
                                 if (!rowsL.length) return <div className="px-3 py-2.5 text-[12px] text-[#94A3B8]">No matching groups</div>;
                                 return rowsL.map((g) => (
                                   <button
@@ -554,14 +677,15 @@ export function AssetRegisterPage({
                     )}
                     Grouped by <span className="font-medium text-[#364658]">{groupInfo.label}</span>
                     <button
-                      onClick={() => setClearGroupTick((t) => t + 1)}
+                      onClick={clearGrouping}
                       className="rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
                     >
                       Clear
                     </button>
                   </span>
                 </div>
-              )}
+              );
+              })()}
             </main>
           </div>
         </div>

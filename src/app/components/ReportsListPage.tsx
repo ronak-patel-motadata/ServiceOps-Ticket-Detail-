@@ -26,7 +26,7 @@ interface Category {
   child?: boolean;
 }
 
-const CATEGORIES: Category[] = [
+export const CATEGORIES: Category[] = [
   { id: 'request', label: 'Request', icon: <IconRequest size={16} /> },
   { id: 'service-catalog', label: 'Service Catalog', icon: <LayoutGrid size={16} /> },
   { id: 'problem', label: 'Problem', icon: <IconProblem size={16} /> },
@@ -168,7 +168,7 @@ const REPORTS_BY_CATEGORY: Record<string, Omit<ReportRow, 'id'>[]> = {
 };
 
 /** Stable ids per category so React keys and future deep-links stay predictable. */
-const REPORTS: Record<string, ReportRow[]> = Object.fromEntries(
+export const REPORTS: Record<string, ReportRow[]> = Object.fromEntries(
   Object.entries(REPORTS_BY_CATEGORY).map(([cat, rows]) => [
     cat,
     rows.map((row, i) => ({ id: `${cat}-rep-${i + 1}`, ...row })),
@@ -177,7 +177,7 @@ const REPORTS: Record<string, ReportRow[]> = Object.fromEntries(
 
 /* The Report detail page is (for now) a KnowledgeDrawer clone, so a report opens through the
    same knowledge-shaped adapter — author/created/folder ride in the knowledge payload. */
-const reportToKnowledgeShape = (row: ReportRow, categoryLabel: string): Patch => ({
+export const reportToKnowledgeShape = (row: ReportRow, categoryLabel: string): Patch => ({
   id: row.id.toUpperCase().replace(/-rep-/, '-REP-'),
   name: row.name,
   severity: 'Unspecified',

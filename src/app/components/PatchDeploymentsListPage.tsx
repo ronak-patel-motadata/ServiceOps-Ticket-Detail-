@@ -50,6 +50,11 @@ export const mockPatchDeployments: PatchDeployment[] = [
   { id: 'PDR-1408', name: 'December 2025 Patch Tuesday — Production Servers Wave 1', status: 'Completed', deploymentPolicy: 'Production Servers — Staged Rollout', installAfter: 'Sat, Dec 13, 2025 11:00 PM', expiryDate: 'Sat, Dec 20, 2025 06:00 AM' },
   { id: 'PDR-1407', name: 'Defender Definition Refresh — VPN-only Laptops', status: 'Completed', deploymentPolicy: 'Security Definitions — Immediate', installAfter: null, expiryDate: null },
   { id: 'PDR-1406', name: 'November 2025 Cumulative — Executive Laptops', status: 'Completed', deploymentPolicy: 'VIP Devices — Manual Approval', installAfter: 'Mon, Nov 17, 2025 08:00 PM', expiryDate: 'Mon, Nov 24, 2025 08:00 PM' },
+  /* Rollback runs. The product's Task Type is Install OR Uninstall and backing out a bad
+     patch is routine, but every run here was an install — so the Task Type filter had an
+     option that matched nothing. These are the two obvious rollbacks for this catalogue. */
+  { id: 'PDR-1405', name: 'Rollback KB5036893 — .NET Framework Regression on Finance VMs', status: 'Completed', deploymentPolicy: 'Workstations — Business Hours Safe', installAfter: 'Thu, Apr 23, 2026 07:00 PM', expiryDate: 'Thu, Apr 30, 2026 07:00 AM' },
+  { id: 'PDR-1404', name: 'Uninstall Defender Platform 4.18.24030 — Scan Loop on Kiosks', status: 'Cancelled', deploymentPolicy: 'Kiosk Devices — Overnight Only', installAfter: 'Tue, Mar 03, 2026 02:00 AM', expiryDate: 'Tue, Mar 10, 2026 02:00 AM' },
 ];
 
 // Toolbar tailored to the Patch Deployments list (title + view + action icons + CTA).
@@ -110,9 +115,65 @@ function PatchDeploymentsToolbar({ searchQuery, setSearchQuery }: { searchQuery:
   );
 }
 
+/* ── Derived deployment attributes ────────────────────────────────────────────
+   The record stores the run's own fields; the listing filters on a few more that are read
+   OFF them. Derived here, once, so the row and the record it opens cannot disagree. */
+
+export const parseDeployDate = (s: string | null): Date | null => {
+  if (!s) return null;
+  const d = new Date(s.replace(/^[A-Za-z]{3},\s*/, ''));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/* Where the run sits against the clock, which `status` alone cannot answer: a run can read
+   "Ready to Deploy" with a window that closed last week, and that is exactly the row an
+   operator needs to find. */
+export const deployWindowOf = (d: PatchDeployment): string => {
+  const start = parseDeployDate(d.installAfter);
+  const end = parseDeployDate(d.expiryDate);
+  if (!start && !end) return 'No window';
+  const now = Date.now();
+  if (end && end.getTime() < now) return 'Window closed';
+  if (start && start.getTime() > now) return 'Scheduled';
+  return 'Live now';
+};
+
+/** Install or Uninstall — a rollback run says so in its name. */
+export const deployTaskTypeOf = (d: PatchDeployment): string =>
+  /\b(uninstall|rollback|remove|revert)\b/i.test(d.name) ? 'Uninstall' : 'Install';
+
+/* Scope. The record carries no counts of its own — the detail page builds them from its
+   patch × endpoint matrix — so they are derived deterministically per id here and stay
+   stable across reloads. */
+const deploySeed = (d: PatchDeployment) => [...d.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+export const deployPatchCountOf = (d: PatchDeployment): number => 1 + (deploySeed(d) % 12);
+export const deployEndpointCountOf = (d: PatchDeployment): number => 3 + ((deploySeed(d) * 7) % 180);
+
+/** Who set the run up, and when it was created / last touched. */
+const DEPLOY_OWNERS = ['Rakesh Rathod', 'Sarah Johnson', 'Chintan Makwana', 'Priya Nair', 'Siddharth Rao'];
+export const deployCreatedByOf = (d: PatchDeployment): string => DEPLOY_OWNERS[deploySeed(d) % DEPLOY_OWNERS.length];
+/* Usually the same person who set it up; a run that someone else has since touched (paused,
+   rescheduled, cancelled) carries their name instead. */
+export const deployUpdatedByOf = (d: PatchDeployment): string =>
+  ['Cancelled', 'Expired', 'In Progress'].includes(d.status)
+    ? DEPLOY_OWNERS[(deploySeed(d) + 2) % DEPLOY_OWNERS.length]
+    : deployCreatedByOf(d);
+export const deployCreatedDateOf = (d: PatchDeployment): Date => {
+  /* Created before the window it schedules — a run cannot be made after it starts. */
+  const anchor = parseDeployDate(d.installAfter) ?? parseDeployDate(d.expiryDate) ?? new Date();
+  const out = new Date(anchor);
+  out.setDate(out.getDate() - (2 + (deploySeed(d) % 21)));
+  return out;
+};
+export const deployUpdatedDateOf = (d: PatchDeployment): Date => {
+  const out = new Date(deployCreatedDateOf(d));
+  out.setHours(out.getHours() + 2 + (deploySeed(d) % 60));
+  return out;
+};
+
 /** Adapt a deployment record onto the Patch shape the cloned PatchDeploymentDrawer body expects
  *  (same pattern as the drawer clone chain's XToAssetShape adapters). */
-const deploymentToPatchShape = (d: PatchDeployment): Patch => ({
+export const deploymentToPatchShape = (d: PatchDeployment): Patch => ({
   id: d.id,
   name: d.name,
   severity: 'Unspecified',

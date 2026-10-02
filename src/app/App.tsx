@@ -10,26 +10,28 @@ import { SoftwareLicensesListingPage } from './components/SoftwareLicensesListin
 import { SoftwareMeterListingPage } from './components/SoftwareMeterListingPage';
 import { ContractsListingPage } from './components/ContractsListingPage';
 import { PurchasesListingPage } from './components/PurchasesListingPage';
-import { ProjectsListPage } from './components/ProjectsListPage';
+import { ProjectsListingPage } from './components/ProjectsListingPage';
 import { MyApprovalsListPage } from './components/MyApprovalsListPage';
 import { CmdbListingPage } from './components/CmdbListingPage';
-import { PatchesListPage } from './components/PatchesListPage';
-import { PatchDeploymentsListPage } from './components/PatchDeploymentsListPage';
-import { PackageDeploymentsListPage } from './components/PackageDeploymentsListPage';
-import { RegistryDeploymentsListPage } from './components/RegistryDeploymentsListPage';
+import { PatchesListingPage } from './components/PatchesListingPage';
+import { PatchDeploymentsListingPage } from './components/PatchDeploymentsListingPage';
+import { AutomaticPatchTestsListingPage } from './components/AutomaticPatchTestsListingPage';
+import { PackageDeploymentsListingPage } from './components/PackageDeploymentsListingPage';
+import { RegistryDeploymentsListingPage } from './components/RegistryDeploymentsListingPage';
 import { KnowledgeListingPage } from './components/KnowledgeListingPage';
-import { TasksListPage } from './components/TasksListPage';
-import { ReportsListPage } from './components/ReportsListPage';
+import { TasksListingPage } from './components/TasksListingPage';
+import { ReportsListingPage } from './components/ReportsListingPage';
+import { MyTeamListingPage } from './components/MyTeamListingPage';
 import { IconGalleryPage } from './components/IconGalleryPage';
 import { ViewsLabListPage } from './components/ViewsLabListPage';
 import { ChangeListingPage } from './components/ChangeListingPage';
-import { EndpointsListPage } from './components/EndpointsListPage';
-import { VulnerabilitiesListPage } from './components/VulnerabilitiesListPage';
-import { DetectedCvesListPage } from './components/DetectedCvesListPage';
+import { EndpointsListingPage } from './components/EndpointsListingPage';
+import { VulnerabilitiesListingPage } from './components/VulnerabilitiesListingPage';
+import { DetectedCvesListingPage } from './components/DetectedCvesListingPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'software-meter' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'icons' | 'views-lab';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'software-meter' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'automatic-patch-tests' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'my-team' | 'icons' | 'views-lab';
 
 /* A row's "Open in a new tab" link carries ?page=<slug>&open=<id>, so a fresh tab
    lands on the right module's listing with that record's detail page already open. */
@@ -62,20 +64,22 @@ export default function App() {
       {activePage === 'software-meter' && <SoftwareMeterListingPage onNavigate={navigate} />}
       {activePage === 'contracts' && <ContractsListingPage onNavigate={navigate} />}
       {activePage === 'purchases' && <PurchasesListingPage onNavigate={navigate} />}
-      {activePage === 'projects' && <ProjectsListPage onNavigate={navigate} />}
+      {activePage === 'projects' && <ProjectsListingPage onNavigate={navigate} />}
       {activePage === 'my-approvals' && <MyApprovalsListPage onNavigate={navigate} />}
       {activePage === 'cmdb' && <CmdbListingPage onNavigate={navigate} />}
-      {activePage === 'patches' && <PatchesListPage onNavigate={navigate} />}
-      {activePage === 'patch-deployments' && <PatchDeploymentsListPage onNavigate={navigate} />}
-      {activePage === 'package-deployments' && <PackageDeploymentsListPage onNavigate={navigate} />}
-      {activePage === 'registry-deployments' && <RegistryDeploymentsListPage onNavigate={navigate} />}
+      {activePage === 'patches' && <PatchesListingPage onNavigate={navigate} />}
+      {activePage === 'patch-deployments' && <PatchDeploymentsListingPage onNavigate={navigate} />}
+      {activePage === 'automatic-patch-tests' && <AutomaticPatchTestsListingPage onNavigate={navigate} />}
+      {activePage === 'package-deployments' && <PackageDeploymentsListingPage onNavigate={navigate} />}
+      {activePage === 'registry-deployments' && <RegistryDeploymentsListingPage onNavigate={navigate} />}
       {activePage === 'knowledge' && <KnowledgeListingPage onNavigate={navigate} />}
-      {activePage === 'tasks' && <TasksListPage onNavigate={navigate} />}
-      {activePage === 'reports' && <ReportsListPage onNavigate={navigate} />}
+      {activePage === 'tasks' && <TasksListingPage onNavigate={navigate} />}
+      {activePage === 'reports' && <ReportsListingPage onNavigate={navigate} />}
+      {activePage === 'my-team' && <MyTeamListingPage onNavigate={navigate} />}
       {activePage === 'icons' && <IconGalleryPage onNavigate={navigate} />}
-      {activePage === 'endpoints' && <EndpointsListPage onNavigate={navigate} />}
-      {activePage === 'vulnerabilities' && <VulnerabilitiesListPage onNavigate={navigate} />}
-      {activePage === 'detected-cves' && <DetectedCvesListPage onNavigate={navigate} />}
+      {activePage === 'endpoints' && <EndpointsListingPage onNavigate={navigate} />}
+      {activePage === 'vulnerabilities' && <VulnerabilitiesListingPage onNavigate={navigate} />}
+      {activePage === 'detected-cves' && <DetectedCvesListingPage onNavigate={navigate} />}
       <Toaster position="top-right" />
     </DrawerStackProvider>
   );

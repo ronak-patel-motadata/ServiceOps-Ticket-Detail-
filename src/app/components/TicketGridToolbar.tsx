@@ -173,14 +173,16 @@ export function TicketGridToolbar({
   primaryAction?: { label: string };
   /** The module's own ⋮ menu items, replacing the default Import entries. */
   /** The ⋮ menu's items. An empty array hides the ⋮ button itself. */
-  moreActions?: { key: string; label: string; icon: typeof Import }[];
+  /** `onSelect` lets the module handle its own item — it receives the ⋮ button's rect so a
+      panel can open anchored to it. Without one the item toasts, as before. */
+  moreActions?: { key: string; label: string; icon: typeof Import; onSelect?: (anchor: DOMRect) => void }[];
   /** Cuts the right-hand rail down to Export + Refresh (My Approvals): an approver
       reads the queue and decides — layout, sort, auto-refresh and import are not
       theirs to set, and the status cards already carry the only cuts that matter. */
   minimalTools?: boolean;
   /** Controls this module has no use for. A knowledge base is read and written, not
       exported or polled, so it drops those two rather than carrying buttons nobody presses. */
-  hideTools?: ('export' | 'refresh')[];
+  hideTools?: ('export' | 'refresh' | 'settings')[];
 }) {
   // Search stays collapsed to an icon until used — it costs nothing at rest and
   // expands in place, so the toolbar never carries a permanently empty field.
@@ -232,7 +234,7 @@ export function TicketGridToolbar({
   const [savePos, setSavePos] = useState({ top: 0, left: 0 });
   /* The copy's noun, capitalised where a label needs it. */
   const ns = `${noun}s`;
-  const hidden = (t: 'export' | 'refresh') => !!hideTools?.includes(t);
+  const hidden = (t: 'export' | 'refresh' | 'settings') => !!hideTools?.includes(t);
   /* The layouts THIS module offers — the shared four narrowed by `layouts`, plus the two
      opt-in extras. Computed once: the gear menu both renders it and decides, from its
      length, whether a picker is worth showing. */
@@ -968,7 +970,7 @@ export function TicketGridToolbar({
         </div>
         )}
 
-        {!minimalTools && (
+        {!minimalTools && !hidden('settings') && (
         <div className="relative" ref={gearRef}>
           <button
             onClick={() => {
@@ -1343,7 +1345,9 @@ export function TicketGridToolbar({
                   key={a.key}
                   onClick={() => {
                     setMoreOpen(false);
-                    toast(`${a.label} — coming soon`);
+                    const anchor = moreRef.current?.getBoundingClientRect();
+                    if (a.onSelect && anchor) a.onSelect(anchor);
+                    else toast(`${a.label} — coming soon`);
                   }}
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-[#364658] transition-colors hover:bg-[#F9FAFB]"
                 >

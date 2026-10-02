@@ -496,6 +496,15 @@ interface AssetFieldsProps {
   registryDeployMode?: boolean;
   /** Knowledge page: the article's own properties. Presence of this switches the field set. */
   knowledgeInfo?: { status: string; createdOn: string; lastModifiedBy: string; lastModifiedOn: string; folder: string; author: string };
+  /** The OPEN patch record's own values, for the handful of Patch Fields that are real facts
+   *  about it rather than catalogue furniture. Everything not supplied keeps the mock value,
+   *  so a page that passes nothing looks exactly as it did. Without this the panel told every
+   *  advisory the same story — a listing row saying "Reboot Required: Yes" sat beside a
+   *  detail panel saying "No". */
+  patchInfo?: {
+    category?: string; severity?: string; approvalStatus?: string; releaseDate?: string;
+    kbNumber?: string; rebootRequired?: string; referenceUrl?: string;
+  };
   // ENDPOINT page: endpoint-inventory fields (host/OS/agent/scan info) instead of the patch catalog's.
   endpointMode?: boolean;
   // DETECTED CVE page: CVE-metadata fields.
@@ -512,7 +521,7 @@ interface AssetFieldsProps {
   // "View more" expansion — so ONE "View more" reveals both the extra fields AND system fields.
 }
 
-export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, endpointMode = false, cveMode = false, taskMode = false, taskValues, onTaskValueChange, cmdbMode = false }: AssetFieldsProps) {
+export function AssetFields({ state, pinnedFields, togglePinField, propertiesSearchQuery, softwareMode = false, nonItMode = false, licenseMode = false, contractMode = false, purchaseMode = false, patchMode = false, patchDeployMode = false, packageDeployMode = false, registryDeployMode = false, knowledgeInfo, patchInfo, endpointMode = false, cveMode = false, taskMode = false, taskValues, onTaskValueChange, cmdbMode = false }: AssetFieldsProps) {
   const { assetType, setAssetType, status, setStatus, impact, setImpact, managedByGroup, setManagedByGroup, managedBy, setManagedBy, ci } = state;
   const softwareType = state.softwareType ?? '';
   const setSoftwareType = state.setSoftwareType ?? (() => {});
@@ -711,16 +720,19 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
     // (deployment statuses / system health). `pill` = right-aligned scan-status pill.
     // `section` = subsection header rendered ABOVE the row (Scan Info).
     type PatchField = { label: string; value: string; kind?: 'severity' | 'approval' | 'url' | 'user' | 'link'; sub?: string; dot?: string; pill?: 'progress' | 'done'; section?: string; info?: string };
+    /* The first rows are facts about the OPEN record and come from `patchInfo` when the page
+       supplies it; the rest is catalogue furniture that stays mock. Each falls back to the
+       old literal, so the pages that pass nothing are untouched. */
     const PATCH_FIELDS: PatchField[] = [
-      { label: 'Patch Category', value: 'Updates' },
-      { label: 'Severity', value: 'Low', kind: 'severity' },
-      { label: 'Approval Status', value: 'Approved', kind: 'approval' },
+      { label: 'Patch Category', value: patchInfo?.category ?? 'Updates' },
+      { label: 'Severity', value: patchInfo?.severity ?? 'Low', kind: 'severity' },
+      { label: 'Approval Status', value: patchInfo?.approvalStatus ?? 'Approved', kind: 'approval' },
       { label: 'Test Status', value: 'Not Tested' },
-      { label: 'Release Date', value: '01 Feb 2026' },
-      { label: 'KB Number', value: '---' },
+      { label: 'Release Date', value: patchInfo?.releaseDate ?? '01 Feb 2026' },
+      { label: 'KB Number', value: patchInfo?.kbNumber ?? '---' },
       { label: 'Superseded Status', value: 'No' },
       { label: 'Bulletin Id', value: '---' },
-      { label: 'Refrence Url', value: 'https://www.win-rar.com/support.html', kind: 'url' },
+      { label: 'Refrence Url', value: patchInfo?.referenceUrl ?? 'https://www.win-rar.com/support.html', kind: 'url' },
       { label: 'UUID', value: 'win_rar-windows-x64-exe-7.20' },
       { label: 'Architecture', value: '64 BIT' },
       { label: 'Source', value: 'Patch Scanning' },
@@ -728,7 +740,7 @@ export function AssetFields({ state, pinnedFields, togglePinField, propertiesSea
       { label: 'Download Status', value: 'Success' },
       { label: 'Download On', value: 'Mon, Jul 20, 2026 05:01 PM' },
       { label: 'Download Size', value: '3.77 MB' },
-      { label: 'Reboot Required', value: 'No' },
+      { label: 'Reboot Required', value: patchInfo?.rebootRequired ?? 'No' },
       { label: 'Support Uninstallation', value: 'No' },
       { label: 'Approved By', value: 'Rakesh Rathod', kind: 'user' },
       { label: 'Approved On', value: 'Mon, Jul 20, 2026 04:56 PM' },

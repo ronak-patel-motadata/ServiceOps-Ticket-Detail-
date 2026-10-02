@@ -19,7 +19,7 @@ import { DescriptionInlineImage } from './DescriptionInlineImage';
 import { toast } from 'sonner';
 import type { Problem } from './ProblemListPage';
 import type { Project } from './ProjectsListPage';
-import { ProjectPlanningTab } from './ProjectPlanningTab';
+import { ProjectPlanningTab, planSummaryOf } from './ProjectPlanningTab';
 
 /** Maps a Project row onto the Problem shape the cloned drawer body renders. */
 export const projectToProblemShape = (p: Project): Problem => ({
@@ -2476,6 +2476,8 @@ onStackActiveGroupChange,
             {/* Main properties — quick-glance KPIs below the subject */}
             {(() => {
               const proj = (activeProblem as any)?.project as Project | undefined;
+              /* The plan's own totals — see the Tasks / Milestones chips below. */
+              const planKpi = planSummaryOf(proj ?? null);
               const PS: Record<string, string> = { Open: '#3D8BD0', Planning: '#8B5CF6', Implementation: '#22C55E', 'On Hold': '#D97706', Completed: '#94A3B8', Cancelled: '#EF4444' };
               const PP: Record<string, string> = { Critical: '#DC2626', High: '#F97316', Medium: '#94A3B8', Low: '#22C55E' };
               const AV = ['#3D8BD0', '#7C3AED', '#0EA5E9', '#16A34A', '#D97706', '#DC2626', '#0D9488'];
@@ -2517,8 +2519,12 @@ onStackActiveGroupChange,
                     {val(`${proj.completion}%`)}
                   </span>
                 )) },
-                { key: 'milestones', tip: `Milestones: ${proj.milestonesDone} of ${proj.milestonesTotal} complete`, node: chip('Milestones', val(`${proj.milestonesDone}/${proj.milestonesTotal}`, proj.milestonesTotal > 0 && proj.milestonesDone === proj.milestonesTotal ? '#16A34A' : '#364658')) },
-                { key: 'tasks', tip: `Tasks: ${proj.tasksDone} of ${proj.tasksTotal} complete`, node: chip('Tasks', val(`${proj.tasksDone}/${proj.tasksTotal}`, proj.tasksTotal > 0 && proj.tasksDone === proj.tasksTotal ? '#16A34A' : '#364658')) },
+                /* Counted off the PLAN the Planning tab below actually renders, not the
+                   record's own summary fields — the header used to claim "40/64" over a
+                   tab showing fifteen rows, and the listing's hover card now prints the
+                   same figures, so all three have to come from one place. */
+                { key: 'milestones', tip: `Milestones: ${planKpi.milestonesDone} of ${planKpi.milestones} complete`, node: chip('Milestones', val(`${planKpi.milestonesDone}/${planKpi.milestones}`, planKpi.milestones > 0 && planKpi.milestonesDone === planKpi.milestones ? '#16A34A' : '#364658')) },
+                { key: 'tasks', tip: `Tasks: ${planKpi.completed} of ${planKpi.tasks} complete`, node: chip('Tasks', val(`${planKpi.completed}/${planKpi.tasks}`, planKpi.tasks > 0 && planKpi.completed === planKpi.tasks ? '#16A34A' : '#364658')) },
               ];
               return <HeaderKpiRow items={items} />;
             })()}
@@ -3376,20 +3382,24 @@ onStackActiveGroupChange,
                     const daysLeft = p?.end ? Math.ceil((p.end.getTime() - Date.now()) / 864e5) : null;
                     const dueClause =
                       daysLeft === null ? '' : daysLeft >= 0 ? ` (${daysLeft} days away)` : ` (${-daysLeft} days past)`;
-                    const openTasks = Math.max(0, (p?.tasksTotal ?? 0) - (p?.tasksDone ?? 0));
+                    /* The AI answers quote the PLAN too — an assistant that cites different
+                       totals from the header it sits under is the fastest way to lose a
+                       reader's trust in it. */
+                    const pk = planSummaryOf(p ?? null);
+                    const openTasks = Math.max(0, pk.tasks - pk.completed);
                     const ask = (label: string, answer: string) => quickActionHandlerRef.current?.(label, answer);
                     const riskAnswer = `Schedule risk assessment for ${p?.name ?? 'this project'}:
 
-• Completion stands at ${p?.completion ?? 0}% with ${openTasks} of ${p?.tasksTotal ?? 0} tasks still open against the ${fmtD(p?.end)} due date${dueClause}.
+• Completion stands at ${p?.completion ?? 0}% with ${openTasks} of ${pk.tasks} tasks still open against the ${fmtD(p?.end)} due date${dueClause}.
 • The Implementation phase is tracking past its planned window — "Environment build-out" and "Configure VLANs and firewall rules" are overdue.
-• Milestones: ${p?.milestonesDone ?? 0} of ${p?.milestonesTotal ?? 0} complete. "UAT sign-off" is the next gate and depends on the overdue build tasks.
+• Milestones: ${pk.milestonesDone} of ${pk.milestones} complete. "UAT sign-off" is the next gate and depends on the overdue build tasks.
 
 Recommendation: re-baseline the Implementation window, pull the two overdue tasks into this week's stand-up, and flag the due-date risk to the sponsor now — not at the next checkpoint.`;
                     const statusAnswer = `Here's a status update ready to send:
 
 Subject: ${p?.name ?? 'Project'} — status update
 
-Overall: ${p?.completion ?? 0}% complete against the ${fmtD(p?.end)} target. ${p?.milestonesDone ?? 0} of ${p?.milestonesTotal ?? 0} milestones are done and ${p?.tasksDone ?? 0} of ${p?.tasksTotal ?? 0} tasks are closed.
+Overall: ${p?.completion ?? 0}% complete against the ${fmtD(p?.end)} target. ${pk.milestonesDone} of ${pk.milestones} milestones are done and ${pk.completed} of ${pk.tasks} tasks are closed.
 
 Highlights
 • Planning & Design is complete — charter approved and the delivery team fully allocated.

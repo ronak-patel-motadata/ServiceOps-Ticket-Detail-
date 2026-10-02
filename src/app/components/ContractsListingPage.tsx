@@ -55,10 +55,12 @@ const CT: { rows: Ticket[]; byId: Map<string, Contract> } = (() => {
       x_contractNumber: c.contractNumber,
       x_vendor: c.vendor,
       x_cost: c.cost,
-      x_startDate: c.startDate,
-      x_endDate: c.endDate,
-      /* The parsed dates behind the printed dd/mm/yyyy — the Contract Start / End Date
-         filters compare Dates, the columns keep printing the strings. */
+      /* Real Dates, not the mock's "01/06/2027" strings: the grid prints them in the house
+         format like every other date (see dateFormat.ts) AND sorts them chronologically —
+         as text, "24/07/2026" sorted before "30/06/2026". */
+      x_startDate: start,
+      x_endDate: end,
+      /* The same values under the keys the Contract Start / End Date FILTERS read. */
       startOn: start,
       endOn: end,
       x_expiryBand: expiryBand,
