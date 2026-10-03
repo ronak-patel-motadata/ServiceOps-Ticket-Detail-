@@ -16,6 +16,7 @@ import { CmdbListingPage } from './components/CmdbListingPage';
 import { PatchesListingPage } from './components/PatchesListingPage';
 import { PatchDeploymentsListingPage } from './components/PatchDeploymentsListingPage';
 import { AutomaticPatchTestsListingPage } from './components/AutomaticPatchTestsListingPage';
+import { AutomaticPatchDeploymentsListingPage } from './components/AutomaticPatchDeploymentsListingPage';
 import { PackageDeploymentsListingPage } from './components/PackageDeploymentsListingPage';
 import { RegistryDeploymentsListingPage } from './components/RegistryDeploymentsListingPage';
 import { KnowledgeListingPage } from './components/KnowledgeListingPage';
@@ -31,7 +32,7 @@ import { DetectedCvesListingPage } from './components/DetectedCvesListingPage';
 import { DrawerStackProvider } from './components/DrawerStack';
 import { Toaster } from 'sonner';
 
-type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'software-meter' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'automatic-patch-tests' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'my-team' | 'icons' | 'views-lab';
+type Page = 'request' | 'problem' | 'change' | 'release' | 'hardware-assets' | 'software-assets' | 'non-it-assets' | 'consumable-assets' | 'software-licenses' | 'software-meter' | 'contracts' | 'purchases' | 'cmdb' | 'patches' | 'patch-deployments' | 'automatic-patch-tests' | 'automatic-patch-deployments' | 'endpoints' | 'vulnerabilities' | 'detected-cves' | 'package-deployments' | 'registry-deployments' | 'knowledge' | 'tasks' | 'reports' | 'projects' | 'my-approvals' | 'my-team' | 'icons' | 'views-lab';
 
 /* A row's "Open in a new tab" link carries ?page=<slug>&open=<id>, so a fresh tab
    lands on the right module's listing with that record's detail page already open. */
@@ -70,6 +71,7 @@ export default function App() {
       {activePage === 'patches' && <PatchesListingPage onNavigate={navigate} />}
       {activePage === 'patch-deployments' && <PatchDeploymentsListingPage onNavigate={navigate} />}
       {activePage === 'automatic-patch-tests' && <AutomaticPatchTestsListingPage onNavigate={navigate} />}
+      {activePage === 'automatic-patch-deployments' && <AutomaticPatchDeploymentsListingPage onNavigate={navigate} />}
       {activePage === 'package-deployments' && <PackageDeploymentsListingPage onNavigate={navigate} />}
       {activePage === 'registry-deployments' && <RegistryDeploymentsListingPage onNavigate={navigate} />}
       {activePage === 'knowledge' && <KnowledgeListingPage onNavigate={navigate} />}

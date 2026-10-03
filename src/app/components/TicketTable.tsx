@@ -1624,7 +1624,7 @@ interface TicketTableProps {
       'asset' renders the Hardware Assets columns (Asset Type · Status · Host Name ·
       IP · Used By · Managed By Group · Managed By · Serial). Each module gets its
       own storage key, so request column prefs stay intact. */
-  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patch-deployment' | 'package-deployment' | 'registry-deployment' | 'apt' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  moduleCols?: 'change' | 'release' | 'asset' | 'software' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patch-deployment' | 'package-deployment' | 'registry-deployment' | 'apt' | 'apd' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
   /** Per-row actions — the Approvals grid's decisions, and the Reports grid's Action
       column. The module decides what each one does. */
   onRowAction?: (ticket: Ticket, action: RowAction) => void;
@@ -2040,6 +2040,17 @@ export function TicketTable({
         { key: 'x_totalTests', label: 'Total Tests', w: 130, align: 'center' },
         { key: 'x_pendingTests', label: 'Pending Tests', w: 140, align: 'center' },
         { key: 'x_completedTests', label: 'Completed Tests', w: 160, align: 'center' },
+        { key: 'x_lastExecution', label: 'Last Execution Time', w: 195 },
+        { key: 'x_nextExecution', label: 'Next Execution Time', w: 195 },
+        { key: 'x_enabled', label: 'Enable', w: 110 },
+        { key: 'actions', label: 'Actions', w: 120 },
+    ],
+    /* Automatic Patch Deployments — a rollout SCHEDULE, so the row answers when it last
+       fired, when it fires next and whether it is still on. The deployments it has created
+       live one level down, in the panel the row opens. */
+    apd: [
+        { key: 'id', label: 'ID', w: 100 },
+        { key: 'subject', label: 'Name', flex: true, w: 340, maxW: 520 },
         { key: 'x_lastExecution', label: 'Last Execution Time', w: 195 },
         { key: 'x_nextExecution', label: 'Next Execution Time', w: 195 },
         { key: 'x_enabled', label: 'Enable', w: 110 },
@@ -2603,8 +2614,8 @@ export function TicketTable({
                 Delete reads red under the pointer rather than hiding behind a menu nobody
                 would open for one item. */}
             {moduleCols === 'task' && act('Delete', <Trash2 size={15} />, 'delete', true)}
-            {/* A test schedule's two: change it or drop it. */}
-            {moduleCols === 'apt' && act('Delete', <Trash2 size={15} />, 'delete', true)}
+            {/* A schedule's two, test or deployment: change it or drop it. */}
+            {(moduleCols === 'apt' || moduleCols === 'apd') && act('Delete', <Trash2 size={15} />, 'delete', true)}
             {/* My Team's second action opens the Mark Leave panel, and wears the state it
                 sets: amber and filled while that person is away, quiet grey while they are
                 not — so the column also READS as who is out. */}

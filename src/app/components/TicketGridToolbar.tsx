@@ -99,6 +99,7 @@ export function TicketGridToolbar({
   dashScope,
   dashScopeSwitch = true,
   showQuickFilters = true,
+  showFilterBuilder = true,
   allowColumnEdit = true,
   quickFilters,
   filterAttrs,
@@ -142,6 +143,9 @@ export function TicketGridToolbar({
   dashScopeSwitch?: boolean;
   /** false drops the filter bar's Assignee / SLA / Priority quick filters. */
   showQuickFilters?: boolean;
+  /** false drops the filter bar's rule builder ("Filters" + its picker), keeping the quick
+      filters and their chips. */
+  showFilterBuilder?: boolean;
   /** false drops the gear menu's Columns row and its reset — for a listing whose column
       set is fixed by the module rather than chosen by the reader. */
   allowColumnEdit?: boolean;
@@ -473,7 +477,7 @@ export function TicketGridToolbar({
           })}
         </div>
       ) : (
-        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} showQuickFilters={showQuickFilters} quickFilters={quickFilters} attrs={filterAttrs} />
+        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} showQuickFilters={showQuickFilters} showFilterBuilder={showFilterBuilder} quickFilters={quickFilters} attrs={filterAttrs} />
       )}
 
       {saveOpen &&

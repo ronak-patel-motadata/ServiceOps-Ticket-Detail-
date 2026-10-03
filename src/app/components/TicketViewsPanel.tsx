@@ -265,6 +265,14 @@ export const APT_VIEWS: TicketView[] = [
   { name: 'Never Run', rules: [{ field: 'x_progress', condition: 'is', values: ['Never run'] }] },
   { name: 'Disabled Schedules', rules: [{ field: 'x_enabled', condition: 'is', values: ['Disabled'] }] },
 ];
+/* The rollout schedule's cuts — what is live, what has stalled before shipping anything. */
+export const APD_VIEWS: TicketView[] = [
+  { name: 'Automatic Patch Deployments', rules: [] },
+  { name: 'Enabled Schedules', rules: [{ field: 'x_enabled', condition: 'is', values: ['Enabled'] }] },
+  { name: 'Running', rules: [{ field: 'x_activity', condition: 'is', values: ['Running'] }] },
+  { name: 'Never Run', rules: [{ field: 'x_activity', condition: 'is', values: ['Never run', 'Scheduled'] }] },
+  { name: 'Stopped', rules: [{ field: 'x_activity', condition: 'is', values: ['Stopped'] }] },
+];
 /* Metering's cuts — the lifecycle of a metered application, and the ones nobody owns. */
 export const METER_VIEWS: TicketView[] = [
   { name: 'All Metered Software', rules: [] },
@@ -332,7 +340,7 @@ const ownedByMe = (v: TicketView) => !!v.custom && (v.owner ?? CURRENT_USER) ===
    and the default view never leak between the Request and Change listings. */
 export type ViewStore =
   | 'ticket' | 'change' | 'release' | 'problem' | 'hwasset'
-  | 'swasset' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patchdeploy' | 'pkgdeploy' | 'regdeploy' | 'apt' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
+  | 'swasset' | 'meter' | 'cmdb' | 'knowledge' | 'report' | 'task' | 'team' | 'project' | 'vuln' | 'cve' | 'endpoint' | 'patch' | 'patchdeploy' | 'pkgdeploy' | 'regdeploy' | 'apt' | 'apd' | 'nonit' | 'consumable' | 'license' | 'contract' | 'purchase' | 'approval';
 const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   swasset: SWASSET_VIEWS,
   meter: METER_VIEWS,
@@ -355,6 +363,7 @@ const MODULE_BUILTINS: Partial<Record<ViewStore, TicketView[]>> = {
   pkgdeploy: PACKAGE_DEPLOY_VIEWS,
   regdeploy: REGISTRY_DEPLOY_VIEWS,
   apt: APT_VIEWS,
+  apd: APD_VIEWS,
 };
 const builtinsFor = (store: ViewStore) =>
   MODULE_BUILTINS[store] ??

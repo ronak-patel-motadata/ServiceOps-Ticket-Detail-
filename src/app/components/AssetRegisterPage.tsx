@@ -87,6 +87,7 @@ export function AssetRegisterPage({
   defaultCardFields,
   showBarcodeTools = false,
   showQuickFilters = true,
+  showFilterBuilder = true,
   showGantt = false,
   ganttGrain = 'month',
   ganttProgressOf,
@@ -144,6 +145,9 @@ export function AssetRegisterPage({
   showBarcodeTools?: boolean;
   /** false drops the quick-filter icons entirely (a register with no useful one-click cut). */
   showQuickFilters?: boolean;
+  /** false drops the rule BUILDER (the "Filters" button and its attribute picker) while
+      keeping the quick filters — for a module whose one useful cut is already one of them. */
+  showFilterBuilder?: boolean;
   /** Adds the Gantt to the layout picker. For a module whose records are WINDOWS rather
       than moments (Projects): the rows need `dueBy` and `dueEnd` on them. */
   showGantt?: boolean;
@@ -465,6 +469,7 @@ export function AssetRegisterPage({
                     viewsStore={viewsStore}
                     showBarcodeTools={showBarcodeTools}
                     showQuickFilters={showQuickFilters}
+                    showFilterBuilder={showFilterBuilder}
                     showGantt={showGantt}
                     hideTools={hideTools}
                     allowColumnEdit={allowColumnEdit}

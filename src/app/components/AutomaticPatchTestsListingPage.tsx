@@ -171,6 +171,10 @@ export function AutomaticPatchTestsListingPage({ onNavigate }: { onNavigate?: (p
       /* No views rail — the panel toggle beside the title goes with it. `APT_VIEWS` stays
          defined (and the store with it), so flipping this back restores them. */
       showViews={false}
+      /* No rule builder: a schedule carries a handful of fields and the only cut anyone makes
+         here is on/off, which the quick filter already is. The catalogue stays wired, so the
+         KPI cards and saved views keep filtering on test progress. */
+      showFilterBuilder={false}
       /* ⚠️ Dropping the gear also drops the LAYOUT PICKER and Manage columns with it, so the
          Dashboard built below is no longer reachable from the UI and the optional columns
          cannot be added. The wiring is left in place — removing this one entry brings both

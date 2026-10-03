@@ -129,7 +129,7 @@ const PATCH_ITEMS: { icon: React.ReactNode; label: string; page?: string }[] = [
   { icon: <Rocket size={16} />, label: 'Patch Deployment', page: 'patch-deployments' },
   { icon: <Monitor size={16} />, label: 'Endpoint', page: 'endpoints' },
   { icon: <ClipboardCheck size={16} />, label: 'Automatic Patch Test', page: 'automatic-patch-tests' },
-  { icon: <Settings size={16} />, label: 'Automatic Patch Deployment' },
+  { icon: <Settings size={16} />, label: 'Automatic Patch Deployment', page: 'automatic-patch-deployments' },
 ];
 
 /** Patch nav item with a hover flyout listing the patch sub-modules (mirrors AssetsNavItem). */

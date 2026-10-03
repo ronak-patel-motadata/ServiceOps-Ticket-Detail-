@@ -885,6 +885,7 @@ export function TicketFilterBar({
   setRules,
   noun = 'request',
   showQuickFilters = true,
+  showFilterBuilder = true,
   quickFilters,
   attrs,
 }: {
@@ -895,6 +896,10 @@ export function TicketFilterBar({
   /** false drops the one-tap Assignee / SLA / Priority shortcuts — modules whose
       records carry none of those (Approvals) would offer dead filters. */
   showQuickFilters?: boolean;
+  /** false drops the rule BUILDER — the "Filters" button and its attribute picker — for a
+      module whose one useful cut is already a quick filter. The chips stay: a quick filter
+      applies as a rule, so its chip is how you see what is on and switch it off. */
+  showFilterBuilder?: boolean;
   /** The module's own quick filters (defaults to the service-desk trio). */
   quickFilters?: QuickFilterDef[];
   /** The module's attribute catalog — defaults to the product-wide request set. */
@@ -945,6 +950,7 @@ export function TicketFilterBar({
       ))}
 
       {/* Entry point: a labelled button while empty, a compact + once chips exist. */}
+      {showFilterBuilder && (
       <div className="relative">
         {rules.length === 0 ? (
           <button
@@ -965,6 +971,7 @@ export function TicketFilterBar({
         )}
         {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} noun={noun} attrs={attrs} />}
       </div>
+      )}
 
       {showQuickFilters && <QuickFilters rules={rules} setRules={setRules} filters={quickFilters} />}
 

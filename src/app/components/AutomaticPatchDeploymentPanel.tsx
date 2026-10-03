@@ -1,62 +1,59 @@
-/* ── Automatic Patch Test — detail side panel ────────────────────────────────
-   Opened from the listing's ID or Name. Two tabs:
+/* ── Automatic Patch Deployment — detail side panel ──────────────────────────
+   Opened from the listing's ID or Name. Two tabs, the same pair the Automatic Patch Test
+   panel has, because the two modules are read the same way:
 
-   • **Patch Deployment** — the deployment runs this schedule has produced, with the search
-     and status filter the module's own grid has.
-   • **Analytics** — the same runs read as numbers over the chosen timeframe: six tiles, two
-     donuts and a per-remote-office result breakdown.
+   • **Patch Deployment** — the deployments this schedule has created, with the search and
+     status filter the module's own grid has.
+   • **Analytics** — the same deployments read as numbers over the chosen timeframe: six
+     tiles, two donuts and a per-remote-office status breakdown.
 
-   Both tabs read ONE derived set of runs (`runsFor`), so the grid and the charts can never
-   disagree, and that set is derived from the schedule's own totals — a schedule the listing
-   says has 21 completed cases shows 21 completed here too.
+   Both tabs read ONE derived set (`deploymentsFor`), so the grid and the charts can never
+   disagree, and that set is derived from the schedule's own `totalDeployments` — a schedule
+   the listing says has created 28 shows 28 here too.
 
-   Its own file, and the house chrome throughout: the side-popup shell the Impacted-Endpoints
-   panel uses, the drawer's underline tabs, the dashboards' donut + legend, and the listing's
-   count chips. */
+   A near-clone of `AutomaticPatchTestPanel`, kept as its own file so the two can diverge
+   (their grids already carry different columns and their tiles answer different questions).
+   Everything else is the house chrome: the side-popup shell, the drawer's underline tabs,
+   the dashboards' donut + legend, and the listing grid's resizable sortable headings. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Check, Funnel, GripVertical, Search, X } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Check, Funnel, GripVertical, Search } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Donut, Legend } from './AssetDashboardView';
 import { fmtGridDateTime } from './dateFormat';
-import type { AutomaticPatchTest } from './automaticPatchTests';
+import type { AutomaticPatchDeployment } from './automaticPatchDeployments';
 
-/* ── The runs a schedule has produced ──────────────────────────────────────── */
+/* ── The deployments a schedule has produced ───────────────────────────────── */
 
 type RunStatus = 'Draft' | 'Ready to Deploy' | 'In Progress' | 'Completed' | 'Partial Completed' | 'Expired' | 'Cancelled';
-type TestStatus = 'Passed' | 'Failed' | 'In Progress' | 'Pending';
 type Severity = 'Critical' | 'Important' | 'Moderate' | 'Low' | 'Unspecified';
 
-export interface TestRun {
+export interface DeploymentRun {
   id: string;
   name: string;
   status: RunStatus;
-  testStatus: TestStatus;
+  deploymentPolicy: string;
   severity: Severity;
   created: Date;
-  observationStart: Date | null;
-  /** Hours left on the approval clock, or null when nothing is waiting on an approver. */
-  approvalHoursLeft: number | null;
+  updated: Date;
+  /** Endpoints this run targeted. */
+  devices: number;
+  /* Installation outcomes. These four ARE `totalInstallation` — it is their sum, never a
+     separately stored number, so a tile and the column it came from cannot drift apart. */
+  installed: number;
+  failed: number;
+  pending: number;
+  expired: number;
   /** The site the run landed on — the Patch Deployment page's own five. */
   remoteOffice: string;
 }
 
-/* The same five sites the Patch Deployment overview breaks its status down by, in the same
-   order, so one fleet is not described by two different lists of offices. */
-const REMOTE_OFFICES = ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru Campus', 'Pune Data Center', 'Local Office'];
-/* Drawn weighted rather than round-robin: a branch runs a fraction of HQ's endpoints, and a
-   flat five-way split would claim every site tests the same volume. */
-const OFFICE_DRAW = [
-  'Ahmedabad HQ', 'Ahmedabad HQ', 'Ahmedabad HQ', 'Mumbai Office', 'Mumbai Office',
-  'Bengaluru Campus', 'Bengaluru Campus', 'Pune Data Center', 'Local Office', 'Local Office',
-];
+/** The one arithmetic truth behind the Total Installation column and the Analytics tiles. */
+export const totalInstallationOf = (r: DeploymentRun) => r.installed + r.failed + r.pending + r.expired;
 
 const RUN_STATUS_COLOR: Record<RunStatus, string> = {
   Draft: '#94A3B8', 'Ready to Deploy': '#3D8BD0', 'In Progress': '#F59E0B',
   Completed: '#22C55E', 'Partial Completed': '#EAB308', Expired: '#DC2626', Cancelled: '#64748B',
-};
-const TEST_STATUS_COLOR: Record<TestStatus, string> = {
-  Passed: '#22C55E', Failed: '#DC2626', 'In Progress': '#3D8BD0', Pending: '#94A3B8',
 };
 const SEVERITY_COLOR: Record<Severity, string> = {
   Critical: '#DC2626', Important: '#F97316', Moderate: '#F59E0B', Low: '#22C55E', Unspecified: '#94A3B8',
@@ -75,46 +72,63 @@ const PATCH_NAMES = [
   '7-Zip Security Update',
 ];
 
-/* Deterministic per schedule, and FAITHFUL to its counts: one run per completed case (passed,
-   bar a deterministic few that failed) plus one per pending case still in flight. A schedule
-   that has never run produces none, which is why the grid shows an empty state rather than
-   invented history. */
-export const runsFor = (t: AutomaticPatchTest): TestRun[] => {
-  if (!t.totalTests || !t.lastExecution) return [];
-  const seed = [...t.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const base = new Date(t.lastExecution.replace(/^[A-Za-z]{3},\s*/, ''));
+/* The same five sites the Patch Deployment overview breaks its status down by, in the same
+   order, so one fleet is not described by two different lists of offices. */
+const REMOTE_OFFICES = ['Ahmedabad HQ', 'Mumbai Office', 'Bengaluru Campus', 'Pune Data Center', 'Local Office'];
+/* Drawn weighted rather than round-robin: a branch runs a fraction of HQ's endpoints, and a
+   flat five-way split would claim every site receives the same volume. */
+const OFFICE_DRAW = [
+  'Ahmedabad HQ', 'Ahmedabad HQ', 'Ahmedabad HQ', 'Mumbai Office', 'Mumbai Office',
+  'Bengaluru Campus', 'Bengaluru Campus', 'Pune Data Center', 'Local Office', 'Local Office',
+];
+
+/* Deterministic per schedule, and FAITHFUL to its count: one run per deployment the listing
+   says it has created. A schedule that has never run produces none, which is why the grid
+   shows an empty state rather than invented history. */
+export const deploymentsFor = (d: AutomaticPatchDeployment): DeploymentRun[] => {
+  if (!d.totalDeployments || !d.lastExecution) return [];
+  const seed = [...d.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const base = new Date(d.lastExecution.replace(/^[A-Za-z]{3},\s*/, ''));
   const anchor = Number.isNaN(base.getTime()) ? new Date() : base;
   const sevs: Severity[] = ['Critical', 'Important', 'Moderate', 'Low', 'Unspecified'];
 
-  const out: TestRun[] = [];
-  const total = t.totalTests;
-  for (let i = 0; i < total; i++) {
+  const out: DeploymentRun[] = [];
+  for (let i = 0; i < d.totalDeployments; i++) {
     const h = seed + i * 37;
-    const done = i < (t.completedTests ?? 0);
-    /* Roughly one in seven completed runs failed its test — enough to make the Failed tile
-       and the red donut slice mean something without drowning the set. */
-    const failed = done && h % 7 === 0;
-    const testStatus: TestStatus = done ? (failed ? 'Failed' : 'Passed') : (h % 3 === 0 ? 'Pending' : 'In Progress');
-    const status: RunStatus = done
-      ? (failed ? 'Partial Completed' : 'Completed')
-      : testStatus === 'Pending'
-        ? (h % 5 === 0 ? 'Draft' : 'Ready to Deploy')
-        : 'In Progress';
+    /* Most runs finish. The rest spread across the lifecycle the status donut shows, so no
+       legend entry is a colour nothing ever uses. */
+    const roll = h % 10;
+    const status: RunStatus =
+      roll <= 4 ? 'Completed'
+      : roll === 5 ? 'Partial Completed'
+      : roll === 6 ? 'In Progress'
+      : roll === 7 ? 'Ready to Deploy'
+      : roll === 8 ? (h % 3 === 0 ? 'Expired' : 'Draft')
+      : 'Cancelled';
+
+    const devices = 4 + (h % 29);
+    /* Outcomes follow the STATUS rather than being drawn independently — a Completed run
+       with failures left over would contradict its own label. */
+    let installed = 0, failed = 0, pending = 0, expired = 0;
+    if (status === 'Completed') installed = devices;
+    else if (status === 'Partial Completed') { failed = 1 + (h % 3); installed = Math.max(0, devices - failed); }
+    else if (status === 'In Progress') { installed = Math.floor(devices / 2); pending = devices - installed; }
+    else if (status === 'Expired') { expired = devices - Math.floor(devices / 4); installed = devices - expired; }
+    else pending = devices; /* Draft / Ready to Deploy / Cancelled have shipped nothing yet. */
+
     const created = new Date(anchor);
     created.setHours(created.getHours() - (i * 9 + (h % 11)));
-    const observationStart = status === 'Draft' ? null : new Date(created.getTime() + 36e5 * (1 + (h % 4)));
+    const updated = new Date(created.getTime() + 36e5 * (1 + (h % 6)));
     out.push({
-      /* A PDR id, because these ARE patch deployments — that is the tab's name. The old
-         "APT-14-R01" form also wrapped onto three lines in its column. */
       id: `PDR-${1200 + ((seed * 13 + i * 29) % 800)}`,
       name: PATCH_NAMES[h % PATCH_NAMES.length],
       status,
-      testStatus,
+      deploymentPolicy: d.deploymentPolicy,
       severity: sevs[h % sevs.length],
       created,
-      observationStart,
-      /* Only a run waiting on an approver has a clock running. */
-      approvalHoursLeft: status === 'Ready to Deploy' ? 4 + (h % 68) : null,
+      updated,
+      devices,
+      installed, failed, pending, expired,
       remoteOffice: OFFICE_DRAW[(h * 7) % OFFICE_DRAW.length],
     });
   }
@@ -122,6 +136,7 @@ export const runsFor = (t: AutomaticPatchTest): TestRun[] => {
 };
 
 const RUN_STATUSES: RunStatus[] = ['Draft', 'Ready to Deploy', 'In Progress', 'Completed', 'Partial Completed', 'Expired', 'Cancelled'];
+
 /* The module's own six. Two of them are CALENDAR-relative, not rolling — "This Week" means
    since Monday, not the last seven days — so each option carries its own start rather than a
    day count, which would have quietly made them the same cut. */
@@ -145,32 +160,21 @@ const TIMEFRAMES: { label: string; from: () => Date }[] = [
 /** The product opens on Last 7 Days. */
 const DEFAULT_TIMEFRAME = TIMEFRAMES[1];
 
-/** "2d 4h" — the shape an approval clock is read in. */
-const fmtRemaining = (h: number | null) => {
-  if (h === null) return null;
-  const d = Math.floor(h / 24);
-  return d > 0 ? `${d}d ${h % 24}h` : `${h}h`;
-};
-
-/* The panel grid's columns. Widths are the STARTING point — every one is drag-resizable from
-   its header edge, like the listing grids. Sized so "Partial Completed" and the full date
-   stamp both fit on one line before anyone touches them. */
+/* The panel grid's columns — the module's own, from ID through to Updated Date. Widths are
+   the STARTING point; every one is drag-resizable from its header edge, like the listings. */
 const PANEL_COLS = [
   { key: 'id', label: 'ID', w: 110 },
   { key: 'name', label: 'Name', w: 300 },
   { key: 'status', label: 'Status', w: 165 },
-  { key: 'testStatus', label: 'Test Status', w: 130 },
+  { key: 'policy', label: 'Deployment Policy', w: 250 },
+  { key: 'installs', label: 'Total Installation', w: 150 },
   { key: 'created', label: 'Created Date', w: 180 },
-  { key: 'observation', label: 'Observation Start Time', w: 195 },
-  { key: 'approval', label: 'Remaining Approval Time', w: 200 },
-  /* One icon now, so just wide enough for its own heading. */
-  { key: 'actions', label: 'Actions', w: 84 },
+  { key: 'updated', label: 'Updated Date', w: 180 },
 ] as const;
 const MIN_COL_W = 72;
 
-/* The trend chart's series, declared ONCE so the stacked bars and the legend below them read
-   the same list — a chart whose key is written out separately is a colour mismatch waiting
-   to happen. Order is the stacking order, bottom to top. */
+/* The office chart's series, declared ONCE so the stacked bars, the tooltip and the legend
+   below them read from one list and a colour cannot mean two things. */
 const TREND_SERIES = [
   { key: 'Success', color: '#22C55E' },
   { key: 'Fail', color: '#DC2626' },
@@ -180,15 +184,13 @@ const TREND_SERIES = [
 
 /* ── Small shared bits, in the house treatment ─────────────────────────────── */
 
-const CHIP = 'inline-flex items-center rounded bg-[#F1F5F9] px-2 py-0.5 text-[12px] font-medium text-[#364658]';
 const Dot = ({ color }: { color: string }) => (
   <span className="size-2 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
 );
 
 /* The dark breakdown tooltip the Patch Deployment overview uses (`CatTooltip` there) —
    written out rather than imported, because that component lives inside a 5k-line drawer
-   this listing has no other reason to pull in. Title, a dot-label-value row per series,
-   then a ruled Total, so the day's shape and its size read in one stop. */
+   this panel has no other reason to pull in. */
 const TrendTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: Record<string, number | string> }[] }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -233,11 +235,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-/* A donut and its key, sharing one hover: pointing at a legend row paints every OTHER
-   slice back to a tint and moves the centre figure onto the one you asked about — the
-   dashboard's own `DonutWithLegend` behaviour, which both `Donut` and `Legend` already
-   support through `active`/`onHover`. The state has to live here because the two halves
-   are siblings. */
+/* A donut and its key, sharing one hover: pointing at a legend row paints every OTHER slice
+   back to a tint and moves the centre figure onto the one you asked about. */
 function DonutCard({ title, segs, total, centerLabel }: { title: string; segs: { label: string; value: number; color: string }[]; total: number; centerLabel: string }) {
   const [active, setActive] = useState<string | null>(null);
   return (
@@ -266,14 +265,14 @@ const OfficeTick = ({ x, y, payload }: any) => {
 };
 
 /* The stacked per-office chart and its key, hovering together like the donuts above it —
-   point at a series and the other bands drop back to a tint so one colour reads across
-   the sites on its own. */
-function TrendCard({ trend }: { trend: TrendRow[] }) {
+   point at a series and the other bands drop back to a tint so one colour reads across the
+   sites on its own. */
+function OfficeCard({ trend }: { trend: TrendRow[] }) {
   const [active, setActive] = useState<string | null>(null);
   return (
-    <Card title="Patch Test Results by Remote Office">
-      {/* Card's content wrapper is a flex ROW — the chart and its key have to be
-          one child, or the legend lands beside the chart instead of under it. */}
+    <Card title="Patch Status by Remote Office">
+      {/* Card's content wrapper is a flex ROW — the chart and its key have to be one child,
+          or the legend lands beside the chart instead of under it. */}
       <div className="w-full">
         <div className="h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -297,10 +296,6 @@ function TrendCard({ trend }: { trend: TrendRow[] }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {/* The key, reading from the SAME series list the bars do, so a colour can
-            never say one thing in the chart and another underneath. Each entry
-            carries its total for the window — the two donut legends beside it
-            show counts too, and a bare colour key would say less. */}
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 pt-3" onMouseLeave={() => setActive(null)}>
           {TREND_SERIES.map((s) => {
             const total = trend.reduce((n, r) => n + (r[s.key] as number), 0);
@@ -330,14 +325,14 @@ function TrendCard({ trend }: { trend: TrendRow[] }) {
 
 /* ── The panel ─────────────────────────────────────────────────────────────── */
 
-export function AutomaticPatchTestPanel({
+export function AutomaticPatchDeploymentPanel({
   isOpen,
   onClose,
-  test,
+  deployment,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  test: AutomaticPatchTest | null;
+  deployment: AutomaticPatchDeployment | null;
 }) {
   const [tab, setTab] = useState<'runs' | 'analytics'>('runs');
   const [search, setSearch] = useState('');
@@ -384,28 +379,29 @@ export function AutomaticPatchTestPanel({
   useEffect(() => {
     setTab('runs'); setSearch(''); setStatusFilter([]); setShowStatus(false);
     setTimeframe(DEFAULT_TIMEFRAME); setShowTf(false); setSort(null);
-  }, [test?.id, isOpen]);
+  }, [deployment?.id, isOpen]);
 
-  const runs = useMemo(() => (test ? runsFor(test) : []), [test]);
+  const runs = useMemo(() => (deployment ? deploymentsFor(deployment) : []), [deployment]);
 
-  if (!isOpen || !test) return null;
+  if (!isOpen || !deployment) return null;
 
   const q = search.trim().toLowerCase();
   const filtered = runs.filter((r) =>
     (statusFilter.length === 0 || statusFilter.includes(r.status)) &&
-    (!q || r.id.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.status.toLowerCase().includes(q)));
+    (!q || r.id.toLowerCase().includes(q) || r.name.toLowerCase().includes(q) || r.status.toLowerCase().includes(q)
+      || r.deploymentPolicy.toLowerCase().includes(q)));
 
-  /* Dates sort chronologically and counts numerically — a string compare would put
-     "9 Sep" after "29 Sep" and a missing value above a real one. */
-  const sortVal = (r: TestRun, key: string): string | number => {
+  /* Dates sort chronologically and counts numerically — a string compare would put "9 Sep"
+     after "29 Sep" and 9 above 28. */
+  const sortVal = (r: DeploymentRun, key: string): string | number => {
     switch (key) {
       case 'id': return r.id;
       case 'name': return r.name;
       case 'status': return r.status;
-      case 'testStatus': return r.testStatus;
+      case 'policy': return r.deploymentPolicy;
+      case 'installs': return totalInstallationOf(r);
       case 'created': return r.created.getTime();
-      case 'observation': return r.observationStart?.getTime() ?? -Infinity;
-      case 'approval': return r.approvalHoursLeft ?? -Infinity;
+      case 'updated': return r.updated.getTime();
       default: return '';
     }
   };
@@ -417,32 +413,39 @@ export function AutomaticPatchTestPanel({
       })
     : filtered;
 
-  /* Analytics reads the SAME runs, narrowed to the chosen window. */
+  /* Analytics reads the SAME deployments, narrowed to the chosen window. */
   const cutoff = timeframe.from().getTime();
   const scoped = runs.filter((r) => r.created.getTime() >= cutoff);
-  const count = (p: (r: TestRun) => boolean) => scoped.filter(p).length;
-  const passed = count((r) => r.testStatus === 'Passed');
-  const failed = count((r) => r.testStatus === 'Failed');
-  const running = count((r) => r.testStatus === 'In Progress');
+  const sum = (f: (r: DeploymentRun) => number) => scoped.reduce((n, r) => n + f(r), 0);
+
+  const deployed = sum(totalInstallationOf);
+  const installed = sum((r) => r.installed);
+  const failed = sum((r) => r.failed);
+  const pending = sum((r) => r.pending);
+  const expired = sum((r) => r.expired);
+  /* Endpoints reached by a run that actually installed something — the honest reading of
+     "devices patched", and why it is not simply the installation count. */
+  const devicesPatched = scoped.filter((r) => r.installed > 0).reduce((n, r) => n + r.devices, 0);
+  const successRate = deployed ? (installed / deployed) * 100 : 0;
 
   const statusSegs = RUN_STATUSES
-    .map((s) => ({ label: s, value: count((r) => r.status === s), color: RUN_STATUS_COLOR[s] }))
+    .map((s) => ({ label: s, value: scoped.filter((r) => r.status === s).length, color: RUN_STATUS_COLOR[s] }))
     .filter((s) => s.value > 0);
   const sevSegs = (['Critical', 'Important', 'Moderate', 'Low', 'Unspecified'] as Severity[])
-    .map((s) => ({ label: s, value: count((r) => r.severity === s), color: SEVERITY_COLOR[s] }))
+    .map((s) => ({ label: s, value: scoped.filter((r) => r.severity === s).length, color: SEVERITY_COLOR[s] }))
     .filter((s) => s.value > 0);
 
-  /* Results by remote office. Every site in `REMOTE_OFFICES` gets a column, including the
-     ones that ran nothing in this window — an empty column says "Pune tested nothing this
-     week", which is an answer; dropping the site hides the question. */
+  /* Installations by remote office. Every site in `REMOTE_OFFICES` gets a column, including
+     the ones that received nothing in this window — an empty column says "Pune got nothing
+     this week", which is an answer; dropping the site hides the question. */
   const byOffice = REMOTE_OFFICES.map((office) => {
     const row = { label: office, Success: 0, Fail: 0, 'In Progress': 0, Other: 0 };
     for (const r of scoped) {
       if (r.remoteOffice !== office) continue;
-      if (r.testStatus === 'Passed') row.Success += 1;
-      else if (r.testStatus === 'Failed') row.Fail += 1;
-      else if (r.testStatus === 'In Progress') row['In Progress'] += 1;
-      else row.Other += 1;
+      row.Success += r.installed;
+      row.Fail += r.failed;
+      row['In Progress'] += r.pending;
+      row.Other += r.expired;
     }
     return row;
   });
@@ -460,8 +463,8 @@ export function AutomaticPatchTestPanel({
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-[#DFE5ED] px-5 py-3">
           <h3 className="flex min-w-0 items-center gap-2 text-[16px] font-semibold text-[#364658]">
-            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0]">{test.id}</span>
-            <span className="truncate">{test.name}</span>
+            <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0]">{deployment.id}</span>
+            <span className="truncate">{deployment.name}</span>
           </h3>
           <button
             onClick={onClose}
@@ -560,31 +563,28 @@ export function AutomaticPatchTestPanel({
                 <thead>
                   <tr>
                     {PANEL_COLS.map((c) => {
-                      const sortable = c.key !== 'actions';
                       const active = sort?.key === c.key;
                       return (
                         <th
                           key={c.key}
                           title={c.label}
-                          onClick={sortable ? () => toggleSort(c.key) : undefined}
+                          onClick={() => toggleSort(c.key)}
                           /* The listing grid's header recipe: a light-grey wash and a darker
                              label on hover, so the row reads as something you can act on
                              rather than a static caption. */
-                          className={`${th} group/th relative transition-colors ${
-                            sortable ? 'cursor-pointer hover:bg-[#F7F9FB] hover:text-[#364658]' : ''
-                          } ${active ? 'bg-[#F7F9FB] text-[#364658]' : 'bg-white'}`}
+                          className={`${th} group/th relative cursor-pointer transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${
+                            active ? 'bg-[#F7F9FB] text-[#364658]' : 'bg-white'
+                          }`}
                         >
                           {/* Grip — the "this column is draggable" affordance, on hover. */}
                           <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
                           <span className="flex items-center gap-0.5 overflow-hidden">
                             <span className="truncate">{c.label}</span>
-                            {sortable && (
-                              <span className={`flex h-5 flex-shrink-0 items-center justify-center rounded px-0.5 transition-all ${active ? '' : 'opacity-0 group-hover/th:opacity-100'}`}>
-                                {active
-                                  ? (sort!.dir === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />)
-                                  : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
-                              </span>
-                            )}
+                            <span className={`flex h-5 flex-shrink-0 items-center justify-center rounded px-0.5 transition-all ${active ? '' : 'opacity-0 group-hover/th:opacity-100'}`}>
+                              {active
+                                ? (sort!.dir === 'asc' ? <ArrowUp size={12} className="text-[#3D8BD0]" /> : <ArrowDown size={12} className="text-[#3D8BD0]" />)
+                                : <ArrowUpDown size={12} className="text-[#9CA3AF]" />}
+                            </span>
                           </span>
                           {/* Nothing at rest — the rule only appears when you reach the edge,
                               exactly as the listing grid's handle behaves. */}
@@ -604,10 +604,11 @@ export function AutomaticPatchTestPanel({
                 <tbody>
                   {gridRows.map((r) => (
                     <tr key={r.id} className="border-b border-[#F0F2F5] transition-colors hover:bg-[#F9FAFB]">
-                      <td className={`${td} whitespace-nowrap`}>{/* The listing grid's id pill, to the pixel — px-2 / 12px / semibold. It was a
-                              smaller, lighter variant, so the same id read as two different things
-                              on the two surfaces. */}
-                        <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span></td>
+                      {/* The listing grid's id pill, to the pixel — px-2 / 12px / semibold, so
+                          the same id does not read as two different things on two surfaces. */}
+                      <td className={`${td} whitespace-nowrap`}>
+                        <span className="inline-block whitespace-nowrap rounded bg-[#e8f4fd] px-2 py-0.5 text-[12px] font-semibold text-[#3D8BD0]">{r.id}</span>
+                      </td>
                       <td className={td}><span className="block truncate">{r.name}</span></td>
                       {/* One line, always. "Partial Completed" wrapped onto two and made its
                           row taller than every other — a status that reflows is a status you
@@ -618,34 +619,12 @@ export function AutomaticPatchTestPanel({
                           <span className="truncate whitespace-nowrap">{r.status}</span>
                         </span>
                       </td>
-                      <td className={td}>
-                        <span className="flex items-center gap-2">
-                          <Dot color={TEST_STATUS_COLOR[r.testStatus]} />
-                          <span className="truncate whitespace-nowrap">{r.testStatus}</span>
-                        </span>
-                      </td>
+                      <td className={td}><span className="block truncate" title={r.deploymentPolicy}>{r.deploymentPolicy}</span></td>
+                      {/* A count reads right-aligned and tabular so the column compares down
+                          its own edge rather than by word length. */}
+                      <td className={`${td} whitespace-nowrap text-right tabular-nums`}>{totalInstallationOf(r)}</td>
                       <td className={`${td} whitespace-nowrap`}>{fmtGridDateTime(r.created)}</td>
-                      <td className={`${td} whitespace-nowrap`}>
-                        {r.observationStart ? fmtGridDateTime(r.observationStart) : <span className="text-[#B6C0CC]">—</span>}
-                      </td>
-                      <td className={td}>
-                        {/* Only a run waiting on an approver has a clock; under a day it reads
-                            amber, because that is the one worth acting on today. */}
-                        {r.approvalHoursLeft === null
-                          ? <span className="text-[#B6C0CC]">—</span>
-                          : <span className={CHIP} style={r.approvalHoursLeft < 24 ? { backgroundColor: '#FEF3C7', color: '#B45309' } : undefined}>{fmtRemaining(r.approvalHoursLeft)}</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {/* A cross, not a bin: this takes the deployment off THIS test — the
-                            patch and its run both carry on existing. The ticket Relations
-                            tab's remove exactly: red at rest, the wash only on hover. */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button className="flex size-7 items-center justify-center rounded text-[#EF4444] transition-colors hover:bg-[#FEE2E2]"><X size={15} /></button>
-                          </TooltipTrigger>
-                          <TooltipContent>Remove from this test</TooltipContent>
-                        </Tooltip>
-                      </td>
+                      <td className={`${td} whitespace-nowrap`}>{fmtGridDateTime(r.updated)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -657,7 +636,7 @@ export function AutomaticPatchTestPanel({
                   </div>
                   <div className="text-[12px] text-[#94A3B8]">
                     {runs.length === 0
-                      ? 'This schedule has not run, so it has produced no patch deployments.'
+                      ? 'This schedule has not run, so it has created no patch deployments.'
                       : 'Try a different search or clear the status filter.'}
                   </div>
                 </div>
@@ -696,34 +675,36 @@ export function AutomaticPatchTestPanel({
               </div>
             </div>
 
-            {/* Tiles — every one derived from the SAME runs the grid lists. */}
+            {/* Tiles — every one derived from the SAME deployments the grid lists. The four
+                outcome counts add up to Patches Deployed, so the strip reconciles with
+                itself rather than quoting five unrelated numbers. */}
             <div className="grid grid-cols-3 gap-3">
-              <Tile label="Patches Tested" value={scoped.length} sub="in this window" />
-              <Tile label="Successfully Tested" value={passed} color={passed ? '#22A06B' : undefined} sub="passed validation" />
-              <Tile label="Failed Tests" value={failed} color={failed ? '#DC2626' : undefined} sub="need investigation" />
-              <Tile label="In Progress Tests" value={running} color={running ? '#3D8BD0' : undefined} sub="still running" />
               <Tile
-                label="Auto Approved"
-                value={`${scoped.length ? Math.round((passed / scoped.length) * 100) : 0}%`}
-                color="#22A06B"
-                sub="passed and cleared automatically"
+                label="Patch Success Rate"
+                value={`${successRate.toFixed(successRate > 0 && successRate < 1 ? 2 : 0)}%`}
+                color={successRate >= 90 ? '#22A06B' : successRate >= 60 ? '#B45309' : '#DC2626'}
+                sub={`${installed} of ${deployed} installations`}
               />
-              <Tile label="Active Tests" value={test.enabled ? 1 : 0} color={test.enabled ? '#3D8BD0' : '#94A3B8'} sub={test.enabled ? 'schedule is enabled' : 'schedule is switched off'} />
+              <Tile label="Patches Deployed" value={deployed} color="#3D8BD0" sub="installations in this window" />
+              <Tile label="Devices Patched" value={devicesPatched} color="#3D8BD0" sub="endpoints that took an install" />
+              <Tile label="Pending Patches" value={pending} color={pending ? '#B45309' : undefined} sub="still to install" />
+              <Tile label="Failed Patch Installations" value={failed} color={failed ? '#DC2626' : undefined} sub="need investigation" />
+              <Tile label="Expired Patch Installations" value={expired} color={expired ? '#DC2626' : undefined} sub="window closed before install" />
             </div>
 
             {scoped.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#E5E7EB] bg-white py-20 text-center">
                 <div className="text-[14px] font-medium text-[#364658]">Nothing ran in this window</div>
-                <div className="text-[12px] text-[#94A3B8]">Widen the timeframe to see earlier results.</div>
+                <div className="text-[12px] text-[#94A3B8]">Widen the timeframe to see earlier deployments.</div>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <DonutCard title="Automatic Patch Test Status" segs={statusSegs} total={scoped.length} centerLabel="Runs" />
-                  <DonutCard title="Patch Test Severity Distribution" segs={sevSegs} total={scoped.length} centerLabel="Patches" />
+                  <DonutCard title="Overall Deployment Status" segs={statusSegs} total={scoped.length} centerLabel="Deployments" />
+                  <DonutCard title="Patches by Severity" segs={sevSegs} total={scoped.length} centerLabel="Patches" />
                 </div>
 
-                <TrendCard trend={byOffice} />
+                <OfficeCard trend={byOffice} />
               </>
             )}
           </div>
