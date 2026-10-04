@@ -1034,7 +1034,7 @@ export function TicketGridToolbar({
                                   : 'invisible text-[#9CA3AF] hover:bg-white/70 hover:text-[#3D8BD0] group-hover/lay:visible'
                               }`}
                             >
-                              <Pin size={12} className={isDefault ? 'fill-current' : ''} />
+                              <Pin size={14} className={isDefault ? 'fill-current' : ''} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
