@@ -515,8 +515,10 @@ export function AutomaticPatchTestPanel({
                 </button>
                 {showStatus && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowStatus(false)} />
-                    <div className="absolute left-0 top-full z-20 mt-1 w-[210px] rounded-lg border border-[#E5E7EB] bg-white py-1 shadow-lg">
+                    {/* Above the grid's STICKY header, which also sits at z-20 and — being
+                        later in the DOM — won the tie and painted over this menu. */}
+                    <div className="fixed inset-0 z-40" onClick={() => setShowStatus(false)} />
+                    <div className="absolute left-0 top-full z-50 mt-1 w-[210px] rounded-lg border border-[#E5E7EB] bg-white py-1 shadow-lg">
                       {RUN_STATUSES.map((s) => {
                         const on = statusFilter.includes(s);
                         return (

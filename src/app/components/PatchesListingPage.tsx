@@ -189,7 +189,7 @@ export function PatchesListingPage({ onNavigate }: { onNavigate?: (page: string)
       /* On the title line, not the tool rail — the rail below narrows what you are looking
          at, and the one control that MAKES something belongs at the page's own top-right
          corner. Same placement Reports uses. */
-      primaryAction={{ label: 'Create Patch' }}
+      primaryAction={{ label: 'Create' }}
       primaryActionInTitle
       /* The module's one catalogue-level action: pull the binaries down to the file server so
          the approved patches can actually deploy. Nothing else on this page needs a menu, so

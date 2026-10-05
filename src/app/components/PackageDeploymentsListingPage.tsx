@@ -173,7 +173,7 @@ export function PackageDeploymentsListingPage({ onNavigate }: { onNavigate?: (pa
          dropdown, so the cell is read-only here (dot + word, no picker). */
       lockedCells={['status']}
       moreActions={[]}
-      primaryAction={{ label: 'Create Package Deployment' }}
+      primaryAction={{ label: 'Create' }}
       primaryActionInTitle
       onNavigate={onNavigate}
     />

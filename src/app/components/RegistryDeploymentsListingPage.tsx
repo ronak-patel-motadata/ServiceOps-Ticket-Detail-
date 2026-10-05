@@ -172,7 +172,7 @@ export function RegistryDeploymentsListingPage({ onNavigate }: { onNavigate?: (p
          dropdown, so the cell is read-only here (dot + word, no picker). */
       lockedCells={['status']}
       moreActions={[]}
-      primaryAction={{ label: 'Create Registry Deployment' }}
+      primaryAction={{ label: 'Create' }}
       primaryActionInTitle
       onNavigate={onNavigate}
     />

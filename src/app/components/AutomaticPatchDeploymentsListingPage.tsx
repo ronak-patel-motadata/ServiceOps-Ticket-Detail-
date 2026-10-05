@@ -183,7 +183,7 @@ export function AutomaticPatchDeploymentsListingPage({ onNavigate }: { onNavigat
            back. (Same trade-off Automatic Patch Tests and My Team make.) */
         hideTools={['export', 'settings']}
         moreActions={[]}
-        primaryAction={{ label: 'Create Automatic Patch Deployment' }}
+        primaryAction={{ label: 'Create' }}
         primaryActionInTitle
         /* The Enable switch is the one thing this grid edits in place. */
         onUpdateTicket={(id, patch) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))}

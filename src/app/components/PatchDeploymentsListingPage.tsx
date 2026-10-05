@@ -178,7 +178,7 @@ export function PatchDeploymentsListingPage({ onNavigate }: { onNavigate?: (page
       searchFields={['x_policy', 'x_createdBy', 'x_taskType']}
       /* Same placement as the Patches page: the one control that MAKES something sits on the
          title line, not in the tool rail that narrows the list. */
-      primaryAction={{ label: 'Create Patch Deployment' }}
+      primaryAction={{ label: 'Create' }}
       primaryActionInTitle
       /* A run's status is its own lifecycle — the system moves it from Ready to Deploy to
          In Progress to Completed as the rollout actually happens. Nobody picks it from a
