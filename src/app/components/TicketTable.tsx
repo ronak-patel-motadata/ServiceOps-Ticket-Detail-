@@ -2581,7 +2581,12 @@ export function TicketTable({
        reader reaches for — change the report, schedule its delivery — stay inline and the
        rest go behind a ⋮. Delete is in there deliberately: a destructive action should not
        be one stray click away in a list. */
-    if (key === 'actions') {
+    /* ⚠️ Approvals is EXCLUDED: its Actions column is a decision rail (Asset Update /
+       Approve / Reject / Refer back), not the generic edit-and-delete pair, and it lives
+       in the `case 'actions'` of the switch below. This generic block was added later and
+       returns first, which silently swallowed that rail and left the column showing a lone
+       Edit pencil. */
+    if (key === 'actions' && moduleCols !== 'approval') {
       const act = (label: string, icon: ReactElement, action: RowAction, danger = false) => (
         <Tooltip key={label}>
           <TooltipTrigger asChild>
