@@ -165,7 +165,9 @@ export const endpointToPatchShape = (e: Endpoint): Patch => ({
   rebootRequired: e.rebootRequired === 'Yes' ? 'Yes' : 'No',
   approvalStatus: 'Approved',
   category: 'Endpoint',
-  endpoint: { agentOnline: e.agentOnline, systemHealth: e.systemHealth, osName: e.osName, ipAddress: e.ipAddress },
+  /* `osVersion` is the reported BUILD — the OS Lifecycle card needs it to tell 22H2 from
+     25H2, which the OS name alone never says. */
+  endpoint: { agentOnline: e.agentOnline, systemHealth: e.systemHealth, osName: e.osName, ipAddress: e.ipAddress, osVersion: e.version },
 });
 
 export function EndpointsListPage({ onNavigate }: { onNavigate: (page: string) => void }) {

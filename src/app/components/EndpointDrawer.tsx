@@ -124,6 +124,7 @@ import {
 const DEFAULT_REL = makeCrossModuleRelations([{type:'Request',prefix:'REQ'},{type:'Change',prefix:'CHG'},{type:'Contract',prefix:'CNT'},{type:'Purchase',prefix:'PO'}]);
 import { ASSET_FIELD_LABELS, AGENT_FIELD_LABELS } from './AssetFields';
 import { HardwareAssetActionsMenu } from './HardwareAssetActionsMenu';
+import { OsLifecycleCard } from './OsLifecycleCard';
 import profileImage from 'figma:asset/346a47ed4118f690df082984fcd9c5da55898d34.png';
 import svgPaths from '../../imports/svg-vmnsig04gh';
 
@@ -3057,6 +3058,16 @@ onStackMinimizedChange,
                   </div>
                 );
               })()}
+
+              {/* OS Lifecycle — where this machine's operating system sits on its vendor's
+                  support calendar. Reads the endpoint's OWN osName + build, so it cannot
+                  disagree with the OS Name in the header; renders nothing for an OS with no
+                  published calendar, or one whose agent has not reported a build yet. */}
+              <OsLifecycleCard
+                osName={activePatchRecord?.endpoint?.osName}
+                osVersion={activePatchRecord?.endpoint?.osVersion}
+                wide={drawerWidth > 1080}
+              />
 
               {/* System Overview — the endpoint's hardware / OS identity (Software-Details card
                   pattern from the software asset drawer). */}

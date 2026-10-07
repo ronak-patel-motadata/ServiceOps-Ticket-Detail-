@@ -34,7 +34,7 @@ export interface Patch {
   deployment?: { status: string; policy: string; installAfter: string | null; expiryDate: string | null };
   /** Present ONLY when the record is an ENDPOINT opened via endpointToPatchShape —
    *  carries the agent/health values so the endpoint drawer's header KPIs stay data-driven. */
-  endpoint?: { agentOnline: boolean; systemHealth: 'Healthy' | 'Warning' | 'Critical' | null; osName?: string; ipAddress?: string };
+  endpoint?: { agentOnline: boolean; systemHealth: 'Healthy' | 'Warning' | 'Critical' | null; osName?: string; ipAddress?: string; osVersion?: string | null };
   /** Present ONLY when the record is a TASK opened via taskToPatchShape —
    *  carries the listing's real values so the task drawer's header KPIs stay data-driven. */
   task?: { status: string; priority: string; taskType: string; assignee: string; reference: string | null; referenceModule?: string; overdueBy?: string; dueDate: string };
