@@ -15,7 +15,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files } from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, Unlink, Laptop, Gauge, AppWindow, ShieldCheck, Layers, Files, RotateCw } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { FileTypeBadge } from './DescriptionAttachments';
 import { RelSavedViews } from './RelSavedViews';
@@ -2104,6 +2104,24 @@ onStackMinimizedChange,
               })()}
               <HeaderIdPill id={activeTicket.id} />
               <span className="truncate">{activeTicket.subject}</span>
+              {/* Reboot Pending — only when there IS one. A pending restart means patches
+                  are installed but not yet in force, so the machine is still exposed; that
+                  is a state of the ENDPOINT, which is why it rides beside the name rather
+                  than waiting to be found among six KPI chips. Amber, not red: it is
+                  something to schedule, not a failure. There is deliberately no counterpart
+                  for "No" — a pill on every healthy endpoint would be noise, and the KPI
+                  row below already states it either way. */}
+              {(activePatchRecord?.rebootRequired ?? 'No') === 'Yes' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex flex-shrink-0 cursor-help items-center gap-1.5 rounded-sm border border-[#FDE68A] bg-[#FFFBEB] px-2 py-0.5 text-[12px] font-medium text-[#B45309]">
+                      <RotateCw size={12} className="flex-shrink-0" />
+                      Reboot Pending
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Patches are installed but need a restart to take effect — schedule one to finish securing this endpoint</TooltipContent>
+                </Tooltip>
+              )}
             </h1>
             {/* Endpoint KPIs — System Health · OS Name · IP Address · Missing Patches ·
                 Reboot Required · Last Scan: what the machine IS, then what it NEEDS. */}

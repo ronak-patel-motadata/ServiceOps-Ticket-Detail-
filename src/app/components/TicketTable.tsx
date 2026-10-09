@@ -1,6 +1,6 @@
 import { Fragment, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarClock, Copy, History, MoreVertical, SquarePen, GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
+import { CalendarClock, Copy, History, MoreVertical, SquarePen, GitMerge, TriangleAlert, Armchair, ArrowDown, ArrowLeftRight, ArrowLeftToLine, ArrowRightToLine, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleCheck, CornerUpLeft, AirVent, BatteryFull, Cable, Camera, Database, FileText, Headphones, Keyboard, MemoryStick, Mouse, Plug, Printer, SprayCan, Trash2, Usb, Lightbulb, MonitorCog, Smartphone, Server, AppWindow, Lock, ChevronLeft, ChevronRight, ExternalLink, EyeOff, Filter, Flag, RotateCw, GripVertical, Inbox, Layers, ListChecks, MessageSquare, Package, Pencil, Pin, Plus, Search, SearchX, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
 import { IconAssetUpdate } from './SidebarIcons';
 import { toast } from 'sonner';
 import { AiSparkle } from './AiSparkle';
@@ -2107,7 +2107,9 @@ export function TicketTable({
         { key: 'x_office', label: 'Remote Office', w: 200 },
         { key: 'x_health', label: 'System Health', w: 160 },
         { key: 'x_tags', label: 'Tags', w: 150 },
-        { key: 'x_reboot', label: 'Reboot Required', w: 160 },
+        /* Wide enough for the "Reboot Pending" pill — the heading alone would fit in 140,
+           but a pill that wraps is worse than a column with a little air. */
+        { key: 'x_reboot', label: 'Reboot Required', w: 180 },
     ],
     /* Reports — a saved report has no id a reader would ever quote, so the Name leads and
        the rest says who built it, when, and with which engine. */
@@ -3097,6 +3099,37 @@ export function TicketTable({
        words on these screens that should stop a reader, so they read red. */
     if (key === 'x_exploit' || key === 'x_reboot' || key === 'x_patchAvail') {
       const v = String((ticket as any)[key] ?? '');
+      /* ⚠️ "Reboot Required" is the same column NAME on two kinds of record and two
+         different facts. On a PATCH or a vulnerability it is a property of the fix —
+         "installing this will need a restart". On an ENDPOINT it is the machine's current
+         state — "a restart is outstanding, so installed patches are not yet in force".
+         Only the second is a pending action, so only the endpoint grid wears the pill;
+         the patch grids keep the plain Yes / May be / No. */
+      if (key === 'x_reboot' && moduleCols === 'endpoint') {
+        return (
+          <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
+            {v === 'Yes' ? (
+              /* The detail page's pill, to the pixel, so the same machine says the same
+                 thing in the list and on the record it opens. Amber because the patches
+                 ARE installed — this is one restart from safe, unlike the red "missing
+                 patches" count, which is exposure right now. */
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex cursor-help items-center gap-1.5 rounded-sm border border-[#FDE68A] bg-[#FFFBEB] px-2 py-0.5 text-[12px] font-medium text-[#B45309]">
+                    <RotateCw size={12} className="flex-shrink-0" />
+                    Reboot Pending
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Patches are installed but need a restart to take effect</TooltipContent>
+              </Tooltip>
+            ) : (
+              /* No pill for the healthy majority — the exception is what should catch the
+                 eye down a column of 30 rows. */
+              <span className="text-[12px] text-[#64748B]">{v || '—'}</span>
+            )}
+          </td>
+        );
+      }
       /* Patch availability inverts — "No" is the bad answer there. */
       const bad = key === 'x_patchAvail' ? v === 'No' : v === 'Yes';
       /* The patch catalogue's third reboot answer. "May be" is not a quiet no — it means
