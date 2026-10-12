@@ -246,12 +246,44 @@ export function DrawerStackProvider({ children, activePage }: { children: ReactN
     const from = data.lastMsg?.from as string | undefined;
     return { unread: n, unreadFrom: from, unreadColor: !from || from === data.requester ? '#E67E22' : '#3D8BD0' };
   };
+  /* A patch, a vulnerability and a detected CVE all open with Approve / Decline in the
+     header, so an open tab can be sitting on a decision nobody has made. The record's own
+     `approvalStatus` says whether one was ever recorded — "Approved" is the only decided
+     value the patch catalogue uses, so anything else (including "Not Approved", which
+     means not yet ruled on) is pending.
+
+     ⚠️ A decision taken in THIS session lives in the drawer's local state, not on the
+     record, so the tab would keep its marker after the reader clicked Approve. The drawer
+     announces the decision on a CustomEvent and the provider holds it here — the same
+     trick `reorder-drawer-tabs` uses to avoid threading a prop through fourteen drawers. */
+  const [decided, setDecided] = useState<Record<string, true>>({});
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = String((e as CustomEvent).detail?.id ?? '');
+      if (id) setDecided((p) => ({ ...p, [id]: true }));
+    };
+    window.addEventListener('patch-approval-decided', on as EventListener);
+    return () => window.removeEventListener('patch-approval-decided', on as EventListener);
+  }, []);
+
+  const APPROVAL_MODULES: StackModule[] = ['patches', 'vulnerabilities', 'detected-cves'];
+  const pendingApprovalOf = (module: StackModule, id: string, data: any) => {
+    if (!APPROVAL_MODULES.includes(module) || !data || decided[id]) return {};
+    const s = String(data.approvalStatus ?? '').trim().toLowerCase();
+    return s && s !== 'approved' ? { pendingApproval: true } : {};
+  };
+
   const stackTabs = stack.map((s) => ({
     id: s.id,
     subject: s.subject,
     page: s.module === 'request-v2' ? 'request' : s.module === 'approval' ? 'my-approvals' : s.module,
     noIdPill: s.module === 'report' || undefined,
+    /* An approval and the record it is about carry the SAME id — open both and the strip
+       shows two tabs reading "PBM-625". The flag lets the strip mark which one is the
+       approval view. */
+    approval: s.module === 'approval' || undefined,
     ...unreadOf(s.data),
+    ...pendingApprovalOf(s.module, s.id, s.data),
     ...tabMeta(s.module, s.data),
   }));
 

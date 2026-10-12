@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, ChevronDown, ExternalLink, User } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { IconMyApproval } from './SidebarIcons';
 
 interface TabKpi { label?: string; value: string; dot?: string; user?: boolean }
 interface TabItem {
@@ -11,6 +12,13 @@ interface TabItem {
   /** Who sent them, and the colour that says which side they came from. */
   unreadFrom?: string;
   unreadColor?: string;
+  /** Patch-family records only: nobody has approved or declined this one yet, so it is
+      waiting on the reader. Drives the amber dot on the tab. */
+  pendingApproval?: boolean;
+  /** This tab is the APPROVAL view of a record, not the record itself. The two carry the
+      same id by design (the approval is about PBM-625), so without a mark the two tabs
+      are indistinguishable. */
+  approval?: boolean;
 }
 
 /* The listing's unread dot, reused verbatim: ring + halo take the dot's own hue at
@@ -137,6 +145,27 @@ export function DrawerTabStrip({
                 {!!t.unread && (
                   <span className="unread-dot size-[7px] flex-shrink-0 rounded-full" style={unreadStyle(t.unreadColor || '#E67E22')} />
                 )}
+                {/* Waiting on a decision. A ringed amber dot in the same leading slot as
+                    the unread one — a tab is 170px, so there is no room for the words, and
+                    the hover card says them. It does NOT pulse: unread is new activity
+                    arriving, this is a job sitting still. Only drawn when there is no
+                    unread dot, so the two can never crowd the id. */}
+                {t.pendingApproval && !t.unread && (
+                  <span
+                    className="size-[7px] flex-shrink-0 rounded-full bg-[#F59E0B]"
+                    style={{ boxShadow: '0 0 0 2px #F59E0B33' }}
+                  />
+                )}
+                {/* The My Approvals nav glyph, so the tab points back at the place it was
+                    opened from. An approval and the record it is about share an id, so the
+                    icon is the only thing separating "PBM-625" from "PBM-625". It takes
+                    the id's own colour rather than a hue of its own — this says WHICH VIEW
+                    you are on, not that anything is wrong. */}
+                {t.approval && (
+                  <span className={`flex flex-shrink-0 items-center ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>
+                    <IconMyApproval size={13} />
+                  </span>
+                )}
                 <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.noIdPill ? '' : t.id}</span>
                 <span className={`text-[12px] truncate flex-1 ${t.unread ? 'font-semibold text-[#1E293B]' : 'text-[#364658]'}`}>{t.subject}</span>
                 <button onClick={(e) => { e.stopPropagation(); onClose(t.id); }} className="p-0.5 hover:bg-[#e5e7eb] rounded">
@@ -147,6 +176,15 @@ export function DrawerTabStrip({
             <TooltipContent side="bottom" align="start" sideOffset={4} hideArrow className="p-0 bg-white text-[#364658] border border-[#E5E7EB] shadow-lg max-w-[280px]">
               <div className="px-3 py-2">
                 <div className="flex items-center gap-2 mb-1.5">
+                  {/* Named in full here, because the 13px glyph on the tab can only hint
+                      at it: this card is where "which of my two PBM-625 tabs is this?"
+                      gets a sentence. */}
+                  {t.approval && (
+                    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#475569]">
+                      <IconMyApproval size={11} />
+                      Approval
+                    </span>
+                  )}
                   {!t.noIdPill && <span className="rounded bg-[#e8f4fd] px-1.5 py-0.5 text-[11px] font-semibold text-[#3D8BD0] flex-shrink-0">{t.id}</span>}
                   <span className="text-[12px] font-medium text-[#364658] truncate">{t.subject}</span>
                   {/* Read this record on its own, away from the stack: a real link, so
@@ -169,6 +207,13 @@ export function DrawerTabStrip({
                     <span className="size-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: t.unreadColor || '#E67E22' }} />
                     {t.unread} new message{t.unread === 1 ? '' : 's'}
                     {t.unreadFrom ? ` from ${t.unreadFrom}` : ''}
+                  </div>
+                )}
+                {/* The dot on the tab cannot say what it means in 7px, so the card does. */}
+                {t.pendingApproval && (
+                  <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-[#B45309]">
+                    <span className="size-1.5 flex-shrink-0 rounded-full bg-[#F59E0B]" />
+                    Approval pending — not yet approved or declined
                   </div>
                 )}
                 {t.kpis && t.kpis.length > 0 ? (
@@ -216,6 +261,16 @@ export function DrawerTabStrip({
                   >
                     {!!t.unread && (
                       <span className="unread-dot size-[7px] flex-shrink-0 rounded-full" style={unreadStyle(t.unreadColor || '#E67E22')} />
+                    )}
+                    {/* Same marker in the overflow list — a tab pushed behind "More" must
+                        not go silent about a decision still owed. */}
+                    {t.pendingApproval && !t.unread && (
+                      <span className="size-[7px] flex-shrink-0 rounded-full bg-[#F59E0B]" style={{ boxShadow: '0 0 0 2px #F59E0B33' }} />
+                    )}
+                    {t.approval && (
+                      <span className={`flex flex-shrink-0 items-center ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>
+                        <IconMyApproval size={13} />
+                      </span>
                     )}
                     <span className={`text-[12px] font-semibold whitespace-nowrap ${active ? 'text-[#3D8BD0]' : 'text-[#6b7280]'}`}>{t.noIdPill ? '' : t.id}</span>
                     <span className={`text-[12px] truncate flex-1 ${t.unread ? 'font-semibold text-[#1E293B]' : 'text-[#364658]'}`}>{t.subject}</span>
