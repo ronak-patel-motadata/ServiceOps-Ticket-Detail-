@@ -73,6 +73,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { KNOWLEDGE_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -8261,6 +8262,11 @@ onStackMinimizedChange,
               date / folder in the byline. What is left is authoring chrome. */}
           {!viewAsRequester && (
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -9429,6 +9435,8 @@ onStackMinimizedChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={KNOWLEDGE_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

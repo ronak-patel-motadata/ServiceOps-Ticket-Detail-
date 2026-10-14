@@ -50,6 +50,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { SOFTWARE_LICENSE_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -2565,7 +2566,7 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = (isUserLicense
                     ? [
@@ -2924,7 +2925,7 @@ onStackMinimizedChange,
               </div>
               {/* KPI strip — Warranty / Impact / Approval */}
               <div>
-                <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                <div data-onboarding="overview-kpis" className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
                   {(() => {
                     const purchased = activeLicense?.purchaseCount ?? 0;
                     const allocated = activeLicense?.allocationCount ?? 0;
@@ -7473,6 +7474,11 @@ onStackMinimizedChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -8657,6 +8663,8 @@ onStackMinimizedChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={SOFTWARE_LICENSE_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

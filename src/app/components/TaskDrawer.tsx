@@ -66,6 +66,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { TASK_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -2943,7 +2944,7 @@ When the work is done, verify the result with the requester, attach the confirma
             {/* Tabs: Conversation, Task, etc. — option 2 has NO tabs, everything is one scroll */}
             {!taskV2 && (
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Checklist' },
@@ -3284,7 +3285,7 @@ When the work is done, verify the result with the requester, attach the confirma
                 {/* Checklist — the steps of the task. Add / edit / remove inline; the bar keeps
                     the "how far along" answer one glance away (Jira subtasks pattern). Option 2
                     lifts the header + progress out of the card, Jira-Subtasks style. */}
-                <div className={taskV2 ? '' : 'rounded-lg border border-[#E5E7EB] bg-white p-4'}>
+                <div className={taskV2 ? '' : 'rounded-lg border border-[#E5E7EB] bg-white p-4'} data-onboarding="checklist">
                   <div
                     className={`mb-2 flex items-center gap-2.5 ${taskV2 ? 'cursor-pointer select-none' : ''}`}
                     onClick={() => { if (taskV2) setChecklistOpen((v) => !v); }}
@@ -7870,6 +7871,11 @@ When the work is done, verify the result with the requester, attach the confirma
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -9005,6 +9011,8 @@ When the work is done, verify the result with the requester, attach the confirma
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={TASK_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

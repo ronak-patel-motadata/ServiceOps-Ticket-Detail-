@@ -50,6 +50,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { RELEASE_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { ReleaseActionsMenu } from './ReleaseActionsMenu';
 import { ReleaseStagesShowcase } from './ReleaseStagesShowcase';
@@ -3841,7 +3842,7 @@ onStackActiveGroupChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'service-request', label: 'Service Request', condition: activeChange?.id === 'CHG-976' },
@@ -5886,6 +5887,11 @@ onStackActiveGroupChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             ticketId={activeChange?.id}
             requesterName={activeChange?.requester}
@@ -6983,6 +6989,8 @@ onStackActiveGroupChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={RELEASE_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

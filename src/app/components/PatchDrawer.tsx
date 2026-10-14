@@ -62,6 +62,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { PATCH_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -2480,7 +2481,7 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
@@ -2952,7 +2953,7 @@ onStackMinimizedChange,
                 return (
                   /* 6 tracks in wide view so the three gauge cards take a third each (span 2) and
                      the two list cards take half each (span 3) — together they fill the row. */
-                  <div className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
+                  <div data-onboarding="overview-kpis" className={`grid gap-3 ${wide ? 'grid-cols-6' : 'grid-cols-1'}`}>
                     {kpis.map((k) => {
                       if (k.chart === 'donut' && k.kind) {
                         return (
@@ -7779,6 +7780,11 @@ onStackMinimizedChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -8927,6 +8933,8 @@ onStackMinimizedChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={PATCH_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

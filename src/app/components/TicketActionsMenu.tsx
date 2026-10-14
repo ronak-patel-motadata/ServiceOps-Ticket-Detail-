@@ -4,12 +4,11 @@ import { toast } from 'sonner';
 
 interface TicketActionsMenuProps {
   onOpenApprovalPopup?: () => void;
-  onRestartOnboarding?: () => void;
   onOpenTicketTransition?: () => void;
   ticketId?: string;
 }
 
-export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding, onOpenTicketTransition }: TicketActionsMenuProps) {
+export function TicketActionsMenu({ onOpenApprovalPopup, onOpenTicketTransition }: TicketActionsMenuProps) {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [convertLabel, setConvertLabel] = useState<'Convert to Service Request' | 'Convert to Incident'>('Convert to Service Request');
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -202,21 +201,9 @@ export function TicketActionsMenu({ onOpenApprovalPopup, onRestartOnboarding, on
               </svg>
             }
           />
-
-          <Divider />
-
-          <Section label="Help" />
-          <Item
-            onClick={onRestartOnboarding}
-            label="In-App User Guide"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-            }
-            badge={<span className="w-2 h-2 rounded-full bg-[#3D8BD0] flex-shrink-0" />}
-          />
+          {/* The In-App User Guide used to close this menu under a "Help" section; it now
+              lives on the right rail, directly above the keyboard-shortcuts button (see
+              `onOpenGuide` on TicketPropertiesPanel). */}
 
         </div>
       )}

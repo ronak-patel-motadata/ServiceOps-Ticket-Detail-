@@ -10,7 +10,7 @@
  * but it does not affect functionality. Utilities have been extracted to TicketDrawerUtils.tsx
  * to help reduce the file size where possible.
  */
-import { ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
+import { BookOpen, ChevronsUpDown, ChevronsDownUp, Users, Orbit, X, ChevronLeft, ChevronRight, Star, Share2, Eye, EyeOff, MoreHorizontal, MoreVertical, Paperclip, Clock, Search, Filter, ArrowUpDown, Reply, Forward, Sparkles, MessageSquare, StickyNote, ChevronDown, ChevronUp, CheckCircle, Mail, XCircle, Maximize2, RefreshCw, TextCursorInput, Minimize2, Wand2, Briefcase, Heart, Zap, SmilePlus, Image, Link2, Smile, Type, Bold, Italic, Underline, List, ListOrdered, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, AlignJustify, Code, Video, User, FileText, Download, Trash2, Tag, Folder, Activity, Lightbulb, Pin as PinIcon, PinOff, Plus, Minus, Check, Play, Pause, Square, Link, Ticket as TicketIcon, Lock, Stethoscope, Edit, CheckSquare, Info, HardDrive, Monitor, Cpu, MemoryStick, Network, CircuitBoard, Keyboard, Mouse, Usb, Disc, Columns3, Package, MapPin, Settings2, Barcode, QrCode, Printer, Copy, LayoutGrid, List as ListIcon, AppWindow, Shield, ShieldCheck, ShieldAlert, BadgeCheck, ArrowRightLeft } from 'lucide-react';
 import { RelationshipGraph, DEFAULT_REL_GRAPH_CONFIG, type RelGraphConfig, type ExtraRelChild, activeIssuesFor, type RelGraphSnapshotApi } from './RelationshipGraph';
 import { FileTypeBadge } from './DescriptionAttachments';
 import { RelSavedViews } from './RelSavedViews';
@@ -55,6 +55,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { CMDB_MAP_STEPS, CMDB_DETAILS_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -482,7 +483,7 @@ onStackMinimizedChange,
     ],
   };
   const healthComplianceGrid = (
-    <div className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
+    <div data-onboarding="overview-kpis" className={`grid ${drawerWidth > 1080 ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
       {([
         { label: 'Warranty', value: '23', unit: 'days', sub: 'Until expiry', color: '#D97706', icon: ShieldCheck,
           ai: { action: 'Renew warranty', q: "When does this asset's warranty expire and how do I renew it?",
@@ -2502,6 +2503,20 @@ onStackMinimizedChange,
                     </TooltipTrigger>
                     <TooltipContent>{relFull ? 'Exit full screen' : 'Full screen'}</TooltipContent>
                   </Tooltip>
+                  {/* In-App User Guide — the map view has no right rail, so the book button sits
+                      here, beside Full screen. Hidden in fullscreen (the tour's hooks belong to
+                      the normal layout). */}
+                  {!relFull && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" onClick={() => { sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true); }} className="relative inline-flex items-center justify-center h-8 w-8 rounded border bg-white border-[#DFE5ED] text-[#6b7280] hover:bg-[#F5F7FA] transition-colors">
+                          <BookOpen size={15} />
+                          <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0] ring-2 ring-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>In-App User Guide</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               );
 
@@ -2683,7 +2698,7 @@ onStackMinimizedChange,
                 // Fill the viewport below the sticky tab strip (~48px) so the dotted canvas
                 // reaches the bottom edge without making the page scroll.
                 <div className="h-full flex flex-col">
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]">{legend}{controls}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-4 px-6 flex-shrink-0 border-b border-[#E5E7EB]" data-onboarding="map-toolbar">{legend}{controls}</div>
                   <div className="flex-1 min-h-0">{graphArea}</div>
                   {settingsPanel}
                   {addRelPanel}
@@ -2881,7 +2896,7 @@ onStackMinimizedChange,
             )}
             {/* Layout toggle — segmented control (both views visible, active one highlighted),
                 positioned right of Add Relation. */}
-            <div className="inline-flex h-8 items-center rounded border border-[#DFE5ED] bg-[#F1F3F6] p-0.5">
+            <div className="inline-flex h-8 items-center rounded border border-[#DFE5ED] bg-[#F1F3F6] p-0.5" data-onboarding="ci-view-toggle">
               <button
                 onClick={() => setCiView('map')}
                 className={`inline-flex h-full items-center gap-1.5 rounded px-3 text-[12.5px] font-medium transition-colors ${ciView === 'map' ? 'bg-[#3D8BD0] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#364658]'}`}
@@ -2910,7 +2925,7 @@ onStackMinimizedChange,
 
         {/* Dependency Map layout — header + full-bleed topology, no tabs/panels */}
         {ciView === 'map' && (
-          <div className="flex-1 min-h-0 flex flex-col">{renderRelationshipMap()}</div>
+          <div className="flex-1 min-h-0 flex flex-col" data-onboarding="dependency-map">{renderRelationshipMap()}</div>
         )}
 
         {/* Main Content Area - Two Column Layout (hidden, but kept mounted, in map view) */}
@@ -3207,7 +3222,7 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'overview', label: 'Overview' },
@@ -7743,6 +7758,11 @@ onStackMinimizedChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -8875,6 +8895,8 @@ onStackMinimizedChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={ciView === 'map' ? CMDB_MAP_STEPS : CMDB_DETAILS_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

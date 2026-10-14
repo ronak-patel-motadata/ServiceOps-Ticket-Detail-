@@ -1039,7 +1039,7 @@ export function ProjectPlanningTab({ project, drawerWidth }: { project: Project 
   );
 
   return (
-    <div className="px-6 py-5">
+    <div className="px-6 py-5" data-onboarding="planning">
       {/* Toolbar: view toggle · search · project window · Add — sticky under the
           ~48px main tab strip while the plan scrolls (the V2 Conversation-row
           recipe: full-bleed -mx-6 + white bg so rows pass cleanly beneath). */}

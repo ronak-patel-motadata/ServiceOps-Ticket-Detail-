@@ -284,6 +284,10 @@ interface TicketPropertiesPanelProps {
   showNotifications?: boolean;
   // Show the Integration (Jira) group at the end of the right rail (ticket page).
   showIntegration?: boolean;
+  // Opens the In-App User Guide (the onboarding tour). When passed, a book button sits at
+  // the bottom of the right rail directly above Keyboard shortcuts — the ticket pages pass
+  // it; it used to be a "Help" entry in the ticket 3-dot menu. Absent on every other page.
+  onOpenGuide?: () => void;
   // Open a Similar Ticket as a tab in the same drawer (DrawerStack.openRelation).
   onOpenRelation?: (rel: { id: string; type: string; ticketId: string; subject: string; status: string; priority: string; assignedTo: { name: string } }) => void;
   // Add a finished Work Tracker session to the Work History list (ticket page).
@@ -489,6 +493,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     onOpenRequesterProfile,
     showNotifications = false,
     showIntegration = false,
+    onOpenGuide,
     onOpenRelation,
     onAddWorkLog,
     getCurrentStatusColor,
@@ -2968,6 +2973,9 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <span> — Find any field quickly</span>
               </div>
             </div>
+            {/* The filter button itself is dropped on the patch-family pages (see the search
+                row), so the hint goes with it. */}
+            {!patchMode && (
             <div className="flex items-start gap-2">
               <Filter size={12} className="text-[#7B8FA5] flex-shrink-0 mt-0.5" />
               <div>
@@ -2975,6 +2983,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 <span> — Show only the fields you need</span>
               </div>
             </div>
+            )}
           </div>
         </div>
         )}
@@ -4948,13 +4957,32 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
           <TooltipContent>Integration</TooltipContent>
         </Tooltip>
         )}
+        {/* In-App User Guide — ticket pages only. Pinned to the bottom of the rail with the
+            keyboard-shortcuts button under it (the rail's gap-3 spaces the pair); whichever
+            of the two renders first carries the mt-auto that pushes the pair down. The blue
+            dot is the "new" marker the old menu entry wore. */}
+        {onOpenGuide && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onOpenGuide}
+                data-onboarding="user-guide"
+                className="mt-auto size-8 flex items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all relative"
+              >
+                <BookOpen size={16} className="text-[#364658]" />
+                <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-[#3D8BD0] ring-2 ring-[#F8F9FB]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>In-App User Guide</TooltipContent>
+          </Tooltip>
+        )}
         {/* Keyboard shortcuts — pinned at the bottom of the rail; opens the cheat-sheet
             (handled by DrawerShortcuts via a custom event). Plain rail styling, no shadow. */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('open-drawer-shortcuts'))}
-              className="mt-auto size-8 flex items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all"
+              className={`${onOpenGuide ? '' : 'mt-auto'} size-8 flex items-center justify-center rounded border border-[#DFE5ED] bg-white hover:bg-[#F9FAFB] hover:border-[#3D8BD0] text-[#364658] transition-all`}
             >
               <Keyboard size={16} className="text-[#364658]" />
             </button>

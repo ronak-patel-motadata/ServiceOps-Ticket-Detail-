@@ -70,6 +70,7 @@ import { ConversationTabContent } from './ConversationTabContent';
 import { ServiceRequestTabContent } from './ServiceRequestTabContent';
 import { ApprovalsTabContent } from './ApprovalsTabContent';
 import { TicketDetailsOnboarding } from './TicketDetailsOnboarding';
+import { DETECTED_CVE_STEPS } from './onboardingSteps';
 import { CatalogItemDetailsModal } from './CatalogItemDetailsModal';
 import { TicketActionsMenu } from './TicketActionsMenu';
 import { ConversationEmptyState } from './ConversationEmptyState';
@@ -2578,7 +2579,7 @@ onStackMinimizedChange,
 
             {/* Tabs: Conversation, Task, etc. */}
             <div className="border-b border-[#e5e7eb] bg-white sticky top-0 z-99">
-              <div ref={tabContainerRef} className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
+              <div ref={tabContainerRef} data-onboarding="work-tabs" className="flex items-center gap-2.5 px-6 relative overflow-x-clip">
                 {(() => {
                   const tabConfig = [
                     { id: 'properties', label: 'Properties' },
@@ -2948,7 +2949,7 @@ onStackMinimizedChange,
                 const sev = (s: string) => DEPLOYED_PATCHES.filter((p) => p.severity === s).length;
                 const epBucket = (b: string) => patchComputers.filter((c) => c.bucket === b).length;
                 return (
-                  <div className={`mb-6 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <div data-onboarding="overview-kpis" className={`mb-6 grid gap-4 ${wide ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <DonutKpiCard
                       label="Patches" icon={Package} color="#3D8BD0" total={DEPLOYED_PATCHES.length} wide={wide}
                       segments={[
@@ -7761,6 +7762,11 @@ onStackMinimizedChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding'); setOnboardingStep(0); setShowOnboarding(true);
+              setActiveGroup('properties');
+            }}
             ticketId={activeTicket?.id}
             showSla={false}
             assetMode={true}
@@ -8894,6 +8900,8 @@ onStackMinimizedChange,
       {/* Onboarding Guide */}
       {showOnboarding && (
         <TicketDetailsOnboarding
+          /* This page's own tour — see onboardingSteps.tsx. */
+          steps={DETECTED_CVE_STEPS}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
           onStepChange={setOnboardingStep}

@@ -1141,8 +1141,8 @@ onStackActiveGroupChange,
     setPropertiesRelationSearchQuery(''); setRelationMode('existing'); setRelationCreateSubject(''); setRelationCreateDesc('');
   };
 
-  // Onboarding no longer auto-opens on first visit — the 3-dot menu's "In-App User Guide"
-  // is the one way in, so the tour is invited rather than imposed.
+  // Onboarding no longer auto-opens on first visit — the In-App User Guide button at the
+  // bottom of the right rail is the one way in, so the tour is invited rather than imposed.
 
   // Local default when the request changes — local-only so a group the user explicitly opened
   // (e.g. Suggestions) persists across opening a related record; only applies when the host has
@@ -2503,12 +2503,6 @@ onStackActiveGroupChange,
               onOpenApprovalPopup={() => {
                 setShowCreateApprovalPopup(true);
                 setActiveMainTab('approvals');
-              }}
-              onRestartOnboarding={() => {
-                sessionStorage.removeItem('hasSeenTicketDetailsOnboarding');
-                setOnboardingStep(0);
-                setShowOnboarding(true);
-                setActiveGroup('properties'); // Open ticket properties for onboarding
               }}
             />
             <TicketTransitionModal isOpen={showTicketTransition} onClose={() => setShowTicketTransition(false)} ticketId={activeTicket?.id} penaltyAmount={getSlaPenaltyAmount(activeTicket?.id)} status={selectedStatus} />
@@ -5995,6 +5989,14 @@ onStackActiveGroupChange,
 
           {/* Right Sidebar - Properties */}
           <TicketPropertiesPanel
+            /* In-App User Guide — the book button at the bottom of the right rail (moved out
+               of the 3-dot menu's Help section). Same reset the menu entry performed. */
+            onOpenGuide={() => {
+              sessionStorage.removeItem('hasSeenTicketDetailsOnboarding');
+              setOnboardingStep(0);
+              setShowOnboarding(true);
+              setActiveGroup('properties'); // Open ticket properties for onboarding
+            }}
             onOpenRequesterProfile={() => setShowRequesterProfile(true)}
             requesterName={activeTicket?.id === 'INC-35' ? 'Arnav Desai' : activeTicket?.requester}
             showVip
