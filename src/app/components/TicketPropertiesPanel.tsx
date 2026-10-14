@@ -25,7 +25,7 @@ import { KnowledgeReviewsPanel } from './KnowledgeReviewsPanel';
 import { SystemInfoAccordion } from './SystemInfoAccordion';
 import { TASK_CUSTOM_FORM_FIELDS, TASK_KEY_FIELDS } from './taskCustomFields';
 import { FileTypeBadge } from './DescriptionAttachments';
-import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES } from './PatchPanelData';
+import { PATCH_AFFECTED_PRODUCTS, PATCH_FILES, type PatchFile } from './PatchPanelData';
 import type { EmailNotification } from './SendEmailModal';
 
 /** One written review of a knowledge article. Technician reviews are internal; requester reviews
@@ -902,13 +902,14 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
   const [taskKeyValues, setTaskKeyValues] = useState<Record<string, string>>({});
   const [similarFilter, setSimilarFilter] = useState<'All' | 'Request' | 'Problem' | 'Change'>('All');
   // Patch File Details — the patch's files (can be empty → upload manually). Patch page only.
-  const [patchFiles, setPatchFiles] = useState<{ name: string; size: string; language: string }[]>(PATCH_FILES);
+  const [patchFiles, setPatchFiles] = useState<PatchFile[]>(PATCH_FILES);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handlePatchFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const size = file.size >= 1048576 ? `${(file.size / 1048576).toFixed(2)} MB` : `${(file.size / 1024).toFixed(1)} KB`;
-    setPatchFiles((prev) => [...prev, { name: file.name, size, language: 'all' }]);
+    /* An uploaded file carries no OS version of its own — the row simply omits that line. */
+    setPatchFiles((prev) => [...prev, { name: file.name, size, language: 'all', osVersion: '' }]);
     e.target.value = '';
   };
 
@@ -3586,7 +3587,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-[#7B8FA5] mb-2">
               <span><span className="font-semibold text-[#364658]">{PATCH_AFFECTED_PRODUCTS.length}</span> products affected</span>
               <span className="size-1 rounded-full bg-[#CBD5E1] flex-shrink-0" />
-              <span>Supported Languages: <span className="font-medium text-[#364658]">all</span></span>
+              <span>Supported Languages: <span className="font-medium text-[#64748B]">all</span></span>
             </div>
             {PATCH_AFFECTED_PRODUCTS.map((p) => (
               <div key={p.name} className="flex items-center gap-3 rounded-[10px] bg-[#F9FAFB] px-3 py-2.5">
@@ -3595,7 +3596,7 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-medium text-[#364658] break-words">{p.name}</div>
-                  <div className="mt-0.5 text-[11px] text-[#7B8FA5]">{p.type}</div>
+                  <div className="mt-0.5 text-[11px] font-medium text-[#64748B]">{p.type}</div>
                 </div>
               </div>
             ))}
@@ -3616,11 +3617,18 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                     <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><FileText size={18} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium text-[#364658] break-words">{f.name}</div>
+                      {/* Two quiet meta lines: size · language, then the OS build the file applies
+                          to (the old File Details grid's "OS Version" column). Labels grey, values
+                          one step darker (#64748B) — the full #364658 was tried and read heavy, and
+                          a monitor glyph in front of the OS line was tried and pulled as clutter. */}
                       <div className="mt-0.5 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
-                        <span>{f.size}</span>
+                        <span className="font-medium text-[#64748B]">{f.size}</span>
                         <span className="size-1 rounded-full bg-[#CBD5E1] flex-shrink-0" />
-                        <span>Language: {f.language}</span>
+                        <span>Language: <span className="font-medium text-[#64748B]">{f.language}</span></span>
                       </div>
+                      {f.osVersion && (
+                        <div className="mt-0.5 text-[12px] text-[#7B8FA5]">OS Version: <span className="font-medium text-[#64748B]">{f.osVersion}</span></div>
+                      )}
                     </div>
                     <div className="flex-shrink-0 flex items-center gap-0.5">
                       <Tooltip>

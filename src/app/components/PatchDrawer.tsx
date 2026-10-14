@@ -2856,7 +2856,7 @@ onStackMinimizedChange,
                   chart: 'donut' | 'bar' | 'none' | 'list';
                   kind?: 'bars' | 'columns';
                   /** Preview rows for chart: 'list'. */
-                  items?: { icon: React.ReactNode; primary: string; secondary: string; actions?: React.ReactNode }[];
+                  items?: { icon: React.ReactNode; primary: string; secondary: React.ReactNode; actions?: React.ReactNode }[];
                   /** Spans half the row instead of a third. */
                   half?: boolean;
                   onClick: () => void;
@@ -2912,7 +2912,7 @@ onStackMinimizedChange,
                     items: PATCH_AFFECTED_PRODUCTS.slice(0, 2).map((p) => ({
                       icon: p.type === 'Application' ? <AppWindow size={14} /> : <Monitor size={14} />,
                       primary: p.name,
-                      secondary: p.type,
+                      secondary: <span className="font-medium text-[#64748B]">{p.type}</span>,
                     })),
                     onClick: () => setActiveGroup('affected-products'),
                   },
@@ -2922,7 +2922,12 @@ onStackMinimizedChange,
                     items: PATCH_FILES.slice(0, 2).map((f) => ({
                       icon: <FileText size={14} />,
                       primary: f.name,
-                      secondary: `${f.size} · Language: ${f.language}`,
+                      secondary: (
+                        <>
+                          <span className="font-medium text-[#64748B]">{f.size}</span> · Language: <span className="font-medium text-[#64748B]">{f.language}</span>
+                          {f.osVersion && <> · OS Version: <span className="font-medium text-[#64748B]">{f.osVersion}</span></>}
+                        </>
+                      ),
                       actions: (
                         <>
                           <Tooltip>
