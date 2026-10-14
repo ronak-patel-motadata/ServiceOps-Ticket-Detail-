@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { PackageDeploymentsTable } from './PackageDeploymentsTable';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
+import { relativeStamp } from './dateFormat';
 import type { Patch } from './PatchesListPage';
 
 /* Package module — "Package Deployments" listing (opened from the Package sidebar flyout).
@@ -28,10 +29,12 @@ export interface PackageDeployment {
 }
 
 // Realistic package rollouts — named after the application + version being pushed.
+// ⚠️ The runs still Ready to Deploy / In Progress state their window RELATIVE to today
+// (`relativeStamp`) so they sit against the real clock — see mockPatchDeployments.
 export const mockPackageDeployments: PackageDeployment[] = [
-  { id: 'CDR-42', name: 'AnyDesk 8.0.11 — Support Team Workstations', status: 'Ready to Deploy', deploymentPolicy: '24x7 Deployment Policy', installAfter: null, expiryDate: 'Thu, Aug 13, 2026 05:42 PM', createdDate: 'Wed, Jul 29, 2026 05:43 PM' },
-  { id: 'CDR-41', name: 'Google Chrome Enterprise 124.0.6367', status: 'In Progress', deploymentPolicy: 'Business Hours Deployment Policy', installAfter: 'Fri, Jul 24, 2026 09:00 PM', expiryDate: 'Fri, Aug 07, 2026 09:00 PM', createdDate: 'Tue, Jul 21, 2026 11:18 AM' },
-  { id: 'CDR-40', name: 'Zoom Workplace 6.0.10 — Conference Room PCs', status: 'Ready to Deploy', deploymentPolicy: 'After Business Hours Policy', installAfter: 'Sat, Jul 25, 2026 11:00 PM', expiryDate: null, createdDate: 'Mon, Jul 20, 2026 04:05 PM' },
+  { id: 'CDR-42', name: 'AnyDesk 8.0.11 — Support Team Workstations', status: 'Ready to Deploy', deploymentPolicy: '24x7 Deployment Policy', installAfter: null, expiryDate: relativeStamp(1, 17, 42), createdDate: 'Wed, Jul 29, 2026 05:43 PM' },
+  { id: 'CDR-41', name: 'Google Chrome Enterprise 124.0.6367', status: 'In Progress', deploymentPolicy: 'Business Hours Deployment Policy', installAfter: relativeStamp(-2, 21), expiryDate: relativeStamp(12, 21), createdDate: 'Tue, Jul 21, 2026 11:18 AM' },
+  { id: 'CDR-40', name: 'Zoom Workplace 6.0.10 — Conference Room PCs', status: 'Ready to Deploy', deploymentPolicy: 'After Business Hours Policy', installAfter: relativeStamp(2, 23), expiryDate: null, createdDate: 'Mon, Jul 20, 2026 04:05 PM' },
   { id: 'CDR-39', name: 'Microsoft Teams 24004.1309 — All Workstations', status: 'Completed', deploymentPolicy: 'Now', installAfter: null, expiryDate: 'Tue, Aug 04, 2026 02:31 PM', createdDate: 'Mon, Jul 20, 2026 02:32 PM' },
   { id: 'CDR-38', name: 'Slack Desktop 4.37.101 — Sales Department', status: 'Cancelled', deploymentPolicy: 'Business Hours Deployment Policy', installAfter: null, expiryDate: 'Tue, Aug 04, 2026 12:44 PM', createdDate: 'Mon, Jul 20, 2026 12:45 PM' },
   { id: 'CDR-37', name: 'Adobe Acrobat Reader DC 24.002.20857', status: 'Expired', deploymentPolicy: 'Now', installAfter: null, expiryDate: 'Tue, Aug 04, 2026 11:55 AM', createdDate: 'Mon, Jul 20, 2026 11:56 AM' },
@@ -39,7 +42,7 @@ export const mockPackageDeployments: PackageDeployment[] = [
   { id: 'CDR-35', name: 'Visual Studio Code 1.89.1 — Engineering', status: 'Completed', deploymentPolicy: 'Developer Tools — Self Service', installAfter: null, expiryDate: 'Fri, Jul 24, 2026 05:40 PM', createdDate: 'Thu, Jul 09, 2026 05:40 PM' },
   { id: 'CDR-34', name: 'Git for Windows 2.45.1 — Developer Machines', status: 'Completed', deploymentPolicy: 'Developer Tools — Self Service', installAfter: null, expiryDate: 'Fri, Jul 24, 2026 05:39 PM', createdDate: 'Thu, Jul 09, 2026 05:40 PM' },
   { id: 'CDR-33', name: 'Node.js 20.12.2 LTS — Build Agents', status: 'Completed', deploymentPolicy: 'App Servers — Maintenance Window', installAfter: 'Sun, Jul 05, 2026 02:00 AM', expiryDate: null, createdDate: 'Wed, Jul 01, 2026 03:47 PM' },
-  { id: 'CDR-32', name: 'Docker Desktop 4.29.0 — Engineering Workstations', status: 'In Progress', deploymentPolicy: 'After Business Hours Policy', installAfter: 'Thu, Jul 23, 2026 10:00 PM', expiryDate: 'Thu, Aug 06, 2026 10:00 PM', createdDate: 'Mon, Jun 29, 2026 10:14 AM' },
+  { id: 'CDR-32', name: 'Docker Desktop 4.29.0 — Engineering Workstations', status: 'In Progress', deploymentPolicy: 'After Business Hours Policy', installAfter: relativeStamp(-3, 22), expiryDate: relativeStamp(1, 22), createdDate: 'Mon, Jun 29, 2026 10:14 AM' },
   { id: 'CDR-31', name: 'Notepad++ 8.6.5 — All Workstations', status: 'Cancelled', deploymentPolicy: '24x7 Deployment Policy', installAfter: null, expiryDate: 'Tue, Jul 28, 2026 12:28 PM', createdDate: 'Mon, Jun 22, 2026 12:29 PM' },
   { id: 'CDR-30', name: 'FileZilla Client 3.67.0 — IT Operations', status: 'Completed', deploymentPolicy: 'Now', installAfter: null, expiryDate: null, createdDate: 'Thu, Jun 18, 2026 02:55 PM' },
   { id: 'CDR-29', name: 'PuTTY 0.81 — Network Team', status: 'Completed', deploymentPolicy: 'Now', installAfter: null, expiryDate: 'Wed, Jul 01, 2026 09:10 AM', createdDate: 'Wed, Jun 17, 2026 09:11 AM' },
@@ -81,6 +84,16 @@ export const pkgWindowOf = (d: PackageDeployment): string => {
   if (end && end.getTime() < now) return 'Window closed';
   if (start && start.getTime() > now) return 'Scheduled';
   return 'Live now';
+};
+
+/* Still Ready to Deploy or In Progress, with a window that closes inside the next 48 hours.
+   Two conditions, one field — the listing's "Expiring in 48h" card reads it. */
+export const pkgExpiringOf = (d: PackageDeployment): string => {
+  if (!['Ready to Deploy', 'In Progress'].includes(d.status)) return 'No';
+  const end = parsePkgDate(d.expiryDate);
+  if (!end) return 'No';
+  const left = end.getTime() - Date.now();
+  return left > 0 && left <= 48 * 36e5 ? 'Yes' : 'No';
 };
 
 /** Install or Uninstall — a removal run says so in its name. The product calls this the

@@ -115,6 +115,9 @@ export const PATCH_FILTER_ATTRS: Attr[] = [
   { key: 'x_arch', label: 'Architecture', icon: Cpu, type: 'select', hidden: true, options: PATCH_ARCH_OPTIONS },
   { key: 'x_deployable', label: 'Ready to deploy', icon: ShieldCheck, type: 'select', hidden: true, options: YES_NO },
   { key: 'x_needsReboot', label: 'Needs a reboot', icon: RefreshCw, type: 'select', hidden: true, options: YES_NO },
+  /* "Missing Endpoints > 0" — the gate on the strip's Critical & Important and Pending
+     Approval cards. A patch no machine is missing is catalogue, not work. */
+  { key: 'x_hasMissing', label: 'Missing on Endpoints', icon: Monitor, type: 'select', hidden: true, options: YES_NO },
 ];
 
 export const PATCH_QUICK_FILTERS: QuickFilterDef[] = [
@@ -146,6 +149,22 @@ export const DEPLOY_WINDOW_OPTIONS = [
   { label: 'No window', color: '#94A3B8' },
 ];
 
+/* The strip's "Expiring in 48h": a run still Ready to Deploy or In Progress whose window
+   closes inside the next two days. Two conditions in one field, for the same reason as
+   `x_lapsed` — the card's number and the list its click produces must agree. Shared with the
+   Package and Registry run lists, which run the same lifecycle. */
+export const DEPLOY_EXPIRING_OPTIONS = [
+  { label: 'Yes', color: '#DC2626' },
+  { label: 'No', color: '#94A3B8' },
+];
+
+/* Where a run came from — a technician pushing it by hand, or an Automatic Patch Deployment
+   schedule creating it on its cadence. The strip's "Manual Remote Deploy" card reads it. */
+export const DEPLOY_ORIGIN_OPTIONS = [
+  { label: 'Manual Remote Deploy', color: '#3D8BD0' },
+  { label: 'Automatic Patch Deployment', color: '#8B5CF6' },
+];
+
 /* The product's own eleven, in its own order. */
 export const PATCH_DEPLOY_FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
@@ -175,6 +194,8 @@ export const PATCH_DEPLOY_FILTER_ATTRS: Attr[] = [
     { label: 'Yes', color: '#DC2626' },
     { label: 'No', color: '#94A3B8' },
   ] },
+  { key: 'x_expiring', label: 'Expiring in 48h', icon: Timer, type: 'select', hidden: true, options: DEPLOY_EXPIRING_OPTIONS },
+  { key: 'x_origin', label: 'Origin', icon: Layers, type: 'select', hidden: true, options: DEPLOY_ORIGIN_OPTIONS },
 ];
 
 /* Status only. The deployment-window quick filter was dropped by request — `x_window` is

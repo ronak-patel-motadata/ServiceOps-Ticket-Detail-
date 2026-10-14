@@ -67,6 +67,8 @@ const CVES: { rows: Ticket[]; byId: Map<string, DetectedCve> } = (() => {
       x_cvss40Vector: cveVectorOf(c, '4.0'),
       x_lastUpdated: new Date(cveLastUpdatedOf(c)),
       x_approvalStatus: cveApprovalOf(c),
+      /* The gate every KPI card applies — a CVE touching no machine is catalogue, not a finding. */
+      x_active: c.impactedEndpoints > 0 ? 'Yes' : 'No',
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -74,33 +76,42 @@ const CVES: { rows: Ticket[]; byId: Map<string, DetectedCve> } = (() => {
 
 const sevOf = (t: Ticket) => String((t as any).x_severity ?? '');
 
-/* What a security analyst triages by: what is exploited, what has no fix yet, what scores
-   critical — in that order, because that is the order they act in. */
+/* Every card is gated on "impacting at least one endpoint" — a CVE touching no machine is a
+   catalogue entry, not a finding — and then cut the way an analyst works through them: what
+   is high priority, what is already being exploited, what has a fix, what does not. Every
+   card filters the list to exactly the rows it counted. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
-  const exploited = rows.filter((t) => (t as any).x_exploit === 'Yes');
-  const noPatch = rows.filter((t) => (t as any).x_patchAvail === 'No');
-  const high = rows.filter((t) => sevOf(t) === 'High' || sevOf(t) === 'Critical');
-  const waiting = rows.filter((t) => (t.status as string) === 'Awaiting Analysis');
+  const active = rows.filter((t) => (t as any).x_active === 'Yes');
+  const priority = active.filter((t) => sevOf(t) === 'Critical' || sevOf(t) === 'High');
+  const critical = priority.filter((t) => sevOf(t) === 'Critical').length;
+  const exploited = active.filter((t) => (t as any).x_exploit === 'Yes');
+  const fixable = active.filter((t) => (t as any).x_patchAvail === 'Yes');
+  const noFix = active.filter((t) => (t as any).x_patchAvail === 'No');
+  const gate = { field: 'x_active', condition: 'is' as const, values: ['Yes'] };
   return [
-    { label: 'Detected CVEs', value: rows.length, sub: 'across the fleet' },
     {
-      label: 'Exploited', value: exploited.length, sub: 'known exploitation in the wild',
+      label: 'Active CVEs', value: active.length, sub: `of ${rows.length} detected`,
+      filter: [gate],
+    },
+    {
+      label: 'High Priority CVEs', value: priority.length, sub: `${critical} critical · ${priority.length - critical} high`,
+      valueColor: priority.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_severity', condition: 'is', values: ['Critical', 'High'] }, gate],
+    },
+    {
+      label: 'Exploited CVEs', value: exploited.length, sub: 'exploit seen in the wild',
       valueColor: exploited.length ? '#B42318' : undefined,
-      filter: [{ field: 'x_exploit', condition: 'is', values: ['Yes'] }],
+      filter: [{ field: 'x_exploit', condition: 'is', values: ['Yes'] }, gate],
     },
     {
-      label: 'No patch available', value: noPatch.length, sub: 'nothing to deploy yet',
-      valueColor: noPatch.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_patchAvail', condition: 'is', values: ['No'] }],
+      label: 'Fixable CVEs', value: fixable.length, sub: 'patch available to deploy',
+      valueColor: fixable.length ? '#15803D' : undefined,
+      filter: [{ field: 'x_patchAvail', condition: 'is', values: ['Yes'] }, gate],
     },
     {
-      label: 'High or critical', value: high.length, sub: `of ${rows.length} detected`,
-      valueColor: high.length ? '#EF4444' : undefined,
-      filter: [{ field: 'x_severity', condition: 'is', values: ['High', 'Critical'] }],
-    },
-    {
-      label: 'Awaiting analysis', value: waiting.length, sub: 'NVD has not scored these',
-      filter: [{ field: 'status', condition: 'is', values: ['Awaiting Analysis'] }],
+      label: 'No Fix Available', value: noFix.length, sub: 'needs mitigation or exception',
+      valueColor: noFix.length ? '#B45309' : undefined,
+      filter: [{ field: 'x_patchAvail', condition: 'is', values: ['No'] }, gate],
     },
   ];
 };

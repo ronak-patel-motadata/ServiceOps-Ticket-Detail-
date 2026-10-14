@@ -11,9 +11,9 @@ import { AlertTriangle, MapPin, Monitor, RefreshCw, WifiOff } from 'lucide-react
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { ENDPOINT_FILTER_ATTRS, ENDPOINT_QUICK_FILTERS } from './vulnFilterAttrs';
 import {
-  endpointDomainOf, endpointIpRangeOf, endpointOsVulnsOf, endpointScanDateOf,
-  endpointSoftwareVulnsOf, endpointToPatchShape, endpointVulnCountOf, mockEndpoints,
-  type Endpoint,
+  endpointDomainOf, endpointIpRangeOf, endpointMissingPatchesOf, endpointOsVulnsOf,
+  endpointScanDateOf, endpointSoftwareVulnsOf, endpointToPatchShape, endpointVulnCountOf,
+  mockEndpoints, type Endpoint,
 } from './EndpointsListPage';
 import type { DashConfig } from './AssetDashboardView';
 import type { StatCard } from './AssetStatsRow';
@@ -32,6 +32,11 @@ const familyOf = (os: string) =>
         : /macos/i.test(os) ? 'macOS'
           : /ubuntu|red hat|linux/i.test(os) ? 'Linux'
             : 'Other';
+
+/* "Within 7 days" / "Over 7 days ago" / "Never" — the Last Scanned band behind the strip's
+   "Not Scanned in 7 Days" card. The filter bar has no "older than N days", so the row says. */
+const scanAgeOf = (d: Date | null) =>
+  !d ? 'Never' : Date.now() - d.getTime() <= 7 * 864e5 ? 'Within 7 days' : 'Over 7 days ago';
 
 const ENDPOINTS: { rows: Ticket[]; byId: Map<string, Endpoint> } = (() => {
   const byId = new Map<string, Endpoint>();
@@ -72,6 +77,13 @@ const ENDPOINTS: { rows: Ticket[]; byId: Map<string, Endpoint> } = (() => {
       x_vulnCount: endpointVulnCountOf(e),
       x_tags: e.tags,
       x_reboot: e.rebootRequired,
+      /* The KPI strip's bands — thresholds the filter bar cannot state as a rule, so the row
+         carries the answer and the card, its chip and the filtered list read one field. An
+         unscanned machine reports "Not scanned" / "Never", never a zero claiming it is clean. */
+      x_missingPatches: endpointMissingPatchesOf(e),
+      x_hasMissing: endpointMissingPatchesOf(e) > 0 ? 'Yes' : 'No',
+      x_vulnBand: !endpointScanDateOf(e) ? 'Not scanned' : endpointVulnCountOf(e) > 0 ? 'Found' : 'None found',
+      x_scanAge: scanAgeOf(endpointScanDateOf(e)),
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -79,33 +91,44 @@ const ENDPOINTS: { rows: Ticket[]; byId: Map<string, Endpoint> } = (() => {
 
 const healthOf = (t: Ticket) => String((t as any).x_health ?? '');
 
-/* What a fleet manager checks each morning: who is unreachable, who is unhealthy, who is
-   waiting on a reboot to finish patching, and who has never reported an inventory. */
+/* What a fleet manager checks each morning, in the product's own terms: who is missing
+   patches, who is carrying vulnerabilities, who is in the worst health, who is waiting on a
+   reboot to finish patching, and who the scanner has not reached this week. Every card filters
+   the list to exactly the machines it counted; the sub-line carries the patch / finding total. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
-  const offline = rows.filter((t) => (t as any).x_agent === 'Offline');
-  const unhealthy = rows.filter((t) => healthOf(t) === 'Warning' || healthOf(t) === 'Critical');
+  const missing = rows.filter((t) => (t as any).x_hasMissing === 'Yes');
+  const missingTotal = rows.reduce((a, t) => a + Number((t as any).x_missingPatches ?? 0), 0);
+  const vulnerable = rows.filter((t) => (t as any).x_vulnBand === 'Found');
+  const findings = rows.reduce((a, t) => a + Number((t as any).x_vulnCount ?? 0), 0);
+  const critical = rows.filter((t) => healthOf(t) === 'Critical');
   const reboot = rows.filter((t) => (t as any).x_reboot === 'Yes');
-  const noInventory = rows.filter((t) => !String((t as any).x_version ?? '').trim());
+  const stale = rows.filter((t) => (t as any).x_scanAge !== 'Within 7 days');
+  const never = rows.filter((t) => (t as any).x_scanAge === 'Never').length;
   return [
-    { label: 'Managed endpoints', value: rows.length, sub: `${rows.length - offline.length} agents online` },
     {
-      label: 'Agents offline', value: offline.length, sub: 'not reporting right now',
-      valueColor: offline.length ? '#B45309' : undefined,
-      filter: [{ field: 'x_agent', condition: 'is', values: ['Offline'] }],
+      label: 'Missing Patches', value: missing.length, sub: `${missingTotal} patch installs outstanding`,
+      valueColor: missing.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_hasMissing', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'Health warnings', value: unhealthy.length, sub: 'warning or critical',
-      valueColor: unhealthy.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_health', condition: 'is', values: ['Warning', 'Critical'] }],
+      label: 'Total Vulnerabilities', value: vulnerable.length, sub: `${findings} findings across them`,
+      valueColor: vulnerable.length ? '#B45309' : undefined,
+      filter: [{ field: 'x_vulnBand', condition: 'is', values: ['Found'] }],
     },
     {
-      label: 'Reboot required', value: reboot.length, sub: 'patching not finished',
+      label: 'Highly Vulnerable', value: critical.length, sub: 'need immediate remediation',
+      valueColor: critical.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_health', condition: 'is', values: ['Critical'] }],
+    },
+    {
+      label: 'Reboot Required', value: reboot.length, sub: 'restart to complete updates',
       valueColor: reboot.length ? '#F97316' : undefined,
       filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'No inventory', value: noInventory.length, sub: 'agent has not reported a build',
-      filter: [{ field: 'x_version', condition: 'empty', values: [] }],
+      label: 'Not Scanned in 7 Days', value: stale.length, sub: never ? `${never} never scanned` : 'scan data may be outdated',
+      valueColor: stale.length ? '#B45309' : undefined,
+      filter: [{ field: 'x_scanAge', condition: 'is', values: ['Over 7 days ago', 'Never'] }],
     },
   ];
 };

@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { RegistryDeploymentsTable } from './RegistryDeploymentsTable';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
+import { relativeStamp } from './dateFormat';
 import type { Patch } from './PatchesListPage';
 
 /* Package module — "Registry Deployments" listing (opened from the Package sidebar flyout).
@@ -30,15 +31,17 @@ export interface RegistryDeployment {
 }
 
 // Realistic registry rollouts — hardening baselines and policy keys pushed to the fleet.
+// ⚠️ The runs still Ready to Deploy / In Progress state their window RELATIVE to today
+// (`relativeStamp`) so they sit against the real clock — see mockPatchDeployments.
 export const mockRegistryDeployments: RegistryDeployment[] = [
   { id: 'CDR-133', name: 'Disable SMBv1 Protocol — Fleet-wide Hardening', status: 'Cancelled', installAfter: 'Thu, Nov 06, 2025 12:28 PM', expiryDate: 'Thu, Nov 30, 2028 12:28 PM', totalInstallations: 144, createdBy: 'Jay Vegda', configurationType: 'Install' },
-  { id: 'CDR-131', name: 'Enable Windows Defender Tamper Protection', status: 'In Progress', installAfter: 'Fri, Jul 24, 2026 09:00 PM', expiryDate: 'Fri, Aug 07, 2026 09:00 PM', totalInstallations: 82, createdBy: 'Priya Nair', configurationType: 'Install' },
+  { id: 'CDR-131', name: 'Enable Windows Defender Tamper Protection', status: 'In Progress', installAfter: relativeStamp(-2, 21), expiryDate: relativeStamp(1, 21), totalInstallations: 82, createdBy: 'Priya Nair', configurationType: 'Install' },
   { id: 'CDR-128', name: 'Set Screen Lock Timeout — 10 Minutes', status: 'Completed', installAfter: 'Mon, Jul 13, 2026 08:30 PM', expiryDate: null, totalInstallations: 213, createdBy: 'Karan Malhotra', configurationType: 'Install' },
   { id: 'CDR-124', name: 'Enforce TLS 1.2 for .NET Applications', status: 'Completed', installAfter: 'Sat, Jul 04, 2026 11:00 PM', expiryDate: 'Sat, Jul 18, 2026 11:00 PM', totalInstallations: 96, createdBy: 'Rahul Verma', configurationType: 'Install' },
-  { id: 'CDR-121', name: 'Enable PowerShell Script Block Logging', status: 'Ready to Deploy', installAfter: 'Sat, Jul 25, 2026 10:00 PM', expiryDate: null, totalInstallations: null, createdBy: 'Neha Raje', configurationType: 'Install' },
+  { id: 'CDR-121', name: 'Enable PowerShell Script Block Logging', status: 'Ready to Deploy', installAfter: relativeStamp(1, 22), expiryDate: null, totalInstallations: null, createdBy: 'Neha Raje', configurationType: 'Install' },
   { id: 'CDR-118', name: 'Disable Autorun on Removable Media', status: 'Completed', installAfter: 'Wed, Jun 24, 2026 07:45 PM', expiryDate: 'Wed, Jul 08, 2026 07:45 PM', totalInstallations: 187, createdBy: 'Vikram Sethi', configurationType: 'Install' },
   { id: 'CDR-115', name: 'Restrict Anonymous SAM Enumeration — Servers', status: 'Completed', installAfter: 'Sun, Jun 21, 2026 02:00 AM', expiryDate: null, totalInstallations: 41, createdBy: 'Farah Sheikh', configurationType: 'Install' },
-  { id: 'CDR-112', name: 'Configure Corporate Proxy Settings — Remote Offices', status: 'In Progress', installAfter: 'Thu, Jul 23, 2026 06:30 PM', expiryDate: 'Thu, Aug 06, 2026 06:30 PM', totalInstallations: 34, createdBy: 'Rohan Mehta', configurationType: 'Install' },
+  { id: 'CDR-112', name: 'Configure Corporate Proxy Settings — Remote Offices', status: 'In Progress', installAfter: relativeStamp(-3, 18, 30), expiryDate: relativeStamp(11, 18, 30), totalInstallations: 34, createdBy: 'Rohan Mehta', configurationType: 'Install' },
   { id: 'CDR-109', name: 'Disable LLMNR and NetBIOS Name Resolution', status: 'Expired', installAfter: 'Tue, May 19, 2026 09:00 PM', expiryDate: 'Tue, Jun 02, 2026 09:00 PM', totalInstallations: 58, createdBy: 'Meeral Pithwa (Archived)', configurationType: 'Install' },
   { id: 'CDR-106', name: 'Legacy Java Applet Trust Keys — Cleanup', status: 'Completed', installAfter: 'Mon, May 11, 2026 08:00 PM', expiryDate: null, totalInstallations: 63, createdBy: 'Diya Kapoor', configurationType: 'Uninstall' },
   { id: 'CDR-103', name: 'Enable Credential Guard — Executive Laptops', status: 'Completed', installAfter: 'Sat, May 02, 2026 10:00 PM', expiryDate: 'Sat, May 16, 2026 10:00 PM', totalInstallations: 27, createdBy: 'Siddharth Rao', configurationType: 'Install' },
@@ -78,6 +81,16 @@ export const regWindowOf = (d: RegistryDeployment): string => {
   if (end && end.getTime() < now) return 'Window closed';
   if (start && start.getTime() > now) return 'Scheduled';
   return 'Live now';
+};
+
+/* Still Ready to Deploy or In Progress, with a window that closes inside the next 48 hours.
+   Two conditions, one field — the listing's "Expiring in 48h" card reads it. */
+export const regExpiringOf = (d: RegistryDeployment): string => {
+  if (!['Ready to Deploy', 'In Progress'].includes(d.status)) return 'No';
+  const end = parseRegDate(d.expiryDate);
+  if (!end) return 'No';
+  const left = end.getTime() - Date.now();
+  return left > 0 && left <= 48 * 36e5 ? 'Yes' : 'No';
 };
 
 const regSeed = (d: RegistryDeployment) => [...d.id].reduce((a, c) => a + c.charCodeAt(0), 0);

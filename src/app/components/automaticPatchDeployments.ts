@@ -75,6 +75,11 @@ export const APD_POLICY_OPTIONS = [
   'Browser Updates — Silent Install',
 ].map((label) => ({ label, color: '#3D8BD0' }));
 
+const YES_NO = [
+  { label: 'Yes', color: '#3D8BD0' },
+  { label: 'No', color: '#94A3B8' },
+];
+
 export const APD_FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Name', icon: FileText, type: 'text' },
@@ -88,6 +93,12 @@ export const APD_FILTER_ATTRS: Attr[] = [
      stay out of the picker while the cards, filters and dashboard still read them. */
   { key: 'x_activity', label: 'Schedule activity', icon: Rocket, type: 'select', hidden: true, options: APD_ACTIVITY_OPTIONS },
   { key: 'x_deployments', label: 'Deployments created', icon: Rocket, type: 'text', hidden: true },
+  /* Installation outcomes across the schedule's runs — read off the same `deploymentsFor` set
+     the side panel renders, so a KPI card here and the panel's tiles count the same installs.
+     One Yes/No band per outcome, because a schedule can hold all three at once. */
+  { key: 'x_hasInstalled', label: 'Successful installs', icon: Rocket, type: 'select', hidden: true, options: YES_NO },
+  { key: 'x_hasPending', label: 'Pending installs', icon: Rocket, type: 'select', hidden: true, options: YES_NO },
+  { key: 'x_hasFailed', label: 'Failed installs', icon: Rocket, type: 'select', hidden: true, options: YES_NO },
 ];
 
 export const APD_QUICK_FILTERS: QuickFilterDef[] = [

@@ -25,6 +25,7 @@
    keeps its long prose form — these are the GRID's formats. */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** "19 Apr 2026" — a day, with no time to imply a precision the value does not have. */
@@ -49,4 +50,18 @@ export const parseLooseDate = (v: string | null | undefined): Date | null => {
     return Number.isNaN(d.getTime()) ? null : d;
   }
   return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+};
+
+/** The "Sat, Jul 25, 2026 10:00 PM" stamp the patch / package / registry run mocks store,
+ *  stated RELATIVE to today. Only the handful of runs that are still Ready to Deploy or
+ *  In Progress use it — their window has to sit against the real clock to mean anything (a
+ *  run that is "live" with a window that closed months ago contradicts its own status, and
+ *  the listings' "Expiring in 48h" card reads these dates against now). Finished runs keep
+ *  their fixed history. */
+export const relativeStamp = (daysFromNow: number, hour: number, minute = 0): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, minute, 0, 0);
+  const h24 = d.getHours();
+  return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${pad(h24 % 12 || 12)}:${pad(minute)} ${h24 >= 12 ? 'PM' : 'AM'}`;
 };

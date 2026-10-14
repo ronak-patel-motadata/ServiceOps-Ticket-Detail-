@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { CalendarClock, PlayCircle, Power, PowerOff, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 import { AssetRegisterPage } from './AssetRegisterPage';
-import { AutomaticPatchDeploymentPanel } from './AutomaticPatchDeploymentPanel';
+import { AutomaticPatchDeploymentPanel, deploymentsFor } from './AutomaticPatchDeploymentPanel';
 import {
   APD_FILTER_ATTRS, APD_QUICK_FILTERS, apdActivityOf, mockAutomaticPatchDeployments,
   type AutomaticPatchDeployment,
@@ -26,6 +26,29 @@ const parseExec = (s: string | null): Date | null => {
   if (!s) return null;
   const d = new Date(s.replace(/^[A-Za-z]{3},\s*/, ''));
   return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/* Installation outcomes across the schedule's runs, read off the SAME `deploymentsFor` set
+   the side panel renders — so the strip's Successfully Deployed / Pending / Failed and the
+   panel's tiles count the same installs. Counts for the headline figures, Yes/No bands for
+   the filters (a schedule can hold all three outcomes at once). */
+const installOutcomesOf = (d: AutomaticPatchDeployment) => {
+  const runs = deploymentsFor(d);
+  const sum = (pick: (r: (typeof runs)[number]) => number) => runs.reduce((a, r) => a + pick(r), 0);
+  const installed = sum((r) => r.installed);
+  const pending = sum((r) => r.pending);
+  const failed = sum((r) => r.failed);
+  return {
+    x_installedCount: installed,
+    x_pendingCount: pending,
+    x_failedCount: failed,
+    x_runsInstalled: runs.filter((r) => r.installed > 0).length,
+    x_runsPending: runs.filter((r) => r.pending > 0).length,
+    x_runsFailed: runs.filter((r) => r.failed > 0).length,
+    x_hasInstalled: installed > 0 ? 'Yes' : 'No',
+    x_hasPending: pending > 0 ? 'Yes' : 'No',
+    x_hasFailed: failed > 0 ? 'Yes' : 'No',
+  };
 };
 
 const toRow = (d: AutomaticPatchDeployment): Ticket => ({
@@ -46,35 +69,45 @@ const toRow = (d: AutomaticPatchDeployment): Ticket => ({
   /* NULL where the schedule has created none — the grid prints a dash, which is the module's
      own answer for "never built out", not a zero claiming it ran and shipped nothing. */
   x_deployments: d.totalDeployments,
+  ...installOutcomesOf(d),
 } as unknown as Ticket);
 
 const enabledOf = (t: Ticket) => (t as any).x_enabled === 'Enabled';
 const activityOf = (t: Ticket) => String((t as any).x_activity);
 
-/* Reads as "is the rollout doing its job": how many schedules exist, how many are live, how
-   much they have actually shipped, and what is switched off or has never fired. */
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/* Reads as "is the rollout doing its job", in the product's own terms: how many rules are
+   live, how many installs they have landed, how many are still pending, and how many failed.
+   The three install counts come from the same `deploymentsFor` set the side panel renders;
+   clicking one narrows the list to the schedules holding those runs, and the sub-line says
+   how many runs that is. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
+  const sum = (key: string) => rows.reduce((a, t) => a + Number((t as any)[key] ?? 0), 0);
   const on = rows.filter(enabledOf);
-  const shipped = rows.reduce((a, t) => a + Number((t as any).x_deployments ?? 0), 0);
-  const never = rows.filter((t) => activityOf(t) === 'Never run' || activityOf(t) === 'Scheduled');
-  const stopped = rows.filter((t) => activityOf(t) === 'Stopped');
+  const installed = sum('x_installedCount');
+  const pending = sum('x_pendingCount');
+  const failed = sum('x_failedCount');
   return [
-    { label: 'Deployment schedules', value: rows.length, sub: 'across the patch catalogue' },
     {
-      label: 'Enabled', value: on.length, sub: `of ${rows.length} schedules`,
-      valueColor: on.length ? '#22A06B' : undefined,
+      label: 'Active Deployment Rules', value: on.length, sub: `${rows.length - on.length} disabled`,
+      valueColor: on.length ? '#15803D' : undefined,
       filter: [{ field: 'x_enabled', condition: 'is', values: ['Enabled'] }],
     },
-    { label: 'Deployments created', value: shipped, sub: 'by every schedule to date' },
     {
-      label: 'Never run', value: never.length, sub: 'enabled but never fired',
-      valueColor: never.length ? '#B45309' : undefined,
-      filter: [{ field: 'x_activity', condition: 'is', values: ['Never run', 'Scheduled'] }],
+      label: 'Successfully Deployed', value: installed, sub: `across ${plural(sum('x_runsInstalled'), 'deployment')}`,
+      valueColor: installed ? '#15803D' : undefined,
+      filter: [{ field: 'x_hasInstalled', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'Stopped', value: stopped.length, sub: 'switched off, will not run again',
-      valueColor: stopped.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_activity', condition: 'is', values: ['Stopped'] }],
+      label: 'Pending', value: pending, sub: `in ${plural(sum('x_runsPending'), 'running deployment')}`,
+      valueColor: pending ? '#B45309' : undefined,
+      filter: [{ field: 'x_hasPending', condition: 'is', values: ['Yes'] }],
+    },
+    {
+      label: 'Failed', value: failed, sub: `in ${plural(sum('x_runsFailed'), 'deployment')}`,
+      valueColor: failed ? '#DC2626' : undefined,
+      filter: [{ field: 'x_hasFailed', condition: 'is', values: ['Yes'] }],
     },
   ];
 };

@@ -13,7 +13,7 @@ import {
   AlignLeft, CalendarDays, CircleDot, FileText, Hash, Layers, Monitor, Timer, User,
 } from 'lucide-react';
 import { IconStatusCheck } from './SidebarIcons';
-import { DEPLOY_STATUS_OPTIONS, DEPLOY_WINDOW_OPTIONS } from './patchFilterAttrs';
+import { DEPLOY_EXPIRING_OPTIONS, DEPLOY_STATUS_OPTIONS, DEPLOY_WINDOW_OPTIONS } from './patchFilterAttrs';
 import type { Attr, QuickFilterDef } from './TicketFilterBar';
 
 const o = (labels: string[]) => labels.map((label) => ({ label }));
@@ -54,6 +54,7 @@ export const PACKAGE_DEPLOY_FILTER_ATTRS: Attr[] = [
   { key: 'x_endpointCount', label: 'Endpoint Count', icon: Monitor, type: 'text', hidden: true },
   { key: 'x_window', label: 'Deployment Window', icon: Timer, type: 'select', hidden: true, options: DEPLOY_WINDOW_OPTIONS },
   { key: 'x_lapsed', label: 'Missed its window', icon: Timer, type: 'select', hidden: true, options: LAPSED_OPTIONS },
+  { key: 'x_expiring', label: 'Expiring in 48h', icon: Timer, type: 'select', hidden: true, options: DEPLOY_EXPIRING_OPTIONS },
 ];
 
 export const PACKAGE_DEPLOY_QUICK_FILTERS: QuickFilterDef[] = [
@@ -88,6 +89,7 @@ export const REGISTRY_DEPLOY_FILTER_ATTRS: Attr[] = [
   { key: 'x_installations', label: 'Total Installations', icon: Monitor, type: 'text', hidden: true },
   { key: 'x_window', label: 'Deployment Window', icon: Timer, type: 'select', hidden: true, options: DEPLOY_WINDOW_OPTIONS },
   { key: 'x_lapsed', label: 'Missed its window', icon: Timer, type: 'select', hidden: true, options: LAPSED_OPTIONS },
+  { key: 'x_expiring', label: 'Expiring in 48h', icon: Timer, type: 'select', hidden: true, options: DEPLOY_EXPIRING_OPTIONS },
 ];
 
 export const REGISTRY_DEPLOY_QUICK_FILTERS: QuickFilterDef[] = [

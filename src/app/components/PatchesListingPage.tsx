@@ -80,6 +80,9 @@ const PATCHES: { rows: Ticket[]; byId: Map<string, Patch> } = (() => {
          binary is on the file server — approval alone does not get a patch installed. */
       x_deployable: p.approvalStatus === 'Approved' && patchDownloadOf(p) === 'Success' ? 'Yes' : 'No',
       x_needsReboot: reboot === 'No' ? 'No' : 'Yes',
+      /* "Missing Endpoints > 0" — the gate on the strip's first two cards. NULL stays "No":
+         a patch the scanner never reported on is not a patch somebody is missing. */
+      x_hasMissing: (p.missingSystem ?? 0) > 0 ? 'Yes' : 'No',
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -88,33 +91,45 @@ const PATCHES: { rows: Ticket[]; byId: Map<string, Patch> } = (() => {
 const sevOf = (t: Ticket) => String((t as any).x_severity ?? '');
 const missingOf = (t: Ticket) => Number((t as any).x_missing ?? 0);
 
-/* The strip reads top-down as a patch admin's queue: how big is the catalogue, how much of
-   it is critical, how much is still waiting on a decision, how exposed the fleet is, and how
-   much of it will cost a reboot window. */
+/* The patch admin's queue, in the product's own terms: what is critical or important AND
+   actually missing somewhere, what is missing but still waiting on an approval, what is
+   cleared to deploy, what will cost a reboot window, and what the file server has not pulled
+   down yet. Every card filters the list to exactly the rows it counted. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
-  const critical = rows.filter((t) => sevOf(t) === 'Critical');
-  const pending = rows.filter((t) => (t as any).x_approvalStatus === 'Not Approved');
-  const exposure = rows.reduce((a, t) => a + missingOf(t), 0);
-  const reboot = rows.filter((t) => (t as any).x_needsReboot === 'Yes');
+  const missing = rows.filter((t) => (t as any).x_hasMissing === 'Yes');
+  const graded = missing.filter((t) => sevOf(t) === 'Critical' || sevOf(t) === 'Important');
+  const critical = graded.filter((t) => sevOf(t) === 'Critical').length;
+  const pending = missing.filter((t) => (t as any).x_approvalStatus === 'Not Approved');
+  const approved = rows.filter((t) => (t as any).x_approvalStatus === 'Approved');
+  const reboot = rows.filter((t) => (t as any).x_reboot === 'Yes');
+  const maybe = rows.filter((t) => (t as any).x_reboot === 'May be').length;
+  const download = rows.filter((t) => (t as any).x_downloadStatus === 'Pending');
+  const failed = rows.filter((t) => (t as any).x_downloadStatus === 'Failed').length;
+  const gate = { field: 'x_hasMissing', condition: 'is' as const, values: ['Yes'] };
   return [
-    { label: 'Patches in catalogue', value: rows.length, sub: 'scanned and catalogued' },
     {
-      label: 'Critical severity', value: critical.length, sub: `of ${rows.length} patches`,
-      valueColor: critical.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_severity', condition: 'is', values: ['Critical'] }],
+      label: 'Critical & Important', value: graded.length, sub: `${critical} critical · ${graded.length - critical} important`,
+      valueColor: graded.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_severity', condition: 'is', values: ['Critical', 'Important'] }, gate],
     },
     {
-      label: 'Awaiting approval', value: pending.length, sub: 'cannot deploy until approved',
+      label: 'Pending Approval', value: pending.length, sub: 'missing, not yet approved',
       valueColor: pending.length ? '#B45309' : undefined,
-      filter: [{ field: 'x_approvalStatus', condition: 'is', values: ['Not Approved'] }],
+      filter: [{ field: 'x_approvalStatus', condition: 'is', values: ['Not Approved'] }, gate],
     },
     {
-      label: 'Endpoints missing patches', value: exposure, sub: 'summed across the catalogue',
-      valueColor: exposure ? '#DC2626' : undefined,
+      label: 'Approved Patches', value: approved.length, sub: 'ready to deploy',
+      valueColor: approved.length ? '#15803D' : undefined,
+      filter: [{ field: 'x_approvalStatus', condition: 'is', values: ['Approved'] }],
     },
     {
-      label: 'Needs a reboot', value: reboot.length, sub: 'plan a maintenance window',
-      filter: [{ field: 'x_needsReboot', condition: 'is', values: ['Yes'] }],
+      label: 'Reboot Required', value: reboot.length, sub: maybe ? `${maybe} more may need one` : 'plan a maintenance window',
+      filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }],
+    },
+    {
+      label: 'Download Pending', value: download.length, sub: failed ? `${failed} download${failed === 1 ? '' : 's'} failed` : 'not yet on the file server',
+      valueColor: download.length ? '#B45309' : undefined,
+      filter: [{ field: 'x_downloadStatus', condition: 'is', values: ['Pending'] }],
     },
   ];
 };

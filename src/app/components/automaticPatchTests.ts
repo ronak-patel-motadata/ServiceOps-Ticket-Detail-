@@ -64,6 +64,11 @@ export const aptProgressOf = (t: AutomaticPatchTest): string => {
   return (t.pendingTests ?? 0) > 0 ? 'Tests pending' : 'All tests passed';
 };
 
+const YES_NO = [
+  { label: 'Yes', color: '#3D8BD0' },
+  { label: 'No', color: '#94A3B8' },
+];
+
 export const APT_FILTER_ATTRS: Attr[] = [
   { key: 'id', label: 'ID', icon: Hash, type: 'text' },
   { key: 'subject', label: 'Name', icon: FileText, type: 'text' },
@@ -77,6 +82,12 @@ export const APT_FILTER_ATTRS: Attr[] = [
 
   /* Derived band behind the KPI cards and the saved views — not a product attribute. */
   { key: 'x_progress', label: 'Test progress', icon: ListChecks, type: 'select', hidden: true, options: APT_PROGRESS_OPTIONS },
+  /* What the schedule's runs have produced — read off the same `runsFor` set the side panel
+     renders, so a KPI card here and the panel's tiles count the same runs. One Yes/No band
+     per outcome, because a schedule can hold all three at once. */
+  { key: 'x_tested', label: 'Patches Tested', icon: ListChecks, type: 'select', hidden: true, options: YES_NO },
+  { key: 'x_observing', label: 'Under Observation', icon: ListChecks, type: 'select', hidden: true, options: YES_NO },
+  { key: 'x_failedTests', label: 'Failed Tests', icon: ListChecks, type: 'select', hidden: true, options: YES_NO },
 ];
 
 export const APT_QUICK_FILTERS: QuickFilterDef[] = [

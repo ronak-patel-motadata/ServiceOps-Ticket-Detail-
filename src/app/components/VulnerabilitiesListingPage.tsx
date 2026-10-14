@@ -65,6 +65,8 @@ const VULNS: { rows: Ticket[]; byId: Map<string, Vulnerability> } = (() => {
       /* The module's load-bearing cut, pre-computed so the KPI card, the quick filter and
          the saved view all test one field. */
       x_exploited: v.exploitedCves.length > 0 ? 'Yes' : 'No',
+      /* The strip's "CVSS 8.0+" cut — the score column bands at 7.0 and 9.0, not 8.0. */
+      x_cvss8: v.cvssScore >= 8 ? 'Yes' : 'No',
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -74,31 +76,46 @@ const sevOf = (t: Ticket) => String((t as any).x_severity ?? '');
 const isExploited = (t: Ticket) => (t as any).x_exploited === 'Yes';
 const endpointsOf = (t: Ticket) => Number((t as any).x_impacted ?? 0);
 
-/* The strip reads top-down as a triage queue: how much is there, how much of it is
-   critical, how much is ALREADY being exploited, how much of the fleet that touches. */
+/* The security analyst's triage queue, in the product's own terms and in the order they act:
+   what is graded critical or important, what scores 8.0 and up, what is critical but still
+   blocked on an approval, what is cleared to go, and what will cost a reboot window. Every
+   card filters the list to exactly the rows it counted. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
-  const critical = rows.filter((t) => sevOf(t) === 'Critical');
-  const exploited = rows.filter(isExploited);
-  const highScore = rows.filter((t) => Number((t as any).x_cvss ?? 0) >= 9);
-  const fleet = rows.reduce((a, t) => a + endpointsOf(t), 0);
+  const graded = rows.filter((t) => sevOf(t) === 'Critical' || sevOf(t) === 'Important');
+  const critical = graded.filter((t) => sevOf(t) === 'Critical').length;
+  const high = rows.filter((t) => (t as any).x_cvss8 === 'Yes');
+  const nine = rows.filter((t) => Number((t as any).x_cvss ?? 0) >= 9).length;
+  const blocked = rows.filter((t) => sevOf(t) === 'Critical' && (t as any).x_approvalStatus !== 'Approved');
+  const ready = rows.filter((t) => (t as any).x_approvalStatus === 'Approved');
+  const reboot = rows.filter((t) => (t as any).x_reboot === 'Yes');
   return [
-    { label: 'Detected vulnerabilities', value: rows.length, sub: 'across the patch catalogue' },
     {
-      label: 'Critical severity', value: critical.length, sub: `of ${rows.length} detected`,
-      valueColor: critical.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_severity', condition: 'is', values: ['Critical'] }],
+      label: 'Critical & Important', value: graded.length, sub: `${critical} critical · ${graded.length - critical} important`,
+      valueColor: graded.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_severity', condition: 'is', values: ['Critical', 'Important'] }],
     },
     {
-      label: 'Exploited in the wild', value: exploited.length, sub: 'fix these first',
-      valueColor: exploited.length ? '#B42318' : undefined,
-      filter: [{ field: 'x_exploited', condition: 'is', values: ['Yes'] }],
+      label: 'CVSS 8.0+', value: high.length, sub: `${nine} scored 9.0 or higher`,
+      valueColor: high.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_cvss8', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'CVSS 9.0+', value: highScore.length, sub: 'critical-scored advisories',
-      valueColor: highScore.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_cvssBand', condition: 'is', values: ['Critical (9.0+)'] }],
+      label: 'Critical, Not Approved', value: blocked.length, sub: 'blocking remediation',
+      valueColor: blocked.length ? '#B45309' : undefined,
+      filter: [
+        { field: 'x_severity', condition: 'is', values: ['Critical'] },
+        { field: 'x_approvalStatus', condition: 'is not', values: ['Approved'] },
+      ],
     },
-    { label: 'Endpoints exposed', value: fleet, sub: 'summed across all findings' },
+    {
+      label: 'Ready to Remediate', value: ready.length, sub: 'approved, deploy now',
+      valueColor: ready.length ? '#15803D' : undefined,
+      filter: [{ field: 'x_approvalStatus', condition: 'is', values: ['Approved'] }],
+    },
+    {
+      label: 'Reboot Required', value: reboot.length, sub: 'plan a maintenance window',
+      filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }],
+    },
   ];
 };
 

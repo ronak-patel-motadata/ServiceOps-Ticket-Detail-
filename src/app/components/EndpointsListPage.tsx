@@ -145,12 +145,27 @@ export const endpointSoftwareVulnsOf = (e: Endpoint): number => {
 export const endpointVulnCountOf = (e: Endpoint): number =>
   endpointOsVulnsOf(e) + endpointSoftwareVulnsOf(e);
 
-/** Last vulnerability scan — recent, and staggered so a fleet does not all scan at once. */
+/** Last vulnerability scan, staggered so a fleet does not all scan at once. Most of the fleet
+ *  scanned inside the week; roughly one machine in four has not been reached for 8–17 days —
+ *  the "Not Scanned in 7 Days" cut the listing's KPI strip makes. */
 export const endpointScanDateOf = (e: Endpoint): Date | null => {
   if (!endpointScanned(e)) return null;
+  const h = scanSeed(e) % 17;
+  const hoursAgo = h < 13 ? 1 + h * 12 : 24 * (8 + (h - 13) * 3);
   const d = new Date();
-  d.setHours(d.getHours() - (scanSeed(e) % 96) - 1);
+  d.setHours(d.getHours() - hoursAgo);
   return d;
+};
+
+/** Patches the scanner found missing on this machine — weighted by System Health like the
+ *  vulnerability counts, so the fleet's unhealthiest machines are also its least patched. A
+ *  machine that has never reported an inventory has never been scanned: 0, not a guess. */
+export const endpointMissingPatchesOf = (e: Endpoint): number => {
+  if (!endpointScanned(e)) return 0;
+  const s = scanSeed(e);
+  if (e.systemHealth === 'Critical') return 9 + (s % 6);
+  if (e.systemHealth === 'Warning') return 4 + (s % 4);
+  return s % 3 === 0 ? 1 + (s % 2) : 0;
 };
 
 /** Adapt an endpoint onto the Patch shape the cloned EndpointDrawer body expects

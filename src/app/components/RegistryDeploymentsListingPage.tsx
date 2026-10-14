@@ -12,8 +12,8 @@ import { CheckCircle, CircleDot, Monitor, PlayCircle, Timer } from 'lucide-react
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { REGISTRY_DEPLOY_FILTER_ATTRS, REGISTRY_DEPLOY_QUICK_FILTERS } from './packageFilterAttrs';
 import {
-  mockRegistryDeployments, parseRegDate, regCreatedDateOf, regUpdatedByOf, regUpdatedDateOf,
-  regWindowOf, registryDeploymentToPatchShape, type RegistryDeployment,
+  mockRegistryDeployments, parseRegDate, regCreatedDateOf, regExpiringOf, regUpdatedByOf,
+  regUpdatedDateOf, regWindowOf, registryDeploymentToPatchShape, type RegistryDeployment,
 } from './RegistryDeploymentsListPage';
 import type { DashConfig } from './AssetDashboardView';
 import type { StatCard } from './AssetStatsRow';
@@ -53,6 +53,8 @@ const DEPLOYMENTS: { rows: Ticket[]; byId: Map<string, RegistryDeployment> } = (
       x_lastUpdatedDate: regUpdatedDateOf(d),
       x_window: regWindowOf(d),
       x_lapsed: regWindowOf(d) === 'Window closed' && !['Completed', 'Cancelled'].includes(d.status) ? 'Yes' : 'No',
+      /* The KPI strip's "Expiring in 48h" — see regExpiringOf. */
+      x_expiring: regExpiringOf(d),
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -63,31 +65,42 @@ const windowOf = (t: Ticket) => String((t as any).x_window ?? '');
 const lapsed = (t: Ticket) => (t as any).x_lapsed === 'Yes';
 const installsOf = (t: Ticket) => Number((t as any).x_installations ?? 0);
 
+/* The operator's shift, in the product's own terms: what went out, what is going out now,
+   what is queued, and what is about to run out of window. Every card filters the list to
+   exactly the rows it counted. */
+const startsWithin24h = (t: Ticket) => {
+  const start = (t as any).x_installAfter as Date | null;
+  if (!start) return false;
+  const left = start.getTime() - Date.now();
+  return left > 0 && left <= 24 * 36e5;
+};
 const buildCards = (rows: Ticket[]): StatCard[] => {
+  const done = rows.filter((t) => statusOf(t) === 'Completed');
   const running = rows.filter((t) => statusOf(t) === 'In Progress');
   const queued = rows.filter((t) => statusOf(t) === 'Ready to Deploy');
-  const missed = rows.filter(lapsed);
-  const done = rows.filter((t) => statusOf(t) === 'Completed');
-  const applied = rows.reduce((a, t) => a + installsOf(t), 0);
+  const soon = queued.filter(startsWithin24h).length;
+  const expiring = rows.filter((t) => (t as any).x_expiring === 'Yes');
   return [
-    { label: 'Deployments', value: rows.length, sub: 'registry configurations' },
     {
-      label: 'In progress', value: running.length, sub: 'applying right now',
+      label: 'Successful', value: done.length, sub: `of ${rows.length} configurations`,
+      valueColor: done.length ? '#15803D' : undefined,
+      filter: [{ field: 'status', condition: 'is', values: ['Completed'] }],
+    },
+    {
+      label: 'In progress', value: running.length, sub: 'applying now',
       valueColor: running.length ? '#B45309' : undefined,
       filter: [{ field: 'status', condition: 'is', values: ['In Progress'] }],
     },
     {
-      label: 'Ready to deploy', value: queued.length, sub: 'queued and waiting',
+      label: 'Scheduled', value: queued.length, sub: `${soon} start in next 24h`,
       valueColor: queued.length ? '#3D8BD0' : undefined,
       filter: [{ field: 'status', condition: 'is', values: ['Ready to Deploy'] }],
     },
     {
-      label: 'Missed their window', value: missed.length, sub: 'expired without completing',
-      valueColor: missed.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_lapsed', condition: 'is', values: ['Yes'] }],
+      label: 'Expiring in 48h', value: expiring.length, sub: 'window closes soon',
+      valueColor: expiring.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_expiring', condition: 'is', values: ['Yes'] }],
     },
-    { label: 'Completed', value: done.length, sub: `of ${rows.length} runs`, filter: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
-    { label: 'Endpoints configured', value: applied, sub: 'real installation count' },
   ];
 };
 

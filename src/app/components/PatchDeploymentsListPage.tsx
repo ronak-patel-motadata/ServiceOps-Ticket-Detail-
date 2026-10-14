@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { PatchDeploymentsTable } from './PatchDeploymentsTable';
 import { Pagination } from './Pagination';
 import { useDrawerStack } from './DrawerStack';
+import { relativeStamp } from './dateFormat';
 import type { Patch } from './PatchesListPage';
 
 export type DeploymentStatus = 'Ready to Deploy' | 'In Progress' | 'Completed' | 'Cancelled' | 'Expired' | 'Draft';
@@ -21,15 +22,19 @@ export interface PatchDeployment {
 }
 
 // Realistic deployment runs: named after the patch wave they roll out, scoped by ring/policy.
+// ⚠️ The runs still Ready to Deploy / In Progress state their window RELATIVE to today
+// (`relativeStamp`): a live run whose window closed months ago contradicts its own status,
+// and the listing's "Expiring in 48h" card reads these against the clock. Finished runs keep
+// their fixed history.
 export const mockPatchDeployments: PatchDeployment[] = [
-  { id: 'PDR-1433', name: 'April 2026 Patch Tuesday — Production Servers Wave 2', status: 'Ready to Deploy', deploymentPolicy: 'Production Servers — Staged Rollout', installAfter: 'Sat, Jul 25, 2026 10:00 PM', expiryDate: 'Fri, Jul 31, 2026 06:00 AM' },
-  { id: 'PDR-1432', name: 'Chrome 124 Security Update — All Workstations', status: 'Ready to Deploy', deploymentPolicy: 'Browser Updates — Silent Install', installAfter: 'Thu, Jul 23, 2026 08:00 PM', expiryDate: null },
-  { id: 'PDR-1431', name: 'KB5036894 Cumulative Update — Finance Department', status: 'In Progress', deploymentPolicy: 'Workstations — Business Hours Safe', installAfter: 'Tue, Jul 21, 2026 09:00 PM', expiryDate: 'Tue, Jul 28, 2026 09:00 PM' },
+  { id: 'PDR-1433', name: 'April 2026 Patch Tuesday — Production Servers Wave 2', status: 'Ready to Deploy', deploymentPolicy: 'Production Servers — Staged Rollout', installAfter: relativeStamp(3, 22), expiryDate: relativeStamp(9, 6) },
+  { id: 'PDR-1432', name: 'Chrome 124 Security Update — All Workstations', status: 'Ready to Deploy', deploymentPolicy: 'Browser Updates — Silent Install', installAfter: relativeStamp(1, 1), expiryDate: null },
+  { id: 'PDR-1431', name: 'KB5036894 Cumulative Update — Finance Department', status: 'In Progress', deploymentPolicy: 'Workstations — Business Hours Safe', installAfter: relativeStamp(-1, 21), expiryDate: relativeStamp(1, 21) },
   { id: 'PDR-1430', name: 'Defender Platform 4.18.24030 — Fleet-wide', status: 'In Progress', deploymentPolicy: 'Security Definitions — Immediate', installAfter: null, expiryDate: null },
   { id: 'PDR-1429', name: 'Internal Agent Updater Hotfix — Priority Rollout', status: 'Completed', deploymentPolicy: 'Critical Security — Immediate', installAfter: 'Wed, Jul 08, 2026 06:30 PM', expiryDate: 'Fri, Jul 10, 2026 06:30 PM' },
   { id: 'PDR-1428', name: 'Acrobat Reader DC Security Update — Design Team', status: 'Completed', deploymentPolicy: 'Third-Party Apps — Weekly Window', installAfter: 'Mon, Jul 06, 2026 10:00 PM', expiryDate: null },
   { id: 'PDR-1427', name: 'April 2026 Patch Tuesday — Pilot Ring', status: 'Completed', deploymentPolicy: 'Pilot Ring — Early Validation', installAfter: 'Thu, Apr 16, 2026 09:00 PM', expiryDate: 'Thu, Apr 23, 2026 09:00 PM' },
-  { id: 'PDR-1426', name: '.NET Framework 4.8.1 Rollup — Application Servers', status: 'Ready to Deploy', deploymentPolicy: 'App Servers — Maintenance Window', installAfter: 'Sun, Jul 26, 2026 02:00 AM', expiryDate: 'Sun, Aug 02, 2026 02:00 AM' },
+  { id: 'PDR-1426', name: '.NET Framework 4.8.1 Rollup — Application Servers', status: 'Ready to Deploy', deploymentPolicy: 'App Servers — Maintenance Window', installAfter: relativeStamp(1, 2), expiryDate: relativeStamp(1, 23, 30) },
   { id: 'PDR-1425', name: 'Edge 124 Security Update — Kiosk Devices', status: 'Draft', deploymentPolicy: 'Kiosk Devices — Overnight Only', installAfter: null, expiryDate: null },
   { id: 'PDR-1424', name: 'PuTTY 0.81 (CVE-2024-31497) — Engineering Workstations', status: 'Completed', deploymentPolicy: 'Critical Security — Immediate', installAfter: 'Wed, Apr 16, 2026 11:00 AM', expiryDate: 'Fri, Apr 18, 2026 11:00 AM' },
   { id: 'PDR-1423', name: 'Firefox 125.0.2 Update — Support Team', status: 'Cancelled', deploymentPolicy: 'Browser Updates — Silent Install', installAfter: 'Wed, Apr 22, 2026 08:30 PM', expiryDate: null },
@@ -43,7 +48,7 @@ export const mockPatchDeployments: PatchDeployment[] = [
   { id: 'PDR-1415', name: 'Windows 11 24H2 Feature Enablement — IT Pilot', status: 'Draft', deploymentPolicy: 'Pilot Ring — Early Validation', installAfter: 'Mon, Aug 03, 2026 09:00 PM', expiryDate: 'Mon, Aug 17, 2026 09:00 PM' },
   { id: 'PDR-1414', name: 'January 2026 Cumulative — Domain Controllers', status: 'Completed', deploymentPolicy: 'Domain Controllers — One at a Time', installAfter: 'Sun, Jan 18, 2026 03:00 AM', expiryDate: 'Sun, Jan 25, 2026 03:00 AM' },
   { id: 'PDR-1413', name: 'Git for Windows 2.44 — Developer Machines', status: 'Completed', deploymentPolicy: 'Developer Tools — Self Service', installAfter: null, expiryDate: null },
-  { id: 'PDR-1412', name: '7-Zip 24.05 Update — All Workstations', status: 'Ready to Deploy', deploymentPolicy: 'Third-Party Apps — Weekly Window', installAfter: 'Wed, Jul 29, 2026 08:00 PM', expiryDate: null },
+  { id: 'PDR-1412', name: '7-Zip 24.05 Update — All Workstations', status: 'Ready to Deploy', deploymentPolicy: 'Third-Party Apps — Weekly Window', installAfter: relativeStamp(5, 20), expiryDate: null },
   { id: 'PDR-1411', name: 'January 2026 Patch Tuesday — HR & Finance Ring', status: 'Completed', deploymentPolicy: 'Workstations — Business Hours Safe', installAfter: 'Fri, Jan 16, 2026 09:30 PM', expiryDate: 'Fri, Jan 23, 2026 09:30 PM' },
   { id: 'PDR-1410', name: 'Notepad++ 8.6.5 Update — Engineering Workstations', status: 'Cancelled', deploymentPolicy: 'Developer Tools — Self Service', installAfter: null, expiryDate: null },
   { id: 'PDR-1409', name: 'December 2025 Cumulative — Warehouse Terminals', status: 'Expired', deploymentPolicy: 'Shared Devices — Overnight Only', installAfter: 'Sat, Dec 20, 2025 01:00 AM', expiryDate: 'Sat, Dec 27, 2025 01:00 AM' },
@@ -142,6 +147,25 @@ export const deployWindowOf = (d: PatchDeployment): string => {
 export const deployTaskTypeOf = (d: PatchDeployment): string =>
   /\b(uninstall|rollback|remove|revert)\b/i.test(d.name) ? 'Uninstall' : 'Install';
 
+/* Where the run came from. The recurring patch families — definitions, browsers, runtimes,
+   the servicing stack, third-party apps — are what Automatic Patch Deployment schedules exist
+   to ship; a Patch Tuesday wave, a pilot, a hotfix or a rollback is a technician's hand on
+   the button. The listing's "Manual Remote Deploy" card reads this, and a schedule-made run
+   is created by "System" (see deployCreatedByOf). */
+const AUTOMATIC_FAMILIES = /defender|chrome|edge \d|firefox|zoom|java|\.net framework|acrobat|servicing stack|7-zip|vlc|notepad\+\+|git for windows|putty/i;
+export const deployOriginOf = (d: PatchDeployment): string =>
+  AUTOMATIC_FAMILIES.test(d.name) && deployTaskTypeOf(d) === 'Install' ? 'Automatic Patch Deployment' : 'Manual Remote Deploy';
+
+/* Still Ready to Deploy or In Progress, with a window that closes inside the next 48 hours —
+   the run an operator has to watch tonight. Two conditions, one field (see `x_lapsed`). */
+export const deployExpiringOf = (d: PatchDeployment): string => {
+  if (!['Ready to Deploy', 'In Progress'].includes(d.status)) return 'No';
+  const end = parseDeployDate(d.expiryDate);
+  if (!end) return 'No';
+  const left = end.getTime() - Date.now();
+  return left > 0 && left <= 48 * 36e5 ? 'Yes' : 'No';
+};
+
 /* Scope. The record carries no counts of its own — the detail page builds them from its
    patch × endpoint matrix — so they are derived deterministically per id here and stay
    stable across reloads. */
@@ -151,7 +175,10 @@ export const deployEndpointCountOf = (d: PatchDeployment): number => 3 + ((deplo
 
 /** Who set the run up, and when it was created / last touched. */
 const DEPLOY_OWNERS = ['Rakesh Rathod', 'Sarah Johnson', 'Chintan Makwana', 'Priya Nair', 'Siddharth Rao'];
-export const deployCreatedByOf = (d: PatchDeployment): string => DEPLOY_OWNERS[deploySeed(d) % DEPLOY_OWNERS.length];
+/* A schedule-created run has no human creator — the same "System" the patch catalogue uses
+   for a scanned patch, and the grid's Created By cell drops the avatar for it. */
+export const deployCreatedByOf = (d: PatchDeployment): string =>
+  deployOriginOf(d) === 'Automatic Patch Deployment' ? 'System' : DEPLOY_OWNERS[deploySeed(d) % DEPLOY_OWNERS.length];
 /* Usually the same person who set it up; a run that someone else has since touched (paused,
    rescheduled, cancelled) carries their name instead. */
 export const deployUpdatedByOf = (d: PatchDeployment): string =>

@@ -96,6 +96,9 @@ export const VULN_FILTER_ATTRS: Attr[] = [
      and the "Exploited in the Wild" saved view all test ONE field. `hidden` keeps it out
      of both the filter picker and Manage columns. */
   { key: 'x_exploited', label: 'Exploited in the Wild', icon: Bug, type: 'select', hidden: true, options: YES_NO },
+  /* The KPI strip's "CVSS 8.0+" cut. The score column bands at 7.0 and 9.0, so an 8.0
+     threshold needs its own pre-computed field — the filter bar has no numeric compare. */
+  { key: 'x_cvss8', label: 'CVSS 8.0+', icon: Gauge, type: 'select', hidden: true, options: YES_NO },
   { key: 'id', label: 'ID', icon: Hash, type: 'text', hidden: true },
 ];
 
@@ -144,6 +147,9 @@ export const CVE_FILTER_ATTRS: Attr[] = [
   /* Not a product attribute. CWE is a SHOWN column here, so `hidden` keeps it out of the
      picker without taking the column away. */
   { key: 'x_cwe', label: 'CWE ID', icon: Bug, type: 'text', hidden: true },
+  /* Every card on the CVE strip is gated on "Impacted Endpoints > 0" — a CVE touching no
+     machine is a catalogue entry, not a finding. Banded so the cards can filter on it. */
+  { key: 'x_active', label: 'Impacting Endpoints', icon: Monitor, type: 'select', hidden: true, options: YES_NO },
 ];
 
 /* Severity and NVD status. The exploit-status quick filter was dropped by request — the
@@ -178,6 +184,20 @@ export const ENDPOINT_OS_OPTIONS = o([
 
 export const ENDPOINT_DOMAIN_OPTIONS = o(['motadata.local', 'WORKGROUP']);
 
+/* Bands behind the Endpoint KPI strip. Each is a threshold the filter bar cannot state as a
+   rule — it has no numeric compare and no "older than N days" — so the row carries the
+   answer and the card, its chip and the filtered list all read one field. */
+export const ENDPOINT_VULN_BAND_OPTIONS = [
+  { label: 'Found', color: '#DC2626' },
+  { label: 'None found', color: '#22C55E' },
+  { label: 'Not scanned', color: '#94A3B8' },
+];
+export const ENDPOINT_SCAN_AGE_OPTIONS = [
+  { label: 'Within 7 days', color: '#22C55E' },
+  { label: 'Over 7 days ago', color: '#F59E0B' },
+  { label: 'Never', color: '#94A3B8' },
+];
+
 /* The product's own fourteen, in its own order. The grid's headings use the same names (see
    MODULE_COL_DEFS.endpoint — "Agent ID" became ID and "Version" became OS Version) so no
    fact carries two names between the table and Manage columns. */
@@ -203,6 +223,10 @@ export const ENDPOINT_FILTER_ATTRS: Attr[] = [
   { key: 'x_agent', label: 'Agent Status', icon: IconStatusCheck, type: 'select', hidden: true, options: ENDPOINT_AGENT_OPTIONS },
   { key: 'x_tags', label: 'Tags', icon: Tag, type: 'text', hidden: true },
   { key: 'x_servicePack', label: 'Service Pack', icon: Cpu, type: 'text', hidden: true },
+  /* The KPI strip's bands — see ENDPOINT_VULN_BAND_OPTIONS. */
+  { key: 'x_hasMissing', label: 'Missing Patches', icon: ShieldAlert, type: 'select', hidden: true, options: YES_NO },
+  { key: 'x_vulnBand', label: 'Vulnerabilities', icon: Bug, type: 'select', hidden: true, options: ENDPOINT_VULN_BAND_OPTIONS },
+  { key: 'x_scanAge', label: 'Last Scanned', icon: CalendarDays, type: 'select', hidden: true, options: ENDPOINT_SCAN_AGE_OPTIONS },
 ];
 
 export const ENDPOINT_QUICK_FILTERS: QuickFilterDef[] = [

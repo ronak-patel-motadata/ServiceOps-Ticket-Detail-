@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { CheckCircle, ListChecks, Power, PowerOff, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { AssetRegisterPage } from './AssetRegisterPage';
-import { AutomaticPatchTestPanel } from './AutomaticPatchTestPanel';
+import { AutomaticPatchTestPanel, runsFor } from './AutomaticPatchTestPanel';
 import {
   APT_FILTER_ATTRS, APT_QUICK_FILTERS, aptProgressOf, mockAutomaticPatchTests,
   type AutomaticPatchTest,
@@ -26,6 +26,26 @@ const parseExec = (s: string | null): Date | null => {
   if (!s) return null;
   const d = new Date(s.replace(/^[A-Za-z]{3},\s*/, ''));
   return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/* What the schedule's runs have produced, read off the SAME `runsFor` set the side panel
+   renders — so the strip's Patches Tested / Under Observation / Failed Tests and the panel's
+   tiles count the same runs. Counts for the headline figures, Yes/No bands for the filters
+   (a schedule can hold all three outcomes at once, so one field could not say it). */
+const testOutcomesOf = (t: AutomaticPatchTest) => {
+  const runs = runsFor(t);
+  const passed = runs.filter((r) => r.testStatus === 'Passed').length;
+  const failed = runs.filter((r) => r.testStatus === 'Failed').length;
+  const observing = runs.filter((r) => r.testStatus === 'In Progress').length;
+  return {
+    x_testedCount: passed + failed,
+    x_passedCount: passed,
+    x_failedCount: failed,
+    x_observingCount: observing,
+    x_tested: passed + failed > 0 ? 'Yes' : 'No',
+    x_observing: observing > 0 ? 'Yes' : 'No',
+    x_failedTests: failed > 0 ? 'Yes' : 'No',
+  };
 };
 
 const toRow = (t: AutomaticPatchTest): Ticket => ({
@@ -47,38 +67,45 @@ const toRow = (t: AutomaticPatchTest): Ticket => ({
   x_enabled: t.enabled ? 'Enabled' : 'Disabled',
   x_createdBy: t.createdBy,
   x_progress: aptProgressOf(t),
+  ...testOutcomesOf(t),
 } as unknown as Ticket);
 
 const enabledOf = (t: Ticket) => (t as any).x_enabled === 'Enabled';
 const pendingOf = (t: Ticket) => Number((t as any).x_pendingTests ?? 0);
 
-/* Reads as "is the pilot ring doing its job": how many schedules exist, how many are live,
-   how much validation is still outstanding, and what has never run. */
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/* Reads as "is the pilot ring doing its job", in the product's own terms: how many schedules
+   are live, how many patches they have put through a test, how many are still under
+   observation, and how many failed. The three run counts come from the same `runsFor` set
+   the side panel renders; clicking one narrows the list to the schedules holding those runs,
+   and the sub-line says how many that is. */
 const buildCards = (rows: Ticket[]): StatCard[] => {
+  const sum = (key: string) => rows.reduce((a, t) => a + Number((t as any)[key] ?? 0), 0);
+  const holding = (key: string) => rows.filter((t) => (t as any)[key] === 'Yes').length;
   const on = rows.filter(enabledOf);
-  const pending = rows.reduce((a, t) => a + pendingOf(t), 0);
-  const never = rows.filter((t) => (t as any).x_progress === 'Never run');
-  const done = rows.filter((t) => (t as any).x_progress === 'All tests passed');
+  const tested = sum('x_testedCount');
+  const observing = sum('x_observingCount');
+  const failed = sum('x_failedCount');
   return [
-    { label: 'Test schedules', value: rows.length, sub: 'across the patch catalogue' },
     {
-      label: 'Enabled', value: on.length, sub: `of ${rows.length} schedules`,
-      valueColor: on.length ? '#22A06B' : undefined,
+      label: 'Active Patch Tests', value: on.length, sub: `${rows.length - on.length} disabled`,
+      valueColor: on.length ? '#15803D' : undefined,
       filter: [{ field: 'x_enabled', condition: 'is', values: ['Enabled'] }],
     },
     {
-      label: 'Tests pending', value: pending, sub: 'cases still to run',
-      valueColor: pending ? '#B45309' : undefined,
-      filter: [{ field: 'x_progress', condition: 'is', values: ['Tests pending'] }],
+      label: 'Patches Tested', value: tested, sub: `${sum('x_passedCount')} passed · in ${plural(holding('x_tested'), 'schedule')}`,
+      filter: [{ field: 'x_tested', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'Never run', value: never.length, sub: 'scheduled but never executed',
-      valueColor: never.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_progress', condition: 'is', values: ['Never run'] }],
+      label: 'Under Observation', value: observing, sub: `results pending in ${plural(holding('x_observing'), 'schedule')}`,
+      valueColor: observing ? '#B45309' : undefined,
+      filter: [{ field: 'x_observing', condition: 'is', values: ['Yes'] }],
     },
     {
-      label: 'Fully validated', value: done.length, sub: 'every case completed',
-      filter: [{ field: 'x_progress', condition: 'is', values: ['All tests passed'] }],
+      label: 'Failed Tests', value: failed, sub: `in ${plural(holding('x_failedTests'), 'schedule')}`,
+      valueColor: failed ? '#DC2626' : undefined,
+      filter: [{ field: 'x_failedTests', condition: 'is', values: ['Yes'] }],
     },
   ];
 };

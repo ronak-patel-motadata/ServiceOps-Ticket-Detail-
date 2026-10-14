@@ -137,11 +137,14 @@ export const vulnRebootOf = (v: Vulnerability): RebootRequired =>
       : 'No';
 
 /* Approved = cleared for deployment. An advisory with active exploitation gets approved on
-   sight; the rest wait on a review, which is exactly what the filter is for. */
+   sight, and so is a critical one — except the one in four still sitting in review, which is
+   exactly the row the listing's "Critical, Not Approved" card exists to surface (every critical
+   auto-approved left that card reading 0 for ever). The rest wait on a review. */
 export const vulnApprovalOf = (v: Vulnerability): ApprovalStatus => {
   if (v.exploitedCves.length > 0) return 'Approved';
   const h = [...v.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-  return v.severity === 'Critical' || h % 3 === 0 ? 'Approved' : 'Not Approved';
+  if (v.severity === 'Critical') return h % 4 === 0 ? 'Not Approved' : 'Approved';
+  return h % 3 === 0 ? 'Approved' : 'Not Approved';
 };
 
 /* A plausible CVSS 3.1 base vector for the score the advisory carries — graded so the

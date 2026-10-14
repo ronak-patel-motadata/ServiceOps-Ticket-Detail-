@@ -8,7 +8,7 @@
    Install After · Expiry, and an Overview of Success / Failed / In Progress / Other), so the
    run list and a single run tell the same story.
 
-   ⚠️ The headline KPI here is **windows that closed without completing**. A run whose expiry
+   ⚠️ The dashboard's headline tile is **windows that closed without completing**. A run whose expiry
    has passed while it still reads "Ready to Deploy" or "In Progress" has failed silently —
    nothing errored, it simply never went out — and no single stored field says so. */
 import { useMemo } from 'react';
@@ -16,9 +16,10 @@ import { CheckCircle, CircleDot, Layers, PlayCircle, Timer } from 'lucide-react'
 import { AssetRegisterPage } from './AssetRegisterPage';
 import { PATCH_DEPLOY_FILTER_ATTRS, PATCH_DEPLOY_QUICK_FILTERS } from './patchFilterAttrs';
 import {
-  deployCreatedByOf, deployCreatedDateOf, deployEndpointCountOf, deployPatchCountOf,
-  deployTaskTypeOf, deployUpdatedByOf, deployUpdatedDateOf, deployWindowOf, deploymentToPatchShape,
-  mockPatchDeployments, parseDeployDate, type PatchDeployment,
+  deployCreatedByOf, deployCreatedDateOf, deployEndpointCountOf, deployExpiringOf,
+  deployOriginOf, deployPatchCountOf, deployTaskTypeOf, deployUpdatedByOf, deployUpdatedDateOf,
+  deployWindowOf, deploymentToPatchShape, mockPatchDeployments, parseDeployDate,
+  type PatchDeployment,
 } from './PatchDeploymentsListPage';
 import type { DashConfig } from './AssetDashboardView';
 import type { StatCard } from './AssetStatsRow';
@@ -60,6 +61,9 @@ const DEPLOYMENTS: { rows: Ticket[]; byId: Map<string, PatchDeployment> } = (() 
       x_window: deployWindowOf(d),
       /* Window closed AND never finished — see the x_lapsed note in patchFilterAttrs. */
       x_lapsed: deployWindowOf(d) === 'Window closed' && !['Completed', 'Cancelled'].includes(d.status) ? 'Yes' : 'No',
+      /* The KPI strip's own two cuts — see deployExpiringOf / deployOriginOf. */
+      x_expiring: deployExpiringOf(d),
+      x_origin: deployOriginOf(d),
     } as unknown as Ticket;
   });
   return { rows, byId };
@@ -71,33 +75,47 @@ const windowOf = (t: Ticket) => String((t as any).x_window ?? '');
    the status still reads "In Progress", the expiry has simply gone by. */
 const lapsed = (t: Ticket) => (t as any).x_lapsed === 'Yes';
 
-/* The strip reads as an operator's shift: what is running now, what is queued behind it,
-   what lapsed without going out, and how much of the fleet all of it touches. */
+/* The operator's shift, in the product's own terms: what went out, what is going out now,
+   what is queued, what is about to run out of window, and what a technician pushed by hand
+   rather than a schedule. Every card filters the list to exactly the rows it counted. */
+const startsWithin24h = (t: Ticket) => {
+  const start = (t as any).x_installAfter as Date | null;
+  if (!start) return false;
+  const left = start.getTime() - Date.now();
+  return left > 0 && left <= 24 * 36e5;
+};
 const buildCards = (rows: Ticket[]): StatCard[] => {
+  const done = rows.filter((t) => statusOf(t) === 'Completed');
   const running = rows.filter((t) => statusOf(t) === 'In Progress');
   const queued = rows.filter((t) => statusOf(t) === 'Ready to Deploy');
-  const missed = rows.filter(lapsed);
-  const done = rows.filter((t) => statusOf(t) === 'Completed');
-  const reach = rows.reduce((a, t) => a + Number((t as any).x_endpointCount ?? 0), 0);
+  const soon = queued.filter(startsWithin24h).length;
+  const expiring = rows.filter((t) => (t as any).x_expiring === 'Yes');
+  const manual = rows.filter((t) => (t as any).x_origin === 'Manual Remote Deploy');
   return [
-    { label: 'Deployments', value: rows.length, sub: 'across the fleet' },
     {
-      label: 'In progress', value: running.length, sub: 'rolling out right now',
+      label: 'Successful', value: done.length, sub: `of ${rows.length} runs`,
+      valueColor: done.length ? '#15803D' : undefined,
+      filter: [{ field: 'status', condition: 'is', values: ['Completed'] }],
+    },
+    {
+      label: 'In progress', value: running.length, sub: 'running now',
       valueColor: running.length ? '#B45309' : undefined,
       filter: [{ field: 'status', condition: 'is', values: ['In Progress'] }],
     },
     {
-      label: 'Ready to deploy', value: queued.length, sub: 'queued and waiting',
+      label: 'Scheduled', value: queued.length, sub: `${soon} start in next 24h`,
       valueColor: queued.length ? '#3D8BD0' : undefined,
       filter: [{ field: 'status', condition: 'is', values: ['Ready to Deploy'] }],
     },
     {
-      label: 'Missed their window', value: missed.length, sub: 'expired without completing',
-      valueColor: missed.length ? '#DC2626' : undefined,
-      filter: [{ field: 'x_lapsed', condition: 'is', values: ['Yes'] }],
+      label: 'Expiring in 48h', value: expiring.length, sub: 'window closes soon',
+      valueColor: expiring.length ? '#DC2626' : undefined,
+      filter: [{ field: 'x_expiring', condition: 'is', values: ['Yes'] }],
     },
-    { label: 'Completed', value: done.length, sub: `of ${rows.length} runs`, filter: [{ field: 'status', condition: 'is', values: ['Completed'] }] },
-    { label: 'Endpoints targeted', value: reach, sub: 'summed across runs' },
+    {
+      label: 'Manual Remote Deploy', value: manual.length, sub: 'created by a technician',
+      filter: [{ field: 'x_origin', condition: 'is', values: ['Manual Remote Deploy'] }],
+    },
   ];
 };
 
