@@ -908,8 +908,8 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     const size = file.size >= 1048576 ? `${(file.size / 1048576).toFixed(2)} MB` : `${(file.size / 1024).toFixed(1)} KB`;
-    /* An uploaded file carries no OS version of its own — the row simply omits that line. */
-    setPatchFiles((prev) => [...prev, { name: file.name, size, language: 'all', osVersion: '' }]);
+    /* An uploaded file carries no OS version or architecture of its own — those cells print a dash. */
+    setPatchFiles((prev) => [...prev, { name: file.name, size, language: 'all', osVersion: '', architecture: '' }]);
     e.target.value = '';
   };
 
@@ -3613,24 +3613,19 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                   <span className="font-medium text-[#364658]">{patchFiles.length}</span> {patchFiles.length === 1 ? 'file' : 'files'}
                 </div>
                 {patchFiles.map((f) => (
-                  <div key={f.name} className="group flex items-center gap-3 rounded-[10px] bg-[#F9FAFB] px-3 py-2.5">
-                    <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><FileText size={18} /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium text-[#364658] break-words">{f.name}</div>
-                      {/* Two quiet meta lines: size · language, then the OS build the file applies
-                          to (the old File Details grid's "OS Version" column). Labels grey, values
-                          one step darker (#64748B) — the full #364658 was tried and read heavy, and
-                          a monitor glyph in front of the OS line was tried and pulled as clutter. */}
-                      <div className="mt-0.5 flex items-center gap-2 text-[12px] text-[#7B8FA5]">
-                        <span className="font-medium text-[#64748B]">{f.size}</span>
-                        <span className="size-1 rounded-full bg-[#CBD5E1] flex-shrink-0" />
-                        <span>Language: <span className="font-medium text-[#64748B]">{f.language}</span></span>
-                      </div>
-                      {f.osVersion && (
-                        <div className="mt-0.5 text-[12px] text-[#7B8FA5]">OS Version: <span className="font-medium text-[#64748B]">{f.osVersion}</span></div>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0 flex items-center gap-0.5">
+                  <div key={f.name} className="rounded-[10px] bg-[#F9FAFB] px-3 py-2.5">
+                    {/* Header row — icon · file name · actions. The facts sit UNDER it as a 2×2
+                        label-over-value grid (the product's property-grid pattern) rather than
+                        as stacked "Label: value" lines: with four facts (size, language, OS
+                        version, architecture — the old File Details grid's columns) the lines
+                        stopped lining up and read as a wall. Labels grey, values one step darker
+                        (#64748B) — the full #364658 was tried and read heavy. A fact a file does
+                        not carry (a hand-uploaded one has no OS version or architecture) prints
+                        a dash so the grid keeps its shape. */}
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EAF3FB] text-[#3D8BD0]"><FileText size={18} /></span>
+                      <div className="min-w-0 flex-1 text-[13px] font-medium text-[#364658] break-words">{f.name}</div>
+                      <div className="flex-shrink-0 flex items-center gap-0.5">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button onClick={() => { navigator.clipboard?.writeText(f.name).catch(() => {}); toast.success('Link copied'); }} className="size-7 flex items-center justify-center rounded text-[#7B8FA5] hover:text-[#3D8BD0] hover:bg-[#F0F8FF] transition-colors"><Copy size={14} /></button>
@@ -3645,6 +3640,20 @@ export function TicketPropertiesPanel(props: TicketPropertiesPanelProps) {
                       </Tooltip>
                       {/* No delete here: a patch's files are what the vendor shipped, not
                           user attachments — copy link and download are the only actions. */}
+                      </div>
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-[#E5E7EB] pt-2.5">
+                      {([
+                        ['Size', f.size],
+                        ['Language', f.language],
+                        ['OS Version', f.osVersion],
+                        ['Architecture', f.architecture],
+                      ] as [string, string][]).map(([label, value]) => (
+                        <div key={label} className="min-w-0">
+                          <div className="text-[11px] text-[#7B8FA5]">{label}</div>
+                          <div className={`mt-0.5 break-words text-[12px] font-medium ${value ? 'text-[#64748B]' : 'text-[#CBD5E1]'}`}>{value || '—'}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}

@@ -2922,11 +2922,22 @@ onStackMinimizedChange,
                     items: PATCH_FILES.slice(0, 2).map((f) => ({
                       icon: <FileText size={14} />,
                       primary: f.name,
+                      /* Four facts on one wrapping line. Each pair keeps its trailing dot inside
+                         its own nowrap span, so a wrap never strands a separator at a line start. */
                       secondary: (
-                        <>
-                          <span className="font-medium text-[#64748B]">{f.size}</span> · Language: <span className="font-medium text-[#64748B]">{f.language}</span>
-                          {f.osVersion && <> · OS Version: <span className="font-medium text-[#64748B]">{f.osVersion}</span></>}
-                        </>
+                        <span className="flex flex-wrap items-center gap-y-0.5">
+                          {([
+                            ['', f.size],
+                            ['Language', f.language],
+                            ['OS Version', f.osVersion],
+                            ['Architecture', f.architecture],
+                          ] as [string, string][]).map(([label, value], i, arr) => (
+                            <span key={label || 'size'} className="whitespace-nowrap">
+                              {label && `${label}: `}<span className="font-medium text-[#64748B]">{value || '—'}</span>
+                              {i < arr.length - 1 && <span className="mx-1.5 text-[#CBD5E1]">·</span>}
+                            </span>
+                          ))}
+                        </span>
                       ),
                       actions: (
                         <>
@@ -3043,7 +3054,7 @@ onStackMinimizedChange,
                                     <span className="flex size-6 flex-shrink-0 items-center justify-center rounded-sm bg-[#EAF3FB] text-[#3D8BD0]">{it.icon}</span>
                                     <div className="min-w-0 flex-1">
                                       <div className="truncate text-[12px] font-medium text-[#364658]" title={it.primary}>{it.primary}</div>
-                                      <div className="truncate text-[11px] text-[#7B8FA5]">{it.secondary}</div>
+                                      <div className="text-[11px] text-[#7B8FA5]">{it.secondary}</div>
                                     </div>
                                     {it.actions && <div className="flex flex-shrink-0 items-center gap-0.5">{it.actions}</div>}
                                   </div>

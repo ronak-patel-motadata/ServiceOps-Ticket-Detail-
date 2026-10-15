@@ -27,16 +27,19 @@ export interface PatchFile {
   name: string;
   size: string;
   language: string;
-  /** The OS build(s) the file applies to — the File Details grid's "OS Version" column.
-   *  Empty for a file uploaded by hand, which carries no such fact; the card omits the line. */
+  /** The OS build(s) the file applies to — the old File Details grid's "OS Version" column.
+   *  Empty for a file uploaded by hand, which carries no such fact; the card prints a dash. */
   osVersion: string;
+  /** The CPU architecture(s) the file is built for — the grid's "Architecture" column
+   *  ("x64", "x86, x64", "All"). Empty for a hand-uploaded file, same as osVersion. */
+  architecture: string;
 }
 
 /** Files that make up the patch. */
 export const PATCH_FILES: PatchFile[] = [
-  { name: 'officedeploymenttool_19822.20114.exe', size: '3.52 MB', language: 'all', osVersion: 'Windows 10, 11' },
-  { name: 'windows11.0-kb5036893-x64.msu', size: '287.4 MB', language: 'en-US', osVersion: 'Windows 11 23H2' },
-  { name: 'ndp48-x86-x64-allos-enu.exe', size: '121.6 MB', language: 'all', osVersion: 'All Windows' },
+  { name: 'officedeploymenttool_19822.20114.exe', size: '3.52 MB', language: 'all', osVersion: 'Windows 10, 11', architecture: 'x86, x64' },
+  { name: 'windows11.0-kb5036893-x64.msu', size: '287.4 MB', language: 'en-US', osVersion: 'Windows 11 23H2', architecture: 'x64' },
+  { name: 'ndp48-x86-x64-allos-enu.exe', size: '121.6 MB', language: 'all', osVersion: 'All Windows', architecture: 'x86, x64' },
 ];
 
 /** Sum the human-readable file sizes ("287.4 MB") into a single display string. */
