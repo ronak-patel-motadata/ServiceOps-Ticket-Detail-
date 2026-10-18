@@ -1605,6 +1605,59 @@ export const SLA_PILL_TONE: Record<string, string> = {
 const priorityColor = (v: string) => PRIORITY_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
 const impactColor = (v: string) => IMPACT_OPTIONS.find((o) => o.label === v)?.color ?? '#6b7280';
 
+/* ── Per-column search ────────────────────────────────────────────────────────
+   Hover a heading → a magnifier at its right edge; click it → the heading becomes a
+   search box the width of the column, scoped to that column's text. The term lives in
+   the HOST (it paginates, so it must filter BEFORE slicing a page) as a
+   `{ [columnKey]: term }` map; the grid only renders the boxes. These two helpers are
+   what the host calls — one place decides what a column's text is, so the match is
+   always against what the reader can see in the cell. */
+const searchTextOfValue = (v: unknown): string => {
+  if (v == null) return '';
+  if (v instanceof Date) return fmtGridDateTime(v);
+  if (Array.isArray(v)) return v.map(searchTextOfValue).join(' ');
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return searchTextOfValue(o.name ?? o.label ?? Object.values(o));
+  }
+  return String(v);
+};
+/** The text a column shows for a row — what a per-column search matches against. */
+export const columnSearchText = (key: string, t: Ticket): string => {
+  switch (key) {
+    case 'id': return t.id;
+    case 'subject': return t.subject;
+    case 'requester': return t.requester;
+    case 'usedBy': return t.usedByLabel ?? t.requester;
+    case 'assignee': return t.assignedTo.name;
+    case 'dueStatus': return dueBySla(t).label;
+    case 'status': return t.status;
+    case 'priority': return t.priority;
+    case 'created': return fmtGridDateTime(t.createdBy);
+    case 'changeType': return t.changeType ?? '';
+    case 'changeRisk': return t.changeRisk ?? '';
+    case 'assetType': return t.assetType ?? '';
+    case 'hostName': return t.hostName ?? '';
+    case 'ipAddress': return t.ipAddress ?? '';
+    case 'managedByGroup': return t.managedByGroup ?? '';
+    case 'serialNo': return t.serialNo ?? '';
+    case 'impact': return t.impact ?? '';
+    default:
+      /* Generic module columns carry their value on the row; the optional ticket
+         columns derive theirs the same way the cell does. */
+      return key.startsWith('x_') ? searchTextOfValue((t as any)[key]) : extraValue(key, t);
+  }
+};
+/** Keep the rows whose text, column by column, contains every active term (AND). */
+export const applyColumnSearch = (rows: Ticket[], search: Record<string, string> | undefined): Ticket[] => {
+  const active = Object.entries(search ?? {})
+    .map(([k, v]) => [k, v.trim().toLowerCase()] as const)
+    .filter(([, v]) => v);
+  if (!active.length) return rows;
+  return rows.filter((t) => active.every(([k, q]) => columnSearchText(k, t).toLowerCase().includes(q)));
+};
+export const hasColumnSearch = (search?: Record<string, string>) => Object.values(search ?? {}).some((v) => v.trim());
+
 interface TicketTableProps {
   tickets: Ticket[];
   selectedTickets: Set<string>;
@@ -1653,6 +1706,11 @@ interface TicketTableProps {
       empty state then explains why and offers a one-click clear via onClearFilters. */
   emptyFiltered?: boolean;
   onClearFilters?: () => void;
+  /** Per-column search terms, keyed by column key — the host owns them (it paginates) and
+      filters with `applyColumnSearch`. The header magnifier only renders when the host
+      passes `onColumnSearchChange`. */
+  columnSearch?: Record<string, string>;
+  onColumnSearchChange?: (next: Record<string, string>) => void;
 }
 
 export function TicketTable({
@@ -1679,7 +1737,9 @@ export function TicketTable({
   onGroupedChange,
   clearGroupingSignal,
   emptyFiltered,
-  onClearFilters
+  onClearFilters,
+  columnSearch,
+  onColumnSearchChange
 }: TicketTableProps) {
   /* The house format — see dateFormat.ts. Every date in every listing reads one way. */
   const formatDateTime = fmtGridDateTime;
@@ -1756,6 +1816,15 @@ export function TicketTable({
        so a heading that fills its cell to the pixel still clears the ellipsis. */
     return Math.ceil(px) + 32 + 18 + 4;
   };
+  /* Per-column search state lives up here because the WIDTH model reads it (the floor
+     pass after `fitted`, below): a column whose search box is open is never narrower than
+     SEARCH_W, so there is always room to type. (The UI half — trigger, box, lifecycle —
+     sits further down, next to the other header renderers.) */
+  const SEARCH_W = 220;
+  const colSearchOn = !!onColumnSearchChange;
+  const [searchCol, setSearchCol] = useState<string | null>(null);
+  const colTerm = (key: string) => columnSearch?.[key] ?? '';
+  const searchOpenFor = (key: string) => colSearchOn && (searchCol === key || colTerm(key).trim() !== '');
   const wOf = (c: ColDef) => Math.max(colW[c.key] ?? Math.max(c.w ?? 150, labelFloor(c.label)), MIN_W);
   /* How far a SECONDARY flex column may stretch when there is slack. Without a ceiling
      every flex column grew by the same factor, so a 220px Vendor became 380px of mostly
@@ -2382,6 +2451,88 @@ export function TicketTable({
   /* Generic module columns sort on their own row field. */
   const sortFieldOf = (key: string): keyof Ticket | undefined =>
     SORT_FIELD[key] ?? (key.startsWith('x_') ? (key as keyof Ticket) : undefined);
+
+  /* ── Per-column search (UI half; the filtering half is `applyColumnSearch` above, the
+     state and the SEARCH_W width floor sit beside `wOf`) ──
+     `searchCol` is the heading whose box was just OPENED by a click; a box also stays
+     open, unfocused, for as long as its column has a term — the filter is visible where
+     it was applied and its ✕ clears it. Esc clears and closes; an empty box closes on
+     blur; Enter just leaves the term in place. While a box is open its heading is NOT
+     draggable (Chrome starts a column drag instead of selecting text otherwise) and the
+     grip hides, since the box sits where the grip would be. */
+  const setColTerm = (key: string, value: string) => {
+    if (!onColumnSearchChange) return;
+    const next = { ...(columnSearch ?? {}) };
+    if (value) next[key] = value; else delete next[key];
+    onColumnSearchChange(next);
+  };
+  const closeColSearch = (key: string) => { setColTerm(key, ''); setSearchCol((cur) => (cur === key ? null : cur)); };
+  /* The HOST can clear terms too (the empty state's "Clear search & filters", applying a
+     view). When it does, an open box whose term just vanished closes — unless it is the
+     one being typed in, which is empty only because it was just opened. (The blur that
+     the clear button's click causes lands BEFORE the host clears, so onBlur alone can't
+     catch this: it still sees the old term.) */
+  useEffect(() => {
+    if (!searchCol || colTerm(searchCol).trim()) return;
+    const input = document.querySelector(`[data-col-search="${searchCol}"] input`);
+    if (document.activeElement !== input) setSearchCol(null);
+  }, [columnSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* An Action column has nothing to search. */
+  const searchable = (c: ColDef) => colSearchOn && !/action/i.test(c.key);
+  /* The magnifier at the heading's right edge — revealed on hover like the sort toggle. */
+  const searchTrigger = (c: ColDef, hoverGroup: string) =>
+    searchable(c) ? (
+      <button
+        type="button"
+        draggable={false}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); setSearchCol(c.key); }}
+        title={`Search ${c.label.toLowerCase()}`}
+        className={`ml-auto flex h-5 flex-shrink-0 items-center justify-center rounded px-0.5 text-[#9CA3AF] opacity-0 transition-all hover:bg-[#E8ECF1] hover:text-[#3D8BD0] ${hoverGroup}`}
+      >
+        <Search size={12} />
+      </button>
+    ) : null;
+  /* The box that replaces the heading: magnifier · input · ✕, the column's full width
+     (it eats 8px of the cell padding each side) at the heading's own height (h-7 with
+     -my-1 occupies the 20px the label row does, so the header never jumps). */
+  const searchBox = (c: ColDef) => {
+    const term = colTerm(c.key);
+    return (
+      <div
+        data-col-search={c.key}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        className={`-mx-2 -my-1 flex h-7 min-w-0 cursor-text select-text items-center gap-1.5 rounded border bg-white px-2 normal-case tracking-normal transition-[border-color,box-shadow] focus-within:border-[#3D8BD0] focus-within:shadow-[0_0_0_3px_rgba(61,139,208,0.15)] ${term ? 'border-[#BFD7EE]' : 'border-[#DFE5ED]'}`}
+      >
+        <Search size={13} className={`flex-shrink-0 ${term ? 'text-[#3D8BD0]' : 'text-[#9CA3AF]'}`} />
+        <input
+          autoFocus={searchCol === c.key}
+          value={term}
+          placeholder={`Search ${c.label.toLowerCase()}…`}
+          onChange={(e) => setColTerm(c.key, e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') { closeColSearch(c.key); e.currentTarget.blur(); }
+            else if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          onBlur={() => { if (!colTerm(c.key).trim()) closeColSearch(c.key); }}
+          className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-[#364658] outline-none placeholder:font-normal placeholder:text-[#9CA3AF]"
+        />
+        <button
+          type="button"
+          /* preventDefault keeps the input's focus through the press, so blur can't close
+             the box a beat before this click lands. */
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { e.stopPropagation(); closeColSearch(c.key); }}
+          title={term ? 'Clear search' : 'Close'}
+          className="flex size-4 flex-shrink-0 items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-[#E8ECF1] hover:text-[#364658]"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  };
   const hideColumn = (key: string) => applyColumns(colOrder.filter((k) => k !== key));
 
   const changeColumn = (fromKey: string, toKey: string) =>
@@ -2528,6 +2679,22 @@ export function TicketTable({
       fitted[fitted.length - 1] += avail - fitted.reduce((n, w) => n + w, 0);
     }
   }
+  /* Per-column search floor — a column whose box is open is never narrower than SEARCH_W.
+     Applied HERE, to the fitted width after the flex pass, not inside `wOf`: a flex column
+     that already has the room (Requester at 220 on a wide screen) is then left exactly as
+     it is, and a narrow one (Status at 115) grows to the floor the moment its box opens.
+     Floored at `wOf` it also inflated the flex column's slack share — Requester grew to
+     ~280px for a box that needs 220, which read as the grid lurching for no reason. The
+     extra comes out of the primary flex column (the record's name), which is where slack
+     lives, so the row still spans the container; if that column is already at its own
+     minimum the grid simply scrolls by the difference. Snaps back when the search closes. */
+  cols.forEach((c, i) => {
+    if (!searchOpenFor(c.key) || fitted[i] >= SEARCH_W) return;
+    const extra = SEARCH_W - fitted[i];
+    fitted[i] = SEARCH_W;
+    const donor = cols.findIndex((k, j) => k.flex && j !== i);
+    if (donor >= 0) fitted[donor] = Math.max(wOf(cols[donor]), fitted[donor] - extra);
+  });
   // Display list: the real columns with the placeholder slot woven in (ri = real index).
   const PH_W = 200;
   const displayCols: (ColDef | null)[] = insertAt
@@ -4027,7 +4194,7 @@ export function TicketTable({
         </h3>
         <p className="mx-auto mb-4 max-w-md text-[13px] text-[#7B8FA5]">
           {emptyFiltered
-            ? 'Nothing matches the current search and filters. Try different keywords, or widen the filters.'
+            ? 'Nothing matches the current search, column search and filters. Try different keywords, or widen the filters.'
             : `New ${noun}s will show up here as soon as they are created.`}
         </p>
         {emptyFiltered && onClearFilters && (
@@ -4175,7 +4342,7 @@ export function TicketTable({
               return (
               <th
                 key={c.key}
-                draggable
+                draggable={!searchOpenFor(c.key)}
                 onDragStart={(e) => {
                   /* A press that began on the resize handle is a RESIZE, never a reorder —
                      letting the native drag start here is what used to hijack the gesture. */
@@ -4211,8 +4378,11 @@ export function TicketTable({
                 className={`${TH} ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''} ${ci <= frozenIdx ? 'z-[35]' : ''} ${dragCol === c.key ? 'opacity-40' : ''} ${dragCol && dragCol !== c.key && dragOver?.key === c.key ? 'bg-[#EBF5FF]' : menuCol?.key === c.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
               >
                 {/* Grip — the "you can drag this" affordance, revealed on hover. */}
-                <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
-                {/* A right-aligned column's heading sits over its digits, not away from them. */}
+                {!searchOpenFor(c.key) && (
+                  <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/th:opacity-100" />
+                )}
+                {searchOpenFor(c.key) ? searchBox(c) : (
+                /* A right-aligned column's heading sits over its digits, not away from them. */
                 <span className={`flex items-center gap-0.5 overflow-hidden ${c.align === 'right' ? 'justify-end' : c.align === 'center' ? 'justify-center' : ''}`}>
                   {/* The heading truncates rather than setting the column's width — the
                       full name is in the `title` on hover and in the header menu. */}
@@ -4220,7 +4390,10 @@ export function TicketTable({
                   {/* One-click sort toggle — the most-used action lives on the header
                       itself; the menu keeps the rest. */}
                   {sortFieldOf(c.key) && sortButton(sortFieldOf(c.key)!, 'group-hover/th:opacity-100')}
+                  {/* Per-column search — the magnifier sits at the heading's right edge. */}
+                  {searchTrigger(c, 'group-hover/th:opacity-100')}
                 </span>
+                )}
                 {resizer(c.key)}
               </th>
               );
@@ -4366,7 +4539,7 @@ export function TicketTable({
                         m.col ? (
                           <th
                             key={m.col.key}
-                            draggable
+                            draggable={!searchOpenFor(m.col.key)}
                             onDragStart={(e) => {
                               if (dragRef.current) { e.preventDefault(); return; }
                               e.dataTransfer.effectAllowed = 'move'; setDragGhost(e, m.col!.label); setDragCol(m.col!.key);
@@ -4399,13 +4572,18 @@ export function TicketTable({
                             title={m.col.label}
                             className={`group/gh sticky top-[calc(var(--tb,0px)+48px)] shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] cursor-grab select-none whitespace-nowrap px-4 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748B] transition-colors hover:bg-[#F7F9FB] hover:text-[#364658] ${m.col.align === 'right' ? 'text-right' : m.col.align === 'center' ? 'text-center' : ''} ${m.ri >= 0 && m.ri <= frozenIdx ? 'z-30' : 'z-20'} ${dragCol === m.col.key ? 'opacity-40' : ''} ${dragCol && dragCol !== m.col.key && dragOver?.key === m.col.key ? 'bg-[#EBF5FF]' : menuCol?.key === m.col.key ? 'bg-[#F1F5F9]' : 'bg-white'}`}
                           >
-                            <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
+                            {!searchOpenFor(m.col.key) && (
+                              <GripVertical size={12} className="pointer-events-none absolute left-[3px] top-1/2 -translate-y-1/2 text-[#9CA3AF] opacity-0 transition-opacity group-hover/gh:opacity-100" />
+                            )}
+                            {searchOpenFor(m.col.key) ? searchBox(m.col) : (
                             <span className={`flex items-center gap-0.5 overflow-hidden ${m.col.align === 'right' ? 'justify-end' : m.col.align === 'center' ? 'justify-center' : ''}`}>
                               {/* Truncates like the flat header — the width belongs to the
                                   column's content, not to the length of its name. */}
                               <span className="truncate">{m.col.label}</span>
                               {sortFieldOf(m.col.key) && sortButton(sortFieldOf(m.col.key)!, 'group-hover/gh:opacity-100')}
+                              {searchTrigger(m.col, 'group-hover/gh:opacity-100')}
                             </span>
+                            )}
                           </th>
                         ) : (
                           <th key="__ph" data-ph-col className="sticky top-[calc(var(--tb,0px)+48px)] z-20 shadow-[inset_0_-1px_0_#E5E7EB,0_2px_4px_rgba(16,24,40,0.06)] whitespace-nowrap bg-white px-4 py-1.5 text-left text-[11px] font-medium italic text-[#94A3B8]">

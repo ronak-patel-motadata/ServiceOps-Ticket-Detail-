@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable, useOpenFromUrl, MONEY_COLS, moneyNumber } from './TicketTable';
+import { TicketTable, useOpenFromUrl, MONEY_COLS, moneyNumber, applyColumnSearch, hasColumnSearch } from './TicketTable';
 import { ArrowLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AssetDashboardView, type DashConfig } from './AssetDashboardView';
@@ -262,6 +262,9 @@ export function AssetRegisterPage({
   const [activeView, setActiveView] = useState(startView?.name ?? defaultViewName);
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  /* Per-column header search ({ columnKey: term }) — owned here because this page
+     paginates, so the filter has to run before the page is sliced. */
+  const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
@@ -344,6 +347,7 @@ export function AssetRegisterPage({
     );
   }
   filteredTickets = applyFilters(filteredTickets, filterRules);
+  filteredTickets = applyColumnSearch(filteredTickets, columnSearch);
 
   const sortedTickets = [...filteredTickets];
   if (sorts.length) {
@@ -370,7 +374,7 @@ export function AssetRegisterPage({
 
   /* A module can hand the register a landing view for its "everything" state. It gives way
      the moment the reader searches or filters — at that point they want rows, not a digest. */
-  const showOverview = !!overview && !drillFrom && view === 'list' && !searchQuery.trim() && filterRules.length === 0;
+  const showOverview = !!overview && !drillFrom && view === 'list' && !searchQuery.trim() && filterRules.length === 0 && !hasColumnSearch(columnSearch);
 
   const totalPages = Math.ceil(sortedTickets.length / itemsPerPage);
   const paginatedTickets = sortedTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -578,6 +582,8 @@ export function AssetRegisterPage({
                   onRowAction={onRowAction}
                   allowColumnEdit={allowColumnEdit}
                   tickets={paginatedTickets}
+                  columnSearch={columnSearch}
+                  onColumnSearchChange={(next) => { setColumnSearch(next); setCurrentPage(1); }}
                   selectedTickets={selectedTickets}
                   allSelected={allCurrentPageSelected}
                   onSelectAll={handleSelectAll}
@@ -594,8 +600,8 @@ export function AssetRegisterPage({
                     setGroupInfo(g ? info ?? null : null);
                   }}
                   clearGroupingSignal={clearGroupTick}
-                  emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0}
-                  onClearFilters={() => {
+                  emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0 || hasColumnSearch(columnSearch)}
+                  onClearFilters={() => { setColumnSearch({});
                     setSearchQuery('');
                     setFilterRules([]);
                     setCurrentPage(1);

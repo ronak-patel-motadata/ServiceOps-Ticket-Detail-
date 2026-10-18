@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable, useOpenFromUrl } from './TicketTable';
+import { TicketTable, useOpenFromUrl, applyColumnSearch, hasColumnSearch } from './TicketTable';
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronRight, ChevronUp, X } from 'lucide-react';
 
 import { TicketGroupSuggestions } from './TicketGroupSuggestions';
@@ -299,6 +299,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   const [activeView, setActiveView] = useState(startView?.name ?? 'All Requests');
   const [viewsOpen, setViewsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  /* Per-column header search ({ columnKey: term }) — owned here because this page
+     paginates, so the filter has to run before the page is sliced. */
+  const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
 
   // Reset to first page when search query changes
   useEffect(() => {
@@ -437,6 +440,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   }
 
   filteredTickets = applyFilters(filteredTickets, filterRules);
+  filteredTickets = applyColumnSearch(filteredTickets, columnSearch);
 
   // Sort tickets
   let sortedTickets = [...filteredTickets];
@@ -598,6 +602,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
             <TicketTable
               openPage="request"
               tickets={paginatedTickets}
+              columnSearch={columnSearch}
+              onColumnSearchChange={(next) => { setColumnSearch(next); setCurrentPage(1); }}
               selectedTickets={selectedTickets}
               allSelected={allCurrentPageSelected}
               onSelectAll={handleSelectAll}
@@ -611,8 +617,8 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
               allTickets={sortedTickets}
               onGroupedChange={(g, info) => { setIsGrouped(g); setGroupInfo(g ? info ?? null : null); }}
               clearGroupingSignal={clearGroupTick}
-              emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0}
-              onClearFilters={() => { setSearchQuery(''); setFilterRules([]); setCurrentPage(1); }}
+              emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0 || hasColumnSearch(columnSearch)}
+              onClearFilters={() => { setColumnSearch({}); setSearchQuery(''); setFilterRules([]); setCurrentPage(1); }}
             />
           )}
             

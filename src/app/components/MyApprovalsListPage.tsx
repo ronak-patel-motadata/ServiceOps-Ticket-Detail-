@@ -17,7 +17,7 @@ import { ChevronUp, CircleCheck, CircleX, Clock, EyeOff, CornerUpLeft } from 'lu
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Toolbar } from './Toolbar';
-import { TicketTable, useOpenFromUrl } from './TicketTable';
+import { TicketTable, useOpenFromUrl, applyColumnSearch, hasColumnSearch } from './TicketTable';
 import { StatsCardsRow, type StatCard } from './AssetStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { APPROVAL_VIEWS, type TicketView } from './TicketViewsPanel';
@@ -183,6 +183,9 @@ export function MyApprovalsListPage({ onNavigate }: { onNavigate?: (page: string
   /* Tracks which status cut is showing — it names a saved view, not the page. */
   const [activeView, setActiveView] = useState('Pending Approvals');
   const [searchQuery, setSearchQuery] = useState('');
+  /* Per-column header search ({ columnKey: term }) — owned here because this page
+     paginates, so the filter has to run before the page is sliced. */
+  const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
@@ -269,6 +272,7 @@ export function MyApprovalsListPage({ onNavigate }: { onNavigate?: (page: string
     );
   }
   filteredTickets = applyFilters(filteredTickets, filterRules);
+  filteredTickets = applyColumnSearch(filteredTickets, columnSearch);
 
   const sortedTickets = [...filteredTickets];
   if (sorts.length) {
@@ -381,6 +385,8 @@ export function MyApprovalsListPage({ onNavigate }: { onNavigate?: (page: string
                   lockedCells={['requester', 'status', 'x_approvalState']}
                   allowColumnEdit={false}
                   tickets={paginatedTickets}
+                  columnSearch={columnSearch}
+                  onColumnSearchChange={(next) => { setColumnSearch(next); setCurrentPage(1); }}
                   selectedTickets={selectedTickets}
                   allSelected={allCurrentPageSelected}
                   onSelectAll={handleSelectAll}
@@ -398,8 +404,8 @@ export function MyApprovalsListPage({ onNavigate }: { onNavigate?: (page: string
                     setGroupInfo(g ? info ?? null : null);
                   }}
                   clearGroupingSignal={clearGroupTick}
-                  emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0 || !!state}
-                  onClearFilters={() => {
+                  emptyFiltered={searchQuery.trim() !== '' || filterRules.length > 0 || hasColumnSearch(columnSearch) || !!state}
+                  onClearFilters={() => { setColumnSearch({});
                     setSearchQuery('');
                     setFilterRules([]);
                     setState('Pending');
