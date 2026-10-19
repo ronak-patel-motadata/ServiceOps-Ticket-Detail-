@@ -3277,12 +3277,14 @@ export function TicketTable({
           <td className="overflow-hidden px-4 py-3 whitespace-nowrap">
             {v === 'Yes' ? (
               /* The detail page's pill, to the pixel, so the same machine says the same
-                 thing in the list and on the record it opens. Amber because the patches
-                 ARE installed — this is one restart from safe, unlike the red "missing
-                 patches" count, which is exposure right now. */
+                 thing in the list and on the record it opens. The product's RED (the SLA
+                 "breached" recipe): until the restart happens the installed patches are not
+                 in force, so the machine is exposed right now — the same grade as the red
+                 "missing patches" count. (It was amber for a while, read as "merely
+                 scheduled", and was changed by request, Oct 2026.) */
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex cursor-help items-center gap-1.5 rounded-sm border border-[#FDE68A] bg-[#FFFBEB] px-2 py-0.5 text-[12px] font-medium text-[#B45309]">
+                  <span className="inline-flex cursor-help items-center gap-1.5 rounded-sm border border-[#FECACA] bg-[#FEF2F2] px-2 py-0.5 text-[12px] font-medium text-[#B91C1C]">
                     <RotateCw size={12} className="flex-shrink-0" />
                     Reboot Pending
                   </span>

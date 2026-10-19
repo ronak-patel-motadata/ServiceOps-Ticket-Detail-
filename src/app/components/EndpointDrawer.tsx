@@ -2108,14 +2108,17 @@ onStackMinimizedChange,
               {/* Reboot Pending — only when there IS one. A pending restart means patches
                   are installed but not yet in force, so the machine is still exposed; that
                   is a state of the ENDPOINT, which is why it rides beside the name rather
-                  than waiting to be found among six KPI chips. Amber, not red: it is
-                  something to schedule, not a failure. There is deliberately no counterpart
-                  for "No" — a pill on every healthy endpoint would be noise, and the KPI
-                  row below already states it either way. */}
+                  than waiting to be found among six KPI chips. The product's RED (the SLA
+                  "breached" recipe), the same grade as the missing-patches count: until the
+                  restart happens the installed patches are not in force, so the machine is
+                  exposed now — not merely something to schedule. (Amber for a while; changed
+                  by request, Oct 2026. The listing's pill matches.) There is deliberately
+                  no counterpart for "No" — a pill on every healthy endpoint would be noise,
+                  and the KPI row below already states it either way. */}
               {(activePatchRecord?.rebootRequired ?? 'No') === 'Yes' && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex flex-shrink-0 cursor-help items-center gap-1.5 rounded-sm border border-[#FDE68A] bg-[#FFFBEB] px-2 py-0.5 text-[12px] font-medium text-[#B45309]">
+                    <span className="inline-flex flex-shrink-0 cursor-help items-center gap-1.5 rounded-sm border border-[#FECACA] bg-[#FEF2F2] px-2 py-0.5 text-[12px] font-medium text-[#B91C1C]">
                       <RotateCw size={12} className="flex-shrink-0" />
                       Reboot Pending
                     </span>
@@ -2174,8 +2177,10 @@ onStackMinimizedChange,
               items.push({ key: 'reboot', tip: reboot ? 'A pending patch needs a restart to finish installing' : 'No pending restart', node: (
                 <span className="inline-flex items-center gap-1.5">
                   <span className="text-[11px] text-[#7B8FA5]">Reboot Required</span>
-                  {reboot && <span className="size-2 rounded-full flex-shrink-0 bg-[#F59E0B]" />}
-                  <span className="text-[12px] font-medium" style={{ color: reboot ? '#D97706' : '#364658' }}>{reboot ? 'Yes' : 'No'}</span>
+                  {/* Red dot + red "Yes", the Missing Patches chip's own tone — one grade for
+                      the two facts that both mean "exposed right now". */}
+                  {reboot && <span className="size-2 rounded-full flex-shrink-0 bg-[#EF4444]" />}
+                  <span className="text-[12px] font-medium" style={{ color: reboot ? '#DC2626' : '#364658' }}>{reboot ? 'Yes' : 'No'}</span>
                 </span>
               ) });
 

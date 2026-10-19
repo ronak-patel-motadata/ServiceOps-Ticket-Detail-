@@ -122,7 +122,8 @@ const buildCards = (rows: Ticket[]): StatCard[] => {
     },
     {
       label: 'Reboot Required', value: reboot.length, sub: 'restart to complete updates',
-      valueColor: reboot.length ? '#F97316' : undefined,
+      /* Red like Missing Patches — a machine holding a reboot is exposed now, not later. */
+      valueColor: reboot.length ? '#DC2626' : undefined,
       filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }],
     },
     {
@@ -160,7 +161,7 @@ const buildDashboard = (rows: Ticket[]): DashConfig => {
       { icon: Monitor, color: '#3D8BD0', label: 'Managed endpoints', value: rows.length, sub: 'in the fleet' },
       { icon: WifiOff, color: '#B45309', label: 'Agents offline', value: rows.length - online, sub: 'not reporting', filter: [{ field: 'x_agent', condition: 'is', values: ['Offline'] }] },
       { icon: AlertTriangle, color: '#DC2626', label: 'Health warnings', value: by((t) => healthOf(t) === 'Warning' || healthOf(t) === 'Critical'), sub: 'warning or critical', filter: [{ field: 'x_health', condition: 'is', values: ['Warning', 'Critical'] }] },
-      { icon: RefreshCw, color: '#F97316', label: 'Reboot required', value: reboot, sub: 'patching unfinished', filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }] },
+      { icon: RefreshCw, color: '#DC2626', label: 'Reboot required', value: reboot, sub: 'patching unfinished', filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }] },
       { icon: MapPin, color: '#22C55E', label: 'Sites covered', value: officeRows.length, sub: 'remote offices reporting' },
     ],
     sections: [
@@ -169,7 +170,7 @@ const buildDashboard = (rows: Ticket[]): DashConfig => {
       { kind: 'bars', title: 'By remote office', sub: 'Where the machines are', rows: officeRows.slice(0, 6), allRows: officeRows, panelSubject: 'endpoints', panelColumnLabel: 'Remote office', panelCountLabel: 'Endpoints' },
       { kind: 'gauge', title: 'Agent coverage', sub: 'Agents reporting right now', pct: rows.length ? Math.round((online / rows.length) * 100) : 0, caption: `${online} of ${rows.length} online`, note: 'An offline agent cannot be patched or scanned.' },
       { kind: 'stack', title: 'Reboot backlog', sub: 'Machines holding a pending reboot', segs: [
-        { label: 'Reboot required', value: reboot, color: '#F97316', filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }] },
+        { label: 'Reboot required', value: reboot, color: '#EF4444', filter: [{ field: 'x_reboot', condition: 'is', values: ['Yes'] }] },
         { label: 'Up to date', value: rows.length - reboot, color: '#22C55E', filter: [{ field: 'x_reboot', condition: 'is', values: ['No'] }] },
       ] },
     ],
