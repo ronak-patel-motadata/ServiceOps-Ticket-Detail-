@@ -807,7 +807,10 @@ const USED_BY_OPTIONS: CellOption[] = [
 interface ColDef { key: string; label: string; flex?: boolean; w?: number; align?: 'right' | 'center';
   /** Ceiling for a FLEX column that would otherwise soak all the slack on a sparse grid —
    *  past it the surplus is shared out across every column instead. */
-  maxW?: number }
+  maxW?: number;
+  /** No per-column search on this heading — set on a date attribute added from Manage
+   *  columns; everything else the rule in `columnSearchable` decides by key. */
+  noSearch?: boolean }
 
 /* ── Similarity grouping ──────────────────────────────────────────────────────
    A grouping axis that is NOT a column: the clusters the AI suggestions panel found.
@@ -976,6 +979,10 @@ const assetExtraCols = (shown: ColDef[], catalogue: typeof HARDWARE_FILTER_ATTRS
     w: EXTRA_COL_W[a.key] ?? Math.min(280, Math.max(120, a.label.length * 7 + 44)),
     /* An added money column arrives right-aligned and chipped, like a designed one. */
     ...(MONEY_COLS.has(a.key) ? { align: 'right' as const } : {}),
+    /* …and a date attribute arrives without a magnifier — see `columnSearchable`. The
+       catalogue already knows which of its eighty-odd attributes are dates; listing them
+       again by key would be a second copy that drifts. */
+    ...(a.type === 'date' ? { noSearch: true } : {}),
   }));
 };
 
@@ -1657,6 +1664,36 @@ export const applyColumnSearch = (rows: Ticket[], search: Record<string, string>
   return rows.filter((t) => active.every(([k, q]) => columnSearchText(k, t).toLowerCase().includes(q)));
 };
 export const hasColumnSearch = (search?: Record<string, string>) => Object.values(search ?? {}).some((v) => v.trim());
+/* Which columns OFFER a search. A magnifier belongs on a heading whose cell holds something
+   a reader would TYPE a fragment of — a name, a subject, a host, an id, a word from a short
+   list (Status, Priority, Severity, a category). Nobody finds a row by typing a date, a
+   time or a duration (the filter bar's date rules make that cut), nobody types "4" to find
+   a count or a score, "yes" to find a two-valued flag, or anything at all into a progress
+   bar, a toggle, an SLA countdown or an Action column. On those the magnifier was noise —
+   the user flagged SLA Status and Created Date, and the same reasoning covers the rest.
+   ONE predicate, so every grid draws the line in the same place; the structural sets
+   (dates, counts, money) are reused rather than re-listed, so a column that joins one of
+   them loses its magnifier without anyone remembering to come here. */
+const NO_SEARCH_KEYS = new Set<string>([
+  /* Moments, days and durations among the base and optional ticket columns. */
+  'created', 'dueByDate', 'lastUpdatedDate', 'firstResponseDueBy', 'lastApprovedDate', 'lastSignedDate',
+  'requestAge', 'resolutionTime', 'closedDuration',
+  /* The SLA pills: the ticket grids' SLA Status, the task grid's, the project grid's Due By. */
+  'dueStatus', 'x_overdue', 'x_sla',
+  /* Figures that are not in a structural set: a count chip with its own renderer, a thumbs
+     tally, a progress bar, the CVSS scores, the run lists' derived counts. */
+  'x_impacted', 'x_feedback', 'x_completion', 'x_cvss', 'x_cvss20', 'x_cvss30', 'x_cvss40', 'x_cvssBand',
+  'x_patchCount', 'x_endpointCount', 'x_packageCount', 'x_installations',
+  /* Two-valued flags and the live toggle — a filter's job, not a search's. */
+  'x_enabled', 'x_reboot', 'x_exploit', 'x_patchAvail',
+]);
+export const columnSearchable = (c: { key: string; noSearch?: boolean }): boolean => {
+  const k = c.key;
+  if (c.noSearch || NO_SEARCH_KEYS.has(k) || /action/i.test(k)) return false;
+  if (DATE_TIME_COLS.has(k) || DATE_ONLY_COLS.has(k)) return false;
+  if (COUNT_CHIP_COLS.has(k) || RATIO_CHIP_COLS.has(k) || NULLABLE_COUNT_COLS.has(k) || MONEY_COLS.has(k)) return false;
+  return true;
+};
 
 interface TicketTableProps {
   tickets: Ticket[];
@@ -2477,8 +2514,9 @@ export function TicketTable({
     const input = document.querySelector(`[data-col-search="${searchCol}"] input`);
     if (document.activeElement !== input) setSearchCol(null);
   }, [columnSearch]); // eslint-disable-line react-hooks/exhaustive-deps
-  /* An Action column has nothing to search. */
-  const searchable = (c: ColDef) => colSearchOn && !/action/i.test(c.key);
+  /* Not every heading gets a magnifier — `columnSearchable` (module level, beside the
+     other search helpers) says which. */
+  const searchable = (c: ColDef) => colSearchOn && columnSearchable(c);
   /* The magnifier at the heading's right edge — revealed on hover like the sort toggle. */
   const searchTrigger = (c: ColDef, hoverGroup: string) =>
     searchable(c) ? (
