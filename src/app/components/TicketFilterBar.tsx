@@ -1,8 +1,9 @@
-import { Fragment, useEffect, useRef, useState, type ReactElement } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   AlignLeft,
   CalendarDays,
   Check,
+  ChevronDown,
   CircleDot,
   Filter,
   Flag,
@@ -389,24 +390,62 @@ function AttrPicker({
   );
 }
 
+/* A long typed value is cut rather than allowed to push every other filter off the row;
+   the whole value is on hover and in the value editor. */
+const VALUE_PILL = 'max-w-[168px] truncate rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium text-[#364658]';
+
+/** A chip's exact footprint with none of its behaviour — the one-row fit is measured on
+    these, so deciding what fits never mounts, unmounts or closes a real chip. Keep its
+    spacing classes in step with Chip. */
+function ChipGhost({ rule, attrs }: { rule: FilterRule; attrs?: Attr[] }) {
+  const attr = attrs?.find((a) => a.key === rule.field) ?? attrOf(rule.field);
+  if (!attr) return <div />;
+  return (
+    <div className="flex h-8 flex-shrink-0 items-stretch whitespace-nowrap rounded border border-[#DFE5ED]">
+      <span className="flex items-center border-r px-2 text-[12px] font-medium">{attr.label}</span>
+      <span className="flex items-center border-r px-2 text-[12px]">{rule.condition}</span>
+      {NEEDS_VALUE(rule.condition) && (
+        <span className="flex items-center gap-1 border-r px-2 text-[12px]">
+          {rule.values.length === 0 ? (
+            <span>Select option...</span>
+          ) : (
+            <>
+              <span className={VALUE_PILL}>{rule.values[0]}</span>
+              {rule.values.length > 1 && <span className="text-[11px]">+{rule.values.length - 1}</span>}
+            </>
+          )}
+        </span>
+      )}
+      <span className="flex items-center px-1.5">
+        <MoreVertical size={13} />
+      </span>
+    </div>
+  );
+}
+
 /** One filter chip: attribute · condition · value · ⋮ */
 function Chip({
   rule,
   onChange,
   onRemove,
-  autoOpen,
+  openSignal = 0,
+  onOpened,
   attrs,
 }: {
   rule: FilterRule;
   onChange: (r: FilterRule) => void;
   onRemove: () => void;
-  /** Added from a column header — open the value list so the next click picks a value. */
-  autoOpen?: boolean;
+  /** A new number opens the value list — the rule was just added (from the picker or a
+      column header), so the next click picks a value. A signal rather than open-at-mount,
+      because a chip moves between the row and the "+N filters" list as the width changes
+      and must not reopen every time it is mounted again. */
+  openSignal?: number;
+  onOpened?: () => void;
   /** The module's attribute catalog — its labels/options win over the global set. */
   attrs?: Attr[];
 }) {
   const [condOpen, setCondOpen] = useState(false);
-  const [valOpen, setValOpen] = useState(!!autoOpen);
+  const [valOpen, setValOpen] = useState(false);
   /** Selection as of popup-open — drives the selected-first ordering for this open. */
   const openOrderRef = useRef<Set<string>>(new Set());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -414,6 +453,13 @@ function Chip({
   const condRef = useOutside<HTMLDivElement>(condOpen, () => setCondOpen(false));
   const valRef = useOutside<HTMLDivElement>(valOpen, () => setValOpen(false));
   const menuRef = useOutside<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
+  useEffect(() => {
+    if (!openSignal) return;
+    openOrderRef.current = new Set(rule.values);
+    setValOpen(true);
+    onOpened?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSignal]);
 
   const attr = attrs?.find((a) => a.key === rule.field) ?? attrOf(rule.field);
   if (!attr) return null;
@@ -430,7 +476,7 @@ function Chip({
   const seg = 'flex h-full items-center px-2 text-[12px] transition-colors hover:bg-[#F1F5F9]';
 
   return (
-    <div className="relative flex h-8 items-stretch overflow-visible rounded border border-[#DFE5ED] bg-white">
+    <div className="relative flex h-8 flex-shrink-0 items-stretch overflow-visible whitespace-nowrap rounded border border-[#DFE5ED] bg-white">
       {/* Attribute — fixed; change it by removing the chip, which keeps the row honest. */}
       <span className="flex items-center border-r border-[#EEF1F4] px-2 text-[12px] font-medium text-[#364658]">
         {attr.label}
@@ -474,7 +520,7 @@ function Chip({
               <span className="text-[#9CA3AF]">Select option...</span>
             ) : (
               <>
-                <span className="rounded-sm bg-[#F1F5F9] px-1.5 py-0.5 text-[11px] font-medium text-[#364658]">{rule.values[0]}</span>
+                <span className={VALUE_PILL} title={rule.values.join(', ')}>{rule.values[0]}</span>
                 {rule.values.length > 1 && <span className="text-[11px] text-[#64748B]">+{rule.values.length - 1}</span>}
               </>
             )}
@@ -764,19 +810,23 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
   const initials = (n: string) => n.split(' ').filter(Boolean).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
   /* Icon-only, one shape across every module — the tooltip carries the name. */
   const iconBtn = (field: string, Icon: typeof Flag, label: string) => {
+    /* The icon keeps its slot while its filter is applied — it used to disappear, which
+       slid every control after it sideways. Applied reads as a blue glyph with a dot. */
     const active = valuesOf(field).length > 0;
-    if (active) return null;
     const tone = open === field
       ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
-      : 'border-[#DFE5ED] text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]';
+      : active
+        ? 'border-[#B7D6EF] bg-white text-[#3D8BD0] hover:bg-[#EBF5FF]'
+        : 'border-[#DFE5ED] bg-white text-[#64748B] hover:bg-[#F5F7FA] hover:text-[#364658]';
     return (
       <Tooltip delayDuration={200}>
         <TooltipTrigger asChild>
           <button
             onClick={() => setOpen((v) => (v === field ? null : field))}
-            className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border bg-white transition-colors ${tone}`}
+            className={`relative inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded border transition-colors ${tone}`}
           >
             <Icon size={15} />
+            {active && <span className="absolute -right-[3px] -top-[3px] size-[7px] rounded-full border border-white bg-[#3D8BD0]" />}
           </button>
         </TooltipTrigger>
         <TooltipContent>{label}</TooltipContent>
@@ -785,7 +835,7 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
   };
 
   return (
-    <div ref={wrapRef} className="relative flex items-center gap-2">
+    <div ref={wrapRef} data-fixed className="relative flex flex-shrink-0 items-center gap-2">
       {filters.map((f) => (
         <Fragment key={f.field}>{iconBtn(f.field, f.icon, f.tip)}</Fragment>
       ))}
@@ -880,6 +930,12 @@ function QuickFilters({ rules, setRules, filters = DEFAULT_QUICK }: { rules: Fil
   );
 }
 
+const ROW_GAP = 8; // gap-2 — the fit arithmetic and the row's own gap must agree
+
+/* The filter row is ALWAYS one row. Quick filters lead (so adding or removing a filter
+   never moves them), then whatever the toolbar hands over (its search keywords), then as
+   many filter chips as fit; the rest fold into a "+N filters" pill whose list holds every
+   applied filter, each one fully editable there. */
 export function TicketFilterBar({
   rules,
   setRules,
@@ -888,6 +944,10 @@ export function TicketFilterBar({
   showFilterBuilder = true,
   quickFilters,
   attrs,
+  afterQuick,
+  fitDep = '',
+  hasExtra = false,
+  onClearAll,
 }: {
   rules: FilterRule[];
   setRules: (r: FilterRule[]) => void;
@@ -904,9 +964,24 @@ export function TicketFilterBar({
   quickFilters?: QuickFilterDef[];
   /** The module's attribute catalog — defaults to the product-wide request set. */
   attrs?: Attr[];
+  /** Fixed-width content between the quick filters and the chips (the search keywords). */
+  afterQuick?: ReactNode;
+  /** Changes whenever `afterQuick` changes width, so the fit is measured again. */
+  fitDep?: string;
+  /** Something besides rules is applied (keywords) — "Clear all" shows and clears it too. */
+  hasExtra?: boolean;
+  onClearAll?: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [autoOpenId, setAutoOpenId] = useState<string | null>(null);
+  const [pickerAlign, setPickerAlign] = useState<'left' | 'right'>('left');
+  /* The picker opens under its button, flipped when that would run off the window. */
+  const togglePicker = (e: { currentTarget: HTMLElement }) => {
+    setPickerAlign(e.currentTarget.getBoundingClientRect().left + 296 > window.innerWidth ? 'right' : 'left');
+    setPickerOpen((v) => !v);
+  };
+  /** The rule whose value list should open next — see Chip's `openSignal`. */
+  const [openReq, setOpenReq] = useState<{ id: string; n: number } | null>(null);
+  const requestOpen = (id: string) => setOpenReq({ id, n: Date.now() });
 
   /* A column header's Filter action adds that column here and opens its value list —
      the filter always lives in one place, no matter where it was created. */
@@ -919,12 +994,12 @@ export function TicketFilterBar({
       const existing = rules.find((r) => r.field === key);
       if (existing) {
         // Already filtered on this column — reopen it instead of stacking a duplicate.
-        setAutoOpenId(existing.id);
+        requestOpen(existing.id);
         return;
       }
       const id = `${key}-${Date.now()}`;
       setRules([...rules, { id, field: key, condition: CONDITIONS[attr.type][0], values: [] }]);
-      setAutoOpenId(id);
+      requestOpen(id);
     };
     window.addEventListener('add-column-filter', onAdd as EventListener);
     return () => window.removeEventListener('add-column-filter', onAdd as EventListener);
@@ -932,57 +1007,230 @@ export function TicketFilterBar({
 
   const addRule = (field: string) => {
     const attr = (attrs?.find((a) => a.key === field) ?? attrOf(field))!;
-    setRules([...rules, { id: `${field}-${rules.length}-${Date.now()}`, field, condition: CONDITIONS[attr.type][0], values: [] }]);
+    const id = `${field}-${rules.length}-${Date.now()}`;
+    setRules([...rules, { id, field, condition: CONDITIONS[attr.type][0], values: [] }]);
     setPickerOpen(false);
+    // A rule with no value filters nothing — go straight to choosing one.
+    requestOpen(id);
   };
 
+  /* ── One-row fit ────────────────────────────────────────────────────────────
+     Widths come from an invisible row of ChipGhosts, so the real chips (which hold open
+     popups) are never mounted just to be measured. `fitSig` records WHICH rule set the
+     current `shown` was computed for: until the two agree, an open request is held back,
+     so a value list never opens on a chip that is about to move into the list. */
+  const rowRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(Number.MAX_SAFE_INTEGER);
+  const [fitSig, setFitSig] = useState('');
+  const [rowW, setRowW] = useState(0);
+  const [listOpen, setListOpen] = useState(false);
+  const [listAlign, setListAlign] = useState<'left' | 'right'>('left');
+  const sig = `${rules.map((r) => `${r.id}:${r.condition}:${r.values.join('|')}`).join(';')}#${fitDep}#${showQuickFilters}`;
+
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const ro = new ResizeObserver((entries) => setRowW(Math.round(entries[0].contentRect.width)));
+    ro.observe(row);
+    // Chip widths change once the web font arrives.
+    let alive = true;
+    document.fonts?.ready.then(() => alive && setRowW((w) => w + 0.001));
+    return () => {
+      alive = false;
+      ro.disconnect();
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const ghost = ghostRef.current;
+    if (!row || !ghost) return;
+    const kids = Array.from(ghost.children) as HTMLElement[];
+    const widths = kids.slice(0, rules.length).map((k) => k.offsetWidth);
+    const pillW = kids[rules.length]?.offsetWidth ?? 96;
+    const fixed = (Array.from(row.querySelectorAll(':scope > [data-fixed]')) as HTMLElement[]).reduce(
+      (sum, el) => (el.offsetWidth ? sum + el.offsetWidth + ROW_GAP : sum),
+      0,
+    );
+    const avail = row.clientWidth;
+    const all = widths.reduce((sum, w) => sum + w + ROW_GAP, 0) - ROW_GAP;
+    let n = rules.length;
+    if (rules.length && fixed + all > avail) {
+      const room = avail - fixed - pillW - ROW_GAP;
+      let used = 0;
+      n = 0;
+      for (let i = 0; i < widths.length; i++) {
+        const need = used + (i ? ROW_GAP : 0) + widths[i];
+        if (need > room) break;
+        used = need;
+        n++;
+      }
+    }
+    setShown(n);
+    setFitSig(sig);
+    // The rule waiting for a value did not fit — open the list, where it is.
+    if (openReq) {
+      const idx = rules.findIndex((r) => r.id === openReq.id);
+      if (idx >= n) {
+        const left = row.getBoundingClientRect().left + fixed + widths.slice(0, n).reduce((s2, w) => s2 + w + ROW_GAP, 0);
+        setListAlign(left + 380 > window.innerWidth ? 'right' : 'left');
+        setListOpen(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig, rowW, openReq]);
+
+  const settled = fitSig === sig;
+  const visible = Math.min(shown, rules.length);
+  const hiddenN = rules.length - visible;
+  useEffect(() => {
+    if (!hiddenN) setListOpen(false);
+  }, [hiddenN]);
+  const listRef = useOutside<HTMLDivElement>(listOpen, () => setListOpen(false));
+  useEffect(() => {
+    if (!listOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setListOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [listOpen]);
+
+  const chip = (r: FilterRule, inList: boolean, i: number) => (
+    <Chip
+      key={r.id}
+      rule={r}
+      onChange={(next) => setRules(rules.map((x) => (x.id === r.id ? next : x)))}
+      onRemove={() => setRules(rules.filter((x) => x.id !== r.id))}
+      /* Exactly one copy of a rule answers an open request: the row's while it fits,
+         the list's when it does not. */
+      openSignal={settled && openReq?.id === r.id && inList === i >= visible ? openReq.n : 0}
+      onOpened={() => setOpenReq(null)}
+      attrs={attrs}
+    />
+  );
+  const pillText = (n: number, plus: boolean) => `${plus ? '+' : ''}${n} ${n === 1 ? 'filter' : 'filters'}`;
+
   return (
-    <>
-      {rules.map((r) => (
-        <Chip
-          key={autoOpenId === r.id ? `${r.id}-open` : r.id}
-          rule={r}
-          onChange={(next) => setRules(rules.map((x) => (x.id === r.id ? next : x)))}
-          onRemove={() => setRules(rules.filter((x) => x.id !== r.id))}
-          autoOpen={autoOpenId === r.id}
-          attrs={attrs}
-        />
-      ))}
+    <div ref={rowRef} className="relative flex min-w-0 flex-1 flex-nowrap items-center gap-2">
+      {showQuickFilters && <QuickFilters rules={rules} setRules={setRules} filters={quickFilters} />}
+
+      {afterQuick && (
+        <div data-fixed className="flex flex-shrink-0 items-center gap-2 empty:hidden">
+          {afterQuick}
+        </div>
+      )}
+
+      {rules.slice(0, visible).map((r, i) => chip(r, false, i))}
+
+      {hiddenN > 0 && (
+        <div className="relative flex-shrink-0" ref={listRef}>
+          <Tooltip delayDuration={400}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  setListAlign(e.currentTarget.getBoundingClientRect().left + 380 > window.innerWidth ? 'right' : 'left');
+                  setListOpen((v) => !v);
+                }}
+                aria-expanded={listOpen}
+                className={`inline-flex h-8 items-center gap-1 whitespace-nowrap rounded border pl-2.5 pr-2 text-[12px] font-medium transition-colors ${
+                  listOpen
+                    ? 'border-[#3D8BD0] bg-[#EBF5FF] text-[#3D8BD0]'
+                    : 'border-[#DFE5ED] bg-[#F1F5F9] text-[#364658] hover:border-[#3D8BD0] hover:text-[#3D8BD0]'
+                }`}
+              >
+                {pillText(hiddenN, visible > 0)}
+                <ChevronDown size={13} className={`transition-transform ${listOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </TooltipTrigger>
+            {!listOpen && <TooltipContent>{`Show all ${rules.length} applied filters`}</TooltipContent>}
+          </Tooltip>
+          {listOpen && (
+            <div
+              className={`${POPUP} !overflow-visible top-full mt-1 flex flex-col items-start gap-1.5 p-2.5 ${listAlign === 'left' ? 'left-0' : 'right-0'} ${
+                rules.length > 12 ? 'max-h-[60vh] !overflow-y-auto' : ''
+              }`}
+            >
+              <div className="flex w-full items-center justify-between gap-6 px-0.5 pb-0.5">
+                <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-[#7B8FA5]">All filters · {rules.length}</span>
+                <button
+                  onClick={() => {
+                    setRules([]);
+                    onClearAll?.();
+                  }}
+                  className="whitespace-nowrap rounded px-1 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF]"
+                >
+                  Clear all
+                </button>
+              </div>
+              {rules.map((r, i) => chip(r, true, i))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Entry point: a labelled button while empty, a compact + once chips exist. */}
       {showFilterBuilder && (
-      <div className="relative">
-        {rules.length === 0 ? (
-          <button
-            onClick={() => setPickerOpen((v) => !v)}
-            className="inline-flex h-8 items-center gap-1.5 rounded border border-[#DFE5ED] bg-white px-2.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
-          >
-            <Filter size={14} />
-            Filters
-          </button>
-        ) : (
-          <button
-            onClick={() => setPickerOpen((v) => !v)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded border border-dashed border-[#DFE5ED] bg-white text-[#64748B] transition-colors hover:border-[#3D8BD0] hover:text-[#3D8BD0]"
-            title="Add filter"
-          >
-            <Plus size={15} />
-          </button>
-        )}
-        {pickerOpen && <AttrPicker onPick={addRule} onClose={() => setPickerOpen(false)} used={rules.map((r) => r.field)} noun={noun} attrs={attrs} />}
-      </div>
+        <div data-fixed className="relative flex-shrink-0">
+          {rules.length === 0 ? (
+            <button
+              onClick={togglePicker}
+              className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded border border-[#DFE5ED] bg-white px-2.5 text-[13px] font-medium text-[#364658] transition-colors hover:bg-[#F5F7FA]"
+            >
+              <Filter size={14} />
+              Filters
+            </button>
+          ) : (
+            <Tooltip delayDuration={400}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={togglePicker}
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded border border-dashed bg-white transition-colors ${
+                    pickerOpen ? 'border-[#3D8BD0] text-[#3D8BD0]' : 'border-[#CBD5E1] text-[#64748B] hover:border-[#3D8BD0] hover:text-[#3D8BD0]'
+                  }`}
+                >
+                  <Plus size={15} />
+                </button>
+              </TooltipTrigger>
+              {!pickerOpen && <TooltipContent>Add filter</TooltipContent>}
+            </Tooltip>
+          )}
+          {pickerOpen && (
+            <AttrPicker
+              onPick={addRule}
+              onClose={() => setPickerOpen(false)}
+              align={pickerAlign}
+              used={rules.map((r) => r.field)}
+              noun={noun}
+              attrs={attrs}
+            />
+          )}
+        </div>
       )}
 
-      {showQuickFilters && <QuickFilters rules={rules} setRules={setRules} filters={quickFilters} />}
-
-      {rules.length > 0 && (
+      {(rules.length > 0 || hasExtra) && (
         <button
-          onClick={() => setRules([])}
-          className="rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
+          data-fixed
+          onClick={() => {
+            setRules([]);
+            onClearAll?.();
+          }}
+          className="flex-shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] font-medium text-[#3D8BD0] transition-colors hover:bg-[#EBF5FF] hover:text-[#2F7AB8]"
         >
           Clear all
         </button>
       )}
-    </>
+
+      {/* Measuring row — same chips, same order, no behaviour, never seen. The last child
+          is the pill at its widest wording. */}
+      <div ref={ghostRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex h-0 items-center gap-2 overflow-hidden">
+        {rules.map((r) => (
+          <ChipGhost key={r.id} rule={r} attrs={attrs} />
+        ))}
+        <span className="inline-flex h-8 flex-shrink-0 items-center gap-1 whitespace-nowrap border pl-2.5 pr-2 text-[12px] font-medium">
+          {pillText(rules.length, true)}
+          <ChevronDown size={13} />
+        </span>
+      </div>
+    </div>
   );
 }

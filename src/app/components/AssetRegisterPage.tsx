@@ -21,6 +21,7 @@ import { StatsCardsRow, type StatCard } from './AssetStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView, type ViewStore } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
+import { searchTermsOf } from './listingSearch';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketGanttView } from './TicketGanttView';
 import { Pagination } from './Pagination';
@@ -336,15 +337,16 @@ export function AssetRegisterPage({
 
   let filteredTickets = tickets;
   if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase().trim();
+    /* Keyword search: a row is kept when it matches ANY of the keywords. */
+    const terms = searchTermsOf(searchQuery);
     filteredTickets = tickets.filter(
-      (t) =>
+      (t) => terms.some((q) =>
         t.id.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
         t.assignedTo.name.toLowerCase().includes(q) ||
         (t.status as string).toLowerCase().includes(q) ||
         searchFields.some((f) => String((t as any)[f] ?? '').toLowerCase().includes(q)),
-    );
+    ));
   }
   filteredTickets = applyFilters(filteredTickets, filterRules);
   filteredTickets = applyColumnSearch(filteredTickets, columnSearch);

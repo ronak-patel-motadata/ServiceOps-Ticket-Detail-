@@ -90,6 +90,14 @@ export function Toolbar({ searchQuery, setSearchQuery, activeView, viewsOpen, on
               </span>
             </button>
           )}
+          {/* The grid's action icons (save view, export, refresh, sort, columns, more) live
+              HERE, so the filter row below keeps the full width of the page. They are still
+              owned by TicketGridToolbar, which portals them into this slot; a page with no
+              title row keeps them inline. The rule only shows between a pill and the icons. */}
+          {(suggestPill || (aiGroups.hidden && aiGroups.count > 0)) && (
+            <span className="h-4 w-px flex-shrink-0 bg-[#DFE5ED] [&:has(+[data-listing-tools]:empty)]:hidden" />
+          )}
+          <div data-listing-tools className="flex items-center gap-2 empty:hidden" />
           {titleAction}
         </div>
       </div>

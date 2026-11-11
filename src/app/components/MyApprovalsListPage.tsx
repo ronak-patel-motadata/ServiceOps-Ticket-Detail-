@@ -22,6 +22,7 @@ import { StatsCardsRow, type StatCard } from './AssetStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { APPROVAL_VIEWS, type TicketView } from './TicketViewsPanel';
 import { APPROVAL_FILTER_ATTRS, applyFilters, type FilterRule } from './TicketFilterBar';
+import { searchTermsOf } from './listingSearch';
 import { DEFAULT_CARD_FIELDS, type KanbanGroup } from './TicketKanban';
 import { Pagination } from './Pagination';
 import { useDrawerStack, type StackModule } from './DrawerStack';
@@ -261,15 +262,16 @@ export function MyApprovalsListPage({ onNavigate }: { onNavigate?: (page: string
 
   let filteredTickets = state ? tickets.filter((t) => (t as any).x_approvalState === state) : tickets;
   if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase().trim();
+    /* Keyword search: a row is kept when it matches ANY of the keywords. */
+    const terms = searchTermsOf(searchQuery);
     filteredTickets = tickets.filter(
-      (t) =>
+      (t) => terms.some((q) =>
         t.id.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
         t.requester.toLowerCase().includes(q) ||
         String((t as any).x_approvalState ?? '').toLowerCase().includes(q) ||
         String((t as any).x_type ?? '').toLowerCase().includes(q),
-    );
+    ));
   }
   filteredTickets = applyFilters(filteredTickets, filterRules);
   filteredTickets = applyColumnSearch(filteredTickets, columnSearch);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, ArrowUpDown, Barcode, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Download, Eye, EyeOff, FileOutput, Filter, GripVertical, Import, LayoutDashboard, LayoutGrid, LayoutList, LayoutPanelTop, Lock, Pin, Rows3, MoreVertical, Plus, RefreshCw, ScanBarcode, ScanQrCode, Search, Settings2, SquareKanban, UserRound, Users, CalendarDays, ChartGantt, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { AiSparkle } from './AiSparkle';
 import { Info } from 'lucide-react';
 import { CURRENT_USER, isMyCustomView, loadCustomViews, upsertCustomView, type TicketView, type ViewStore } from './TicketViewsPanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { joinSearchKeywords, searchKeywordsOf } from './listingSearch';
 
 /* Toolbar directly above the grid — the controls that act ON the grid live with the grid,
    not up in the page header. Left: find and narrow. Right: refresh, sort, display. */
@@ -79,6 +80,17 @@ function useOutside<T extends HTMLElement>(open: boolean, close: () => void) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open, close]);
   return ref;
+}
+
+/** Keyword chips shown in the filter row before the rest fold into "+N". */
+const KW_MAX = 3;
+
+/* The action icons belong to this toolbar but SIT in the page's title row (Toolbar's
+   `data-listing-tools` slot), which is what gives the filter row the full width. A page
+   that renders no title row keeps them inline, at the end of the filter row. */
+function ToolRail({ slot, children }: { slot: Element | null; children: ReactNode }) {
+  const body = <div className="flex flex-shrink-0 items-center gap-2">{children}</div>;
+  return slot ? createPortal(body, slot) : body;
 }
 
 export function TicketGridToolbar({
@@ -188,9 +200,49 @@ export function TicketGridToolbar({
       exported or polled, so it drops those two rather than carrying buttons nobody presses. */
   hideTools?: ('export' | 'refresh' | 'settings')[];
 }) {
-  // Search stays collapsed to an icon until used — it costs nothing at rest and
-  // expands in place, so the toolbar never carries a permanently empty field.
+  /* Search is an icon that never changes size. Clicking it floats a keyword box OVER the
+     row — nothing underneath moves — and each Enter turns the typed word into a keyword.
+     The grid filters live on the keywords plus whatever is half-typed. Closing the box
+     leaves the keywords as small blue chips ahead of the filters. */
   const [searchOpen, setSearchOpen] = useState(false);
+  const [kw, setKw] = useState<string[]>(() => searchKeywordsOf(searchQuery));
+  const [draft, setDraft] = useState('');
+  /* While the box is open the row keeps the chips it had when it opened; it catches up on
+     close, so typing never reflows the filters under the box. */
+  const [rowKw, setRowKw] = useState<string[]>(kw);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  /* What this toolbar last sent up. Anything else arriving in `searchQuery` came from the
+     host (a view applied, "clear filters") and replaces the keywords. */
+  const emittedRef = useRef(searchQuery);
+  useEffect(() => {
+    if (searchQuery === emittedRef.current) return;
+    emittedRef.current = searchQuery;
+    setKw(searchKeywordsOf(searchQuery));
+    setDraft('');
+  }, [searchQuery]);
+  useEffect(() => {
+    if (!searchOpen) setRowKw(kw);
+  }, [searchOpen, kw]);
+  const pushSearch = (nextKw: string[], nextDraft: string) => {
+    setKw(nextKw);
+    setDraft(nextDraft);
+    const q = joinSearchKeywords(searchKeywordsOf([...nextKw, nextDraft].join(',')));
+    emittedRef.current = q;
+    setSearchQuery(q);
+  };
+  /** The half-typed word becomes a keyword (commas split it, repeats are skipped). */
+  const commitDraft = () => pushSearch(searchKeywordsOf([...kw, draft].join(',')), '');
+  const openSearch = () => {
+    setSearchOpen(true);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+  };
+  /* Where the action icons are rendered — looked up after every commit, because the title
+     row comes and goes (a dashboard drill-down swaps it for a breadcrumb). */
+  const [toolSlot, setToolSlot] = useState<Element | null>(null);
+  useLayoutEffect(() => {
+    const el = document.querySelector('[data-listing-tools]');
+    if (el !== toolSlot) setToolSlot(el);
+  });
   const [sortOpen, setSortOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   // Merged Export + Download popup (one icon, two tabs — Download lands first).
@@ -395,46 +447,105 @@ export function TicketGridToolbar({
   }, [autoRef]);
 
   return (
-    <div className="flex items-start gap-2 pb-2.5 pl-6 pr-4">
-      {/* ── Left: find and narrow. Search sits OUTSIDE the wrapping group so the second
-           row of chips starts under the first chip, not under the search. ── */}
+    <div className="flex items-center gap-2 pb-2.5 pl-6 pr-4">
+      {/* ── Find. The icon keeps one small slot; the keyword box floats over the row. ── */}
       {/* Searching rows has nothing to act on in the dashboard. */}
-      {view === 'dashboard' ? null : searchOpen || searchQuery ? (
-        <div className="relative">
-          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-          <input
-            autoFocus
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onBlur={() => !searchQuery && setSearchOpen(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setSearchQuery('');
-                setSearchOpen(false);
-              }
-            }}
-            placeholder={`Search ${ns}...`}
-            className="h-8 w-[260px] rounded border border-[#DFE5ED] bg-white pl-8 pr-7 text-[13px] text-[#364658] placeholder:text-[#9CA3AF] focus:border-[#3D8BD0] focus:outline-none"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSearchOpen(false);
+      {view === 'dashboard' ? null : (
+        <div className="relative flex-shrink-0">
+          <Tooltip delayDuration={400}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={openSearch}
+                aria-label={`Search ${ns}`}
+                className={`${ICON_BTN} ${kw.length ? '!border-[#3D8BD0] !bg-[#EBF5FF] !text-[#3D8BD0]' : ''}`}
+              >
+                <Search size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{kw.length ? 'Edit search keywords' : `Search ${ns}`}</TooltipContent>
+          </Tooltip>
+          {searchOpen && (
+            <div
+              className="absolute -left-1 -top-1 z-[60] w-[400px] rounded-lg bg-white p-1 pb-1.5 shadow-[0_0_0_1px_#DFE5ED,0_10px_28px_rgba(15,23,42,0.18)] duration-150 animate-in fade-in zoom-in-95 motion-reduce:animate-none"
+              style={{ transformOrigin: 'left center' }}
+              /* Clicks inside the box never take focus from the input, so removing a
+                 keyword does not read as "clicked away" and close it. */
+              onMouseDown={(e) => {
+                if (e.target !== searchInputRef.current) e.preventDefault();
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#364658]"
+              onClick={() => searchInputRef.current?.focus({ preventScroll: true })}
             >
-              <X size={14} />
-            </button>
+              <div className="relative flex min-h-8 cursor-text flex-wrap items-center gap-1 rounded border border-[#3D8BD0] bg-white py-[3px] pl-8 pr-7 ring-2 ring-[#3D8BD0]/15">
+                <Search size={14} className="pointer-events-none absolute left-2.5 top-[8px] text-[#9CA3AF]" />
+                {kw.map((k, i) => (
+                  <span key={k} className="inline-flex h-6 max-w-full items-center gap-0.5 rounded-sm bg-[#F3F4F6] pl-1.5 pr-0.5 text-[12px] font-medium text-[#364658]">
+                    <span className="max-w-[200px] truncate text-[12px]">{k}</span>
+                    <button
+                      tabIndex={-1}
+                      aria-label={`Remove keyword ${k}`}
+                      onClick={() => pushSearch(kw.filter((_, j) => j !== i), draft)}
+                      className="flex rounded-sm p-0.5 text-[#7B8FA5] transition-colors hover:bg-[#E5E7EB] hover:text-[#364658]"
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  ref={searchInputRef}
+                  value={draft}
+                  onChange={(e) => pushSearch(kw, e.target.value)}
+                  onBlur={() => {
+                    // Leaving the box keeps the keywords: a half-typed word is added, not lost.
+                    commitDraft();
+                    setSearchOpen(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      if (draft.trim()) commitDraft();
+                      else if (e.key === 'Enter') e.currentTarget.blur();
+                    } else if (e.key === 'Backspace' && !draft && kw.length) {
+                      pushSearch(kw.slice(0, -1), '');
+                    } else if (e.key === 'Escape') {
+                      // Drops the half-typed word only; applied keywords stay.
+                      pushSearch(kw, '');
+                      setDraft('');
+                      window.requestAnimationFrame(() => searchInputRef.current?.blur());
+                    }
+                  }}
+                  placeholder={kw.length ? 'Add another keyword...' : `Search ${ns}...`}
+                  aria-label="Search keywords"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="h-6 min-w-[110px] flex-1 bg-transparent px-0.5 text-[13px] text-[#364658] outline-none placeholder:text-[#9CA3AF]"
+                />
+                {(kw.length > 0 || draft) && (
+                  <button
+                    tabIndex={-1}
+                    aria-label="Clear all keywords"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      pushSearch([], '');
+                      window.requestAnimationFrame(() => searchInputRef.current?.blur());
+                    }}
+                    className="absolute right-1.5 top-[6px] flex rounded p-0.5 text-[#9CA3AF] transition-colors hover:bg-[#F1F5F9] hover:text-[#364658]"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-[11px] text-[#7B8FA5]">
+                <span>
+                  <kbd className="rounded-sm border border-[#DFE5ED] bg-[#F1F5F9] px-1 font-sans text-[10px] font-semibold text-[#64748B]">Enter</kbd> adds a keyword
+                </span>
+                <span>Matches any keyword</span>
+              </div>
+            </div>
           )}
         </div>
-      ) : (
-        <button onClick={() => setSearchOpen(true)} className={ICON_BTN} title="Search">
-          <Search size={16} />
-        </button>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-11">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
       {/* The dashboard scopes itself with the Overall/Mine switch instead of ad-hoc filter
           rules — two ways to narrow the same charts would contradict each other, and a
           filtered dashboard with the filter row hidden would be a silent lie. */}
@@ -477,7 +588,56 @@ export function TicketGridToolbar({
           })}
         </div>
       ) : (
-        <TicketFilterBar rules={rules} setRules={setRules} noun={noun} showQuickFilters={showQuickFilters} showFilterBuilder={showFilterBuilder} quickFilters={quickFilters} attrs={filterAttrs} />
+        <TicketFilterBar
+          rules={rules}
+          setRules={setRules}
+          noun={noun}
+          showQuickFilters={showQuickFilters}
+          showFilterBuilder={showFilterBuilder}
+          quickFilters={quickFilters}
+          attrs={filterAttrs}
+          fitDep={rowKw.join(',')}
+          hasExtra={kw.length > 0}
+          onClearAll={() => pushSearch([], '')}
+          afterQuick={
+            rowKw.length > 0 && (
+              <>
+                {rowKw.slice(0, KW_MAX).map((k) => (
+                  <span key={k} className="inline-flex h-8 flex-shrink-0 items-stretch whitespace-nowrap rounded bg-[#F3F4F6] text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#ECEEF1]">
+                    <Tooltip delayDuration={400}>
+                      <TooltipTrigger asChild>
+                        <button onClick={openSearch} className="flex items-center pl-2 pr-0.5 text-[12px] font-medium leading-none text-[#364658]">
+                          <span className="max-w-[150px] truncate">{k}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Search keyword — click to edit</TooltipContent>
+                    </Tooltip>
+                    <button
+                      aria-label={`Remove keyword ${k}`}
+                      onClick={() => pushSearch(kw.filter((x) => x !== k), '')}
+                      className="flex items-center pl-0.5 pr-1.5 text-[#94A3B8] transition-colors hover:text-[#3D8BD0]"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                {rowKw.length > KW_MAX && (
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={openSearch}
+                        className="inline-flex h-8 flex-shrink-0 items-center rounded bg-[#F3F4F6] px-2 text-[12px] font-medium text-[#364658] transition-colors hover:bg-[#ECEEF1]"
+                      >
+                        +{rowKw.length - KW_MAX}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{rowKw.slice(KW_MAX).join(', ')}</TooltipContent>
+                  </Tooltip>
+                )}
+              </>
+            )
+          }
+        />
       )}
 
       {saveOpen &&
@@ -556,8 +716,8 @@ export function TicketGridToolbar({
 
       </div>
 
-      {/* ── Right: refresh, sort, display — never pushed to a second row ── */}
-      <div className="flex flex-shrink-0 items-center gap-2">
+      {/* ── Save, export, refresh, sort, display, more — rendered in the title row ── */}
+      <ToolRail slot={toolSlot}>
         {(rules.length > 0 || sorts.length > 0) && (
           <div className="relative" ref={saveMenuRef}>
             <button
@@ -1363,7 +1523,7 @@ export function TicketGridToolbar({
           )}
         </div>
         )}
-      </div>
+      </ToolRail>
 
       {fieldMgr && (
         <ColumnManager

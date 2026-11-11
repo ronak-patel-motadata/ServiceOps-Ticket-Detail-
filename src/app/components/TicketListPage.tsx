@@ -10,6 +10,7 @@ import { TicketStatsRow } from './TicketStatsRow';
 import { TicketGridToolbar } from './TicketGridToolbar';
 import { TicketViewsSidebar, getDefaultView, type TicketView } from './TicketViewsPanel';
 import { applyFilters, type FilterRule } from './TicketFilterBar';
+import { searchTermsOf } from './listingSearch';
 import { DEFAULT_CARD_FIELDS, TicketKanban, type KanbanGroup } from './TicketKanban';
 import { TicketDashboardView } from './TicketDashboardView';
 import { Pagination } from './Pagination';
@@ -421,8 +422,9 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
   // Filter tickets based on search query
   let filteredTickets = tickets;
   if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase().trim();
-    filteredTickets = tickets.filter(ticket => {
+    /* Keyword search: a row is kept when it matches ANY of the keywords. */
+    const terms = searchTermsOf(searchQuery);
+    filteredTickets = tickets.filter(ticket => terms.some((query) => {
       // Search by ticket ID
       if (ticket.id.toLowerCase().includes(query)) return true;
       // Search by subject
@@ -436,7 +438,7 @@ export function TicketListPage({ onNavigate }: { onNavigate?: (page: string) => 
       // Search by priority
       if (ticket.priority.toLowerCase().includes(query)) return true;
       return false;
-    });
+    }));
   }
 
   filteredTickets = applyFilters(filteredTickets, filterRules);
